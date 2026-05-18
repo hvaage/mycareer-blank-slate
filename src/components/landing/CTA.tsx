@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 export function CTA() {
   return (
-    <section id="kom-i-gang" className="border-b border-border">
+    <section className="border-b border-border">
       <div className="mx-auto max-w-4xl px-6 py-24 text-center md:py-32">
         <h2 className="text-3xl text-foreground md:text-5xl">
           Start å bygge din karriereplattform
