@@ -15,12 +15,22 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "Karrierenmin – ta kontroll over karrieren din" },
+      { title: "Karrierenmin — Ta kontroll over karrieren din" },
       {
         name: "description",
         content:
           "Et system for å forstå, dokumentere og styre egen karriere over tid – fra første jobb til styreverv.",
       },
+      { property: "og:title", content: "Karrierenmin — Ta kontroll over karrieren din" },
+      {
+        property: "og:description",
+        content:
+          "Samle erfaring, forstå markedet, dokumenter valg og ta bedre beslutninger gjennom hele karrieren.",
+      },
+      { property: "og:url", content: "https://mycareer-blank-slate.lovable.app/" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://mycareer-blank-slate.lovable.app/" },
     ],
   }),
 });

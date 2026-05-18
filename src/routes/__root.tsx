@@ -72,23 +72,58 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "My Career Builder is a platform for managing and understanding your career path." },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "My Career Builder is a platform for managing and understanding your career path." },
+      { title: "Karrierenmin — Ta kontroll over karrieren din" },
+      {
+        name: "description",
+        content:
+          "Karrierenmin er et system for å forstå, dokumentere og styre egen karriere over tid – fra første jobb til styreverv.",
+      },
+      { property: "og:site_name", content: "Karrierenmin" },
+      { property: "og:title", content: "Karrierenmin — Ta kontroll over karrieren din" },
+      {
+        property: "og:description",
+        content:
+          "Samle erfaring, forstå markedet, dokumenter valg og ta bedre beslutninger gjennom hele karrieren.",
+      },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://mycareer-blank-slate.lovable.app/" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "My Career Builder is a platform for managing and understanding your career path." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5024f70b-1e35-4007-a4fb-e9c112a7c452/id-preview-0d6f18f2--4cf3d398-92d8-4618-910c-9be52ac97cf5.lovable.app-1779140806602.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5024f70b-1e35-4007-a4fb-e9c112a7c452/id-preview-0d6f18f2--4cf3d398-92d8-4618-910c-9be52ac97cf5.lovable.app-1779140806602.png" },
+      { name: "twitter:title", content: "Karrierenmin — Ta kontroll over karrieren din" },
+      {
+        name: "twitter:description",
+        content:
+          "Et system for å forstå, dokumentere og styre egen karriere over tid.",
+      },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: appCss,
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap",
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "Karrierenmin",
+          url: "https://mycareer-blank-slate.lovable.app/",
+          description:
+            "Et system for å forstå, dokumentere og styre egen karriere over tid.",
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Karrierenmin",
+          url: "https://mycareer-blank-slate.lovable.app/",
+        }),
       },
     ],
   }),
@@ -100,7 +135,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="no">
       <head>
         <HeadContent />
       </head>
