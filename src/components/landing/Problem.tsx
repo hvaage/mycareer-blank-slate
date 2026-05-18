@@ -1,4 +1,4 @@
-import { Scatter, LayoutGrid, FileX, AlertCircle } from "lucide-react";
+import { Shuffle, LayoutGrid, FileX, AlertCircle } from "lucide-react";
 import { SectionHeading } from "./SectionHeading";
 import { FeatureCard } from "./FeatureCard";
 
