@@ -1,0 +1,9 @@
+# Karrierenmin
+
+> Et system for å forstå, dokumentere og styre egen karriere over tid – fra første jobb til styreverv.
+
+Karrierenmin hjelper personer med høyere utdanning – fra nyutdannede til ledere og styremedlemmer – med å samle erfaring, forstå arbeidsmarkedet, dokumentere valg og ta bedre karrierebeslutninger.
+
+## Pages
+
+- [Forsiden](/): Oversikt over hva Karrierenmin er, hvordan det fungerer og hvem det er for.
