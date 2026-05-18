@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
 export function CTA() {
@@ -12,13 +13,14 @@ export function CTA() {
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <a href="#hvordan">Se hvordan det fungerer</a>
+            <Link to="/signup">Kom i gang</Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <a href="#kom-i-gang">Kom i gang</a>
+            <a href="#hvordan">Se hvordan det fungerer</a>
           </Button>
         </div>
       </div>
     </section>
   );
 }
+
