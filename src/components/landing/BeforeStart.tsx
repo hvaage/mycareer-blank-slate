@@ -33,7 +33,6 @@ export function BeforeStart() {
         </ul>
         <div className="mt-10 flex justify-center">
           <Button asChild size="lg">
-          <Button asChild size="lg">
             <Link to="/" hash="hvordan">Forstå hvordan du kommer i gang</Link>
           </Button>
         </div>
