@@ -4,7 +4,7 @@ import { FeatureCard } from "./FeatureCard";
 
 const items = [
   {
-    icon: Scatter,
+    icon: Shuffle,
     title: "Fragmentert informasjon",
     description: "Jobber og dialoger er spredt på e-post, LinkedIn og Finn.",
   },
