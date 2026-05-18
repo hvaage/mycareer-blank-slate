@@ -1,22 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { Header } from "@/components/landing/Header";
+import { Hero } from "@/components/landing/Hero";
+import { What } from "@/components/landing/What";
+import { Different } from "@/components/landing/Different";
+import { Problem } from "@/components/landing/Problem";
+import { How } from "@/components/landing/How";
+import { UseCases } from "@/components/landing/UseCases";
+import { BeforeStart } from "@/components/landing/BeforeStart";
+import { CTA } from "@/components/landing/CTA";
+import { Footer } from "@/components/landing/Footer";
+
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "Karrierenmin.no" },
-      { name: "description", content: "Karrierenmin.no – din karriereplattform." },
+      { title: "Karrierenmin – ta kontroll over karrieren din" },
+      {
+        name: "description",
+        content:
+          "Et system for å forstå, dokumentere og styre egen karriere over tid – fra første jobb til styreverv.",
+      },
     ],
   }),
 });
 
 function Index() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="text-center">
-        <h1 className="text-5xl font-bold tracking-tight text-foreground">Karrierenmin.no</h1>
-        <p className="mt-4 text-muted-foreground">Klar for å bygge din karriereplattform.</p>
-      </div>
-    </main>
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main>
+        <Hero />
+        <What />
+        <Different />
+        <Problem />
+        <How />
+        <UseCases />
+        <BeforeStart />
+        <CTA />
+      </main>
+      <Footer />
+    </div>
   );
 }
