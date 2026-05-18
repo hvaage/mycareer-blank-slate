@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
@@ -25,10 +26,16 @@ export function Header() {
             </a>
           ))}
         </nav>
-        <Button asChild size="sm" className="hidden sm:inline-flex">
-          <a href="#hvordan">Forstå hvordan det fungerer</a>
-        </Button>
+        <div className="hidden items-center gap-2 sm:flex">
+          <Button asChild size="sm" variant="ghost">
+            <Link to="/login">Logg inn</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link to="/signup">Kom i gang</Link>
+          </Button>
+        </div>
       </div>
     </header>
   );
 }
+

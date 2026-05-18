@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
 export function Hero() {
@@ -17,10 +18,10 @@ export function Hero() {
           </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg">
-              <a href="#hvordan">Forstå hvordan det fungerer</a>
+              <Link to="/signup">Kom i gang</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <a href="#annerledes">Se hva som gjør dette annerledes</a>
+              <a href="#hvordan">Forstå hvordan det fungerer</a>
             </Button>
           </div>
         </div>
