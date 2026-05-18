@@ -16,7 +16,7 @@ export function CTA() {
             <Link to="/signup">Kom i gang</Link>
           </Button>
           <Button asChild size="lg" variant="outline">
-            <a href="#hvordan">Se hvordan det fungerer</a>
+            <Link to="/" hash="hvordan">Se hvordan det fungerer</Link>
           </Button>
         </div>
       </div>
