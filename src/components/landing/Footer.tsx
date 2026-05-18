@@ -1,8 +1,14 @@
-const navItems = [
-  { label: "Hva", href: "#hva" },
-  { label: "Annerledes", href: "#annerledes" },
-  { label: "Hvordan", href: "#hvordan" },
-  { label: "Kom i gang", href: "#kom-i-gang" },
+import { Link } from "@tanstack/react-router";
+
+type NavItem =
+  | { label: string; to: "/"; hash?: string }
+  | { label: string; to: "/signup" };
+
+const navItems: NavItem[] = [
+  { label: "Hva", to: "/", hash: "hva" },
+  { label: "Annerledes", to: "/", hash: "annerledes" },
+  { label: "Hvordan", to: "/", hash: "hvordan" },
+  { label: "Kom i gang", to: "/signup" },
 ];
 
 export function Footer() {
@@ -22,13 +28,14 @@ export function Footer() {
             </p>
             <ul className="mt-4 space-y-2">
               {navItems.map((item) => (
-                <li key={item.href}>
-                  <a
-                    href={item.href}
+                <li key={item.label}>
+                  <Link
+                    to={item.to}
+                    hash={"hash" in item ? item.hash : undefined}
                     className="text-sm text-foreground transition-colors hover:text-accent"
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

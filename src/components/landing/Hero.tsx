@@ -21,7 +21,7 @@ export function Hero() {
               <Link to="/signup">Kom i gang</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <a href="#hvordan">Forstå hvordan det fungerer</a>
+              <Link to="/" hash="hvordan">Forstå hvordan det fungerer</Link>
             </Button>
           </div>
         </div>

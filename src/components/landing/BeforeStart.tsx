@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
 const points = [
@@ -32,7 +33,7 @@ export function BeforeStart() {
         </ul>
         <div className="mt-10 flex justify-center">
           <Button asChild size="lg">
-            <a href="#kom-i-gang">Forstå hvordan du kommer i gang</a>
+            <Link to="/" hash="hvordan">Forstå hvordan du kommer i gang</Link>
           </Button>
         </div>
       </div>
