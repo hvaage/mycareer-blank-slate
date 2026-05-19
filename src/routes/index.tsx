@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { Header } from "@/components/landing/Header";
+import { AnnouncementBar } from "@/components/landing/AnnouncementBar";
 import { Hero } from "@/components/landing/Hero";
 import { What } from "@/components/landing/What";
 import { Different } from "@/components/landing/Different";
