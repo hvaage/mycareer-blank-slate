@@ -140,7 +140,10 @@ function SelskapsanalysePage() {
             Hva hver rapport dekker
           </h2>
           <p className="mt-3 text-muted-foreground max-w-2xl">
-            Åtte dimensjoner, scoret 1,0–5,0 med tydelig rubrikk. Markeres som{" "}
+            Åtte dimensjoner, scoret 1,0–5,0 med tydelig rubrikk. Velg mellom
+            en <strong className="font-medium text-foreground">standardrapport på 8–10 sider</strong>{" "}
+            eller en <strong className="font-medium text-foreground">utvidet dybderapport på opp mot 25 sider</strong>.
+            Rapporten kan genereres på 12 språk. Markeres som{" "}
             <em className="not-italic font-medium text-foreground">
               utilstrekkelig grunnlag
             </em>{" "}
