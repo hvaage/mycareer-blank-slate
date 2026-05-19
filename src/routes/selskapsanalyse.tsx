@@ -82,15 +82,18 @@ function SelskapsanalysePage() {
                   </a>
                 </div>
 
-                <ul className="mt-8 grid sm:grid-cols-3 gap-3 text-sm text-muted-foreground">
+                <ul className="mt-8 grid sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
                   <li className="flex items-center gap-2">
                     <Check /> Bygget for Claude
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check /> 16 europeiske land
+                    <Check /> 16 europeiske land · 12 språk
                   </li>
                   <li className="flex items-center gap-2">
-                    <Check /> PDF med alle kilder oppgitt
+                    <Check /> Standardrapport på 8–10 sider
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check /> Utvidet dybderapport opp mot 25 sider
                   </li>
                 </ul>
               </div>
