@@ -67,3 +67,10 @@ export const template = {
     role: 'Account Executive',
   },
 } satisfies TemplateEntry
+
+const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
+const container = { padding: '24px 28px', maxWidth: '560px' }
+const h1 = { fontSize: '22px', fontWeight: 'bold', color: '#0a0a0a', margin: '0 0 16px' }
+const text = { fontSize: '15px', color: '#3f3f46', lineHeight: '1.7', margin: '0 0 16px' }
+const link = { color: '#0a0a0a', textDecoration: 'underline' }
+const footer = { fontSize: '13px', color: '#71717a', margin: '24px 0 0' }

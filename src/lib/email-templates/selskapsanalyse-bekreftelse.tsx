@@ -70,3 +70,21 @@ export const template = {
   displayName: 'Selskapsanalyse — bekreftelse',
   previewData: { firstName: 'Kari' },
 } satisfies TemplateEntry
+
+const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
+const container = { padding: '24px 28px', maxWidth: '560px' }
+const h1 = { fontSize: '24px', fontWeight: 'bold', color: '#0a0a0a', margin: '0 0 16px' }
+const h2 = { fontSize: '18px', fontWeight: 'bold', color: '#0a0a0a', margin: '28px 0 12px' }
+const text = { fontSize: '15px', color: '#3f3f46', lineHeight: '1.6', margin: '0 0 16px' }
+const buttonSection = { margin: '24px 0', textAlign: 'center' as const }
+const button = {
+  backgroundColor: '#0a0a0a',
+  color: '#ffffff',
+  padding: '12px 24px',
+  borderRadius: '6px',
+  fontWeight: 600,
+  fontSize: '15px',
+  textDecoration: 'none',
+}
+const link = { color: '#0a0a0a', textDecoration: 'underline' }
+const footer = { fontSize: '13px', color: '#71717a', margin: '32px 0 0' }
