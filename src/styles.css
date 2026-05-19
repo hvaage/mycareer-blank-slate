@@ -41,7 +41,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --font-sans: "IBM Plex Sans", "Inter", system-ui, -apple-system, sans-serif;
-  --font-serif: "IBM Plex Sans", "Instrument Serif", Georgia, serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
 }
 
 :root {
