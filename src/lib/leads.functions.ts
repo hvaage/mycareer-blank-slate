@@ -76,15 +76,29 @@ export const submitLead = createServerFn({ method: "POST" })
       throw new Error("Kunne ikke lagre detaljene dine. Prøv igjen.");
     }
 
-    // Try to send confirmation + admin notification via Lovable Emails.
-    // If email infrastructure is not set up yet, this fails silently and the
-    // lead is still saved.
+    // Send confirmation + admin notification via Lovable Emails (internal helper —
+    // bypasses HTTP roundtrip and JWT auth since this is a public form trigger).
     try {
-      await sendSelskapsanalyseEmails({
-        firstName: data.firstName,
-        email: data.email,
-        linkedinUrl: data.linkedinUrl,
-        role: data.role || null,
+      const { sendTransactionalInternal } = await import(
+        '@/lib/email/send-internal.server'
+      );
+
+      await sendTransactionalInternal({
+        templateName: 'selskapsanalyse-bekreftelse',
+        recipientEmail: data.email,
+        idempotencyKey: `selskapsanalyse-bekreftelse-${data.email}`,
+        templateData: { firstName: data.firstName },
+      });
+
+      await sendTransactionalInternal({
+        templateName: 'selskapsanalyse-admin-varsel',
+        idempotencyKey: `selskapsanalyse-admin-${data.email}-${Date.now()}`,
+        templateData: {
+          firstName: data.firstName,
+          email: data.email,
+          linkedinUrl: data.linkedinUrl,
+          role: data.role || null,
+        },
       });
     } catch (e) {
       console.warn("[submitLead] email send skipped/failed", (e as Error).message);
@@ -92,45 +106,3 @@ export const submitLead = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
-
-async function sendSelskapsanalyseEmails(opts: {
-  firstName: string;
-  email: string;
-  linkedinUrl: string;
-  role: string | null;
-}) {
-  const baseUrl =
-    process.env.SITE_URL ||
-    process.env.VITE_SITE_URL ||
-    "https://karrierenmin.no";
-
-  // Confirmation to the lead
-  await fetch(`${baseUrl}/lovable/email/transactional/send`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      templateName: "selskapsanalyse-bekreftelse",
-      recipientEmail: opts.email,
-      idempotencyKey: `selskapsanalyse-bekreftelse-${opts.email}`,
-      templateData: { firstName: opts.firstName },
-    }),
-  });
-
-  // Admin notification
-  const adminEmail = process.env.ADMIN_EMAIL || "hei@karrierenmin.no";
-  await fetch(`${baseUrl}/lovable/email/transactional/send`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      templateName: "selskapsanalyse-admin-varsel",
-      recipientEmail: adminEmail,
-      idempotencyKey: `selskapsanalyse-admin-${opts.email}-${Date.now()}`,
-      templateData: {
-        firstName: opts.firstName,
-        email: opts.email,
-        linkedinUrl: opts.linkedinUrl,
-        role: opts.role,
-      },
-    }),
-  });
-}
