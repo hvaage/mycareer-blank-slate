@@ -85,10 +85,18 @@ export function LeadForm() {
   if (done) {
     return (
       <div className="rounded-md border border-border bg-muted p-5 text-sm text-foreground">
-        <p className="font-medium">Takk! Sjekk e-posten din.</p>
+        <p className="font-medium">Takk! Klar til nedlasting.</p>
         <p className="mt-1.5 text-muted-foreground">
-          Vi har sendt deg en bekreftelse med nedlastingslenke til Claude-ferdigheten.
+          Vi har også sendt deg en bekreftelses-e-post med nedlastingslenke
+          og en kort installasjonsguide.
         </p>
+        <a
+          href="/selskapsanalyse/employer-analysis.skill"
+          download
+          className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-5 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Last ned Claude-skillen
+        </a>
       </div>
     );
   }
