@@ -12,43 +12,41 @@ function AuthCallback() {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      // PKCE flow: exchange ?code=... for a session
-      try {
-        const url = new URL(window.location.href);
-        if (url.searchParams.get("code")) {
-          await supabase.auth.exchangeCodeForSession(window.location.href);
+      // STEP 1: Manually parse tokens from URL hash and set session
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token")) {
+        const params = new URLSearchParams(hash.substring(1));
+        const access_token = params.get("access_token");
+        const refresh_token = params.get("refresh_token");
+        if (access_token && refresh_token) {
+          await supabase.auth.setSession({ access_token, refresh_token });
         }
-      } catch {
-        // ignore — fall through to getSession polling (implicit flow uses #hash)
-      }
-
-      // Poll for session — gives Supabase time to parse URL hash (#access_token)
-      // and persist the session to storage.
-      for (let i = 0; i < 15; i++) {
-        if (cancelled) return;
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          // Fallback: ensure user is hydrated from hash if session was missed
-          if (!data.session.user) {
-            await supabase.auth.getUser();
+      } else {
+        // PKCE flow fallback
+        try {
+          const url = new URL(window.location.href);
+          if (url.searchParams.get("code")) {
+            await supabase.auth.exchangeCodeForSession(window.location.href);
           }
-          await new Promise((r) => setTimeout(r, 300));
-          if (!cancelled) navigate({ to: "/onboarding", replace: true });
-          return;
+        } catch {
+          // ignore
         }
-
-        // Try getUser() — forces parsing of URL hash tokens
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData.user) {
-          await new Promise((r) => setTimeout(r, 300));
-          if (!cancelled) navigate({ to: "/onboarding", replace: true });
-          return;
-        }
-
-        await new Promise((r) => setTimeout(r, 200));
       }
 
-      if (!cancelled) navigate({ to: "/login", replace: true });
+      // STEP 2: Verify session exists
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+
+      if (!data.session) {
+        navigate({ to: "/login", replace: true });
+        return;
+      }
+
+      // STEP 3: Clean URL (remove hash)
+      window.history.replaceState({}, document.title, "/auth/callback");
+
+      // STEP 4: Navigate
+      navigate({ to: "/onboarding", replace: true });
     };
 
     run();
