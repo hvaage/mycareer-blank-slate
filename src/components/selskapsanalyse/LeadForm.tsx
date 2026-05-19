@@ -219,7 +219,7 @@ export function LeadForm() {
         disabled={submitting}
         className="w-full inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        {submitting ? "Sender…" : "Hent Claude-ferdigheten gratis"}
+        {submitting ? "Sender…" : "Hent Claude skillen gratis"}
       </button>
       <p className="text-xs text-muted-foreground text-center">
         Gratis. Ingen betaling eller kortinformasjon nødvendig.
