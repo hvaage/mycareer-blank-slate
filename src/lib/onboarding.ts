@@ -1,16 +1,25 @@
-import { supabase } from "./supabase";
+const KEY = "karrierenmin.onboarded";
 
-export async function isOnboarded(userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from("user_settings")
-    .select("onboarded")
-    .eq("user_id", userId)
-    .maybeSingle();
-  return data?.onboarded === true;
+export function isOnboarded(userId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return false;
+    const map = JSON.parse(raw) as Record<string, boolean>;
+    return map[userId] === true;
+  } catch {
+    return false;
+  }
 }
 
-export async function markOnboarded(userId: string): Promise<void> {
-  await supabase
-    .from("user_settings")
-    .upsert({ user_id: userId, onboarded: true, updated_at: new Date().toISOString() });
+export function markOnboarded(userId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(KEY);
+    const map = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    map[userId] = true;
+    localStorage.setItem(KEY, JSON.stringify(map));
+  } catch {
+    /* noop */
+  }
 }
