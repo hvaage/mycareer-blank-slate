@@ -50,14 +50,6 @@ function AuthCallback() {
         window.history.replaceState({}, document.title, "/auth/callback");
       }
 
-      try {
-        localStorage.setItem("karrierenmin-auth-sync", String(Date.now()));
-      } catch {
-        // Ignore storage write errors; Supabase owns the actual session storage.
-      }
-
-      if (cancelled) return;
-
       const { data: verified } = await supabase.auth.getSession();
       if (!verified.session) {
         navigate({ to: "/login", replace: true });
