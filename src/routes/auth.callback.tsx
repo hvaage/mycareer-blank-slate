@@ -11,15 +11,20 @@ function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
       if (!data.session) {
-        navigate({ to: "/login" });
+        navigate({ to: "/login", replace: true });
         return;
       }
-      const onboarded = await isOnboarded(data.session.user.id);
-      navigate({ to: onboarded ? "/app" : "/onboarding" });
+      const onboarded = isOnboarded(data.session.user.id);
+      navigate({ to: onboarded ? "/app" : "/onboarding", replace: true });
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   return null;

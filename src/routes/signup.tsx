@@ -47,9 +47,9 @@ function SignupPage() {
       return;
     }
     if (data.session) {
-      navigate({ to: "/onboarding" });
+      navigate({ to: "/auth/callback", replace: true });
     } else {
-      setInfo("Sjekk e-posten din for å bekrefte kontoen.");
+      setInfo("Sjekk e-posten din for å fullføre registreringen");
     }
   };
 

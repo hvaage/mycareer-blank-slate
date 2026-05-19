@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
-import { isOnboarded } from "@/lib/onboarding";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -35,14 +34,19 @@ function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error || !data.user) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setLoading(false);
       setError("Feil e-post eller passord");
       return;
     }
-    const onboarded = await isOnboarded(data.user.id);
-    navigate({ to: onboarded ? "/app" : "/onboarding" });
+    const { data } = await supabase.auth.getSession();
+    setLoading(false);
+    if (data.session) {
+      navigate({ to: "/auth/callback", replace: true });
+    } else {
+      setError("Feil e-post eller passord");
+    }
   };
 
   return (
