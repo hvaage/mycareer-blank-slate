@@ -1,5 +1,4 @@
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -8,13 +7,6 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   const { session, loading } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!loading && !session) {
-      navigate({ to: "/login", replace: true });
-    }
-  }, [loading, session, navigate]);
 
   if (loading) {
     return (
@@ -24,7 +16,7 @@ function AuthenticatedLayout() {
     );
   }
 
-  if (!session) return null;
+  if (!loading && !session) return null;
 
   return <Outlet />;
 }
