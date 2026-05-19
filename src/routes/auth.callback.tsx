@@ -12,12 +12,46 @@ function AuthCallback() {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(
-        window.location.href,
-      );
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
+        if (cancelled) return;
+
+        if (error) {
+          navigate({ to: "/login", replace: true });
+          return;
+        }
+      }
+
+      const { data } = await supabase.auth.getSession();
       if (cancelled) return;
 
-      if (error || !data.session) {
+      if (!data.session) {
+        await supabase.auth.refreshSession();
+        if (cancelled) return;
+
+        const { data: retry } = await supabase.auth.getSession();
+        console.log("SESSION AFTER LOGIN", await supabase.auth.getSession());
+
+        if (cancelled) return;
+        if (!retry.session) {
+          navigate({ to: "/login", replace: true });
+          return;
+        }
+      } else {
+        console.log("SESSION AFTER LOGIN", await supabase.auth.getSession());
+      }
+
+      if (cancelled) return;
+
+      if (window.location.search) {
+        window.history.replaceState({}, document.title, "/auth/callback");
+      }
+
+      const { data: verified } = await supabase.auth.getSession();
+      if (!verified.session) {
         navigate({ to: "/login", replace: true });
         return;
       }
