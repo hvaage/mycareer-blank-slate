@@ -99,6 +99,30 @@ function TakkPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       <main className="flex-1 mx-auto max-w-2xl w-full px-4 sm:px-6 py-16 sm:py-24">
+        {testMode && (
+          <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+            <strong>Testmodus aktiv.</strong> LinkedIn-gate-en er automatisk
+            låst opp, og du kan se den ferdig-rendrede bekreftelses-e-posten
+            uten å vente på kø.
+            <div className="mt-2 flex flex-wrap gap-3 text-xs">
+              <a
+                href={`${PREVIEW_EMAIL_PATH}?key=${encodeURIComponent(
+                  TEST_MODE_KEY
+                )}${token ? `&token=${encodeURIComponent(token)}` : ""}`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline font-medium"
+              >
+                Forhåndsvis bekreftelses-e-post →
+              </a>
+              {!token && (
+                <span className="text-muted-foreground">
+                  (uten token: nedlasting krever ekte innsending)
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         <div className="rounded-2xl border border-border bg-card p-8 sm:p-10">
           <div className="h-12 w-12 rounded-full bg-primary/15 text-primary grid place-items-center mb-5">
             <svg className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
