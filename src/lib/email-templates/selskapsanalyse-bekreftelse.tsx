@@ -143,7 +143,10 @@ const SelskapsanalyseBekreftelse = ({ firstName, token }: Props) => {
       </Container>
     </Body>
   </Html>
-)
+  )
+}
+
+
 
 export const template = {
   component: SelskapsanalyseBekreftelse,
