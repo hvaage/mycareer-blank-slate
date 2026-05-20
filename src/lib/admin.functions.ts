@@ -28,13 +28,16 @@ export const getAdminLeads = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw new Error(error.message);
 
-    const rows = leads ?? [];
+    type LeadRow = NonNullable<typeof leads>[number];
+    const rows: LeadRow[] = leads ?? [];
     const counts = {
       total: rows.length,
-      emailed: rows.filter((l) => l.email_sent_at).length,
-      downloaded: rows.filter((l) => l.downloaded_at).length,
-      connected: rows.filter((l) => l.connect_clicked_at || l.follow_clicked_at).length,
-      marketingOptIn: rows.filter((l) => l.consent_marketing).length,
+      emailed: rows.filter((l: LeadRow) => l.email_sent_at).length,
+      downloaded: rows.filter((l: LeadRow) => l.downloaded_at).length,
+      connected: rows.filter(
+        (l: LeadRow) => l.connect_clicked_at || l.follow_clicked_at
+      ).length,
+      marketingOptIn: rows.filter((l: LeadRow) => l.consent_marketing).length,
     };
 
     return { leads: rows, counts };

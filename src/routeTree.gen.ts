@@ -16,11 +16,13 @@ import { Route as SelskapsanalyseRouteImport } from './routes/selskapsanalyse'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authenticated/admin.leads'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -59,6 +61,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SelskapsanalyseTakkRoute = SelskapsanalyseTakkRouteImport.update({
+  id: '/takk',
+  path: '/takk',
+  getParentRoute: () => SelskapsanalyseRoute,
+} as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
@@ -84,6 +91,11 @@ const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   path: '/lovable/email/suppression',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminLeadsRoute = AuthenticatedAdminLeadsRouteImport.update({
+  id: '/admin/leads',
+  path: '/admin/leads',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const LovableEmailTransactionalSendRoute =
   LovableEmailTransactionalSendRouteImport.update({
     id: '/lovable/email/transactional/send',
@@ -106,7 +118,7 @@ const LovableEmailQueueProcessRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/selskapsanalyse': typeof SelskapsanalyseRoute
+  '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
@@ -114,6 +126,8 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -122,7 +136,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/selskapsanalyse': typeof SelskapsanalyseRoute
+  '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
@@ -130,6 +144,8 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -140,7 +156,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
-  '/selskapsanalyse': typeof SelskapsanalyseRoute
+  '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
@@ -148,6 +164,8 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -166,6 +184,8 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/auth/callback'
     | '/email/unsubscribe'
+    | '/selskapsanalyse/takk'
+    | '/admin/leads'
     | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
@@ -182,6 +202,8 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/auth/callback'
     | '/email/unsubscribe'
+    | '/selskapsanalyse/takk'
+    | '/admin/leads'
     | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
@@ -199,6 +221,8 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding'
     | '/auth/callback'
     | '/email/unsubscribe'
+    | '/selskapsanalyse/takk'
+    | '/_authenticated/admin/leads'
     | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
@@ -209,7 +233,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
-  SelskapsanalyseRoute: typeof SelskapsanalyseRoute
+  SelskapsanalyseRoute: typeof SelskapsanalyseRouteWithChildren
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
@@ -272,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/selskapsanalyse/takk': {
+      id: '/selskapsanalyse/takk'
+      path: '/takk'
+      fullPath: '/selskapsanalyse/takk'
+      preLoaderRoute: typeof SelskapsanalyseTakkRouteImport
+      parentRoute: typeof SelskapsanalyseRoute
+    }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
       path: '/email/unsubscribe'
@@ -307,6 +338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin/leads': {
+      id: '/_authenticated/admin/leads'
+      path: '/admin/leads'
+      fullPath: '/admin/leads'
+      preLoaderRoute: typeof AuthenticatedAdminLeadsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/lovable/email/transactional/send': {
       id: '/lovable/email/transactional/send'
       path: '/lovable/email/transactional/send'
@@ -334,22 +372,36 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedAdminLeadsRoute: typeof AuthenticatedAdminLeadsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedAdminLeadsRoute: AuthenticatedAdminLeadsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface SelskapsanalyseRouteChildren {
+  SelskapsanalyseTakkRoute: typeof SelskapsanalyseTakkRoute
+}
+
+const SelskapsanalyseRouteChildren: SelskapsanalyseRouteChildren = {
+  SelskapsanalyseTakkRoute: SelskapsanalyseTakkRoute,
+}
+
+const SelskapsanalyseRouteWithChildren = SelskapsanalyseRoute._addFileChildren(
+  SelskapsanalyseRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
-  SelskapsanalyseRoute: SelskapsanalyseRoute,
+  SelskapsanalyseRoute: SelskapsanalyseRouteWithChildren,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   UnsubscribeRoute: UnsubscribeRoute,
