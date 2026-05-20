@@ -147,6 +147,7 @@ export const submitLead = createServerFn({ method: "POST" })
               linkedinUrl: existing.linkedin_url,
               role: existing.role,
               accessToken: existing.access_token as string,
+              origin,
             });
 
             await supabaseAdmin
