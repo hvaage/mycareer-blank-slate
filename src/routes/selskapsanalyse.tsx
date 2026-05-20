@@ -126,7 +126,7 @@ function SelskapsanalysePage() {
             </h2>
             <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
               De fleste "arbeidsgiver-research" er et par karakterer fra
-              omtalesider og et raskt LinkedIn-blikk. Selskapsanalysen går
+              omtalesider og et raskt LinkedIn-blikk. Arbeidsgiveranalysen går
               gjennom offentlige registre, bærekraftsrapportering,
               tilsynsrapporter og omtaleplattformer i landet hvor stillingen
               faktisk er — og scorer åtte dimensjoner med kildene knyttet på.
