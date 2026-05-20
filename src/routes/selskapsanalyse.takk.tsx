@@ -156,16 +156,16 @@ function TakkPage() {
               </h2>
             </div>
 
-            {isUnlocked ? (
+            {isUnlocked && token ? (
               <div className="mt-4 space-y-5">
                 <a
-                  href={SKILL_HREF}
-                  download
+                  href={`${DOWNLOAD_PATH}?token=${encodeURIComponent(token)}`}
                   onClick={handleDownload}
                   className="inline-flex h-11 items-center rounded-md bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   Last ned Claude-skillen (.skill)
                 </a>
+
                 <p className="text-xs text-muted-foreground">
                   Vi har også sendt deg en e-post med samme lenke og full
                   installasjonsveiledning.
