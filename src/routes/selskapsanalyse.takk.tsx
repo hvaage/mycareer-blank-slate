@@ -13,7 +13,7 @@ const PREVIEW_EMAIL_PATH = "/api/public/selskapsanalyse/preview-email";
 
 const search = z.object({
   token: z.string().optional().default(""),
-  test: z.string().optional().default(""),
+  test: z.string().optional(),
 });
 
 export const Route = createFileRoute("/selskapsanalyse/takk")({
