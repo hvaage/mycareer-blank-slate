@@ -13,12 +13,12 @@ import {
 export const Route = createFileRoute("/selskapsanalyse")({
   head: () => ({
     meta: [
-      { title: "Selskapsanalyse — Karrierenmin" },
+      { title: "Arbeidsgiveranalysen — Karrierenmin" },
       {
         name: "description",
         content: SELSKAPSANALYSE.defaultOgDescription,
       },
-      { property: "og:title", content: "Selskapsanalyse — Karrierenmin" },
+      { property: "og:title", content: "Arbeidsgiveranalysen — Karrierenmin" },
       {
         property: "og:description",
         content: SELSKAPSANALYSE.defaultOgDescription,
