@@ -59,7 +59,7 @@ function SelskapsanalysePage() {
                   <span className="text-primary">før du signerer.</span>
                 </h1>
                 <p className="mt-5 text-lg sm:text-xl text-muted-foreground max-w-xl leading-relaxed">
-                  Selskapsanalysen gjør timer med arbeidsgiver-research om til
+                  Arbeidsgiveranalysen gjør timer med arbeidsgiver-research om til
                   en godt dokumentert PDF-rapport — i åtte dimensjoner, ekte
                   kilder, klar til en 20-minutters gjennomlesning før neste
                   intervju.
