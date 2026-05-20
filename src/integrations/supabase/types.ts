@@ -101,13 +101,50 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_events: {
+        Row: {
+          created_at: string
+          event_meta: Json
+          event_type: string
+          id: string
+          lead_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_meta?: Json
+          event_type: string
+          id?: string
+          lead_id: string
+        }
+        Update: {
+          created_at?: string
+          event_meta?: Json
+          event_type?: string
+          id?: string
+          lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
+          access_token: string
+          connect_clicked_at: string | null
           consent_marketing: boolean
           consent_privacy: boolean
           created_at: string
+          downloaded_at: string | null
           email: string
+          email_sent_at: string | null
           first_name: string
+          follow_clicked_at: string | null
           id: string
           linkedin_url: string
           metadata: Json
@@ -121,11 +158,16 @@ export type Database = {
           utm_term: string | null
         }
         Insert: {
+          access_token?: string
+          connect_clicked_at?: string | null
           consent_marketing?: boolean
           consent_privacy?: boolean
           created_at?: string
+          downloaded_at?: string | null
           email: string
+          email_sent_at?: string | null
           first_name: string
+          follow_clicked_at?: string | null
           id?: string
           linkedin_url: string
           metadata?: Json
@@ -139,11 +181,16 @@ export type Database = {
           utm_term?: string | null
         }
         Update: {
+          access_token?: string
+          connect_clicked_at?: string | null
           consent_marketing?: boolean
           consent_privacy?: boolean
           created_at?: string
+          downloaded_at?: string | null
           email?: string
+          email_sent_at?: string | null
           first_name?: string
+          follow_clicked_at?: string | null
           id?: string
           linkedin_url?: string
           metadata?: Json
@@ -182,6 +229,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -194,6 +262,13 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
       }
       move_to_dlq: {
         Args: {
@@ -214,7 +289,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -341,6 +416,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
