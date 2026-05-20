@@ -154,6 +154,7 @@ export function LeadForm() {
             type="text"
             required
             placeholder="ditt-brukernavn"
+            defaultValue={testMode ? "test-bruker" : undefined}
             aria-invalid={!!errors.linkedinUrl}
             aria-describedby={
               errors.linkedinUrl ? "f-linkedinHandle-err" : "f-linkedinHandle-help"
