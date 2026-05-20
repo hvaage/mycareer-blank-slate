@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { submitLead } from "@/lib/leads.functions";
+import { TEST_MODE_KEY, TEST_MODE_PARAM } from "@/lib/selskapsanalyse-site";
 
 const UTM_KEYS = [
   "utm_source",
