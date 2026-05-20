@@ -13,14 +13,19 @@ import {
 } from '@react-email/components'
 import type { TemplateEntry } from './registry'
 
-const TAKK_URL = 'https://karrierenmin.no/selskapsanalyse/takk'
-const DOWNLOAD_URL = 'https://karrierenmin.no/selskapsanalyse/employer-analysis.skill'
+const TAKK_BASE = 'https://karrierenmin.no/selskapsanalyse/takk'
 const CONNECT_URL = 'https://www.linkedin.com/in/henrikvaage'
 const FOLLOW_URL = 'https://www.linkedin.com/company/karrierenmin/?trk=follow'
 
 interface Props {
   firstName?: string
+  token?: string
 }
+
+function buildTakkUrl(token?: string): string {
+  return token ? `${TAKK_BASE}?token=${encodeURIComponent(token)}` : TAKK_BASE
+}
+
 
 const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
   <Html lang="no" dir="ltr">
