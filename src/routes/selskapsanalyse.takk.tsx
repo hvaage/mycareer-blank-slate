@@ -5,12 +5,16 @@ import { z } from "zod";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { trackLeadEvent } from "@/lib/leads.functions";
-import { SELSKAPSANALYSE } from "@/lib/selskapsanalyse-site";
+import { SELSKAPSANALYSE, TEST_MODE_KEY } from "@/lib/selskapsanalyse-site";
 
 const HENRIK_LINKEDIN = "https://www.linkedin.com/in/henrikvaage";
 const DOWNLOAD_PATH = "/api/public/selskapsanalyse/download";
+const PREVIEW_EMAIL_PATH = "/api/public/selskapsanalyse/preview-email";
 
-const search = z.object({ token: z.string().optional().default("") });
+const search = z.object({
+  token: z.string().optional().default(""),
+  test: z.string().optional().default(""),
+});
 
 export const Route = createFileRoute("/selskapsanalyse/takk")({
   validateSearch: (s) => search.parse(s),
