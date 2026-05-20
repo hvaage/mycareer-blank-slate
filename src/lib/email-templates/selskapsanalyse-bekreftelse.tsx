@@ -25,7 +25,7 @@ interface Props {
 const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
   <Html lang="no" dir="ltr">
     <Head />
-    <Preview>Last ned Claude-skillen for Selskapsanalyse</Preview>
+    <Preview>Last ned Claude-skillen for Arbeidsgiveranalysen</Preview>
     <Body style={main}>
       <Container style={container}>
         <Heading style={h1}>
