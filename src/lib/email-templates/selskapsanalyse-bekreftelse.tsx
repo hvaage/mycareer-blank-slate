@@ -73,15 +73,59 @@ const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
         <Hr style={hr} />
 
         <Heading as="h2" style={h2}>
-          Slik tar du den i bruk
+          Slik installerer du skillen i Claude
         </Heading>
         <Text style={text}>
-          1. Åpne Claude (claude.ai) og gå til <strong>Skills</strong>.
-          <br />
-          2. Last opp <em>employer-analysis.skill</em>-filen du nettopp lastet ned.
-          <br />
-          3. Start en ny samtale, oppgi selskapets domene og land — Claude gjør resten.
+          Skills er en funksjon i Claude som lar deg laste opp egne ferdigheter
+          Claude kan bruke i samtaler. Du trenger en{' '}
+          <strong>Claude Pro-, Max-, Team- eller Enterprise-konto</strong> for
+          å bruke Skills.
         </Text>
+        <Text style={text}>
+          <strong>1. Last ned skill-filen</strong>
+          <br />
+          Bruk knappen øverst i e-posten eller{' '}
+          <Link href={DOWNLOAD_URL} style={link}>
+            direktelenken
+          </Link>{' '}
+          for å lagre <em>employer-analysis.skill</em> på maskinen din.
+        </Text>
+        <Text style={text}>
+          <strong>2. Åpne Skills i Claude</strong>
+          <br />
+          Logg inn på{' '}
+          <Link href="https://claude.ai" style={link}>
+            claude.ai
+          </Link>
+          . Klikk på profilen din nede til venstre →{' '}
+          <strong>Settings</strong> → <strong>Capabilities</strong> →{' '}
+          <strong>Skills</strong>. (På mobil: menyen øverst til venstre →{' '}
+          <strong>Settings</strong>.)
+        </Text>
+        <Text style={text}>
+          <strong>3. Last opp filen</strong>
+          <br />
+          Trykk <strong>Upload skill</strong> og velg{' '}
+          <em>employer-analysis.skill</em>. Slå deretter på bryteren slik at
+          skillen er aktiv.
+        </Text>
+        <Text style={text}>
+          <strong>4. Start en ny samtale</strong>
+          <br />
+          Åpne en ny chat og skriv f.eks.: <em>
+            «Bruk Arbeidsgiveranalysen-skillen og lag en rapport om
+            equinor.com i Norge.»
+          </em>{' '}
+          Claude spør om domene, land og om du vil ha standard (8–10 sider)
+          eller utvidet rapport (opp mot 25 sider), og leverer en PDF når
+          den er klar.
+        </Text>
+        <Text style={textSmall}>
+          Tips: Skills er foreløpig kun tilgjengelig i Claude på web og
+          desktop — ikke i mobil-appen. Får du ikke opp <strong>Skills</strong>{' '}
+          i menyen, sjekk at kontoen din er på Pro eller høyere.
+        </Text>
+
 
         <Text style={footer}>Hilsen Henrik og teamet bak Karrierenmin.no</Text>
       </Container>

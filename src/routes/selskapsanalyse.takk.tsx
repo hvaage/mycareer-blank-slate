@@ -172,7 +172,7 @@ function TakkPage() {
             </div>
 
             {isUnlocked ? (
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-5">
                 <a
                   href={SKILL_HREF}
                   download
@@ -182,10 +182,59 @@ function TakkPage() {
                   Last ned Claude-skillen (.skill)
                 </a>
                 <p className="text-xs text-muted-foreground">
-                  Slipp <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">.skill</code>-filen
-                  inn i Claude.ai → Innstillinger → Capabilities → Skills. Vi
-                  har også sendt deg en e-post med samme lenke.
+                  Vi har også sendt deg en e-post med samme lenke og full
+                  installasjonsveiledning.
                 </p>
+
+                <div className="rounded-lg border border-border bg-muted/30 p-5">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Slik installerer du skillen i Claude
+                  </h3>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Skills krever en <strong>Claude Pro-, Max-, Team- eller
+                    Enterprise-konto</strong> og fungerer i Claude på web og
+                    desktop (ikke i mobil-appen).
+                  </p>
+                  <ol className="mt-3 space-y-2 text-sm text-foreground/90 list-decimal list-inside">
+                    <li>
+                      Logg inn på{" "}
+                      <a
+                        href="https://claude.ai"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline"
+                      >
+                        claude.ai
+                      </a>
+                      .
+                    </li>
+                    <li>
+                      Klikk profilen din nede til venstre →{" "}
+                      <strong>Settings</strong> →{" "}
+                      <strong>Capabilities</strong> →{" "}
+                      <strong>Skills</strong>.
+                    </li>
+                    <li>
+                      Trykk <strong>Upload skill</strong> og velg{" "}
+                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+                        employer-analysis.skill
+                      </code>
+                      . Slå på bryteren slik at skillen er aktiv.
+                    </li>
+                    <li>
+                      Start en ny samtale og skriv f.eks.:{" "}
+                      <em>
+                        «Bruk Arbeidsgiveranalysen-skillen og lag en rapport om
+                        equinor.com i Norge.»
+                      </em>
+                    </li>
+                    <li>
+                      Claude spør om domene, land og om du vil ha standard
+                      (8–10 sider) eller utvidet rapport (opp mot 25 sider),
+                      og leverer en PDF når den er klar.
+                    </li>
+                  </ol>
+                </div>
               </div>
             ) : (
               <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/40 p-5">
@@ -195,6 +244,7 @@ function TakkPage() {
                 </p>
               </div>
             )}
+
           </div>
         </div>
       </main>
