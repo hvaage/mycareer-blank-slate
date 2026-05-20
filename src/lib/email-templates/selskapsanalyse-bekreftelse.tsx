@@ -152,7 +152,7 @@ export const template = {
   component: SelskapsanalyseBekreftelse,
   subject: 'Claude-skillen din er klar til nedlasting',
   displayName: 'Arbeidsgiveranalysen — bekreftelse',
-  previewData: { firstName: 'Kari' },
+  previewData: { firstName: 'Kari', token: '00000000-0000-0000-0000-000000000000' },
 } satisfies TemplateEntry
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
