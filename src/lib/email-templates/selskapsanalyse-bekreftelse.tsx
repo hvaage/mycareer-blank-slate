@@ -94,12 +94,14 @@ const SelskapsanalyseBekreftelse = ({ firstName, token }: Props) => {
         <Text style={text}>
           <strong>1. Last ned skill-filen</strong>
           <br />
-          Bruk knappen øverst i e-posten eller{' '}
-          <Link href={DOWNLOAD_URL} style={link}>
-            direktelenken
+          Bruk knappen øverst i e-posten, eller åpne{' '}
+          <Link href={takkUrl} style={link}>
+            nedlastingssiden
           </Link>{' '}
-          for å lagre <em>employer-analysis.skill</em> på maskinen din.
+          og bekreft LinkedIn-tilkoblingen for å lagre{' '}
+          <em>employer-analysis.skill</em> på maskinen din.
         </Text>
+
         <Text style={text}>
           <strong>2. Åpne Skills i Claude</strong>
           <br />
