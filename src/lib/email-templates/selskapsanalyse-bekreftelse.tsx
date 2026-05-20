@@ -13,16 +13,23 @@ import {
 } from '@react-email/components'
 import type { TemplateEntry } from './registry'
 
-const TAKK_URL = 'https://karrierenmin.no/selskapsanalyse/takk'
-const DOWNLOAD_URL = 'https://karrierenmin.no/selskapsanalyse/employer-analysis.skill'
+const TAKK_BASE = 'https://karrierenmin.no/selskapsanalyse/takk'
 const CONNECT_URL = 'https://www.linkedin.com/in/henrikvaage'
 const FOLLOW_URL = 'https://www.linkedin.com/company/karrierenmin/?trk=follow'
 
 interface Props {
   firstName?: string
+  token?: string
 }
 
-const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
+function buildTakkUrl(token?: string): string {
+  return token ? `${TAKK_BASE}?token=${encodeURIComponent(token)}` : TAKK_BASE
+}
+
+
+const SelskapsanalyseBekreftelse = ({ firstName, token }: Props) => {
+  const takkUrl = buildTakkUrl(token)
+  return (
   <Html lang="no" dir="ltr">
     <Head />
     <Preview>Last ned Claude-skillen for Arbeidsgiveranalysen</Preview>
@@ -33,19 +40,22 @@ const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
         </Heading>
         <Text style={text}>
           Takk for at du hentet Arbeidsgiveranalysen-skillen fra Karrierenmin.no.
-          Klikk på knappen under for å låse opp og laste ned skill-filen.
+          Klikk på knappen under for å gå til nedlastingssiden. Der bekrefter
+          du LinkedIn-tilkoblingen før selve filen lastes ned.
         </Text>
         <Section style={buttonSection}>
-          <Button href={TAKK_URL} style={button}>
-            Lås opp og last ned
+          <Button href={takkUrl} style={button}>
+            Gå til nedlastingen
           </Button>
         </Section>
         <Text style={textSmall}>
-          Direkte lenke til filen:{' '}
-          <Link href={DOWNLOAD_URL} style={link}>
-            {DOWNLOAD_URL}
+          Lenken er personlig — ikke del den videre. Hvis knappen ikke
+          fungerer, lim inn denne URLen i nettleseren:{' '}
+          <Link href={takkUrl} style={link}>
+            {takkUrl}
           </Link>
         </Text>
+
 
         <Hr style={hr} />
 
@@ -84,12 +94,14 @@ const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
         <Text style={text}>
           <strong>1. Last ned skill-filen</strong>
           <br />
-          Bruk knappen øverst i e-posten eller{' '}
-          <Link href={DOWNLOAD_URL} style={link}>
-            direktelenken
+          Bruk knappen øverst i e-posten, eller åpne{' '}
+          <Link href={takkUrl} style={link}>
+            nedlastingssiden
           </Link>{' '}
-          for å lagre <em>employer-analysis.skill</em> på maskinen din.
+          og bekreft LinkedIn-tilkoblingen for å lagre{' '}
+          <em>employer-analysis.skill</em> på maskinen din.
         </Text>
+
         <Text style={text}>
           <strong>2. Åpne Skills i Claude</strong>
           <br />
@@ -131,13 +143,16 @@ const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
       </Container>
     </Body>
   </Html>
-)
+  )
+}
+
+
 
 export const template = {
   component: SelskapsanalyseBekreftelse,
   subject: 'Claude-skillen din er klar til nedlasting',
   displayName: 'Arbeidsgiveranalysen — bekreftelse',
-  previewData: { firstName: 'Kari' },
+  previewData: { firstName: 'Kari', token: '00000000-0000-0000-0000-000000000000' },
 } satisfies TemplateEntry
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }

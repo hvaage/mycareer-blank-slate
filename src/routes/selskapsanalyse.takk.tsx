@@ -8,8 +8,7 @@ import { trackLeadEvent } from "@/lib/leads.functions";
 import { SELSKAPSANALYSE } from "@/lib/selskapsanalyse-site";
 
 const HENRIK_LINKEDIN = "https://www.linkedin.com/in/henrikvaage";
-const UNLOCK_KEY = "km_skill_unlocked_v1";
-const SKILL_HREF = "/selskapsanalyse/employer-analysis.skill";
+const DOWNLOAD_PATH = "/api/public/selskapsanalyse/download";
 
 const search = z.object({ token: z.string().optional().default("") });
 
@@ -50,28 +49,14 @@ function TakkPage() {
   );
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(UNLOCK_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setUnlockedBy({
-          connect: Boolean(parsed?.connect),
-          follow: Boolean(parsed?.follow),
-        });
-      }
-    } catch {
-      /* ignore */
-    }
+    // No persistence — gate must be passed once per visit. Actual download
+    // is server-validated against the access token in any case.
   }, []);
 
   function persistUnlock(next: { connect: boolean; follow: boolean }) {
     setUnlockedBy(next);
-    try {
-      localStorage.setItem(UNLOCK_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
   }
+
 
   const isUnlocked = unlockedBy.connect || unlockedBy.follow;
 
@@ -171,16 +156,16 @@ function TakkPage() {
               </h2>
             </div>
 
-            {isUnlocked ? (
+            {isUnlocked && token ? (
               <div className="mt-4 space-y-5">
                 <a
-                  href={SKILL_HREF}
-                  download
+                  href={`${DOWNLOAD_PATH}?token=${encodeURIComponent(token)}`}
                   onClick={handleDownload}
                   className="inline-flex h-11 items-center rounded-md bg-primary px-5 font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   Last ned Claude-skillen (.skill)
                 </a>
+
                 <p className="text-xs text-muted-foreground">
                   Vi har også sendt deg en e-post med samme lenke og full
                   installasjonsveiledning.

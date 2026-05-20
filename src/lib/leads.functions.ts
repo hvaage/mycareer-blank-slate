@@ -46,6 +46,7 @@ async function sendLeadEmails(opts: {
   email: string;
   linkedinUrl: string;
   role: string | null;
+  accessToken: string;
 }) {
   try {
     const { sendTransactionalInternal } = await import(
@@ -56,7 +57,7 @@ async function sendLeadEmails(opts: {
       templateName: "selskapsanalyse-bekreftelse",
       recipientEmail: opts.email,
       idempotencyKey: `selskapsanalyse-bekreftelse-${opts.email}`,
-      templateData: { firstName: opts.firstName },
+      templateData: { firstName: opts.firstName, token: opts.accessToken },
     });
 
     await sendTransactionalInternal({
@@ -73,6 +74,7 @@ async function sendLeadEmails(opts: {
     console.warn("[submitLead] email send skipped/failed", (e as Error).message);
   }
 }
+
 
 export const submitLead = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => LeadSchema.parse(data))
@@ -119,7 +121,9 @@ export const submitLead = createServerFn({ method: "POST" })
               email: existing.email,
               linkedinUrl: existing.linkedin_url,
               role: existing.role,
+              accessToken: existing.access_token as string,
             });
+
             await supabaseAdmin
               .from("leads")
               .update({ email_sent_at: new Date().toISOString(), status: "emailed" })
@@ -137,7 +141,9 @@ export const submitLead = createServerFn({ method: "POST" })
       email: inserted.email,
       linkedinUrl: inserted.linkedin_url,
       role: inserted.role,
+      accessToken: inserted.access_token as string,
     });
+
     await supabaseAdmin
       .from("leads")
       .update({ email_sent_at: new Date().toISOString(), status: "emailed" })
