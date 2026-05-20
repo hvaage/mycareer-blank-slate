@@ -92,7 +92,7 @@ const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
 export const template = {
   component: SelskapsanalyseBekreftelse,
   subject: 'Claude-skillen din er klar til nedlasting',
-  displayName: 'Selskapsanalyse — bekreftelse',
+  displayName: 'Arbeidsgiveranalysen — bekreftelse',
   previewData: { firstName: 'Kari' },
 } satisfies TemplateEntry
 
