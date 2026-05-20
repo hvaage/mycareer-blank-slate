@@ -52,7 +52,7 @@ function SelskapsanalysePage() {
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                  Gratis Claude-ferdighet · fra Karrierenmin.no
+                  Gratis Claude skill · fra Karrierenmin.no
                 </div>
                 <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-serif tracking-tight text-foreground">
                   Vit hva du går til{" "}
@@ -102,10 +102,10 @@ function SelskapsanalysePage() {
               <div id="hent-den" className="lg:sticky lg:top-20">
                 <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xl shadow-primary/5">
                   <h2 className="text-xl font-semibold text-foreground">
-                    Hent ferdigheten og koble deg til oss på LinkedIn
+                    Hent Claude skillen og koble deg til oss på LinkedIn
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Få Claude-ferdigheten og en kort installasjonsguide rett i
+                    Få Claude skillen og en kort installasjonsguide rett i
                     innboksen.
                   </p>
                   <div className="mt-5">
@@ -215,7 +215,7 @@ function SelskapsanalysePage() {
               arbeidsmarkeder.
             </h2>
             <p className="mt-3 text-muted-foreground max-w-2xl">
-              Ferdigheten prioriterer den lokale enheten i landet hvor
+              Claude skillen prioriterer den lokale enheten i landet hvor
               stillingen er, og henter fra land-spesifikke registre og
               rapporteringskrav — ikke bare globale ratinger.
             </p>
@@ -243,7 +243,7 @@ function SelskapsanalysePage() {
             href="#hent-den"
             className="mt-8 inline-flex h-12 items-center rounded-md bg-primary px-8 text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            Hent ferdigheten
+            Hent Claude skillen
           </a>
         </section>
       </main>
