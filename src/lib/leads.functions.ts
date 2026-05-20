@@ -108,6 +108,7 @@ export const submitLead = createServerFn({ method: "POST" })
     }
 
     const userAgent = getRequestHeader("user-agent") || null;
+    const origin = resolveOrigin();
 
     const { data: inserted, error } = await supabaseAdmin
       .from("leads")
