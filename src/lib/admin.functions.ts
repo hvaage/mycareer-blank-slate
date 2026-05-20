@@ -101,7 +101,8 @@ export const getAdminDashboard = createServerFn({ method: "GET" })
       console.warn("[getAdminDashboard] listUsers failed", (e as Error).message);
     }
 
-    const rows: AdminDashboardRow[] = (leads ?? []).map((l) => {
+    type LeadRow = NonNullable<typeof leads>[number];
+    const rows: AdminDashboardRow[] = ((leads ?? []) as LeadRow[]).map((l) => {
       const acct = accountByEmail.get(l.email.toLowerCase()) ?? null;
       const has_account = !!acct;
       let segment: AdminDashboardRow["segment"];
