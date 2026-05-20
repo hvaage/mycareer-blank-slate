@@ -17,6 +17,7 @@ import { Route as PersonvernRouteImport } from './routes/personvern'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SelskapsanalyseIndexRouteImport } from './routes/selskapsanalyse.index'
 import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -68,6 +69,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SelskapsanalyseIndexRoute = SelskapsanalyseIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SelskapsanalyseRoute,
 } as any)
 const SelskapsanalyseTakkRoute = SelskapsanalyseTakkRouteImport.update({
   id: '/takk',
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -160,7 +167,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/personvern': typeof PersonvernRoute
-  '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
@@ -169,6 +175,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -192,6 +199,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -215,6 +223,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/email/unsubscribe'
     | '/selskapsanalyse/takk'
+    | '/selskapsanalyse/'
     | '/admin/leads'
     | '/lovable/email/suppression'
     | '/api/public/selskapsanalyse/download'
@@ -227,7 +236,6 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/personvern'
-    | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
     | '/unsubscribe'
@@ -236,6 +244,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/email/unsubscribe'
     | '/selskapsanalyse/takk'
+    | '/selskapsanalyse'
     | '/admin/leads'
     | '/lovable/email/suppression'
     | '/api/public/selskapsanalyse/download'
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/email/unsubscribe'
     | '/selskapsanalyse/takk'
+    | '/selskapsanalyse/'
     | '/_authenticated/admin/leads'
     | '/lovable/email/suppression'
     | '/api/public/selskapsanalyse/download'
@@ -343,6 +353,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/selskapsanalyse/': {
+      id: '/selskapsanalyse/'
+      path: '/'
+      fullPath: '/selskapsanalyse/'
+      preLoaderRoute: typeof SelskapsanalyseIndexRouteImport
+      parentRoute: typeof SelskapsanalyseRoute
     }
     '/selskapsanalyse/takk': {
       id: '/selskapsanalyse/takk'
@@ -449,10 +466,12 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 interface SelskapsanalyseRouteChildren {
   SelskapsanalyseTakkRoute: typeof SelskapsanalyseTakkRoute
+  SelskapsanalyseIndexRoute: typeof SelskapsanalyseIndexRoute
 }
 
 const SelskapsanalyseRouteChildren: SelskapsanalyseRouteChildren = {
   SelskapsanalyseTakkRoute: SelskapsanalyseTakkRoute,
+  SelskapsanalyseIndexRoute: SelskapsanalyseIndexRoute,
 }
 
 const SelskapsanalyseRouteWithChildren = SelskapsanalyseRoute._addFileChildren(
@@ -481,3 +500,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
