@@ -32,7 +32,7 @@ const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
           {firstName ? `Hei ${firstName}!` : 'Hei!'}
         </Heading>
         <Text style={text}>
-          Takk for at du hentet Selskapsanalyse-skillen fra Karrierenmin.no.
+          Takk for at du hentet Arbeidsgiveranalysen-skillen fra Karrierenmin.no.
           Klikk på knappen under for å låse opp og laste ned skill-filen.
         </Text>
         <Section style={buttonSection}>
