@@ -27,7 +27,9 @@ function buildTakkUrl(token?: string): string {
 }
 
 
-const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
+const SelskapsanalyseBekreftelse = ({ firstName, token }: Props) => {
+  const takkUrl = buildTakkUrl(token)
+  return (
   <Html lang="no" dir="ltr">
     <Head />
     <Preview>Last ned Claude-skillen for Arbeidsgiveranalysen</Preview>
@@ -38,19 +40,22 @@ const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
         </Heading>
         <Text style={text}>
           Takk for at du hentet Arbeidsgiveranalysen-skillen fra Karrierenmin.no.
-          Klikk på knappen under for å låse opp og laste ned skill-filen.
+          Klikk på knappen under for å gå til nedlastingssiden. Der bekrefter
+          du LinkedIn-tilkoblingen før selve filen lastes ned.
         </Text>
         <Section style={buttonSection}>
-          <Button href={TAKK_URL} style={button}>
-            Lås opp og last ned
+          <Button href={takkUrl} style={button}>
+            Gå til nedlastingen
           </Button>
         </Section>
         <Text style={textSmall}>
-          Direkte lenke til filen:{' '}
-          <Link href={DOWNLOAD_URL} style={link}>
-            {DOWNLOAD_URL}
+          Lenken er personlig — ikke del den videre. Hvis knappen ikke
+          fungerer, lim inn denne URLen i nettleseren:{' '}
+          <Link href={takkUrl} style={link}>
+            {takkUrl}
           </Link>
         </Text>
+
 
         <Hr style={hr} />
 
