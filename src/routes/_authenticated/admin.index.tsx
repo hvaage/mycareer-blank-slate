@@ -128,7 +128,7 @@ function AdminDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              to="/_authenticated/admin/leads"
+              to="/admin/leads"
               className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-accent"
             >
               Detaljert leads-visning
