@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { submitLead } from "@/lib/leads.functions";
 
 const UTM_KEYS = [
@@ -22,8 +23,8 @@ function buildLinkedinUrl(raw: string): string {
 
 export function LeadForm() {
   const submit = useServerFn(submitLead);
+  const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const utmRef = useRef<Record<string, string>>({});
@@ -58,7 +59,10 @@ export function LeadForm() {
 
     try {
       const res = await submit({ data: payload });
-      if (res.ok) setDone(true);
+      if (res.ok) {
+        const token = res.accessToken ?? "";
+        navigate({ to: "/selskapsanalyse/takk", search: { token } });
+      }
     } catch (err) {
       const msg = (err as Error).message || "Noe gikk galt";
       try {
@@ -80,25 +84,6 @@ export function LeadForm() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  if (done) {
-    return (
-      <div className="rounded-md border border-border bg-muted p-5 text-sm text-foreground">
-        <p className="font-medium">Takk! Klar til nedlasting.</p>
-        <p className="mt-1.5 text-muted-foreground">
-          Vi har også sendt deg en bekreftelses-e-post med nedlastingslenke
-          og en kort installasjonsguide.
-        </p>
-        <a
-          href="/selskapsanalyse/employer-analysis.skill"
-          download
-          className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-5 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Last ned Claude-skillen
-        </a>
-      </div>
-    );
   }
 
   return (
@@ -208,10 +193,12 @@ export function LeadForm() {
           <input
             type="checkbox"
             name="consentMarketing"
+            defaultChecked
             className="mt-0.5 h-4 w-4 rounded border-border bg-background accent-primary"
           />
           <span>
-            Send meg en e-post når Karrierenmin lanserer nye verktøy (valgfritt).
+            Send meg en kort e-post når Karrierenmin lanserer nye verktøy (kan
+            avsluttes når som helst).
           </span>
         </label>
       </div>
@@ -227,7 +214,7 @@ export function LeadForm() {
         disabled={submitting}
         className="w-full inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        {submitting ? "Sender…" : "Hent Claude skillen gratis"}
+        {submitting ? "Sender…" : "Koble til på LinkedIn og last ned skillen"}
       </button>
       <p className="text-xs text-muted-foreground text-center">
         Gratis. Ingen betaling eller kortinformasjon nødvendig.
