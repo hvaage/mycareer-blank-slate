@@ -95,6 +95,12 @@ export function LeadForm() {
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-4">
+      {testMode && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          <strong>Testmodus aktiv.</strong> Skjemaet er forhåndsutfylt og du
+          videresendes til takk-siden med gate-en automatisk åpen.
+        </div>
+      )}
       {/* Honeypot */}
       <div aria-hidden className="hidden">
         <label>
@@ -114,6 +120,7 @@ export function LeadForm() {
           name="firstName"
           error={errors.firstName}
           required
+          defaultValue={testMode ? "Test" : undefined}
         />
         <Field
           label="Jobb-e-post *"
@@ -122,6 +129,7 @@ export function LeadForm() {
           error={errors.email}
           required
           autoComplete="email"
+          defaultValue={testMode ? testEmail : undefined}
         />
       </div>
 
