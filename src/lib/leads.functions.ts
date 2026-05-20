@@ -121,7 +121,9 @@ export const submitLead = createServerFn({ method: "POST" })
               email: existing.email,
               linkedinUrl: existing.linkedin_url,
               role: existing.role,
+              accessToken: existing.access_token as string,
             });
+
             await supabaseAdmin
               .from("leads")
               .update({ email_sent_at: new Date().toISOString(), status: "emailed" })
