@@ -8,8 +8,7 @@ import { trackLeadEvent } from "@/lib/leads.functions";
 import { SELSKAPSANALYSE } from "@/lib/selskapsanalyse-site";
 
 const HENRIK_LINKEDIN = "https://www.linkedin.com/in/henrikvaage";
-const UNLOCK_KEY = "km_skill_unlocked_v1";
-const SKILL_HREF = "/selskapsanalyse/employer-analysis.skill";
+const DOWNLOAD_PATH = "/api/public/selskapsanalyse/download";
 
 const search = z.object({ token: z.string().optional().default("") });
 
