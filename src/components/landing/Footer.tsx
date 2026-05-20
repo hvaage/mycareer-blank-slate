@@ -51,6 +51,14 @@ export function Footer() {
             >
               hei@karrierenmin.no
             </a>
+            <div className="mt-4">
+              <Link
+                to="/personvern"
+                className="text-sm text-foreground transition-colors hover:text-accent"
+              >
+                Personvernerklæring
+              </Link>
+            </div>
           </div>
         </div>
         <div className="mt-12 flex flex-col items-start justify-between gap-2 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
