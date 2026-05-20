@@ -194,7 +194,7 @@ export function LeadForm() {
           <span>
             Jeg godtar{" "}
             <a
-              href="/privacy"
+              href="/personvern"
               className="text-foreground underline-offset-2 hover:underline"
             >
               personvernerklæringen
