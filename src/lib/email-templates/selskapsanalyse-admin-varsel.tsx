@@ -57,8 +57,8 @@ const SelskapsanalyseAdminVarsel = ({
 
 export const template = {
   component: SelskapsanalyseAdminVarsel,
-  subject: 'Ny lead fra Selskapsanalyse',
-  displayName: 'Selskapsanalyse — admin-varsel',
+  subject: 'Ny lead fra Arbeidsgiveranalysen',
+  displayName: 'Arbeidsgiveranalysen — admin-varsel',
   to: ADMIN_EMAIL,
   previewData: {
     firstName: 'Kari',
