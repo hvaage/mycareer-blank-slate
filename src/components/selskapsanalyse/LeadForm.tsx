@@ -66,7 +66,9 @@ export function LeadForm() {
       const res = await submit({ data: payload });
       if (res.ok) {
         const token = res.accessToken ?? "";
-        navigate({ to: "/selskapsanalyse/takk", search: { token } });
+        const search: { token: string; test?: string } = { token };
+        if (testMode) search.test = TEST_MODE_KEY;
+        navigate({ to: "/selskapsanalyse/takk", search });
       }
     } catch (err) {
       const msg = (err as Error).message || "Noe gikk galt";
