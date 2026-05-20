@@ -26,6 +26,7 @@ import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authentic
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
+import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './routes/api/public/selskapsanalyse/preview-email'
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
 
 const UnsubscribeRoute = UnsubscribeRouteImport.update({
@@ -115,6 +116,12 @@ const LovableEmailQueueProcessRoute =
     path: '/lovable/email/queue/process',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSelskapsanalysePreviewEmailRoute =
+  ApiPublicSelskapsanalysePreviewEmailRouteImport.update({
+    id: '/api/public/selskapsanalyse/preview-email',
+    path: '/api/public/selskapsanalyse/preview-email',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSelskapsanalyseDownloadRoute =
   ApiPublicSelskapsanalyseDownloadRouteImport.update({
     id: '/api/public/selskapsanalyse/download',
@@ -137,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
+  '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
@@ -156,6 +164,7 @@ export interface FileRoutesByTo {
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
+  '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
@@ -177,6 +186,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
+  '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/admin/leads'
     | '/lovable/email/suppression'
     | '/api/public/selskapsanalyse/download'
+    | '/api/public/selskapsanalyse/preview-email'
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/admin/leads'
     | '/lovable/email/suppression'
     | '/api/public/selskapsanalyse/download'
+    | '/api/public/selskapsanalyse/preview-email'
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
@@ -237,6 +249,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/leads'
     | '/lovable/email/suppression'
     | '/api/public/selskapsanalyse/download'
+    | '/api/public/selskapsanalyse/preview-email'
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
@@ -254,6 +267,7 @@ export interface RootRouteChildren {
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
+  ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
   LovableEmailTransactionalSendRoute: typeof LovableEmailTransactionalSendRoute
@@ -380,6 +394,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/selskapsanalyse/preview-email': {
+      id: '/api/public/selskapsanalyse/preview-email'
+      path: '/api/public/selskapsanalyse/preview-email'
+      fullPath: '/api/public/selskapsanalyse/preview-email'
+      preLoaderRoute: typeof ApiPublicSelskapsanalysePreviewEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/selskapsanalyse/download': {
       id: '/api/public/selskapsanalyse/download'
       path: '/api/public/selskapsanalyse/download'
@@ -430,6 +451,8 @@ const rootRouteChildren: RootRouteChildren = {
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicSelskapsanalyseDownloadRoute: ApiPublicSelskapsanalyseDownloadRoute,
+  ApiPublicSelskapsanalysePreviewEmailRoute:
+    ApiPublicSelskapsanalysePreviewEmailRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
   LovableEmailTransactionalSendRoute: LovableEmailTransactionalSendRoute,
@@ -437,3 +460,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
