@@ -246,6 +246,7 @@ function Field({
   placeholder,
   error,
   autoComplete,
+  defaultValue,
 }: {
   label: string;
   name: string;
@@ -254,6 +255,7 @@ function Field({
   placeholder?: string;
   error?: string;
   autoComplete?: string;
+  defaultValue?: string;
 }) {
   const id = `f-${name}`;
   return (
@@ -271,10 +273,12 @@ function Field({
         required={required}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        defaultValue={defaultValue}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-err` : undefined}
         className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
       />
+
       {error && (
         <p id={`${id}-err`} className="mt-1 text-xs text-destructive">
           {error}
