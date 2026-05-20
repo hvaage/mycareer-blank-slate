@@ -27,10 +27,10 @@ const SelskapsanalyseAdminVarsel = ({
 }: Props) => (
   <Html lang="no" dir="ltr">
     <Head />
-    <Preview>Ny lead fra Selskapsanalyse-siden</Preview>
+    <Preview>Ny lead fra Arbeidsgiveranalysen-siden</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Ny lead: Selskapsanalyse</Heading>
+        <Heading style={h1}>Ny lead: Arbeidsgiveranalysen</Heading>
         <Text style={text}>
           <strong>Navn:</strong> {firstName || '—'}
           <br />
@@ -57,8 +57,8 @@ const SelskapsanalyseAdminVarsel = ({
 
 export const template = {
   component: SelskapsanalyseAdminVarsel,
-  subject: 'Ny lead fra Selskapsanalyse',
-  displayName: 'Selskapsanalyse — admin-varsel',
+  subject: 'Ny lead fra Arbeidsgiveranalysen',
+  displayName: 'Arbeidsgiveranalysen — admin-varsel',
   to: ADMIN_EMAIL,
   previewData: {
     firstName: 'Kari',

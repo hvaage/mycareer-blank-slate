@@ -11,7 +11,7 @@ const navItems: NavItem[] = [
   { label: "Hva", to: "/", hash: "hva" },
   { label: "Annerledes", to: "/", hash: "annerledes" },
   { label: "Hvordan", to: "/", hash: "hvordan" },
-  { label: "Selskapsanalyse", to: "/selskapsanalyse" },
+  { label: "Arbeidsgiveranalysen", to: "/selskapsanalyse" },
   { label: "Kom i gang", to: "/signup" },
 ];
 

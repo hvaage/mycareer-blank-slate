@@ -13,12 +13,12 @@ import {
 export const Route = createFileRoute("/selskapsanalyse")({
   head: () => ({
     meta: [
-      { title: "Selskapsanalyse — Karrierenmin" },
+      { title: "Arbeidsgiveranalysen — Karrierenmin" },
       {
         name: "description",
         content: SELSKAPSANALYSE.defaultOgDescription,
       },
-      { property: "og:title", content: "Selskapsanalyse — Karrierenmin" },
+      { property: "og:title", content: "Arbeidsgiveranalysen — Karrierenmin" },
       {
         property: "og:description",
         content: SELSKAPSANALYSE.defaultOgDescription,
@@ -59,7 +59,7 @@ function SelskapsanalysePage() {
                   <span className="text-primary">før du signerer.</span>
                 </h1>
                 <p className="mt-5 text-lg sm:text-xl text-muted-foreground max-w-xl leading-relaxed">
-                  Selskapsanalysen gjør timer med arbeidsgiver-research om til
+                  Arbeidsgiveranalysen gjør timer med arbeidsgiver-research om til
                   en godt dokumentert PDF-rapport — i åtte dimensjoner, ekte
                   kilder, klar til en 20-minutters gjennomlesning før neste
                   intervju.
@@ -78,7 +78,7 @@ function SelskapsanalysePage() {
                     rel="noreferrer"
                     className="inline-flex h-12 items-center rounded-md border border-border bg-card px-6 text-base font-medium text-foreground hover:bg-muted transition-colors"
                   >
-                    Se et eksempel på en selskapsanalyse →
+                    Se et eksempel på en arbeidsgiveranalyse →
                   </a>
                 </div>
 
@@ -126,7 +126,7 @@ function SelskapsanalysePage() {
             </h2>
             <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
               De fleste "arbeidsgiver-research" er et par karakterer fra
-              omtalesider og et raskt LinkedIn-blikk. Selskapsanalysen går
+              omtalesider og et raskt LinkedIn-blikk. Arbeidsgiveranalysen går
               gjennom offentlige registre, bærekraftsrapportering,
               tilsynsrapporter og omtaleplattformer i landet hvor stillingen
               faktisk er — og scorer åtte dimensjoner med kildene knyttet på.

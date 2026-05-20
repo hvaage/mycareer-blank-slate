@@ -25,14 +25,14 @@ interface Props {
 const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
   <Html lang="no" dir="ltr">
     <Head />
-    <Preview>Last ned Claude-skillen for Selskapsanalyse</Preview>
+    <Preview>Last ned Claude-skillen for Arbeidsgiveranalysen</Preview>
     <Body style={main}>
       <Container style={container}>
         <Heading style={h1}>
           {firstName ? `Hei ${firstName}!` : 'Hei!'}
         </Heading>
         <Text style={text}>
-          Takk for at du hentet Selskapsanalyse-skillen fra Karrierenmin.no.
+          Takk for at du hentet Arbeidsgiveranalysen-skillen fra Karrierenmin.no.
           Klikk på knappen under for å låse opp og laste ned skill-filen.
         </Text>
         <Section style={buttonSection}>
@@ -92,7 +92,7 @@ const SelskapsanalyseBekreftelse = ({ firstName }: Props) => (
 export const template = {
   component: SelskapsanalyseBekreftelse,
   subject: 'Claude-skillen din er klar til nedlasting',
-  displayName: 'Selskapsanalyse — bekreftelse',
+  displayName: 'Arbeidsgiveranalysen — bekreftelse',
   previewData: { firstName: 'Kari' },
 } satisfies TemplateEntry
 

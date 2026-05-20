@@ -1,5 +1,5 @@
 export const SELSKAPSANALYSE = {
-  name: "Selskapsanalyse",
+  name: "Arbeidsgiveranalysen",
   brand: "Karrierenmin.no",
   tagline:
     "Kildebelagte arbeidsgiverrapporter for europeiske selskaper — for jobbsøkere som vil vite hva de går til.",
