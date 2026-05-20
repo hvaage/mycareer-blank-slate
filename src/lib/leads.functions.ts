@@ -41,23 +41,47 @@ const LeadSchema = z.object({
 
 export type SubmitLeadInput = z.input<typeof LeadSchema>;
 
+function resolveOrigin(): string {
+  // Prefer the actual host the form was submitted from so that emails sent
+  // from preview point at preview, and emails from prod point at prod.
+  const forwardedHost =
+    getRequestHeader("x-forwarded-host") || getRequestHeader("host");
+  const forwardedProto =
+    getRequestHeader("x-forwarded-proto") ||
+    (forwardedHost?.includes("localhost") ? "http" : "https");
+  if (forwardedHost) return `${forwardedProto}://${forwardedHost}`;
+  // Last-resort fallback to canonical production domain.
+  return "https://karrierenmin.no";
+}
+
+function buildTakkUrl(origin: string, token: string): string {
+  return `${origin}/selskapsanalyse/takk?token=${encodeURIComponent(token)}`;
+}
+
 async function sendLeadEmails(opts: {
   firstName: string;
   email: string;
   linkedinUrl: string;
   role: string | null;
   accessToken: string;
+  origin: string;
 }) {
   try {
     const { sendTransactionalInternal } = await import(
       "@/lib/email/send-internal.server"
     );
 
+    const takkUrl = buildTakkUrl(opts.origin, opts.accessToken);
+
     await sendTransactionalInternal({
       templateName: "selskapsanalyse-bekreftelse",
       recipientEmail: opts.email,
       idempotencyKey: `selskapsanalyse-bekreftelse-${opts.email}`,
-      templateData: { firstName: opts.firstName, token: opts.accessToken },
+      templateData: {
+        firstName: opts.firstName,
+        token: opts.accessToken,
+        takkUrl,
+      },
     });
 
     await sendTransactionalInternal({
