@@ -49,28 +49,14 @@ function TakkPage() {
   );
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(UNLOCK_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setUnlockedBy({
-          connect: Boolean(parsed?.connect),
-          follow: Boolean(parsed?.follow),
-        });
-      }
-    } catch {
-      /* ignore */
-    }
+    // No persistence — gate must be passed once per visit. Actual download
+    // is server-validated against the access token in any case.
   }, []);
 
   function persistUnlock(next: { connect: boolean; follow: boolean }) {
     setUnlockedBy(next);
-    try {
-      localStorage.setItem(UNLOCK_KEY, JSON.stringify(next));
-    } catch {
-      /* ignore */
-    }
   }
+
 
   const isUnlocked = unlockedBy.connect || unlockedBy.follow;
 
