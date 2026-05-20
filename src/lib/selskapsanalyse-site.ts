@@ -10,6 +10,11 @@ export const SELSKAPSANALYSE = {
     "Gratis Claude skill fra Karrierenmin.no. Oppgi et selskapsdomene og land, og få en kildebelagt PDF-rapport med åtte dimensjoner.",
 };
 
+// Secret used to enable the preview test mode on /selskapsanalyse og /selskapsanalyse/takk.
+// Kjent kun for de som har lenken — ikke lenket fra noe sted i UI-et.
+export const TEST_MODE_KEY = "preview-km-2026";
+export const TEST_MODE_PARAM = "test";
+
 export const DIMENSJONER = [
   {
     title: "Kultur og verdier",

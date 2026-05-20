@@ -110,9 +110,7 @@ const SelskapsanalyseBekreftelse = ({ firstName, token }: Props) => {
             claude.ai
           </Link>
           . Klikk på profilen din nede til venstre →{' '}
-          <strong>Settings</strong> → <strong>Capabilities</strong> →{' '}
-          <strong>Skills</strong>. (På mobil: menyen øverst til venstre →{' '}
-          <strong>Settings</strong>.)
+          <strong>Customize</strong> → <strong>Skills</strong>.
         </Text>
         <Text style={text}>
           <strong>3. Last opp filen</strong>

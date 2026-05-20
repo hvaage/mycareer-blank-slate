@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { submitLead } from "@/lib/leads.functions";
+import { TEST_MODE_KEY, TEST_MODE_PARAM } from "@/lib/selskapsanalyse-site";
 
 const UTM_KEYS = [
   "utm_source",
@@ -27,6 +28,7 @@ export function LeadForm() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [testMode, setTestMode] = useState(false);
   const utmRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
@@ -38,7 +40,10 @@ export function LeadForm() {
       if (v) utm[k] = v.slice(0, 120);
     });
     utmRef.current = utm;
+    if (params.get(TEST_MODE_PARAM) === TEST_MODE_KEY) setTestMode(true);
   }, []);
+
+  const testEmail = `test+${Date.now()}@karrierenmin.no`;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,7 +66,9 @@ export function LeadForm() {
       const res = await submit({ data: payload });
       if (res.ok) {
         const token = res.accessToken ?? "";
-        navigate({ to: "/selskapsanalyse/takk", search: { token } });
+        const search: { token: string; test?: string } = { token };
+        if (testMode) search.test = TEST_MODE_KEY;
+        navigate({ to: "/selskapsanalyse/takk", search });
       }
     } catch (err) {
       const msg = (err as Error).message || "Noe gikk galt";
@@ -88,6 +95,12 @@ export function LeadForm() {
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-4">
+      {testMode && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          <strong>Testmodus aktiv.</strong> Skjemaet er forhåndsutfylt og du
+          videresendes til takk-siden med gate-en automatisk åpen.
+        </div>
+      )}
       {/* Honeypot */}
       <div aria-hidden className="hidden">
         <label>
@@ -107,6 +120,7 @@ export function LeadForm() {
           name="firstName"
           error={errors.firstName}
           required
+          defaultValue={testMode ? "Test" : undefined}
         />
         <Field
           label="Jobb-e-post *"
@@ -115,6 +129,7 @@ export function LeadForm() {
           error={errors.email}
           required
           autoComplete="email"
+          defaultValue={testMode ? testEmail : undefined}
         />
       </div>
 
@@ -139,6 +154,7 @@ export function LeadForm() {
             type="text"
             required
             placeholder="ditt-brukernavn"
+            defaultValue={testMode ? "test-bruker" : undefined}
             aria-invalid={!!errors.linkedinUrl}
             aria-describedby={
               errors.linkedinUrl ? "f-linkedinHandle-err" : "f-linkedinHandle-help"
@@ -231,6 +247,7 @@ function Field({
   placeholder,
   error,
   autoComplete,
+  defaultValue,
 }: {
   label: string;
   name: string;
@@ -239,6 +256,7 @@ function Field({
   placeholder?: string;
   error?: string;
   autoComplete?: string;
+  defaultValue?: string;
 }) {
   const id = `f-${name}`;
   return (
@@ -256,10 +274,12 @@ function Field({
         required={required}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        defaultValue={defaultValue}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-err` : undefined}
         className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
       />
+
       {error && (
         <p id={`${id}-err`} className="mt-1 text-xs text-destructive">
           {error}

@@ -5,12 +5,16 @@ import { z } from "zod";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { trackLeadEvent } from "@/lib/leads.functions";
-import { SELSKAPSANALYSE } from "@/lib/selskapsanalyse-site";
+import { SELSKAPSANALYSE, TEST_MODE_KEY } from "@/lib/selskapsanalyse-site";
 
 const HENRIK_LINKEDIN = "https://www.linkedin.com/in/henrikvaage";
 const DOWNLOAD_PATH = "/api/public/selskapsanalyse/download";
+const PREVIEW_EMAIL_PATH = "/api/public/selskapsanalyse/preview-email";
 
-const search = z.object({ token: z.string().optional().default("") });
+const search = z.object({
+  token: z.string().optional().default(""),
+  test: z.string().optional().default(""),
+});
 
 export const Route = createFileRoute("/selskapsanalyse/takk")({
   validateSearch: (s) => search.parse(s),
@@ -41,17 +45,17 @@ function withUtm(url: string, params: Record<string, string>) {
 }
 
 function TakkPage() {
-  const { token } = Route.useSearch();
+  const { token, test } = Route.useSearch();
   const track = useServerFn(trackLeadEvent);
+  const testMode = test === TEST_MODE_KEY;
 
   const [unlockedBy, setUnlockedBy] = useState<{ connect: boolean; follow: boolean }>(
-    { connect: false, follow: false }
+    { connect: testMode, follow: testMode }
   );
 
   useEffect(() => {
-    // No persistence — gate must be passed once per visit. Actual download
-    // is server-validated against the access token in any case.
-  }, []);
+    if (testMode) setUnlockedBy({ connect: true, follow: true });
+  }, [testMode]);
 
   function persistUnlock(next: { connect: boolean; follow: boolean }) {
     setUnlockedBy(next);
@@ -95,6 +99,30 @@ function TakkPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       <main className="flex-1 mx-auto max-w-2xl w-full px-4 sm:px-6 py-16 sm:py-24">
+        {testMode && (
+          <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+            <strong>Testmodus aktiv.</strong> LinkedIn-gate-en er automatisk
+            låst opp, og du kan se den ferdig-rendrede bekreftelses-e-posten
+            uten å vente på kø.
+            <div className="mt-2 flex flex-wrap gap-3 text-xs">
+              <a
+                href={`${PREVIEW_EMAIL_PATH}?key=${encodeURIComponent(
+                  TEST_MODE_KEY
+                )}${token ? `&token=${encodeURIComponent(token)}` : ""}`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline font-medium"
+              >
+                Forhåndsvis bekreftelses-e-post →
+              </a>
+              {!token && (
+                <span className="text-muted-foreground">
+                  (uten token: nedlasting krever ekte innsending)
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         <div className="rounded-2xl border border-border bg-card p-8 sm:p-10">
           <div className="h-12 w-12 rounded-full bg-primary/15 text-primary grid place-items-center mb-5">
             <svg className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
@@ -195,8 +223,7 @@ function TakkPage() {
                     </li>
                     <li>
                       Klikk profilen din nede til venstre →{" "}
-                      <strong>Settings</strong> →{" "}
-                      <strong>Capabilities</strong> →{" "}
+                      <strong>Customize</strong> →{" "}
                       <strong>Skills</strong>.
                     </li>
                     <li>
