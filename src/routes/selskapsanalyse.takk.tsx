@@ -45,17 +45,17 @@ function withUtm(url: string, params: Record<string, string>) {
 }
 
 function TakkPage() {
-  const { token } = Route.useSearch();
+  const { token, test } = Route.useSearch();
   const track = useServerFn(trackLeadEvent);
+  const testMode = test === TEST_MODE_KEY;
 
   const [unlockedBy, setUnlockedBy] = useState<{ connect: boolean; follow: boolean }>(
-    { connect: false, follow: false }
+    { connect: testMode, follow: testMode }
   );
 
   useEffect(() => {
-    // No persistence — gate must be passed once per visit. Actual download
-    // is server-validated against the access token in any case.
-  }, []);
+    if (testMode) setUnlockedBy({ connect: true, follow: true });
+  }, [testMode]);
 
   function persistUnlock(next: { connect: boolean; follow: boolean }) {
     setUnlockedBy(next);
