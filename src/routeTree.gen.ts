@@ -13,6 +13,7 @@ import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SelskapsanalyseRouteImport } from './routes/selskapsanalyse'
+import { Route as PersonvernRouteImport } from './routes/personvern'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
@@ -47,6 +48,11 @@ const SignupRoute = SignupRouteImport.update({
 const SelskapsanalyseRoute = SelskapsanalyseRouteImport.update({
   id: '/selskapsanalyse',
   path: '/selskapsanalyse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PersonvernRoute = PersonvernRouteImport.update({
+  id: '/personvern',
+  path: '/personvern',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -132,6 +138,7 @@ const ApiPublicSelskapsanalyseDownloadRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/personvern': typeof PersonvernRoute
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/personvern': typeof PersonvernRoute
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/personvern': typeof PersonvernRoute
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/personvern'
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/personvern'
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/personvern'
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
@@ -259,6 +271,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PersonvernRoute: typeof PersonvernRoute
   SelskapsanalyseRoute: typeof SelskapsanalyseRouteWithChildren
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -301,6 +314,13 @@ declare module '@tanstack/react-router' {
       path: '/selskapsanalyse'
       fullPath: '/selskapsanalyse'
       preLoaderRoute: typeof SelskapsanalyseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/personvern': {
+      id: '/personvern'
+      path: '/personvern'
+      fullPath: '/personvern'
+      preLoaderRoute: typeof PersonvernRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -443,6 +463,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  PersonvernRoute: PersonvernRoute,
   SelskapsanalyseRoute: SelskapsanalyseRouteWithChildren,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
@@ -460,3 +481,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
