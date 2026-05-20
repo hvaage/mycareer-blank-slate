@@ -195,8 +195,7 @@ function TakkPage() {
                     </li>
                     <li>
                       Klikk profilen din nede til venstre →{" "}
-                      <strong>Settings</strong> →{" "}
-                      <strong>Capabilities</strong> →{" "}
+                      <strong>Customize</strong> →{" "}
                       <strong>Skills</strong>.
                     </li>
                     <li>
