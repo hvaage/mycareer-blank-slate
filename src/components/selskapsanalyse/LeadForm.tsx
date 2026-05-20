@@ -28,6 +28,7 @@ export function LeadForm() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [testMode, setTestMode] = useState(false);
   const utmRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
@@ -39,7 +40,10 @@ export function LeadForm() {
       if (v) utm[k] = v.slice(0, 120);
     });
     utmRef.current = utm;
+    if (params.get(TEST_MODE_PARAM) === TEST_MODE_KEY) setTestMode(true);
   }, []);
+
+  const testEmail = `test+${Date.now()}@karrierenmin.no`;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
