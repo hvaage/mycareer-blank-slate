@@ -20,15 +20,17 @@ const FOLLOW_URL = 'https://www.linkedin.com/company/karrierenmin/?trk=follow'
 interface Props {
   firstName?: string
   token?: string
+  takkUrl?: string
 }
 
-function buildTakkUrl(token?: string): string {
+function buildTakkUrl(token?: string, override?: string): string {
+  if (override) return override
   return token ? `${TAKK_BASE}?token=${encodeURIComponent(token)}` : TAKK_BASE
 }
 
 
-const SelskapsanalyseBekreftelse = ({ firstName, token }: Props) => {
-  const takkUrl = buildTakkUrl(token)
+const SelskapsanalyseBekreftelse = ({ firstName, token, takkUrl: takkUrlOverride }: Props) => {
+  const takkUrl = buildTakkUrl(token, takkUrlOverride)
   return (
   <Html lang="no" dir="ltr">
     <Head />
