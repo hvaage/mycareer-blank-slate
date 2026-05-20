@@ -78,7 +78,7 @@ function SelskapsanalysePage() {
                     rel="noreferrer"
                     className="inline-flex h-12 items-center rounded-md border border-border bg-card px-6 text-base font-medium text-foreground hover:bg-muted transition-colors"
                   >
-                    Se et eksempel på en selskapsanalyse →
+                    Se et eksempel på en arbeidsgiveranalyse →
                   </a>
                 </div>
 
