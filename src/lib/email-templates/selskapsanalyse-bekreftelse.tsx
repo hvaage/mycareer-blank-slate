@@ -86,7 +86,7 @@ const SelskapsanalyseBekreftelse = ({ firstName, token }: Props) => {
           Slik installerer du skillen i Claude
         </Heading>
         <Text style={text}>
-          Skills er en funksjon i Claude som lar deg laste opp egne ferdigheter
+          Skills er en funksjon i Claude som lar deg laste opp egne Claude skiller
           Claude kan bruke i samtaler. Du trenger en{' '}
           <strong>Claude Pro-, Max-, Team- eller Enterprise-konto</strong> for
           å bruke Skills.

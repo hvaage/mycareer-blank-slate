@@ -7,7 +7,7 @@ export const SELSKAPSANALYSE = {
   companyLinkedinFollowUrl:
     "https://www.linkedin.com/company/karrierenmin/?trk=follow",
   defaultOgDescription:
-    "Gratis Claude-ferdighet fra Karrierenmin.no. Oppgi et selskapsdomene og land, og få en kildebelagt PDF-rapport med åtte dimensjoner.",
+    "Gratis Claude skill fra Karrierenmin.no. Oppgi et selskapsdomene og land, og få en kildebelagt PDF-rapport med åtte dimensjoner.",
 };
 
 export const DIMENSJONER = [
