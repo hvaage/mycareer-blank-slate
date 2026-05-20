@@ -20,7 +20,7 @@ export function Footer() {
           <div>
             <Logo className="h-9 w-auto" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Et system for å forstå og styre egen karriere.
+              Et system for å forstå, dokumentere og styre egen karriere.
             </p>
           </div>
           <div>
