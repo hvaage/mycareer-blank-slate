@@ -59,7 +59,7 @@ export const Route = createFileRoute("/api/public/selskapsanalyse/download")({
         }
 
         const bytes = decodeBase64ToBytes(SKILL_BASE64);
-        return new Response(bytes, {
+        return new Response(bytes.buffer as ArrayBuffer, {
           status: 200,
           headers: {
             "Content-Type": "application/octet-stream",
