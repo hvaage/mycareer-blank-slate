@@ -124,7 +124,7 @@ function TakkPage() {
             Takk! Én rask ting før du laster ned.
           </h1>
           <p className="mt-3 text-muted-foreground leading-relaxed">
-            Selskapsanalyse er en gratis Claude-skill fra Karrierenmin.no. For å
+            Arbeidsgiveranalysen er en gratis Claude-skill fra Karrierenmin.no. For å
             låse opp nedlastingen — koble til Henrik Vaage på LinkedIn eller
             følg Karrierenmin.no. Det er sånn vi holder prosjektet i gang og
             sender ut neste skill.
