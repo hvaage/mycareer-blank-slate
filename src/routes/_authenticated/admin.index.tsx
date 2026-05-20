@@ -200,7 +200,7 @@ function AdminDashboard() {
                       <Th>Nedlasting</Th>
                       <Th>Gjest</Th>
                       <Th>Nedlastet</Th>
-                      <Th></Th>
+                      <Th>{""}</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
