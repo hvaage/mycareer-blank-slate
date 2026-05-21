@@ -1,0 +1,1 @@
+DELETE FROM public.employer_reports WHERE company_domain = 'test.no' AND report_id = '11111111-2222-3333-4444-555555555555';
