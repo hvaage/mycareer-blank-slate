@@ -13,7 +13,16 @@
  */
 
 import { execSync, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync, cpSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdtempSync,
+  rmSync,
+  cpSync,
+  existsSync,
+  readdirSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -43,19 +52,29 @@ function runTests() {
   }
 }
 
+function pruneJunk(dir) {
+  // Recursively remove __pycache__ folders, .pyc files, and .DS_Store.
+  for (const entry of readdirSync(dir)) {
+    const p = join(dir, entry);
+    const s = statSync(p);
+    if (s.isDirectory()) {
+      if (entry === "__pycache__") {
+        rmSync(p, { recursive: true, force: true });
+      } else {
+        pruneJunk(p);
+      }
+    } else if (entry.endsWith(".pyc") || entry === ".DS_Store") {
+      rmSync(p, { force: true });
+    }
+  }
+}
+
 function buildZip(version) {
   const tmp = mkdtempSync(join(tmpdir(), "skill-build-"));
   const innerName = `employer-analysis-v${version}`;
   const innerPath = join(tmp, innerName);
-  cpSync(SRC_DIR, innerPath, {
-    recursive: true,
-    filter: (src) => {
-      const base = src.split("/").pop();
-      if (base === "__pycache__" || base?.endsWith(".pyc")) return false;
-      if (base === ".DS_Store") return false;
-      return true;
-    },
-  });
+  cpSync(SRC_DIR, innerPath, { recursive: true });
+  pruneJunk(innerPath);
 
   const zipPath = join(tmp, `${innerName}.skill`);
   // -X strips extra file attributes for reproducible output.
