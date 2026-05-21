@@ -1,4 +1,11 @@
-const DIMENSJONER: { label: string; score: number }[] = [
+type Dim = { label: string; score: number | null };
+
+type Props = {
+  dimensions?: Dim[];
+  ariaLabel?: string;
+};
+
+const SAMPLE: Dim[] = [
   { label: "Kultur og verdier", score: 3.5 },
   { label: "Lederskap", score: 4.0 },
   { label: "Arbeidsmiljø", score: 4.0 },
@@ -23,27 +30,38 @@ function pointFor(index: number, value: number, total: number) {
   };
 }
 
-export function DimensionsRadar() {
-  const total = DIMENSJONER.length;
+export function DimensionsRadar({ dimensions, ariaLabel }: Props = {}) {
+  const data: Dim[] = dimensions && dimensions.length > 0 ? dimensions : SAMPLE;
+  const total = data.length;
   const rings = [1, 2, 3, 4, 5];
 
-  const polygonPoints = DIMENSJONER.map((d, i) => {
-    const p = pointFor(i, d.score, total);
-    return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
-  }).join(" ");
+  // For polygon: behandle null som 0 (men tegn stiplet linje)
+  const polygonPoints = data
+    .map((d, i) => {
+      const v = d.score ?? 0;
+      const p = pointFor(i, v, total);
+      return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+    })
+    .join(" ");
+  const hasNull = data.some((d) => d.score == null);
 
   return (
     <svg
       viewBox={`0 0 ${SIZE} ${SIZE}`}
       role="img"
-      aria-label="Radardiagram fra en eksempelrapport som viser score på åtte arbeidsgiver-dimensjoner"
+      aria-label={
+        ariaLabel ??
+        "Radardiagram som viser score på arbeidsgiver-dimensjoner"
+      }
       className="w-full h-auto"
     >
       {rings.map((ring) => {
-        const pts = DIMENSJONER.map((_, i) => {
-          const p = pointFor(i, ring, total);
-          return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
-        }).join(" ");
+        const pts = data
+          .map((_, i) => {
+            const p = pointFor(i, ring, total);
+            return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+          })
+          .join(" ");
         return (
           <polygon
             key={ring}
@@ -57,7 +75,7 @@ export function DimensionsRadar() {
         );
       })}
 
-      {DIMENSJONER.map((_, i) => {
+      {data.map((_, i) => {
         const p = pointFor(i, MAX, total);
         return (
           <line
@@ -81,11 +99,13 @@ export function DimensionsRadar() {
         stroke="currentColor"
         strokeWidth={2}
         strokeLinejoin="round"
+        strokeDasharray={hasNull ? "6 4" : undefined}
         className="text-primary"
       />
 
-      {DIMENSJONER.map((d, i) => {
-        const p = pointFor(i, d.score, total);
+      {data.map((d, i) => {
+        const v = d.score ?? 0;
+        const p = pointFor(i, v, total);
         return (
           <circle
             key={i}
@@ -93,12 +113,12 @@ export function DimensionsRadar() {
             cy={p.y}
             r={3}
             fill="currentColor"
-            className="text-primary"
+            className={d.score == null ? "text-muted-foreground" : "text-primary"}
           />
         );
       })}
 
-      {DIMENSJONER.map((d, i) => {
+      {data.map((d, i) => {
         const labelPos = pointFor(i, MAX + 0.9, total);
         const dx = labelPos.x - CENTER;
         const anchor =

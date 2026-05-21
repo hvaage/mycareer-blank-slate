@@ -23,7 +23,9 @@ import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as SelskapsanalyseAnalysedatabaseIndexRouteImport } from './routes/selskapsanalyse.analysedatabase.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/selskapsanalyse.analysedatabase.$id'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
 import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authenticated/admin.leads'
@@ -102,11 +104,23 @@ const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   path: '/app',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const SelskapsanalyseAnalysedatabaseIndexRoute =
+  SelskapsanalyseAnalysedatabaseIndexRouteImport.update({
+    id: '/analysedatabase/',
+    path: '/analysedatabase/',
+    getParentRoute: () => SelskapsanalyseRoute,
+  } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const SelskapsanalyseAnalysedatabaseIdRoute =
+  SelskapsanalyseAnalysedatabaseIdRouteImport.update({
+    id: '/analysedatabase/$id',
+    path: '/analysedatabase/$id',
+    getParentRoute: () => SelskapsanalyseRoute,
+  } as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   id: '/lovable/email/suppression',
   path: '/lovable/email/suppression',
@@ -170,7 +184,9 @@ export interface FileRoutesByFullPath {
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -193,7 +209,9 @@ export interface FileRoutesByTo {
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -219,7 +237,9 @@ export interface FileRoutesById {
   '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -245,7 +265,9 @@ export interface FileRouteTypes {
     | '/admin/leads'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
+    | '/selskapsanalyse/analysedatabase/$id'
     | '/admin/'
+    | '/selskapsanalyse/analysedatabase/'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
     | '/lovable/email/queue/process'
@@ -268,7 +290,9 @@ export interface FileRouteTypes {
     | '/admin/leads'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
+    | '/selskapsanalyse/analysedatabase/$id'
     | '/admin'
+    | '/selskapsanalyse/analysedatabase'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
     | '/lovable/email/queue/process'
@@ -293,7 +317,9 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/leads'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
+    | '/selskapsanalyse/analysedatabase/$id'
     | '/_authenticated/admin/'
+    | '/selskapsanalyse/analysedatabase/'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
     | '/lovable/email/queue/process'
@@ -421,12 +447,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/selskapsanalyse/analysedatabase/': {
+      id: '/selskapsanalyse/analysedatabase/'
+      path: '/analysedatabase'
+      fullPath: '/selskapsanalyse/analysedatabase/'
+      preLoaderRoute: typeof SelskapsanalyseAnalysedatabaseIndexRouteImport
+      parentRoute: typeof SelskapsanalyseRoute
+    }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/selskapsanalyse/analysedatabase/$id': {
+      id: '/selskapsanalyse/analysedatabase/$id'
+      path: '/analysedatabase/$id'
+      fullPath: '/selskapsanalyse/analysedatabase/$id'
+      preLoaderRoute: typeof SelskapsanalyseAnalysedatabaseIdRouteImport
+      parentRoute: typeof SelskapsanalyseRoute
     }
     '/lovable/email/suppression': {
       id: '/lovable/email/suppression'
@@ -508,11 +548,16 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 interface SelskapsanalyseRouteChildren {
   SelskapsanalyseTakkRoute: typeof SelskapsanalyseTakkRoute
   SelskapsanalyseIndexRoute: typeof SelskapsanalyseIndexRoute
+  SelskapsanalyseAnalysedatabaseIdRoute: typeof SelskapsanalyseAnalysedatabaseIdRoute
+  SelskapsanalyseAnalysedatabaseIndexRoute: typeof SelskapsanalyseAnalysedatabaseIndexRoute
 }
 
 const SelskapsanalyseRouteChildren: SelskapsanalyseRouteChildren = {
   SelskapsanalyseTakkRoute: SelskapsanalyseTakkRoute,
   SelskapsanalyseIndexRoute: SelskapsanalyseIndexRoute,
+  SelskapsanalyseAnalysedatabaseIdRoute: SelskapsanalyseAnalysedatabaseIdRoute,
+  SelskapsanalyseAnalysedatabaseIndexRoute:
+    SelskapsanalyseAnalysedatabaseIndexRoute,
 }
 
 const SelskapsanalyseRouteWithChildren = SelskapsanalyseRoute._addFileChildren(
