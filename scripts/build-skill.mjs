@@ -47,7 +47,15 @@ function buildZip(version) {
   const tmp = mkdtempSync(join(tmpdir(), "skill-build-"));
   const innerName = `employer-analysis-v${version}`;
   const innerPath = join(tmp, innerName);
-  cpSync(SRC_DIR, innerPath, { recursive: true });
+  cpSync(SRC_DIR, innerPath, {
+    recursive: true,
+    filter: (src) => {
+      const base = src.split("/").pop();
+      if (base === "__pycache__" || base?.endsWith(".pyc")) return false;
+      if (base === ".DS_Store") return false;
+      return true;
+    },
+  });
 
   const zipPath = join(tmp, `${innerName}.skill`);
   // -X strips extra file attributes for reproducible output.
