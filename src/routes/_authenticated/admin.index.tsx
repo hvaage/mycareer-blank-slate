@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { getAdminDashboard, type AdminDashboardRow } from "@/lib/admin.functions";
+import { getReportStats } from "@/lib/reports.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({
@@ -46,6 +47,11 @@ function AdminDashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-dashboard"],
     queryFn: () => fetchDash(),
+  });
+  const fetchReportStats = useServerFn(getReportStats);
+  const { data: reportStats } = useQuery({
+    queryKey: ["admin-report-stats"],
+    queryFn: () => fetchReportStats(),
   });
 
   const [segment, setSegment] = useState<Segment>("alle");
@@ -181,11 +187,54 @@ function AdminDashboard() {
               ))}
             </div>
 
+            {/* Analysedatabase */}
+            {reportStats && (
+              <section className="mt-10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">
+                      Analysedatabase
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Rapporter mottatt fra Arbeidsgiveranalyse-skillen
+                    </p>
+                  </div>
+                  <Link
+                    to="/selskapsanalyse/analysedatabase"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Åpne databasen →
+                  </Link>
+                </div>
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <p className="text-xs text-muted-foreground">Totalt</p>
+                    <p className="mt-1 text-2xl font-semibold">
+                      {reportStats.total}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <p className="text-xs text-muted-foreground">Siste 7 dager</p>
+                    <p className="mt-1 text-2xl font-semibold">
+                      {reportStats.last7}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <p className="text-xs text-muted-foreground">Siste rapport</p>
+                    <p className="mt-1 text-sm text-foreground truncate">
+                      {reportStats.latest[0]?.company_name ?? "–"}
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )}
+
             {/* Per-skill breakdown */}
             <section className="mt-10">
               <h2 className="text-lg font-semibold text-foreground">
                 Per skill
               </h2>
+
               <p className="text-sm text-muted-foreground">
                 Brukere per skill / kilde
               </p>

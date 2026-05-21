@@ -101,6 +101,90 @@ export type Database = {
         }
         Relationships: []
       }
+      employer_reports: {
+        Row: {
+          analysis_date: string | null
+          branch_country: string | null
+          company_domain: string
+          company_name: string
+          created_at: string
+          dimensions: Json
+          employee_count: number | null
+          employee_count_as_of: string | null
+          employee_count_source: string | null
+          id: string
+          industry_nace: string | null
+          ingest_ip_hash: string | null
+          language: string
+          overall_score: number | null
+          parent_country: string | null
+          report_id: string
+          revenue_bucket: string | null
+          schema_version: string
+          scope_deviation: boolean | null
+          scored_dimensions: number | null
+          search_count: number | null
+          source_count: number | null
+          submitted_at: string
+          tier: string
+          total_dimensions: number | null
+        }
+        Insert: {
+          analysis_date?: string | null
+          branch_country?: string | null
+          company_domain: string
+          company_name: string
+          created_at?: string
+          dimensions?: Json
+          employee_count?: number | null
+          employee_count_as_of?: string | null
+          employee_count_source?: string | null
+          id?: string
+          industry_nace?: string | null
+          ingest_ip_hash?: string | null
+          language: string
+          overall_score?: number | null
+          parent_country?: string | null
+          report_id: string
+          revenue_bucket?: string | null
+          schema_version: string
+          scope_deviation?: boolean | null
+          scored_dimensions?: number | null
+          search_count?: number | null
+          source_count?: number | null
+          submitted_at: string
+          tier: string
+          total_dimensions?: number | null
+        }
+        Update: {
+          analysis_date?: string | null
+          branch_country?: string | null
+          company_domain?: string
+          company_name?: string
+          created_at?: string
+          dimensions?: Json
+          employee_count?: number | null
+          employee_count_as_of?: string | null
+          employee_count_source?: string | null
+          id?: string
+          industry_nace?: string | null
+          ingest_ip_hash?: string | null
+          language?: string
+          overall_score?: number | null
+          parent_country?: string | null
+          report_id?: string
+          revenue_bucket?: string | null
+          schema_version?: string
+          scope_deviation?: boolean | null
+          scored_dimensions?: number | null
+          search_count?: number | null
+          source_count?: number | null
+          submitted_at?: string
+          tier?: string
+          total_dimensions?: number | null
+        }
+        Relationships: []
+      }
       lead_events: {
         Row: {
           created_at: string
