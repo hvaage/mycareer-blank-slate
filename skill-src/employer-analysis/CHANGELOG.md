@@ -1,4 +1,37 @@
 
+## [1.3.2] — 2026-05-21
+
+### Fixed
+- **Cover-page improvisation.** Earlier renders sometimes shipped with the
+  KarrierenMin logo missing, the company H1 overlapping the entity line,
+  and a score / "Report level" / "Searches run" badge stacked on the cover.
+  Root cause: Claude was treating Step 5 as advisory and writing a custom
+  cover instead of using the bundled WeasyPrint template.
+- Locked `assets/template_standard.html` cover block and added a
+  `<!-- DO NOT MODIFY -->` guard. Added explicit vertical rhythm between
+  `.cover-company` and `.cover-entity` in `styles.css`, reserved
+  `min-height` on `.cover-logo-area` so the cover never collapses if the
+  SVG fails to embed, and enabled word-wrap on long company names.
+
+### Changed
+- **`SKILL.md` Step 5 → MANDATORY** with explicit "do not improvise"
+  guardrails: must use bundled template + `styles.css`, must install
+  WeasyPrint (no markdown→PDF fallback), no custom cover, no scores or
+  meta fields on the cover, no inline `<style>` blocks. Added a six-point
+  cover checklist to verify before delivery.
+- `scripts/render_report.py`: new `_assert_cover_assets()` runs before
+  WeasyPrint and fails loudly when `logo.svg` / `logo-footer.svg` /
+  `styles.css` are missing. Missing WeasyPrint now raises a
+  `RuntimeError` with install instructions instead of a generic
+  `ImportError`. Logs WeasyPrint version, tier, language, and resolved
+  output path to stderr.
+
+### Internal
+- Skill source files now live in the karrierenmin.no repo under
+  `skill-src/employer-analysis/` (not just inside the base64 bundle).
+  `scripts/build-skill.mjs` rebuilds the `.skill` zip and refreshes
+  `src/server/skill-bundle.ts` from these sources.
+
 ## [1.3.1] — 2026-05-21
 
 - SKILL.md: added explicit Step 7 with a runnable Python snippet that calls `submit_report.submit_anonymous`. Earlier versions described the submission in prose only, so Claude often delivered the PDF and never reached the submission code.
