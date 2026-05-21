@@ -246,7 +246,29 @@ function SelskapsanalysePage() {
             Hent Claude skillen
           </a>
         </section>
+
+        {/* Analysedatabase teaser */}
+        <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-16">
+          <div className="rounded-2xl border border-border bg-card p-8 sm:p-10 text-center">
+            <h2 className="text-2xl sm:text-3xl font-serif">
+              Utforsk Analysedatabasen
+            </h2>
+            <p className="mt-3 mx-auto max-w-xl text-muted-foreground">
+              Hver rapport som genereres med skillen sendes anonymt til en
+              åpen database. Søk på selskap og se hvordan arbeidsgivere
+              vurderes på de åtte dimensjonene — og hvordan vurderingen
+              endrer seg over tid.
+            </p>
+            <Link
+              to="/selskapsanalyse/analysedatabase"
+              className="mt-6 inline-flex h-11 items-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              Åpne Analysedatabasen
+            </Link>
+          </div>
+        </section>
       </main>
+
 
       <Footer />
     </div>
