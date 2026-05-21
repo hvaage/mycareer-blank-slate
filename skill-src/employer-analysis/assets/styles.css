@@ -89,7 +89,7 @@ strong { font-weight: 600; }
   margin: 0;
 }
 
-/* --- Cover page --- */
+/* --- Cover page (LOCKED — edit only in skill-src) --- */
 
 .cover-page {
   padding-top: 4cm;
@@ -109,12 +109,23 @@ strong { font-weight: 600; }
   color: __ACCENT__;
 }
 
+.cover-logo-area {
+  /* Reserved vertical space so the cover never collapses if the
+     logo SVG fails to embed. */
+  min-height: 80px;
+}
+
 .cover-logo-area svg {
   width: 320px;
   height: auto;
   display: block;
 }
 
+.cover-title-block {
+  /* Explicit vertical rhythm between H1 (company) and entity line so
+     they never overlap regardless of company-name length. */
+  margin-top: 0.5cm;
+}
 
 .cover-eyebrow {
   font-size: 10pt;
@@ -127,14 +138,19 @@ strong { font-weight: 600; }
 .cover-company {
   font-size: 32pt;
   color: __ACCENT__;
-  margin: 0 0 0.3em 0;
-  line-height: 1.1;
+  margin: 0 0 0.5em 0;
+  line-height: 1.15;
+  /* Wrap long company names instead of overflowing into entity line. */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .cover-entity {
   font-size: 12pt;
   color: #4A5568;
   margin: 0;
+  /* Hard separation from H1 so the two lines never collide. */
+  padding-top: 0.2em;
 }
 
 .cover-meta {

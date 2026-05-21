@@ -2,7 +2,7 @@
 name: employer-analysis
 description: Produce an evidence-based PDF report on a European employer for prospective employees. Use this skill whenever the user asks to analyze, research, evaluate, or produce a report on a specific company as an employer in Norway, Sweden, Denmark, Finland, Iceland, Germany, the Netherlands, Belgium, Luxembourg, France, the United Kingdom, Spain, Portugal, Italy, Austria, or Switzerland. Trigger phrases include analyze this employer, employer report, is X a good place to work, employer due diligence, research this company for a job, or any request that names a specific European company and asks for an assessment of working conditions, culture, leadership, financial stability, or related dimensions. Also trigger when the user simply invokes the skill name without arguments. The output is always a downloadable PDF in the language the user selects.
 license: Proprietary - KarrierenMin.no
-version: 1.3.1
+version: 1.3.2
 ---
 
 # Employer Analysis
@@ -141,9 +141,34 @@ For the standard tier, populate the base schema (company metadata, overall score
 
 For the extended tier, additionally populate the extended fields documented in `references/extended_report_outline.md` (peer_benchmark, news_timeline, leadership_profiles, compensation_signals, sentiment_trend, esg_section, scenario_notes).
 
-### Step 5: Render the PDF
+### Step 5 (MANDATORY): Render PDF using the bundled template — DO NOT improvise
 
-Run the renderer to produce the PDF:
+This step is **non-negotiable**. The report must be produced by
+`scripts/render_report.py` against the bundled `assets/template_standard.html`
+(or `assets/template_extended.html`) and `assets/styles.css`. Do not write a
+custom HTML cover. Do not pipe markdown through pandoc. Do not generate the
+PDF from a different template.
+
+**You MUST:**
+1. Install WeasyPrint first: `pip install weasyprint` (and on Linux the system
+   deps `libpango-1.0-0 libpangoft2-1.0-0` if missing). Confirm the install
+   succeeded before continuing — do NOT fall back to markdown→PDF or any
+   alternative renderer.
+2. Run the bundled renderer exactly as shown below.
+3. Verify the cover checklist at the end of this section before delivering.
+
+**You MUST NOT:**
+- Edit `assets/template_standard.html`, `assets/template_extended.html`, or
+  `assets/styles.css`. These files are locked. Changes belong in the skill
+  source, not in a rendered report.
+- Add a custom cover layout, custom logo placement, or inline `<style>` blocks
+  on the cover.
+- Put scores, score badges, radar charts, or "Report level / Searches run"
+  meta fields on the cover. The cover shows only: KarrierenMin logo, company
+  name (H1), entity line, analysis date, "Produced by", confidential note.
+- Inject extra dark blue bands / decorative shapes on the cover.
+
+Run the renderer:
 
 ```bash
 python /home/claude/employer-analysis/scripts/render_report.py \
@@ -153,7 +178,24 @@ python /home/claude/employer-analysis/scripts/render_report.py \
   --output /mnt/user-data/outputs/employer-analysis-<company>-<language>-<YYYYMMDD>.pdf
 ```
 
-The renderer selects template (`assets/template_standard.html` or `assets/template_extended.html`), applies the language pack from `scripts/i18n.py`, and embeds the radar chart from `scripts/generate_radar.py`.
+The renderer selects the template (`assets/template_standard.html` or
+`assets/template_extended.html`), applies the language pack from
+`scripts/i18n.py`, and embeds the radar chart from `scripts/generate_radar.py`.
+
+**Cover checklist — verify before delivering (open the produced PDF):**
+
+- [ ] Page 1 shows the KarrierenMin SVG logo at the top, ~320px wide.
+- [ ] Company name appears as a large H1 in the accent color.
+- [ ] Entity line ("Company — Country (XX)") appears clearly **below** the H1,
+      not overlapping it.
+- [ ] No score number, no "/5.0", no radar chart, and no extra meta fields on
+      the cover.
+- [ ] Footer "Page N" appears on page 2 onward (cover has no footer).
+- [ ] Body font is IBM Plex Sans (or the documented fallback), not Times.
+
+If any item fails, re-run the renderer. Do not patch the PDF or hand-edit the
+template. If the renderer itself errors, surface the error to the user
+verbatim instead of producing a degraded PDF.
 
 ### Step 6: Deliver to user
 

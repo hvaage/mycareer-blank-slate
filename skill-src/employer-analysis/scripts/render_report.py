@@ -387,6 +387,28 @@ def _extended_block(report_data, pack):
 
 # ----- Main render -----
 
+REQUIRED_COVER_ASSETS = ("logo.svg", "logo-footer.svg", "styles.css")
+
+
+def _assert_cover_assets():
+    """Fail loudly if the locked cover assets are missing.
+
+    Prevents Claude from silently producing a PDF without the
+    KarrierenMin branding when the skill has been unpacked incompletely.
+    """
+    missing = [
+        name for name in REQUIRED_COVER_ASSETS
+        if not (ASSETS_DIR / name).exists()
+    ]
+    if missing:
+        raise FileNotFoundError(
+            "Required cover assets missing from assets/: "
+            + ", ".join(missing)
+            + ". The skill bundle is incomplete — do NOT improvise a cover. "
+            "Re-install the .skill file."
+        )
+
+
 def _template_path(tier):
     name = "template_extended.html" if tier == "extended" else "template_standard.html"
     return ASSETS_DIR / name
@@ -548,14 +570,26 @@ def render_html(report_data, language="en", tier="standard", accent=DEFAULT_ACCE
 
 
 def render_pdf(report_data, output_path, language="en", tier="standard", accent=DEFAULT_ACCENT):
+    _assert_cover_assets()
     try:
+        import weasyprint
         from weasyprint import HTML
     except ImportError as exc:
-        raise ImportError(
-            "weasyprint is required. Install with: pip install weasyprint"
+        raise RuntimeError(
+            "WeasyPrint is required to render the employer-analysis PDF. "
+            "Run: pip install weasyprint\n"
+            "Do NOT fall back to markdown-to-PDF or any other renderer — "
+            "the bundled template and KarrierenMin branding only work with "
+            "WeasyPrint."
         ) from exc
+    print(
+        f"[render_report] WeasyPrint {weasyprint.__version__} — "
+        f"tier={tier} language={language} -> {output_path}",
+        file=sys.stderr,
+    )
     html_str = render_html(report_data, language=language, tier=tier, accent=accent)
     HTML(string=html_str, base_url=str(SKILL_DIR)).write_pdf(output_path)
+    print(f"[render_report] Wrote PDF: {Path(output_path).resolve()}", file=sys.stderr)
     return output_path
 
 
