@@ -1,0 +1,621 @@
+/* ============================================================
+   employer-analysis-eu — print stylesheet
+   weasyprint reads this; page breaks and @page rules apply.
+   __ACCENT__ is replaced at render time with the chosen accent.
+   ============================================================ */
+
+/* --- Font import ---
+   IBM Plex Sans matches the karrierenmin.no web wordmark. Weights 300, 400,
+   500, 600, 700 are loaded for display, body text, buttons and the cover
+   wordmark. If fetch fails at render time, the cascade falls back to
+   Helvetica Neue and the system sans-serif.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+/* --- Page geometry and footer --- */
+
+@page {
+  size: A4;
+  margin: 2.5cm 2.5cm 2cm 2.5cm;
+
+  @bottom-left {
+    content: url("__LOGO_FOOTER_URL__");
+    vertical-align: middle;
+  }
+
+  @bottom-center {
+    content: "{{FOOTER_DATE}} — Page " counter(page);
+    font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    font-size: 8.5pt;
+    color: #718096;
+  }
+}
+
+@page :first {
+  /* Cover has no footer */
+  @bottom-left { content: ""; }
+  @bottom-center { content: ""; }
+}
+
+/* --- Base typography --- */
+
+body {
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  font-size: 10.5pt;
+  font-weight: 400;
+  line-height: 1.55;
+  color: #1A202C;
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3 {
+  color: __ACCENT__;
+  margin: 0 0 0.4em 0;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+}
+
+h1 { font-size: 22pt; }
+h2 { font-size: 13pt; margin-top: 1em; }
+h3 { font-size: 11pt; margin-top: 1em; color: #1A202C; }
+
+p { margin: 0 0 0.6em 0; }
+
+a { color: __ACCENT__; text-decoration: none; word-break: break-all; }
+
+strong { font-weight: 600; }
+
+/* --- Page container --- */
+
+.page {
+  page-break-after: always;
+}
+
+.page:last-child {
+  page-break-after: auto;
+}
+
+.page-header {
+  border-bottom: 2px solid __ACCENT__;
+  padding-bottom: 0.3em;
+  margin-bottom: 1.2em;
+}
+
+.page-header h1 {
+  font-size: 20pt;
+  margin: 0;
+}
+
+/* --- Cover page (LOCKED — edit only in skill-src) --- */
+
+.cover-page {
+  padding-top: 4cm;
+}
+
+.cover-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3cm;
+}
+
+.cover-brand {
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  font-size: 28pt;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: __ACCENT__;
+}
+
+.cover-logo-area {
+  /* Reserved vertical space so the cover never collapses if the
+     logo SVG fails to embed. */
+  min-height: 80px;
+}
+
+.cover-logo-area svg {
+  width: 320px;
+  height: auto;
+  display: block;
+}
+
+.cover-title-block {
+  /* Explicit vertical rhythm between H1 (company) and entity line so
+     they never overlap regardless of company-name length. */
+  margin-top: 0.5cm;
+}
+
+.cover-eyebrow {
+  font-size: 10pt;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #718096;
+  margin-bottom: 0.6em;
+}
+
+.cover-company {
+  font-size: 32pt;
+  color: __ACCENT__;
+  margin: 0 0 0.5em 0;
+  line-height: 1.15;
+  /* Wrap long company names instead of overflowing into entity line. */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.cover-entity {
+  font-size: 12pt;
+  color: #4A5568;
+  margin: 0;
+  /* Hard separation from H1 so the two lines never collide. */
+  padding-top: 0.2em;
+}
+
+.cover-meta {
+  border-top: 1px solid #E2E8F0;
+  padding-top: 1.2em;
+  font-size: 10pt;
+}
+
+.cover-meta p { margin: 0.2em 0; }
+
+.cover-confidential {
+  margin-top: 1.2em !important;
+  font-style: italic;
+  color: #718096;
+  font-size: 9pt;
+}
+
+/* --- Executive summary --- */
+
+.exec-top {
+  display: flex;
+  gap: 1cm;
+  align-items: center;
+  margin-bottom: 0.8em;
+}
+
+.overall-block {
+  flex: 0 0 30%;
+  background: #F7FAFC;
+  border-left: 4px solid __ACCENT__;
+  padding: 0.7em 0.9em;
+}
+
+.radar-block {
+  flex: 1;
+  max-height: 7cm;
+  overflow: hidden;
+}
+
+.radar-block svg {
+  max-height: 7cm;
+}
+
+.overall-label {
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #718096;
+  margin-bottom: 0.2em;
+}
+
+.overall-score {
+  font-size: 30pt;
+  font-weight: 700;
+  color: __ACCENT__;
+  line-height: 1;
+  margin: 0;
+}
+
+.overall-max {
+  font-size: 12pt;
+  font-weight: 400;
+  color: #A0AEC0;
+}
+
+.scored-note {
+  font-size: 8.5pt;
+  color: #718096;
+  margin-top: 0.4em;
+}
+
+/* Summary grid (2 columns x 4 rows of compact cards) */
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 0.6em;
+}
+
+.summary-card {
+  background: #F7FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 3px;
+  padding: 6px 9px;
+  page-break-inside: avoid;
+}
+
+.summary-name {
+  font-size: 8.5pt;
+  font-weight: 600;
+  color: #2D3748;
+  margin-bottom: 3px;
+}
+
+.summary-score {
+  font-size: 12pt;
+  font-weight: 700;
+  color: __ACCENT__;
+  margin-bottom: 3px;
+  line-height: 1;
+}
+
+.summary-score .score-max {
+  font-size: 7.5pt;
+  color: #A0AEC0;
+  font-weight: 400;
+}
+
+.key-findings {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: 10pt;
+}
+
+.key-findings li {
+  margin-bottom: 0.3em;
+}
+
+/* --- Methodology page --- */
+
+.def-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6em 0 1em 0;
+  font-size: 10pt;
+}
+
+.def-table th, .def-table td {
+  border-bottom: 1px solid #E2E8F0;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.def-table th {
+  background: #F7FAFC;
+  font-weight: 600;
+  color: __ACCENT__;
+  width: 70px;
+}
+
+.scope-deviation {
+  background: #FFFBEB;
+  border-left: 4px solid #D69E2E;
+  padding: 0.8em 1em;
+  font-size: 9.5pt;
+  margin: 0.8em 0;
+}
+
+/* --- Dimension sections --- */
+
+.dimensions-start {
+  page-break-before: auto;
+}
+
+.dimension {
+  page-break-inside: avoid;
+  margin-bottom: 1em;
+}
+
+/* Allow break between dimensions, never inside */
+.dimension + .dimension {
+  page-break-before: auto;
+}
+
+.score-card {
+  background: #F7FAFC;
+  border: 1px solid #E2E8F0;
+  border-left: 4px solid __ACCENT__;
+  padding: 10px 14px;
+  margin-bottom: 0.6em;
+  page-break-inside: avoid;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.card-header h2 {
+  font-size: 13pt;
+  margin: 0;
+  color: __ACCENT__;
+}
+
+.card-score-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.card-score {
+  flex: 0 0 90px;
+}
+
+.score-number {
+  font-size: 20pt;
+  font-weight: 700;
+  color: __ACCENT__;
+  line-height: 1;
+}
+
+.score-max {
+  font-size: 9pt;
+  color: #A0AEC0;
+  margin-left: 2px;
+}
+
+.score-bar {
+  flex: 1;
+  background: #E2E8F0;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+.score-bar.insufficient {
+  background: repeating-linear-gradient(
+    45deg, #EDF2F7, #EDF2F7 5px, #E2E8F0 5px, #E2E8F0 10px
+  );
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  background: __ACCENT__;
+  border-radius: 5px;
+}
+
+.insufficient-pill {
+  display: inline-block;
+  background: #EDF2F7;
+  color: #718096;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 10pt;
+  font-weight: 500;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 8pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.sourced {
+  background: __ACCENT__;
+  color: white;
+}
+
+.badge.inferred {
+  background: #FFFAF0;
+  color: #C05621;
+  border: 1px solid #FBD38D;
+}
+
+.badge.insufficient {
+  background: #EDF2F7;
+  color: #718096;
+}
+
+.rationale {
+  font-size: 10.5pt;
+  margin: 0.5em 0;
+}
+
+.quotes {
+  margin: 0.6em 0;
+}
+
+blockquote {
+  margin: 0.4em 0;
+  padding: 0.3em 0.9em;
+  border-left: 3px solid #CBD5E0;
+  font-style: italic;
+  color: #2D3748;
+  font-size: 10pt;
+  page-break-inside: avoid;
+}
+
+blockquote sup {
+  font-style: normal;
+  color: __ACCENT__;
+  font-weight: 600;
+}
+
+.dim-sources {
+  font-size: 9pt;
+  color: #718096;
+  margin: 0.4em 0;
+}
+
+.what-it-means {
+  background: #EBF8FF;
+  border-left: 3px solid __ACCENT__;
+  padding: 0.5em 0.9em;
+  font-size: 10pt;
+  margin: 0.4em 0 0.8em 0;
+  page-break-inside: avoid;
+}
+
+/* --- Synthesis page --- */
+
+.disclaimer {
+  font-size: 9.5pt;
+  color: #4A5568;
+  font-style: italic;
+  background: #F7FAFC;
+  border: 1px solid #E2E8F0;
+  padding: 1em 1.2em;
+  margin-top: 1em;
+}
+
+/* --- Appendix pages --- */
+
+.appendix-intro {
+  font-size: 9.5pt;
+  color: #718096;
+  margin-bottom: 0.8em;
+}
+
+.source-list, .search-log {
+  padding-left: 0;
+  list-style: none;
+  font-size: 9.5pt;
+}
+
+.source-list li, .search-log li {
+  margin-bottom: 0.4em;
+  padding-left: 0.3em;
+  page-break-inside: avoid;
+}
+
+.search-log code {
+  background: #F7FAFC;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9pt;
+  font-family: "SF Mono", "Consolas", monospace;
+}
+
+.search-log em {
+  color: #718096;
+  font-style: normal;
+  font-size: 8.5pt;
+}
+
+/* --- Extended-tier sections --- */
+
+.extended-block { page-break-before: always; }
+
+.ext-section {
+  margin-top: 1.5em;
+  page-break-inside: avoid;
+}
+
+.ext-section h2 {
+  border-bottom: 1px solid __ACCENT__;
+  padding-bottom: 0.2em;
+  margin-bottom: 0.6em;
+}
+
+.ext-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  margin-top: 0.5em;
+}
+
+.ext-table th, .ext-table td {
+  border-bottom: 1px solid #E2E8F0;
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.ext-table th {
+  background: #F7FAFC;
+  color: __ACCENT__;
+  font-weight: 600;
+}
+
+.timeline {
+  padding-left: 1.2em;
+  font-size: 10pt;
+}
+
+.timeline li {
+  margin-bottom: 0.35em;
+  page-break-inside: avoid;
+}
+
+.leader-card {
+  border-left: 3px solid __ACCENT__;
+  padding: 0.4em 0.8em;
+  margin-bottom: 0.6em;
+  background: #F7FAFC;
+  page-break-inside: avoid;
+}
+
+.leader-card h3 {
+  margin: 0 0 0.2em 0;
+}
+
+.leader-card .tenure {
+  font-size: 9pt;
+  color: #718096;
+  margin: 0 0 0.3em 0;
+}
+
+.model-note {
+  font-size: 9pt;
+  color: #4A5568;
+  margin-top: 0.5em;
+}
+
+/* --- AI Maturity Posture section --- */
+
+.ai-maturity .appendix-intro {
+  font-size: 9.5pt;
+  margin-bottom: 0.8em;
+}
+
+.ai-score-card {
+  background: #F7FAFC;
+  border-left: 4px solid __ACCENT__;
+  padding: 0.6em 0.9em;
+  margin: 0.5em 0 0.8em 0;
+  display: inline-block;
+}
+
+.ai-score-card .overall-label {
+  display: block;
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #718096;
+  margin-bottom: 0.2em;
+}
+
+.ai-score-card .overall-score {
+  font-size: 24pt;
+  font-weight: 700;
+  color: __ACCENT__;
+  line-height: 1;
+}
+
+.ai-signal-table th {
+  width: 32%;
+  vertical-align: top;
+  color: #2D3748;
+}
+
+.ai-not-applicable {
+  background: #F7FAFC;
+  border: 1px solid #E2E8F0;
+  padding: 0.6em 0.9em;
+  font-size: 10pt;
+  color: #4A5568;
+  border-radius: 3px;
+}

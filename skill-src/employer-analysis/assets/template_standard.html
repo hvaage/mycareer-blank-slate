@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{LBL_REPORT_TITLE}}: {{COMPANY_NAME}}</title>
+<style>{{STYLESHEET}}</style>
+</head>
+<body>
+
+<!--
+  ============================================================
+  COVER PAGE — DO NOT MODIFY.
+  This cover layout is locked. Do not edit the markup or add
+  inline styles. Do not add score badges, "Report level" /
+  "Searches run" meta fields, or extra blue bands. The only
+  changes allowed are token substitutions performed by
+  scripts/render_report.py. Cover edits belong in skill-src,
+  not in a rendered report.
+  ============================================================
+-->
+<section class="page cover-page">
+  <div class="cover-content">
+    <div class="cover-logo-area">
+      {{LOGO_SVG}}
+    </div>
+    <div class="cover-title-block">
+      <p class="cover-eyebrow">{{LBL_COVER_EYEBROW}}</p>
+      <h1 class="cover-company">{{COMPANY_NAME}}</h1>
+      <p class="cover-entity">{{ENTITY_LINE}}</p>
+    </div>
+    <div class="cover-meta">
+      <p><strong>{{LBL_ANALYSIS_DATE}}</strong> {{ANALYSIS_DATE}}</p>
+      <p><strong>{{LBL_PRODUCED_BY}}</strong> KarrierenMin.no</p>
+      <p class="cover-confidential">{{LBL_CONFIDENTIAL}}</p>
+    </div>
+  </div>
+</section>
+<!-- END COVER — DO NOT MODIFY -->
+
+<section class="page">
+  <header class="page-header"><h1>{{LBL_EXEC_SUMMARY}}</h1></header>
+  <div class="exec-top">
+    <div class="overall-block">
+      <p class="overall-label">{{LBL_OVERALL_SCORE}}</p>
+      <p class="overall-score">{{OVERALL_SCORE}}<span class="overall-max">/5.0</span></p>
+      <p class="scored-note">{{SCORED_NOTE}}</p>
+    </div>
+    <div class="radar-block">{{RADAR_SVG}}</div>
+  </div>
+  <h2>{{LBL_DIM_SCORES}}</h2>
+  {{SUMMARY_GRID}}
+  <h2>{{LBL_KEY_FINDINGS}}</h2>
+  <ul class="key-findings">{{EXEC_BULLETS}}</ul>
+</section>
+
+<section class="page">
+  <header class="page-header"><h1>{{LBL_METHODOLOGY}}</h1></header>
+  <h2>{{LBL_GEO_SCOPE}}</h2>
+  <p>{{ENTITY_SCOPE_STATEMENT}}</p>
+  {{SCOPE_DEVIATION}}
+  {{MODEL_NOTE}}
+
+  <h2>{{LBL_SCORING_SCALE}}</h2>
+  <table class="def-table">
+    <tr><th>{{LBL_SCORE_HEADER}}</th><th>{{LBL_SCORE_MEANING}}</th></tr>
+    <tr><td>1.0</td><td>{{LBL_SCORE_1_DESC}}</td></tr>
+    <tr><td>2.0</td><td>{{LBL_SCORE_2_DESC}}</td></tr>
+    <tr><td>3.0</td><td>{{LBL_SCORE_3_DESC}}</td></tr>
+    <tr><td>4.0</td><td>{{LBL_SCORE_4_DESC}}</td></tr>
+    <tr><td>5.0</td><td>{{LBL_SCORE_5_DESC}}</td></tr>
+  </table>
+
+  <h2>{{LBL_INSUFFICIENT}}</h2>
+  <p>{{LBL_INSUFFICIENT_EXPLAINER}}</p>
+
+  <h2>{{LBL_SOURCED_VS_INFERRED}}</h2>
+  <ul>
+    <li><strong>{{LBL_SOURCED}}</strong> — {{LBL_SOURCED_EXPLAINER}}</li>
+    <li><strong>{{LBL_INFERRED}}</strong> — {{LBL_INFERRED_EXPLAINER}}</li>
+  </ul>
+
+  <h2>{{LBL_CITATION_CONV}}</h2>
+  <p>{{LBL_CITATION_TRACEABILITY_NOTE}}</p>
+</section>
+
+<section class="page dimensions-start">
+  <header class="page-header"><h1>{{LBL_DETAILED_REVIEW}}</h1></header>
+  {{DIMENSIONS}}
+</section>
+
+<section class="page">
+  <header class="page-header"><h1>{{LBL_SYNTHESIS}}</h1></header>
+  <h2>{{LBL_OVERALL_ASSESSMENT}}</h2>
+  {{SYNTHESIS}}
+  <h2>{{LBL_DISCLAIMER}}</h2>
+  <p class="disclaimer">{{DISCLAIMER_TEXT}}</p>
+</section>
+
+<section class="page appendix">
+  <header class="page-header"><h1>{{LBL_SOURCE_LIST}}</h1></header>
+  <ol class="source-list">{{SOURCES}}</ol>
+</section>
+
+<section class="page appendix">
+  <header class="page-header"><h1>{{LBL_SEARCH_LOG}}</h1></header>
+  <p class="appendix-intro">{{LBL_SEARCH_LOG_INTRO}}</p>
+  <ol class="search-log">{{SEARCH_LOG}}</ol>
+</section>
+
+</body>
+</html>
