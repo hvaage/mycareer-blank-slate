@@ -25,6 +25,7 @@ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
 import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authenticated/admin.leads'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -111,6 +112,11 @@ const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   path: '/lovable/email/suppression',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
+  id: '/api/public/ingest-report',
+  path: '/api/public/ingest-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminLeadsRoute = AuthenticatedAdminLeadsRouteImport.update({
   id: '/admin/leads',
   path: '/admin/leads',
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -209,6 +217,7 @@ export interface FileRoutesById {
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -234,6 +243,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/takk'
     | '/selskapsanalyse/'
     | '/admin/leads'
+    | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/admin/'
     | '/api/public/selskapsanalyse/download'
@@ -256,6 +266,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/takk'
     | '/selskapsanalyse'
     | '/admin/leads'
+    | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/admin'
     | '/api/public/selskapsanalyse/download'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/takk'
     | '/selskapsanalyse/'
     | '/_authenticated/admin/leads'
+    | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/_authenticated/admin/'
     | '/api/public/selskapsanalyse/download'
@@ -300,6 +312,7 @@ export interface RootRouteChildren {
   UnsubscribeRoute: typeof UnsubscribeRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
   ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -422,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ingest-report': {
+      id: '/api/public/ingest-report'
+      path: '/api/public/ingest-report'
+      fullPath: '/api/public/ingest-report'
+      preLoaderRoute: typeof ApiPublicIngestReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/leads': {
       id: '/_authenticated/admin/leads'
       path: '/admin/leads'
@@ -510,6 +530,7 @@ const rootRouteChildren: RootRouteChildren = {
   UnsubscribeRoute: UnsubscribeRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicSelskapsanalyseDownloadRoute: ApiPublicSelskapsanalyseDownloadRoute,
   ApiPublicSelskapsanalysePreviewEmailRoute:
@@ -521,3 +542,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
