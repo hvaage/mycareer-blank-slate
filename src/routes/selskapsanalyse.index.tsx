@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
+import { PageHero } from "@/components/landing/PageHero";
 import { LeadForm } from "@/components/selskapsanalyse/LeadForm";
 import { DimensionsRadar } from "@/components/selskapsanalyse/DimensionsRadar";
 import {
