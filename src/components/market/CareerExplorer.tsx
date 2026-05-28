@@ -691,23 +691,21 @@ export function CareerExplorer() {
     (submitted.regionCode !== regionCode || submitted.industrySlug !== industrySlug);
 
   return (
-    <div className="min-h-screen bg-background">
-      <SiteHeader />
+    <div className="min-h-screen bg-[var(--km-paper)]">
+      <Header />
+      <PageHero
+        eyebrow="MARKEDSINNSIKT"
+        title={
+          <>
+            Utforsk jobbkompetanse og <span className="text-[var(--km-blue)]">karriereveier</span>
+          </>
+        }
+        lead="Søk på en stilling, et yrke, en kompetanse, en bransje eller et område. Utforsk markedssignaler, relevante bransjer, nærliggende karriereveier og etterspurt kompetanse. Siden oppdaterer seg dynamisk og snevrer seg inn etterhvert som du filtrerer og velger."
+      />
 
-      <main className="mx-auto max-w-6xl px-4 py-8 space-y-12">
-        {/* Tool */}
+      <main className="mx-auto max-w-6xl px-4 py-8 space-y-10">
         <section className="space-y-6">
-          <header className="space-y-2">
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Utforsk jobbkompetanse og karriereveier
-            </h1>
-            <p className="text-muted-foreground text-sm md:text-base max-w-3xl">
-              Søk på en stilling, et yrke, en kompetanse, en bransje eller et område.
-              Utforsk markedssignaler, relevante bransjer, nærliggende karriereveier og
-              etterspurt kompetanse. Siden oppdaterer seg dynamisk og snevrer seg inn
-              etterhvert som du filtrerer og velger.
-            </p>
-          </header>
+
 
           <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
             <TabsList>
