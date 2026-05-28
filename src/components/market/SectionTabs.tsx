@@ -97,7 +97,7 @@ export function SectionTabs({
         className="mx-auto max-w-6xl px-4 overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
       >
-        <ul className="mx-auto flex max-w-6xl gap-2 md:gap-4 h-12 md:h-14 items-stretch whitespace-nowrap">
+        <ul className="flex w-full justify-between gap-2 md:gap-4 h-12 md:h-14 items-stretch whitespace-nowrap">
           {items.map((it) => {
             const isActive = it.id === activeId;
             return (
