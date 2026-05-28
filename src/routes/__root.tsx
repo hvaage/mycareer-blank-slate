@@ -110,7 +110,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         children: `window.__MARKET_SUPABASE_URL=${JSON.stringify(
           process.env.MARKET_SUPABASE_URL || "https://wcaqfupjatnjwbgatzjv.supabase.co",
         )};window.__MARKET_SUPABASE_KEY=${JSON.stringify(
-          process.env.MARKET_SUPABASE_ANON_KEY || "",
+          process.env.MARKET_SUPABASE_ANON_KEY ||
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjYXFmdXBqYXRuandiZ2F0emp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MzY3OTcsImV4cCI6MjA5NTMxMjc5N30.6A869EjBHgXhEBAIkO6r3ojuYiHSpabUjXnsMHJPEoU",
         )};`,
       },
       {
