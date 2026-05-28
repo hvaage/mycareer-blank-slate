@@ -18,7 +18,7 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-10 md:grid-cols-3">
           <div>
-            <Logo className="h-9 w-auto" />
+            <Logo className="h-6 w-auto" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
               Et system for å forstå, dokumentere og styre egen karriere.
             </p>

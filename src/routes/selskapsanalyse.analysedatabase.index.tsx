@@ -4,8 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
+import { PageHero } from "@/components/landing/PageHero";
 import { ReportCard } from "@/components/selskapsanalyse/ReportCard";
 import { listReports } from "@/lib/reports.functions";
+
 
 export const Route = createFileRoute("/selskapsanalyse/analysedatabase/")({
   head: () => ({
@@ -60,26 +62,27 @@ function AnalysedatabasePage() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-[var(--km-paper)]">
       <Header />
+      <PageHero
+        eyebrow="ANALYSEDATABASE"
+        title={
+          <>
+            Åpen <span className="text-[var(--km-blue)]">analysedatabase</span> over arbeidsgivere
+          </>
+        }
+        lead="Åpen, voksende kunnskapsbase over arbeidsgivere — bygget av brukere som kjører Arbeidsgiveranalysen. Søk på selskap, sammenlign score på de åtte dimensjonene, og følg utviklingen over tid."
+        action={
+          <Link
+            to="/selskapsanalyse"
+            className="inline-flex h-10 items-center rounded-md border border-rule bg-white px-4 text-sm font-medium text-[var(--km-ink)] hover:bg-[var(--km-paper-warm)] transition-colors"
+          >
+            ← Tilbake til Arbeidsgiveranalysen
+          </Link>
+        }
+      />
       <main className="flex-1">
-        <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-12 pb-6">
-          <nav className="text-xs text-muted-foreground mb-4">
-            <Link to="/selskapsanalyse" className="hover:text-foreground">
-              Arbeidsgiveranalysen
-            </Link>{" "}
-            <span className="mx-1">›</span>{" "}
-            <span className="text-foreground">Analysedatabase</span>
-          </nav>
-          <h1 className="text-3xl sm:text-4xl font-serif tracking-tight text-foreground">
-            Analysedatabase
-          </h1>
-          <p className="mt-3 max-w-2xl text-muted-foreground">
-            Åpen, voksende kunnskapsbase over arbeidsgivere — bygget av
-            brukere som kjører Arbeidsgiveranalysen. Søk på selskap, sammenlign
-            score på de åtte dimensjonene, og følg utviklingen over tid.
-          </p>
-        </section>
+
 
         <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-6">
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
