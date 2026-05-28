@@ -998,32 +998,10 @@ function buildSectionTabItems(input: {
 // ============================================================
 // Layout primitives
 // ============================================================
+// (SiteHeader removed — Markedsinnsikt bruker felles <Header />
+//  fra src/components/landing/Header.tsx)
+// ============================================================
 
-function SiteHeader() {
-  return (
-    <header className="border-b bg-[var(--km-paper)]">
-      <div className="mx-auto max-w-6xl px-4 py-5 flex items-center gap-3">
-        <a
-          href="https://karrierenmin.no"
-          className="flex items-center gap-2.5 group"
-          aria-label="karrierenmin.no"
-        >
-          <img
-            src="/brand/lockup-animated.svg"
-            alt="karrierenmin.no"
-            className="h-20 w-auto"
-            width={360}
-            height={80}
-          />
-        </a>
-        <span className="km-rule mx-3 hidden sm:block max-w-[40px]" />
-        <span className="text-base md:text-lg font-medium tracking-tight text-[var(--km-ink)]">
-          Markedsinnsikt
-        </span>
-      </div>
-    </header>
-  );
-}
 
 function SiteFooter() {
   return (
