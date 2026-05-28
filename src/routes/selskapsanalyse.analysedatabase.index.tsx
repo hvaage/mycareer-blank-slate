@@ -84,7 +84,7 @@ function AnalysedatabasePage() {
       <main className="flex-1">
 
 
-        <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-6">
+        <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-10 pb-6">
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
             <input
               type="search"
