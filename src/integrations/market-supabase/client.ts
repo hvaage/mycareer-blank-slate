@@ -7,7 +7,7 @@
 //      __root.tsx <script> from process.env.MARKET_SUPABASE_URL /
 //      MARKET_SUPABASE_ANON_KEY at SSR time. This is the production path.
 //   2. import.meta.env.VITE_MARKET_SUPABASE_URL / _ANON_KEY (legacy).
-//   3. Hard-coded URL fallback (project ref only — no key).
+//   3. Hard-coded URL + anon key fallback.
 //
 // The anon key is a publishable JWT and safe to expose to the browser.
 
@@ -29,15 +29,20 @@ const envUrl =
 const envKey =
   (import.meta.env.VITE_MARKET_SUPABASE_ANON_KEY as string | undefined) ?? "";
 
+function getValidAnonKey(candidate: string | undefined) {
+  const key = candidate?.trim() ?? "";
+  return key.includes(".eyJpc3MiOiJzdXBh") ? key : FALLBACK_KEY;
+}
+
 const url =
   (w.__MARKET_SUPABASE_URL && w.__MARKET_SUPABASE_URL.length > 0
     ? w.__MARKET_SUPABASE_URL
     : envUrl) || FALLBACK_URL;
 
 const key =
-  (w.__MARKET_SUPABASE_KEY && w.__MARKET_SUPABASE_KEY.length > 0
+  getValidAnonKey(w.__MARKET_SUPABASE_KEY && w.__MARKET_SUPABASE_KEY.length > 0
     ? w.__MARKET_SUPABASE_KEY
-    : envKey) || FALLBACK_KEY;
+    : envKey);
 
 if (import.meta.env.DEV && !key) {
   // eslint-disable-next-line no-console
