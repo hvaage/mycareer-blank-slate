@@ -87,17 +87,18 @@ export function SectionTabs({
     <nav
       aria-label="Seksjoner"
       className={cn(
-        "sticky top-0 z-30 -mx-4 md:mx-0",
-        "bg-[var(--km-paper)] border-b border-rule",
+        // Full-bleed: bryt ut av forelder max-width og dekk hele viewport
+        "sticky top-0 z-30 left-1/2 right-1/2 -translate-x-1/2 w-screen",
+        "bg-[var(--km-paper)]/95 backdrop-blur-[2px] border-b border-rule",
         className,
       )}
     >
       <div
         ref={scrollerRef}
-        className="overflow-x-auto px-4 md:px-0"
+        className="overflow-x-auto px-4 md:px-8"
         style={{ scrollbarWidth: "none" }}
       >
-        <ul className="flex gap-1 md:gap-2 h-11 items-stretch whitespace-nowrap">
+        <ul className="mx-auto flex max-w-[1400px] gap-2 md:gap-4 h-12 md:h-14 items-stretch whitespace-nowrap">
           {items.map((it) => {
             const isActive = it.id === activeId;
             return (
@@ -110,10 +111,10 @@ export function SectionTabs({
                   onClick={(e) => handleClick(e, it.id)}
                   aria-current={isActive ? "location" : undefined}
                   className={cn(
-                    "inline-flex items-center px-3 text-sm font-medium",
+                    "inline-flex items-center px-2 md:px-3 text-[15px] md:text-base font-medium",
                     "border-b-2 -mb-px transition-colors",
                     isActive
-                      ? "border-[var(--km-accent)] text-[var(--km-ink)]"
+                      ? "border-[var(--km-blue)] text-[var(--km-ink)]"
                       : "border-transparent text-[var(--km-ink-soft)] hover:text-[var(--km-ink)]",
                   )}
                 >

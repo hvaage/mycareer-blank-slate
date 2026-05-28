@@ -74,25 +74,27 @@
 
 :root {
   --radius: 0.5rem;
-  --background: oklch(0.985 0.003 80);
-  --foreground: oklch(0.22 0.012 250);
+  /* Map shadcn-style tokens onto the KarrierenMin palette so the whole
+     app inherits the brand without per-component refactor. */
+  --background: oklch(0.985 0.005 85);   /* km-paper */
+  --foreground: oklch(0.22 0.015 255);   /* km-ink */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.012 250);
+  --card-foreground: oklch(0.22 0.015 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.012 250);
-  --primary: oklch(0.48 0.09 245);
+  --popover-foreground: oklch(0.22 0.015 255);
+  --primary: oklch(0.50 0.12 252);       /* km-blue, en touch mer vivid */
   --primary-foreground: oklch(0.985 0.003 80);
-  --secondary: oklch(0.97 0.005 250);
-  --secondary-foreground: oklch(0.22 0.05 255);
-  --muted: oklch(0.97 0.005 250);
-  --muted-foreground: oklch(0.50 0.02 255);
-  --accent: oklch(0.48 0.09 245);
+  --secondary: oklch(0.95 0.012 80);     /* km-paper-warm */
+  --secondary-foreground: oklch(0.22 0.015 255);
+  --muted: oklch(0.95 0.012 80);
+  --muted-foreground: oklch(0.45 0.02 255);
+  --accent: oklch(0.50 0.12 252);
   --accent-foreground: oklch(0.985 0.003 80);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.99 0.003 250);
-  --border: oklch(0.92 0.008 250);
-  --input: oklch(0.92 0.008 250);
-  --ring: oklch(0.48 0.09 245);
+  --border: oklch(0.91 0.012 80);        /* km-rule */
+  --input: oklch(0.91 0.012 80);
+  --ring: oklch(0.50 0.12 252);
   --sidebar: oklch(0.99 0.003 250);
   --sidebar-foreground: oklch(0.22 0.05 255);
   --sidebar-primary: oklch(0.22 0.05 255);
@@ -102,8 +104,7 @@
   --sidebar-border: oklch(0.92 0.008 250);
   --sidebar-ring: oklch(0.50 0.10 250);
 
-  /* KarrierenMin brand palette — variables only. No visual effect
-     outside .km-scope. */
+  /* KarrierenMin brand palette (canonical hex). */
   --km-blue:        #3A6CB0;
   --km-blue-deep:   #2E5790;
   --km-blue-soft:   #DEE6F2;
@@ -119,6 +120,12 @@
   --km-warning:     #B4823A;
   --km-danger:      #B14545;
   --km-accent:      var(--km-blue);
+
+  /* Mer "levende" supplementsfarger — brukes sparsomt for liv på siden.
+     Varmere og mer mettet enn brand-basen, men i samme familie. */
+  --km-accent-warm:      #C7773A;   /* terracotta — eyebrows, små markører */
+  --km-accent-warm-soft: #F3E3D2;   /* myk fyll-flate til hero/seksjonsbånd */
+  --km-accent-sage:      #5E8A66;   /* dempet grønn for positiv liv */
 }
 
 .dark {
@@ -157,17 +164,49 @@
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
+    background-color: var(--km-paper);
+    color: var(--km-ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
     font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
-  h1, h2, h3, .font-serif {
-    font-family: var(--font-serif);
-    font-weight: 400;
+  /* Design-system: ingen serif. Alle overskrifter i IBM Plex Sans. */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--km-ink);
+    font-weight: 500;
     letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
   }
+  h1 { letter-spacing: -0.02em; line-height: 1.05; }
+  h2 { letter-spacing: -0.015em; line-height: 1.1; }
+  h3 { font-weight: 600; }
+
+  /* Overstyr eksisterende `font-serif`-bruk i landing-komponenter. */
+  .font-serif {
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.015em;
+  }
+}
+
+/* ============================================================
+   Felles undersidetittel — lik font/størrelse på alle undersider
+   (Markedsinnsikt, Arbeidsgiveranalysen, Analysedatabase, etc.)
+   ============================================================ */
+.km-page-h1 {
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  font-weight: 500;
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: -0.018em;
+  color: var(--km-ink);
+}
+@media (min-width: 768px) {
+  .km-page-h1 { font-size: 40px; }
 }
 
 /* ============================================================

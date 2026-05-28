@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
+import { PageHero } from "@/components/landing/PageHero";
 import { LeadForm } from "@/components/selskapsanalyse/LeadForm";
 import { DimensionsRadar } from "@/components/selskapsanalyse/DimensionsRadar";
 import {
@@ -42,80 +43,62 @@ export const Route = createFileRoute("/selskapsanalyse/")({
 
 function SelskapsanalysePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-[var(--km-paper)]">
       <Header />
+      <PageHero
+        eyebrow="ARBEIDSGIVERANALYSEN"
+        title={
+          <>
+            Vit hva du går til{" "}
+            <span className="text-[var(--km-blue)]">før du signerer.</span>
+          </>
+        }
+        lead="Arbeidsgiveranalysen gjør timer med arbeidsgiver-research om til en godt dokumentert PDF-rapport — i åtte dimensjoner, ekte kilder, klar til en 20-minutters gjennomlesning før neste intervju."
+        action={
+          <>
+            <a
+              href="#hent-den"
+              className="inline-flex h-11 items-center rounded-md bg-[var(--km-blue)] px-6 text-sm font-semibold text-white hover:bg-[var(--km-blue-deep)] transition-colors"
+            >
+              Hent Claude-skillen — gratis
+            </a>
+            <a
+              href="/selskapsanalyse/eksempel-equinor-rapport.pdf"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-11 items-center rounded-md border border-rule bg-white px-6 text-sm font-medium text-[var(--km-ink)] hover:bg-[var(--km-paper-warm)] transition-colors"
+            >
+              Se et eksempel →
+            </a>
+          </>
+        }
+      />
       <main className="flex-1">
-        {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div className="relative mx-auto max-w-6xl px-4 sm:px-6 pt-16 sm:pt-24 pb-12 sm:pb-20">
-            <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-16 items-start">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                  Gratis Claude skill · fra Karrierenmin.no
-                </div>
-                <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-serif tracking-tight text-foreground">
-                  Vit hva du går til{" "}
-                  <span className="text-primary">før du signerer.</span>
-                </h1>
-                <p className="mt-5 text-lg sm:text-xl text-muted-foreground max-w-xl leading-relaxed">
-                  Arbeidsgiveranalysen gjør timer med arbeidsgiver-research om til
-                  en godt dokumentert PDF-rapport — i åtte dimensjoner, ekte
-                  kilder, klar til en 20-minutters gjennomlesning før neste
-                  intervju.
+        {/* Lead form */}
+        <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-10 sm:pt-14">
+          <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-16 items-start">
+            <ul className="grid sm:grid-cols-2 gap-3 text-sm text-[var(--km-ink-soft)]">
+              <li className="flex items-center gap-2"><Check /> Bygget for Claude</li>
+              <li className="flex items-center gap-2"><Check /> 16 europeiske land · 12 språk</li>
+              <li className="flex items-center gap-2"><Check /> Standardrapport på 8–10 sider</li>
+              <li className="flex items-center gap-2"><Check /> Utvidet dybderapport opp mot 25 sider</li>
+            </ul>
+            <div id="hent-den" className="lg:sticky lg:top-20">
+              <div className="rounded-2xl border border-rule bg-white p-6 sm:p-8 shadow-sm">
+                <h2 className="text-xl font-semibold text-[var(--km-ink)]">
+                  Hent Claude skillen og koble deg til oss på LinkedIn
+                </h2>
+                <p className="mt-1 text-sm text-[var(--km-ink-soft)]">
+                  Få Claude skillen og en kort installasjonsguide rett i innboksen.
                 </p>
-
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <a
-                    href="#hent-den"
-                    className="inline-flex h-12 items-center rounded-md bg-primary px-6 text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    Hent Claude-skillen — gratis
-                  </a>
-                  <a
-                    href="/selskapsanalyse/eksempel-equinor-rapport.pdf"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-12 items-center rounded-md border border-border bg-card px-6 text-base font-medium text-foreground hover:bg-muted transition-colors"
-                  >
-                    Se et eksempel på en arbeidsgiveranalyse →
-                  </a>
-                </div>
-
-                <ul className="mt-8 grid sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <Check /> Bygget for Claude
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check /> 16 europeiske land · 12 språk
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check /> Standardrapport på 8–10 sider
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check /> Utvidet dybderapport opp mot 25 sider
-                  </li>
-                </ul>
-              </div>
-
-              {/* Form panel */}
-              <div id="hent-den" className="lg:sticky lg:top-20">
-                <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xl shadow-primary/5">
-                  <h2 className="text-xl font-semibold text-foreground">
-                    Hent Claude skillen og koble deg til oss på LinkedIn
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Få Claude skillen og en kort installasjonsguide rett i
-                    innboksen.
-                  </p>
-                  <div className="mt-5">
-                    <LeadForm />
-                  </div>
+                <div className="mt-5">
+                  <LeadForm />
                 </div>
               </div>
             </div>
           </div>
         </section>
+
 
         {/* Problem */}
         <section className="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-20">

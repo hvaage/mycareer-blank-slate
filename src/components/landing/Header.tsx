@@ -21,18 +21,19 @@ const navItems: NavItem[] = [
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/85 backdrop-blur">
+    <header className="sticky top-0 z-40 w-full border-b border-rule bg-[var(--km-paper)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--km-paper)]/80">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link to="/" aria-label="Karrierenmin">
-          <Logo className="h-8 w-auto" />
+        <Link to="/" aria-label="karrierenmin.no" className="flex items-center">
+          <Logo className="block h-9 w-auto" />
         </Link>
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-7 md:flex">
           {navItems.map((item) => (
             <Link
               key={item.label}
               to={item.to}
               hash={"hash" in item ? item.hash : undefined}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="text-sm font-medium text-[var(--km-ink-soft)] transition-colors hover:text-[var(--km-ink)]"
+              activeProps={{ className: "text-[var(--km-blue)]" }}
             >
               {item.label}
             </Link>
@@ -42,7 +43,7 @@ export function Header() {
           <Button asChild size="sm" variant="ghost">
             <Link to="/login">Logg inn</Link>
           </Button>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="bg-[var(--km-blue)] hover:bg-[var(--km-blue-deep)] text-white">
             <Link to="/signup">Kom i gang</Link>
           </Button>
         </div>
