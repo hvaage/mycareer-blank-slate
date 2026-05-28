@@ -7,3 +7,4 @@ Karrierenmin hjelper personer med høyere utdanning – fra nyutdannede til lede
 ## Pages
 
 - [Forsiden](/): Oversikt over hva Karrierenmin er, hvordan det fungerer og hvem det er for.
+- [Markedsinnsikt](/markedsinnsikt): Åpent verktøy for å utforske yrker, kompetansekrav, lønn og karriereveier basert på ESCO, SSB, NAV og NHO Kompetansebarometeret.

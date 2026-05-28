@@ -2,6 +2,9 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* IBM Plex fonts for the km-scope (Markedsinnsikt) */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -42,6 +45,31 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --font-sans: "IBM Plex Sans", "Inter", system-ui, -apple-system, sans-serif;
   --font-serif: "Instrument Serif", Georgia, serif;
+
+  /* KarrierenMin design-system tokens — global Tailwind utility tokens.
+     Pure variable declarations have no visual side-effects on existing
+     pages; visual reset is scoped to .km-scope below. */
+  --color-paper: var(--km-paper);
+  --color-paper-warm: var(--km-paper-warm);
+  --color-ink: var(--km-ink);
+  --color-ink-soft: var(--km-ink-soft);
+  --color-ink-faint: var(--km-ink-faint);
+  --color-rule: var(--km-rule);
+  --color-rule-soft: var(--km-rule-soft);
+  --color-blue: var(--km-blue);
+  --color-blue-deep: var(--km-blue-deep);
+  --color-blue-soft: var(--km-blue-soft);
+  --color-success: var(--km-success);
+  --color-warning: var(--km-warning);
+  --color-danger: var(--km-danger);
+  --color-navy: var(--km-navy);
+
+  --radius-1: 4px;
+  --radius-2: 6px;
+  --radius-3: 8px;
+  --radius-4: 10px;
+  --radius-5: 12px;
+  --radius-pill: 100px;
 }
 
 :root {
@@ -73,6 +101,24 @@
   --sidebar-accent-foreground: oklch(0.22 0.05 255);
   --sidebar-border: oklch(0.92 0.008 250);
   --sidebar-ring: oklch(0.50 0.10 250);
+
+  /* KarrierenMin brand palette — variables only. No visual effect
+     outside .km-scope. */
+  --km-blue:        #3A6CB0;
+  --km-blue-deep:   #2E5790;
+  --km-blue-soft:   #DEE6F2;
+  --km-ink:         #1A1F2B;
+  --km-ink-soft:    #4A5365;
+  --km-ink-faint:   #9AA2B1;
+  --km-paper:       #FAFAF7;
+  --km-paper-warm:  #F4F1EC;
+  --km-navy:        #181F2C;
+  --km-rule:        #E6E2DB;
+  --km-rule-soft:   #EEEAE2;
+  --km-success:     #3F8F5D;
+  --km-warning:     #B4823A;
+  --km-danger:      #B14545;
+  --km-accent:      var(--km-blue);
 }
 
 .dark {
@@ -123,3 +169,86 @@
     letter-spacing: -0.01em;
   }
 }
+
+/* ============================================================
+   KarrierenMin design-system — scoped reset for /markedsinnsikt
+   ============================================================
+   Visual styling (background, font, paper/ink colors, heading
+   scale, card primitives) is confined to elements inside an
+   ancestor with .km-scope so it does not affect existing pages.
+*/
+.km-scope {
+  background: var(--km-paper);
+  color: var(--km-ink);
+  font-family:
+    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI",
+    Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.km-scope h1,
+.km-scope h2,
+.km-scope h3,
+.km-scope h4,
+.km-scope h5,
+.km-scope h6 {
+  font-family:
+    "IBM Plex Sans", system-ui, -apple-system, "Segoe UI",
+    Helvetica, Arial, sans-serif;
+  color: var(--km-ink);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.km-scope h1 { font-size: 40px; letter-spacing: -0.02em; line-height: 1.05; }
+.km-scope h2 { font-size: 28px; letter-spacing: -0.015em; line-height: 1.1; }
+.km-scope h3 { font-size: 20px; font-weight: 600; }
+.km-scope ::selection { background: var(--km-blue-soft); color: var(--km-ink); }
+
+/* ===== KM utility classes (global — opt-in by class name) ===== */
+.km-eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-weight: 500;
+  font-size: 10.5px;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--km-ink-soft);
+}
+.km-rule { height: 1px; background: var(--km-rule); width: 100%; }
+.km-section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.km-section-head .km-rule { flex: 1; }
+.km-card {
+  background: #FFFFFF;
+  border: 1px solid var(--km-rule);
+  border-radius: 8px;
+  padding: 24px;
+}
+.km-num {
+  font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.km-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--km-rule);
+  background: var(--km-paper-warm);
+  color: var(--km-ink-soft);
+}
+.km-chip-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--km-ink-faint); }
+.km-chip-success { background: color-mix(in srgb, var(--km-success) 10%, #FFFFFF); color: var(--km-success); border-color: color-mix(in srgb, var(--km-success) 25%, var(--km-rule)); }
+.km-chip-success .km-chip-dot { background: var(--km-success); }
+.km-chip-warning { background: color-mix(in srgb, var(--km-warning) 10%, #FFFFFF); color: var(--km-warning); border-color: color-mix(in srgb, var(--km-warning) 25%, var(--km-rule)); }
+.km-chip-warning .km-chip-dot { background: var(--km-warning); }
+.km-chip-danger  { background: color-mix(in srgb, var(--km-danger)  10%, #FFFFFF); color: var(--km-danger);  border-color: color-mix(in srgb, var(--km-danger)  25%, var(--km-rule)); }
+.km-chip-danger  .km-chip-dot { background: var(--km-danger); }
+
+.km-bar-track { height: 4px; background: var(--km-rule-soft); border-radius: 999px; overflow: hidden; }
+.km-bar-fill  { height: 100%; background: var(--km-ink-soft); border-radius: 999px; }
+.km-bar-fill-accent { background: var(--km-blue); }
