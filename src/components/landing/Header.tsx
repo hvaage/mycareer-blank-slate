@@ -5,6 +5,7 @@ import { Logo } from "./Logo";
 type NavItem =
   | { label: string; to: "/"; hash?: string }
   | { label: string; to: "/signup" }
+  | { label: string; to: "/markedsinnsikt" }
   | { label: string; to: "/selskapsanalyse" }
   | { label: string; to: "/selskapsanalyse/analysedatabase" };
 
@@ -12,6 +13,7 @@ const navItems: NavItem[] = [
   { label: "Hva", to: "/", hash: "hva" },
   { label: "Annerledes", to: "/", hash: "annerledes" },
   { label: "Hvordan", to: "/", hash: "hvordan" },
+  { label: "Markedsinnsikt", to: "/markedsinnsikt" },
   { label: "Arbeidsgiveranalysen", to: "/selskapsanalyse" },
   { label: "Analysedatabase", to: "/selskapsanalyse/analysedatabase" },
   { label: "Kom i gang", to: "/signup" },

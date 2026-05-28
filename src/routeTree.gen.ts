@@ -14,6 +14,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SelskapsanalyseRouteImport } from './routes/selskapsanalyse'
 import { Route as PersonvernRouteImport } from './routes/personvern'
+import { Route as MarkedsinnsiktRouteImport } from './routes/markedsinnsikt'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
@@ -58,6 +59,11 @@ const SelskapsanalyseRoute = SelskapsanalyseRouteImport.update({
 const PersonvernRoute = PersonvernRouteImport.update({
   id: '/personvern',
   path: '/personvern',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarkedsinnsiktRoute = MarkedsinnsiktRouteImport.update({
+  id: '/markedsinnsikt',
+  path: '/markedsinnsikt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -170,6 +176,7 @@ const ApiPublicSelskapsanalyseDownloadRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
@@ -196,6 +203,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -223,6 +231,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/markedsinnsikt'
     | '/personvern'
     | '/selskapsanalyse'
     | '/signup'
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/markedsinnsikt'
     | '/personvern'
     | '/signup'
     | '/sitemap.xml'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/markedsinnsikt'
     | '/personvern'
     | '/selskapsanalyse'
     | '/signup'
@@ -331,6 +343,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  MarkedsinnsiktRoute: typeof MarkedsinnsiktRoute
   PersonvernRoute: typeof PersonvernRoute
   SelskapsanalyseRoute: typeof SelskapsanalyseRouteWithChildren
   SignupRoute: typeof SignupRoute
@@ -382,6 +395,13 @@ declare module '@tanstack/react-router' {
       path: '/personvern'
       fullPath: '/personvern'
       preLoaderRoute: typeof PersonvernRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/markedsinnsikt': {
+      id: '/markedsinnsikt'
+      path: '/markedsinnsikt'
+      fullPath: '/markedsinnsikt'
+      preLoaderRoute: typeof MarkedsinnsiktRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -568,6 +588,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  MarkedsinnsiktRoute: MarkedsinnsiktRoute,
   PersonvernRoute: PersonvernRoute,
   SelskapsanalyseRoute: SelskapsanalyseRouteWithChildren,
   SignupRoute: SignupRoute,
@@ -587,13 +608,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
