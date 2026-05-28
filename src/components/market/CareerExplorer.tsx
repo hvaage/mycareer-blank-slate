@@ -45,15 +45,15 @@ import {
   resolveDataSourceBody,
   shouldRenderDataSource,
   FALLBACK_DATA_SOURCES,
-} from "@/lib/supabase";
+} from "@/lib/market";
 import {
   resolveSalaryIndustry,
   industryNamesMatch,
   SALARY_PROFILE_SOURCES,
-} from "@/lib/salaryProfile";
-import { dedupeNeeds, matchesNeedSignal } from "@/lib/marketOverview";
-import { SectionTabs, type SectionTabItem } from "@/components/SectionTabs";
-import { REGIONS, cleanRegionLabel, regionLabelFromCode } from "@/lib/regions";
+} from "@/lib/market/salaryProfile";
+import { dedupeNeeds, matchesNeedSignal } from "@/lib/market/marketOverview";
+import { SectionTabs, type SectionTabItem } from "@/components/market/SectionTabs";
+import { REGIONS, cleanRegionLabel, regionLabelFromCode } from "@/lib/market/regions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,7 +75,7 @@ import {
   OccupationMarketCapacitySection,
   type DetailPayload,
   type MarketOverviewHandlers,
-} from "@/components/MarketOverview";
+} from "@/components/market/MarketOverview";
 
 
 type Mode = "compass" | "skills";

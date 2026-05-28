@@ -1,11 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
-
-const url = import.meta.env.VITE_SUPABASE_URL as string;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-export const supabase = createClient(url, key, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+// Re-export the dedicated market Supabase client under the local name `supabase`
+// so that components copied verbatim from the sister project keep working
+// without per-line refactoring.
+export { marketSupabase as supabase } from "@/integrations/market-supabase/client";
 
 export type EscoSearchResult = {
   uri: string;

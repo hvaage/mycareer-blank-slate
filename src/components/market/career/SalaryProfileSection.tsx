@@ -36,8 +36,8 @@ import {
   type SalaryProfilePayload,
   type SalarySeriesRow,
   type SalaryKpi,
-} from "@/lib/supabase";
-import type { SalaryIndustrySource } from "@/lib/salaryProfile";
+} from "@/lib/market";
+import type { SalaryIndustrySource } from "@/lib/market/salaryProfile";
 
 // ----- Options -----
 

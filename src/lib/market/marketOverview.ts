@@ -1,4 +1,4 @@
-import type { EmployerNeedItem } from "@/lib/supabase";
+import type { EmployerNeedItem } from "@/lib/market";
 
 // ============================================================
 // Shared helpers for MarketOverview / CareerExplorer

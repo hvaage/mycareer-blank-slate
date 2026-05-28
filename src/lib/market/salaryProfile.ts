@@ -2,7 +2,7 @@
 // Salary profile helpers (SSB 11420/11421)
 // ============================================================
 
-import type { DataSource } from "@/lib/supabase";
+import type { DataSource } from "@/lib/market";
 
 export const SALARY_PROFILE_SOURCES: DataSource[] = [
   {

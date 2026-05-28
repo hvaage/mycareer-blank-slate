@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { cleanRegionLabel } from "@/lib/regions";
+import { cleanRegionLabel } from "@/lib/market/regions";
 import {
   dedupeNeeds,
   isSelectedIndustry,
@@ -44,7 +44,7 @@ import {
   matchesRegion,
   norm,
   signalKind,
-} from "@/lib/marketOverview";
+} from "@/lib/market/marketOverview";
 import {
   supabase,
   hasValue,
@@ -72,13 +72,13 @@ import {
   
   type MarketCapacityOverviewPayload,
   type MarketBalanceTone,
-} from "@/lib/supabase";
+} from "@/lib/market";
 import {
   resolveSalaryIndustry,
   SALARY_PROFILE_SOURCES,
   type SalaryIndustrySource,
-} from "@/lib/salaryProfile";
-import { SalaryProfileSection } from "@/components/career/SalaryProfileSection";
+} from "@/lib/market/salaryProfile";
+import { SalaryProfileSection } from "@/components/market/career/SalaryProfileSection";
 import { useQuery } from "@tanstack/react-query";
 
 
