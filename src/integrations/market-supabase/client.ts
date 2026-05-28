@@ -14,6 +14,8 @@
 import { createClient } from "@supabase/supabase-js";
 
 const FALLBACK_URL = "https://wcaqfupjatnjwbgatzjv.supabase.co";
+const FALLBACK_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjYXFmdXBqYXRuandiZ2F0emp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MzY3OTcsImV4cCI6MjA5NTMxMjc5N30.6A869EjBHgXhEBAIkO6r3ojuYiHSpabUjXnsMHJPEoU";
 
 type Win = {
   __MARKET_SUPABASE_URL?: string;
@@ -35,7 +37,7 @@ const url =
 const key =
   (w.__MARKET_SUPABASE_KEY && w.__MARKET_SUPABASE_KEY.length > 0
     ? w.__MARKET_SUPABASE_KEY
-    : envKey) || "";
+    : envKey) || FALLBACK_KEY;
 
 if (import.meta.env.DEV && !key) {
   // eslint-disable-next-line no-console
