@@ -11,6 +11,10 @@ import {
 
 import appCss from "../styles.css?url";
 
+const MARKET_SUPABASE_URL = "https://wcaqfupjatnjwbgatzjv.supabase.co";
+const MARKET_SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjYXFmdXBqYXRuandiZ2F0emp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MzY3OTcsImV4cCI6MjA5NTMxMjc5N30.6A869EjBHgXhEBAIkO6r3ojuYiHSpabUjXnsMHJPEoU";
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -108,10 +112,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     scripts: [
       {
         children: `window.__MARKET_SUPABASE_URL=${JSON.stringify(
-          process.env.MARKET_SUPABASE_URL || "https://wcaqfupjatnjwbgatzjv.supabase.co",
+          MARKET_SUPABASE_URL,
         )};window.__MARKET_SUPABASE_KEY=${JSON.stringify(
-          process.env.MARKET_SUPABASE_ANON_KEY ||
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjYXFmdXBqYXRuandiZ2F0emp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MzY3OTcsImV4cCI6MjA5NTMxMjc5N30.6A869EjBHgXhEBAIkO6r3ojuYiHSpabUjXnsMHJPEoU",
+          MARKET_SUPABASE_ANON_KEY,
         )};`,
       },
       {
