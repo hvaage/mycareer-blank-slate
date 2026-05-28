@@ -2,45 +2,46 @@
 // Market Supabase client — ESCO project (wcaqfupjatnjwbgatzjv)
 // ============================================================
 //
-// This is a SEPARATE Supabase client from the My Career Builder
-// project's `@/integrations/supabase/client`. It is used only for the
-// public Markedsinnsikt page (/markedsinnsikt) to call public RPCs
-// against the ESCO data project.
+// Reads URL + anon key in this order:
+//   1. window.__MARKET_SUPABASE_URL / __MARKET_SUPABASE_KEY — injected by
+//      __root.tsx <script> from process.env.MARKET_SUPABASE_URL /
+//      MARKET_SUPABASE_ANON_KEY at SSR time. This is the production path.
+//   2. import.meta.env.VITE_MARKET_SUPABASE_URL / _ANON_KEY (legacy).
+//   3. Hard-coded URL fallback (project ref only — no key).
 //
-// Configuration order:
-//   1. import.meta.env.VITE_MARKET_SUPABASE_URL / _ANON_KEY (preferred)
-//   2. Hard-coded publishable defaults for the ESCO project (safe — these
-//      are publishable keys, not secrets).
-//
-// Never use this client for authenticated user data — it talks to a
-// different project and is anonymous-only.
+// The anon key is a publishable JWT and safe to expose to the browser.
 
 import { createClient } from "@supabase/supabase-js";
 
 const FALLBACK_URL = "https://wcaqfupjatnjwbgatzjv.supabase.co";
-const FALLBACK_KEY = "sb_publishable_6oF5IlcV8nzFvOf8QvYr2w_XmNeXEc";
+
+type Win = {
+  __MARKET_SUPABASE_URL?: string;
+  __MARKET_SUPABASE_KEY?: string;
+};
+
+const w: Win = typeof window !== "undefined" ? (window as unknown as Win) : {};
 
 const envUrl =
   (import.meta.env.VITE_MARKET_SUPABASE_URL as string | undefined) ?? "";
 const envKey =
   (import.meta.env.VITE_MARKET_SUPABASE_ANON_KEY as string | undefined) ?? "";
 
-const url = envUrl && envUrl.length > 0 ? envUrl : FALLBACK_URL;
-const key = envKey && envKey.length > 0 ? envKey : FALLBACK_KEY;
+const url =
+  (w.__MARKET_SUPABASE_URL && w.__MARKET_SUPABASE_URL.length > 0
+    ? w.__MARKET_SUPABASE_URL
+    : envUrl) || FALLBACK_URL;
 
-if (import.meta.env.DEV) {
-  if (!envUrl) {
-    // eslint-disable-next-line no-console
-    console.info(
-      "[market-supabase] VITE_MARKET_SUPABASE_URL not set — using publishable fallback for ESCO project.",
-    );
-  }
-  if (!envKey) {
-    // eslint-disable-next-line no-console
-    console.info(
-      "[market-supabase] VITE_MARKET_SUPABASE_ANON_KEY not set — using publishable fallback for ESCO project.",
-    );
-  }
+const key =
+  (w.__MARKET_SUPABASE_KEY && w.__MARKET_SUPABASE_KEY.length > 0
+    ? w.__MARKET_SUPABASE_KEY
+    : envKey) || "";
+
+if (import.meta.env.DEV && !key) {
+  // eslint-disable-next-line no-console
+  console.error(
+    "[market-supabase] Missing anon key. Set MARKET_SUPABASE_ANON_KEY (server secret) — it is injected into window at SSR by __root.tsx.",
+  );
 }
 
 export const marketSupabase = createClient(url, key, {
