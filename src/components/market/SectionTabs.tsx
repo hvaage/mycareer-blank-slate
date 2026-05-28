@@ -87,15 +87,14 @@ export function SectionTabs({
     <nav
       aria-label="Seksjoner"
       className={cn(
-        // Full-bleed: bryt ut av forelder max-width og dekk hele viewport
-        "sticky top-0 z-30 left-1/2 right-1/2 -translate-x-1/2 w-screen",
+        "sticky top-0 z-30",
         "bg-[var(--km-paper)]/95 backdrop-blur-[2px] border-b border-rule",
         className,
       )}
     >
       <div
         ref={scrollerRef}
-        className="overflow-x-auto px-4 md:px-8"
+        className="mx-auto max-w-6xl px-4 overflow-x-auto"
         style={{ scrollbarWidth: "none" }}
       >
         <ul className="mx-auto flex max-w-6xl gap-2 md:gap-4 h-12 md:h-14 items-stretch whitespace-nowrap">
