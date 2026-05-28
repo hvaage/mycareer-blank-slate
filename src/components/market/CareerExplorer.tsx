@@ -53,6 +53,8 @@ import {
 } from "@/lib/market/salaryProfile";
 import { dedupeNeeds, matchesNeedSignal } from "@/lib/market/marketOverview";
 import { SectionTabs, type SectionTabItem } from "@/components/market/SectionTabs";
+import { Header } from "@/components/landing/Header";
+import { PageHero } from "@/components/landing/PageHero";
 import { REGIONS, cleanRegionLabel, regionLabelFromCode } from "@/lib/market/regions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
