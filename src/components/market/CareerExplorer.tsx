@@ -702,7 +702,7 @@ export function CareerExplorer() {
             Utforsk jobbkompetanse og <span className="text-[var(--km-blue)]">karriereveier</span>
           </>
         }
-        lead="Søk på en stilling, et yrke, en kompetanse, en bransje eller et område. Utforsk markedssignaler, relevante bransjer, nærliggende karriereveier og etterspurt kompetanse. Siden oppdaterer seg dynamisk og snevrer seg inn etterhvert som du filtrerer og velger."
+        lead="Undersøk en stilling, et yrke, en kompetanse, en bransje eller et område. Utforsk markedssignaler, relevante bransjer, nærliggende karriereveier og etterspurt kompetanse. Se hva du kan forvente å tjene i det valgte yrket. Se hvilke yrker det er et overskudd på i markedet og hvilke er det stort behov for. Siden oppdaterer seg dynamisk og snevrer seg inn etterhvert som du filtrerer og velger. "
       />
 
       <main className="mx-auto max-w-6xl px-4 py-8 space-y-10">
