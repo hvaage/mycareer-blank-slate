@@ -76,7 +76,7 @@ export function Logo({
   }
 
   return (
-    <span className={className} aria-label="karrierenmin.no" {...rest}>
+    <span className={`inline-block ${className ?? ""}`} aria-label="karrierenmin.no" {...rest}>
       <svg
         viewBox="0 0 360 80"
         xmlns="http://www.w3.org/2000/svg"
