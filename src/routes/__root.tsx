@@ -107,6 +107,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     scripts: [
       {
+        children: `window.__MARKET_SUPABASE_URL=${JSON.stringify(
+          process.env.MARKET_SUPABASE_URL || "https://wcaqfupjatnjwbgatzjv.supabase.co",
+        )};window.__MARKET_SUPABASE_KEY=${JSON.stringify(
+          process.env.MARKET_SUPABASE_ANON_KEY || "",
+        )};`,
+      },
+      {
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
