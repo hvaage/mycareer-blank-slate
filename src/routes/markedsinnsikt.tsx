@@ -37,8 +37,9 @@ export const Route = createFileRoute("/markedsinnsikt")({
 
 function MarkedsinnsiktPage() {
   return (
-    <main className="km-scope min-h-screen">
+    <main className="min-h-screen">
       <CareerExplorer />
     </main>
+
   );
 }
