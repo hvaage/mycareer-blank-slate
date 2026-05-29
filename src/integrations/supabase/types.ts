@@ -413,6 +413,12 @@ export type Database = {
       }
       companies: {
         Row: {
+          agg_career_development_score: number | null
+          agg_culture_score: number | null
+          agg_financial_stability_score: number | null
+          agg_leadership_score: number | null
+          agg_mission_score: number | null
+          agg_overall_score: number | null
           agg_process_count: number
           agg_process_overall: number | null
           agg_process_q1: number | null
@@ -421,15 +427,34 @@ export type Database = {
           agg_process_q4: number | null
           agg_process_q5: number | null
           agg_process_q6: number | null
+          agg_rating_count: number | null
+          agg_updated_at: string | null
+          agg_work_environment_score: number | null
+          ai_career_development_score: number | null
+          ai_culture_score: number | null
           ai_dimension_notes: Json | null
+          ai_financial_stability_score: number | null
+          ai_leadership_score: number | null
+          ai_mission_score: number | null
+          ai_overall_score: number | null
+          ai_rated_at: string | null
+          ai_rating_notes: string | null
+          ai_work_environment_score: number | null
           created_at: string
           domain: string | null
           financials: Json | null
           id: string
           name: string
+          research_log: Json | null
           updated_at: string
         }
         Insert: {
+          agg_career_development_score?: number | null
+          agg_culture_score?: number | null
+          agg_financial_stability_score?: number | null
+          agg_leadership_score?: number | null
+          agg_mission_score?: number | null
+          agg_overall_score?: number | null
           agg_process_count?: number
           agg_process_overall?: number | null
           agg_process_q1?: number | null
@@ -438,15 +463,34 @@ export type Database = {
           agg_process_q4?: number | null
           agg_process_q5?: number | null
           agg_process_q6?: number | null
+          agg_rating_count?: number | null
+          agg_updated_at?: string | null
+          agg_work_environment_score?: number | null
+          ai_career_development_score?: number | null
+          ai_culture_score?: number | null
           ai_dimension_notes?: Json | null
+          ai_financial_stability_score?: number | null
+          ai_leadership_score?: number | null
+          ai_mission_score?: number | null
+          ai_overall_score?: number | null
+          ai_rated_at?: string | null
+          ai_rating_notes?: string | null
+          ai_work_environment_score?: number | null
           created_at?: string
           domain?: string | null
           financials?: Json | null
           id?: string
           name: string
+          research_log?: Json | null
           updated_at?: string
         }
         Update: {
+          agg_career_development_score?: number | null
+          agg_culture_score?: number | null
+          agg_financial_stability_score?: number | null
+          agg_leadership_score?: number | null
+          agg_mission_score?: number | null
+          agg_overall_score?: number | null
           agg_process_count?: number
           agg_process_overall?: number | null
           agg_process_q1?: number | null
@@ -455,12 +499,25 @@ export type Database = {
           agg_process_q4?: number | null
           agg_process_q5?: number | null
           agg_process_q6?: number | null
+          agg_rating_count?: number | null
+          agg_updated_at?: string | null
+          agg_work_environment_score?: number | null
+          ai_career_development_score?: number | null
+          ai_culture_score?: number | null
           ai_dimension_notes?: Json | null
+          ai_financial_stability_score?: number | null
+          ai_leadership_score?: number | null
+          ai_mission_score?: number | null
+          ai_overall_score?: number | null
+          ai_rated_at?: string | null
+          ai_rating_notes?: string | null
+          ai_work_environment_score?: number | null
           created_at?: string
           domain?: string | null
           financials?: Json | null
           id?: string
           name?: string
+          research_log?: Json | null
           updated_at?: string
         }
         Relationships: []
@@ -971,7 +1028,22 @@ export type Database = {
           version?: number | null
           visibility?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications_with_urgency"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_connections: {
         Row: {
@@ -1110,6 +1182,66 @@ export type Database = {
           used_at?: string | null
         }
         Relationships: []
+      }
+      employer_analysis_jobs: {
+        Row: {
+          artifact_document_id: string | null
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          current_step: string | null
+          error_message: string | null
+          id: string
+          progress_percent: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["employer_analysis_job_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artifact_document_id?: string | null
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          current_step?: string | null
+          error_message?: string | null
+          id?: string
+          progress_percent?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["employer_analysis_job_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artifact_document_id?: string | null
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          current_step?: string | null
+          error_message?: string | null
+          id?: string
+          progress_percent?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["employer_analysis_job_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_analysis_jobs_artifact_document_id_fkey"
+            columns: ["artifact_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employer_analysis_jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employer_reports: {
         Row: {
@@ -1690,6 +1822,57 @@ export type Database = {
         }
         Relationships: []
       }
+      next_steps: {
+        Row: {
+          application_id: string
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: Database["public"]["Enums"]["priority_level"] | null
+          title: string
+        }
+        Insert: {
+          application_id: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          title: string
+        }
+        Update: {
+          application_id?: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "next_steps_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "next_steps_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications_with_urgency"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunity_dedup_candidates: {
         Row: {
           confidence: number | null
@@ -2209,6 +2392,7 @@ export type Database = {
         Row: {
           ai_candidate_fit_reasoning: string | null
           ai_candidate_fit_score: number | null
+          ai_candidate_fit_updated_at: string | null
           applied_here: boolean | null
           career_development_score: number | null
           company_id: string
@@ -2229,6 +2413,7 @@ export type Database = {
         Insert: {
           ai_candidate_fit_reasoning?: string | null
           ai_candidate_fit_score?: number | null
+          ai_candidate_fit_updated_at?: string | null
           applied_here?: boolean | null
           career_development_score?: number | null
           company_id: string
@@ -2249,6 +2434,7 @@ export type Database = {
         Update: {
           ai_candidate_fit_reasoning?: string | null
           ai_candidate_fit_score?: number | null
+          ai_candidate_fit_updated_at?: string | null
           applied_here?: boolean | null
           career_development_score?: number | null
           company_id?: string
@@ -2702,6 +2888,34 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_user_careerjet_leads: {
+        Args: { p_status?: string }
+        Returns: {
+          ai_concerns: string
+          ai_match_highlights: string
+          ai_reasoning: string
+          ai_score: number
+          ai_scored_at: string
+          display_url: string
+          employer: string
+          identity_fingerprint: string
+          listing_id: string
+          listing_status_id: string
+          location: string
+          published_at: string
+          raw_url: string
+          relevance_score: number
+          row_kind: string
+          salary: string
+          salary_currency: string
+          salary_max: number
+          salary_min: number
+          source_url: string
+          status: string
+          title: string
+          user_opportunity_id: string
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -2732,6 +2946,10 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      refresh_company_aggregate: {
+        Args: { p_company_id: string }
+        Returns: undefined
       }
       refresh_company_process_aggregate: {
         Args: { p_company_id: string }
@@ -2784,6 +3002,11 @@ export type Database = {
         | "annet"
       email_connection_status: "active" | "expired" | "revoked" | "error"
       email_provider: "google" | "microsoft"
+      employer_analysis_job_status:
+        | "queued"
+        | "processing"
+        | "completed"
+        | "failed"
       job_lead_status: "ny" | "avvist" | "promotert" | "arkivert"
       priority_level: "høy" | "middels" | "lav"
     }
@@ -2945,6 +3168,12 @@ export const Constants = {
       ],
       email_connection_status: ["active", "expired", "revoked", "error"],
       email_provider: ["google", "microsoft"],
+      employer_analysis_job_status: [
+        "queued",
+        "processing",
+        "completed",
+        "failed",
+      ],
       job_lead_status: ["ny", "avvist", "promotert", "arkivert"],
       priority_level: ["høy", "middels", "lav"],
     },
