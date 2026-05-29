@@ -14,6 +14,211 @@ export type Database = {
   }
   public: {
     Tables: {
+      attachments: {
+        Row: {
+          application_id: string | null
+          created_at: string
+          file_name: string
+          file_type: string | null
+          id: string
+          mime_type: string | null
+          size_bytes: number | null
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          application_id?: string | null
+          created_at?: string
+          file_name: string
+          file_type?: string | null
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          application_id?: string | null
+          created_at?: string
+          file_name?: string
+          file_type?: string | null
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          application_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          linkedin_url: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          application_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          linkedin_url?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          application_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          linkedin_url?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          application_id: string | null
+          company_name: string | null
+          content_text: string | null
+          created_at: string
+          customization_notes: string | null
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name: string | null
+          file_path: string | null
+          file_size_bytes: number | null
+          id: string
+          is_base_version: boolean | null
+          mime_type: string | null
+          tailored_for: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          application_id?: string | null
+          company_name?: string | null
+          content_text?: string | null
+          created_at?: string
+          customization_notes?: string | null
+          document_type: Database["public"]["Enums"]["document_type"]
+          file_name?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          is_base_version?: boolean | null
+          mime_type?: string | null
+          tailored_for?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          application_id?: string | null
+          company_name?: string | null
+          content_text?: string | null
+          created_at?: string
+          customization_notes?: string | null
+          document_type?: Database["public"]["Enums"]["document_type"]
+          file_name?: string | null
+          file_path?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          is_base_version?: boolean | null
+          mime_type?: string | null
+          tailored_for?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          version?: number | null
+        }
+        Relationships: []
+      }
+      email_connections: {
+        Row: {
+          access_token: string | null
+          connected_at: string
+          email_address: string
+          id: string
+          last_error: string | null
+          last_sync_at: string | null
+          last_synced_internal_date: number | null
+          provider: Database["public"]["Enums"]["email_provider"]
+          refresh_token: string | null
+          scopes_granted: string[] | null
+          status: Database["public"]["Enums"]["email_connection_status"]
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          connected_at?: string
+          email_address: string
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          last_synced_internal_date?: number | null
+          provider: Database["public"]["Enums"]["email_provider"]
+          refresh_token?: string | null
+          scopes_granted?: string[] | null
+          status?: Database["public"]["Enums"]["email_connection_status"]
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          connected_at?: string
+          email_address?: string
+          id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          last_synced_internal_date?: number | null
+          provider?: Database["public"]["Enums"]["email_provider"]
+          refresh_token?: string | null
+          scopes_granted?: string[] | null
+          status?: Database["public"]["Enums"]["email_connection_status"]
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -185,6 +390,205 @@ export type Database = {
         }
         Relationships: []
       }
+      interviews: {
+        Row: {
+          application_id: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          interview_type: string | null
+          interviewer_names: string | null
+          location: string | null
+          notes: string | null
+          outcome: string | null
+          scheduled_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          interview_type?: string | null
+          interviewer_names?: string | null
+          location?: string | null
+          notes?: string | null
+          outcome?: string | null
+          scheduled_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          interview_type?: string | null
+          interviewer_names?: string | null
+          location?: string | null
+          notes?: string | null
+          outcome?: string | null
+          scheduled_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviews_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "job_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_applications: {
+        Row: {
+          applied_date: string | null
+          company: string
+          created_at: string
+          id: string
+          job_url: string | null
+          location: string | null
+          notes: string | null
+          position: string
+          priority: number | null
+          remote_type: string | null
+          salary_currency: string | null
+          salary_max: number | null
+          salary_min: number | null
+          source: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          applied_date?: string | null
+          company: string
+          created_at?: string
+          id?: string
+          job_url?: string | null
+          location?: string | null
+          notes?: string | null
+          position: string
+          priority?: number | null
+          remote_type?: string | null
+          salary_currency?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          applied_date?: string | null
+          company?: string
+          created_at?: string
+          id?: string
+          job_url?: string | null
+          location?: string | null
+          notes?: string | null
+          position?: string
+          priority?: number | null
+          remote_type?: string | null
+          salary_currency?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      job_leads: {
+        Row: {
+          ai_concerns: string | null
+          ai_match_highlights: string | null
+          ai_reasoning: string | null
+          ai_score: number | null
+          company: string | null
+          created_at: string
+          email_connection_id: string | null
+          id: string
+          job_url: string | null
+          location: string | null
+          posted_text: string | null
+          promoted_application_id: string | null
+          raw_snippet: string | null
+          received_at: string | null
+          salary_text: string | null
+          source_email_from: string | null
+          source_message_id: string | null
+          source_subject: string | null
+          status: Database["public"]["Enums"]["job_lead_status"]
+          title: string | null
+          updated_at: string
+          user_id: string
+          work_type: string | null
+        }
+        Insert: {
+          ai_concerns?: string | null
+          ai_match_highlights?: string | null
+          ai_reasoning?: string | null
+          ai_score?: number | null
+          company?: string | null
+          created_at?: string
+          email_connection_id?: string | null
+          id?: string
+          job_url?: string | null
+          location?: string | null
+          posted_text?: string | null
+          promoted_application_id?: string | null
+          raw_snippet?: string | null
+          received_at?: string | null
+          salary_text?: string | null
+          source_email_from?: string | null
+          source_message_id?: string | null
+          source_subject?: string | null
+          status?: Database["public"]["Enums"]["job_lead_status"]
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          work_type?: string | null
+        }
+        Update: {
+          ai_concerns?: string | null
+          ai_match_highlights?: string | null
+          ai_reasoning?: string | null
+          ai_score?: number | null
+          company?: string | null
+          created_at?: string
+          email_connection_id?: string | null
+          id?: string
+          job_url?: string | null
+          location?: string | null
+          posted_text?: string | null
+          promoted_application_id?: string | null
+          raw_snippet?: string | null
+          received_at?: string | null
+          salary_text?: string | null
+          source_email_from?: string | null
+          source_message_id?: string | null
+          source_subject?: string | null
+          status?: Database["public"]["Enums"]["job_lead_status"]
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          work_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_leads_email_connection_id_fkey"
+            columns: ["email_connection_id"]
+            isOneToOne: false
+            referencedRelation: "email_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_events: {
         Row: {
           created_at: string
@@ -291,25 +695,103 @@ export type Database = {
       }
       profiles: {
         Row: {
+          achievements: string | null
+          additional_notes: string | null
+          available_from: string | null
+          bio: string | null
           created_at: string
+          current_employer: string | null
+          current_role_title: string | null
+          deal_breakers: string | null
           display_name: string | null
           email: string | null
+          headline: string | null
           id: string
+          industries: string[] | null
+          languages: string[] | null
+          motivation: string | null
+          salary_currency: string | null
+          salary_expectation_max: number | null
+          salary_expectation_min: number | null
+          skills: string[] | null
+          strengths: string | null
+          target_city: string | null
+          target_country: string | null
+          target_industries: string[] | null
+          target_region: string | null
+          target_roles: string[] | null
+          target_seniority: string | null
           updated_at: string
+          weaknesses: string | null
+          willing_to_relocate: boolean | null
+          work_types: string[] | null
+          years_experience: number | null
         }
         Insert: {
+          achievements?: string | null
+          additional_notes?: string | null
+          available_from?: string | null
+          bio?: string | null
           created_at?: string
+          current_employer?: string | null
+          current_role_title?: string | null
+          deal_breakers?: string | null
           display_name?: string | null
           email?: string | null
+          headline?: string | null
           id: string
+          industries?: string[] | null
+          languages?: string[] | null
+          motivation?: string | null
+          salary_currency?: string | null
+          salary_expectation_max?: number | null
+          salary_expectation_min?: number | null
+          skills?: string[] | null
+          strengths?: string | null
+          target_city?: string | null
+          target_country?: string | null
+          target_industries?: string[] | null
+          target_region?: string | null
+          target_roles?: string[] | null
+          target_seniority?: string | null
           updated_at?: string
+          weaknesses?: string | null
+          willing_to_relocate?: boolean | null
+          work_types?: string[] | null
+          years_experience?: number | null
         }
         Update: {
+          achievements?: string | null
+          additional_notes?: string | null
+          available_from?: string | null
+          bio?: string | null
           created_at?: string
+          current_employer?: string | null
+          current_role_title?: string | null
+          deal_breakers?: string | null
           display_name?: string | null
           email?: string | null
+          headline?: string | null
           id?: string
+          industries?: string[] | null
+          languages?: string[] | null
+          motivation?: string | null
+          salary_currency?: string | null
+          salary_expectation_max?: number | null
+          salary_expectation_min?: number | null
+          skills?: string[] | null
+          strengths?: string | null
+          target_city?: string | null
+          target_country?: string | null
+          target_industries?: string[] | null
+          target_region?: string | null
+          target_roles?: string[] | null
+          target_seniority?: string | null
           updated_at?: string
+          weaknesses?: string | null
+          willing_to_relocate?: boolean | null
+          work_types?: string[] | null
+          years_experience?: number | null
         }
         Relationships: []
       }
@@ -406,6 +888,27 @@ export type Database = {
         | "rejected"
         | "withdrawn"
         | "accepted"
+        | "identifisert"
+        | "søknad_sendt"
+        | "screening"
+        | "intervju_1"
+        | "intervju_2"
+        | "intervju_3"
+        | "intervju_4"
+        | "case_study"
+        | "candidate_profiling"
+        | "tilbud_mottatt"
+        | "avsluttet"
+        | "trukket"
+      document_type:
+        | "cv"
+        | "søknadsbrev"
+        | "case_dokument"
+        | "referanseliste"
+        | "annet"
+      email_connection_status: "active" | "expired" | "revoked" | "error"
+      email_provider: "google" | "microsoft"
+      job_lead_status: "ny" | "avvist" | "promotert" | "arkivert"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -542,7 +1045,29 @@ export const Constants = {
         "rejected",
         "withdrawn",
         "accepted",
+        "identifisert",
+        "søknad_sendt",
+        "screening",
+        "intervju_1",
+        "intervju_2",
+        "intervju_3",
+        "intervju_4",
+        "case_study",
+        "candidate_profiling",
+        "tilbud_mottatt",
+        "avsluttet",
+        "trukket",
       ],
+      document_type: [
+        "cv",
+        "søknadsbrev",
+        "case_dokument",
+        "referanseliste",
+        "annet",
+      ],
+      email_connection_status: ["active", "expired", "revoked", "error"],
+      email_provider: ["google", "microsoft"],
+      job_lead_status: ["ny", "avvist", "promotert", "arkivert"],
     },
   },
 } as const
