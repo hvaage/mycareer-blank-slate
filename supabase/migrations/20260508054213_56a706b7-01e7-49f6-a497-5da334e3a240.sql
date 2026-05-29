@@ -1,0 +1,17 @@
+ALTER TABLE public.applications
+  ADD COLUMN IF NOT EXISTS ai_score smallint,
+  ADD COLUMN IF NOT EXISTS ai_reasoning text,
+  ADD COLUMN IF NOT EXISTS ai_match_highlights text,
+  ADD COLUMN IF NOT EXISTS ai_concerns text,
+  ADD COLUMN IF NOT EXISTS salary_text text,
+  ADD COLUMN IF NOT EXISTS posted_text text,
+  ADD COLUMN IF NOT EXISTS raw_snippet text,
+  ADD COLUMN IF NOT EXISTS source_subject text,
+  ADD COLUMN IF NOT EXISTS source_email_from text,
+  ADD COLUMN IF NOT EXISTS cv_used_path text,
+  ADD COLUMN IF NOT EXISTS cv_used_language text,
+  ADD COLUMN IF NOT EXISTS letter_generated_at timestamptz,
+  ADD COLUMN IF NOT EXISTS letter_sent_at timestamptz,
+  ADD COLUMN IF NOT EXISTS next_followup_at date,
+  ADD COLUMN IF NOT EXISTS followup_notes text,
+  ADD COLUMN IF NOT EXISTS reminder_sent_at timestamptz;
