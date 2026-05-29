@@ -14,6 +14,125 @@ export type Database = {
   }
   public: {
     Tables: {
+      applications: {
+        Row: {
+          applied_date: string | null
+          available_from: string | null
+          company_id: string | null
+          company_linkedin: string | null
+          company_name: string
+          company_size: string | null
+          company_website: string | null
+          contact_email: string | null
+          contact_linkedin: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          industry: string | null
+          internal_assessment: string | null
+          is_starred: boolean | null
+          job_url: string | null
+          location: string | null
+          notes: string | null
+          priority: Database["public"]["Enums"]["priority_level"] | null
+          rating: number | null
+          recruiter_email: string | null
+          recruiter_name: string | null
+          recruiter_phone: string | null
+          role_title: string | null
+          role_type: string | null
+          salary_currency: string | null
+          salary_range_max: number | null
+          salary_range_min: number | null
+          source: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          updated_at: string
+          user_id: string
+          work_type: string | null
+        }
+        Insert: {
+          applied_date?: string | null
+          available_from?: string | null
+          company_id?: string | null
+          company_linkedin?: string | null
+          company_name: string
+          company_size?: string | null
+          company_website?: string | null
+          contact_email?: string | null
+          contact_linkedin?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          internal_assessment?: string | null
+          is_starred?: boolean | null
+          job_url?: string | null
+          location?: string | null
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          rating?: number | null
+          recruiter_email?: string | null
+          recruiter_name?: string | null
+          recruiter_phone?: string | null
+          role_title?: string | null
+          role_type?: string | null
+          salary_currency?: string | null
+          salary_range_max?: number | null
+          salary_range_min?: number | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          user_id: string
+          work_type?: string | null
+        }
+        Update: {
+          applied_date?: string | null
+          available_from?: string | null
+          company_id?: string | null
+          company_linkedin?: string | null
+          company_name?: string
+          company_size?: string | null
+          company_website?: string | null
+          contact_email?: string | null
+          contact_linkedin?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          industry?: string | null
+          internal_assessment?: string | null
+          is_starred?: boolean | null
+          job_url?: string | null
+          location?: string | null
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          rating?: number | null
+          recruiter_email?: string | null
+          recruiter_name?: string | null
+          recruiter_phone?: string | null
+          role_title?: string | null
+          role_type?: string | null
+          salary_currency?: string | null
+          salary_range_max?: number | null
+          salary_range_min?: number | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          user_id?: string
+          work_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attachments: {
         Row: {
           application_id: string | null
@@ -57,6 +176,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      companies: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       contacts: {
         Row: {
@@ -443,6 +583,83 @@ export type Database = {
           },
         ]
       }
+      job_ads: {
+        Row: {
+          about_company: string | null
+          about_role: string | null
+          application_deadline: string | null
+          application_id: string
+          created_at: string
+          fit_analysis: string | null
+          id: string
+          ideal_candidate: string | null
+          imported_at: string | null
+          key_requirements: string[] | null
+          must_have_keywords: string[] | null
+          nice_to_have: string[] | null
+          parsed_company: string | null
+          parsed_location: string | null
+          parsed_role: string | null
+          parsed_work_type: string | null
+          raw_text: string | null
+          salary_info: string | null
+          source_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          about_company?: string | null
+          about_role?: string | null
+          application_deadline?: string | null
+          application_id: string
+          created_at?: string
+          fit_analysis?: string | null
+          id?: string
+          ideal_candidate?: string | null
+          imported_at?: string | null
+          key_requirements?: string[] | null
+          must_have_keywords?: string[] | null
+          nice_to_have?: string[] | null
+          parsed_company?: string | null
+          parsed_location?: string | null
+          parsed_role?: string | null
+          parsed_work_type?: string | null
+          raw_text?: string | null
+          salary_info?: string | null
+          source_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          about_company?: string | null
+          about_role?: string | null
+          application_deadline?: string | null
+          application_id?: string
+          created_at?: string
+          fit_analysis?: string | null
+          id?: string
+          ideal_candidate?: string | null
+          imported_at?: string | null
+          key_requirements?: string[] | null
+          must_have_keywords?: string[] | null
+          nice_to_have?: string[] | null
+          parsed_company?: string | null
+          parsed_location?: string | null
+          parsed_role?: string | null
+          parsed_work_type?: string | null
+          raw_text?: string | null
+          salary_info?: string | null
+          source_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_ads_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_applications: {
         Row: {
           applied_date: string | null
@@ -702,6 +919,12 @@ export type Database = {
           created_at: string
           current_employer: string | null
           current_role_title: string | null
+          cv_en_pdf_path: string | null
+          cv_en_updated_at: string | null
+          cv_en_word_path: string | null
+          cv_no_pdf_path: string | null
+          cv_no_updated_at: string | null
+          cv_no_word_path: string | null
           deal_breakers: string | null
           display_name: string | null
           email: string | null
@@ -735,6 +958,12 @@ export type Database = {
           created_at?: string
           current_employer?: string | null
           current_role_title?: string | null
+          cv_en_pdf_path?: string | null
+          cv_en_updated_at?: string | null
+          cv_en_word_path?: string | null
+          cv_no_pdf_path?: string | null
+          cv_no_updated_at?: string | null
+          cv_no_word_path?: string | null
           deal_breakers?: string | null
           display_name?: string | null
           email?: string | null
@@ -768,6 +997,12 @@ export type Database = {
           created_at?: string
           current_employer?: string | null
           current_role_title?: string | null
+          cv_en_pdf_path?: string | null
+          cv_en_updated_at?: string | null
+          cv_en_word_path?: string | null
+          cv_no_pdf_path?: string | null
+          cv_no_updated_at?: string | null
+          cv_no_word_path?: string | null
           deal_breakers?: string | null
           display_name?: string | null
           email?: string | null
@@ -818,6 +1053,74 @@ export type Database = {
           reason?: string
         }
         Relationships: []
+      }
+      user_company_ratings: {
+        Row: {
+          ai_candidate_fit_score: number | null
+          applied_here: boolean | null
+          career_development_score: number | null
+          company_id: string
+          created_at: string
+          culture_score: number | null
+          financial_stability_score: number | null
+          id: string
+          interviewed_here: boolean | null
+          leadership_score: number | null
+          mission_score: number | null
+          overall_score: number | null
+          updated_at: string
+          user_id: string
+          user_notes: string | null
+          work_environment_score: number | null
+          worked_here: boolean | null
+        }
+        Insert: {
+          ai_candidate_fit_score?: number | null
+          applied_here?: boolean | null
+          career_development_score?: number | null
+          company_id: string
+          created_at?: string
+          culture_score?: number | null
+          financial_stability_score?: number | null
+          id?: string
+          interviewed_here?: boolean | null
+          leadership_score?: number | null
+          mission_score?: number | null
+          overall_score?: number | null
+          updated_at?: string
+          user_id: string
+          user_notes?: string | null
+          work_environment_score?: number | null
+          worked_here?: boolean | null
+        }
+        Update: {
+          ai_candidate_fit_score?: number | null
+          applied_here?: boolean | null
+          career_development_score?: number | null
+          company_id?: string
+          created_at?: string
+          culture_score?: number | null
+          financial_stability_score?: number | null
+          id?: string
+          interviewed_here?: boolean | null
+          leadership_score?: number | null
+          mission_score?: number | null
+          overall_score?: number | null
+          updated_at?: string
+          user_id?: string
+          user_notes?: string | null
+          work_environment_score?: number | null
+          worked_here?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_company_ratings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -910,6 +1213,7 @@ export type Database = {
       email_connection_status: "active" | "expired" | "revoked" | "error"
       email_provider: "google" | "microsoft"
       job_lead_status: "ny" | "avvist" | "promotert" | "arkivert"
+      priority_level: "høy" | "middels" | "lav"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1070,6 +1374,7 @@ export const Constants = {
       email_connection_status: ["active", "expired", "revoked", "error"],
       email_provider: ["google", "microsoft"],
       job_lead_status: ["ny", "avvist", "promotert", "arkivert"],
+      priority_level: ["høy", "middels", "lav"],
     },
   },
 } as const
