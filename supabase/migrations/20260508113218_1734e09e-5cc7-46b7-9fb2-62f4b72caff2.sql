@@ -1,0 +1,1 @@
+ALTER TABLE public.user_company_ratings ADD COLUMN IF NOT EXISTS ai_candidate_fit_reasoning text;

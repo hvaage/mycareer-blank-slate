@@ -1,1 +1,28 @@
 project_id = "miwzhbludgwvskmsfqnq"
+
+[functions.extract-job-ad]
+verify_jwt = false
+
+[functions.generate-cover-letter]
+verify_jwt = true
+
+[functions.analyze-company]
+verify_jwt = true
+
+[functions.linkedin-connect]
+verify_jwt = true
+
+[functions.linkedin-login]
+verify_jwt = false
+
+[functions.fetch-careerjet-listings]
+verify_jwt = true
+
+[functions.commit-cv-import]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
+
+[functions.parse-uploaded-cv]
+verify_jwt = true
