@@ -226,6 +226,159 @@ export type Database = {
           },
         ]
       }
+      atom_enrichment_batches: {
+        Row: {
+          context: Json
+          created_at: string
+          id: string
+          notes: string | null
+          source_hash: string | null
+          source_id: string | null
+          source_record_id: string | null
+          source_table: string | null
+          source_type: string
+          status: Database["public"]["Enums"]["atom_enrichment_batch_status"]
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source_hash?: string | null
+          source_id?: string | null
+          source_record_id?: string | null
+          source_table?: string | null
+          source_type: string
+          status?: Database["public"]["Enums"]["atom_enrichment_batch_status"]
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source_hash?: string | null
+          source_id?: string | null
+          source_record_id?: string | null
+          source_table?: string | null
+          source_type?: string
+          status?: Database["public"]["Enums"]["atom_enrichment_batch_status"]
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      atom_enrichment_proposals: {
+        Row: {
+          batch_id: string
+          confidence: number | null
+          created_at: string
+          diff: Json | null
+          existing_atom_snapshot: Json | null
+          explanation: string | null
+          id: string
+          inferred: boolean
+          proposal_action: Database["public"]["Enums"]["atom_enrichment_proposal_action"]
+          proposal_payload: Json
+          rationale: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_comment: string | null
+          source_hash: string | null
+          source_id: string | null
+          source_record_id: string | null
+          source_table: string | null
+          source_type: string
+          status: Database["public"]["Enums"]["atom_enrichment_proposal_status"]
+          superseded_by_proposal_id: string | null
+          target_atom_id: string | null
+          target_atom_type: string
+          target_entity_id: string | null
+          target_entity_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          batch_id: string
+          confidence?: number | null
+          created_at?: string
+          diff?: Json | null
+          existing_atom_snapshot?: Json | null
+          explanation?: string | null
+          id?: string
+          inferred?: boolean
+          proposal_action: Database["public"]["Enums"]["atom_enrichment_proposal_action"]
+          proposal_payload?: Json
+          rationale?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_comment?: string | null
+          source_hash?: string | null
+          source_id?: string | null
+          source_record_id?: string | null
+          source_table?: string | null
+          source_type: string
+          status?: Database["public"]["Enums"]["atom_enrichment_proposal_status"]
+          superseded_by_proposal_id?: string | null
+          target_atom_id?: string | null
+          target_atom_type: string
+          target_entity_id?: string | null
+          target_entity_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string
+          confidence?: number | null
+          created_at?: string
+          diff?: Json | null
+          existing_atom_snapshot?: Json | null
+          explanation?: string | null
+          id?: string
+          inferred?: boolean
+          proposal_action?: Database["public"]["Enums"]["atom_enrichment_proposal_action"]
+          proposal_payload?: Json
+          rationale?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_comment?: string | null
+          source_hash?: string | null
+          source_id?: string | null
+          source_record_id?: string | null
+          source_table?: string | null
+          source_type?: string
+          status?: Database["public"]["Enums"]["atom_enrichment_proposal_status"]
+          superseded_by_proposal_id?: string | null
+          target_atom_id?: string | null
+          target_atom_type?: string
+          target_entity_id?: string | null
+          target_entity_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atom_enrichment_proposals_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "atom_enrichment_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atom_enrichment_proposals_superseded_by_proposal_id_fkey"
+            columns: ["superseded_by_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "atom_enrichment_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       atom_evidence_links: {
         Row: {
           ai_generated: boolean
@@ -440,12 +593,17 @@ export type Database = {
           ai_rated_at: string | null
           ai_rating_notes: string | null
           ai_work_environment_score: number | null
+          country: string | null
           created_at: string
+          description: string | null
           domain: string | null
           financials: Json | null
           id: string
+          industry: string | null
           name: string
+          ownership_type: string | null
           research_log: Json | null
+          size_estimate: string | null
           updated_at: string
         }
         Insert: {
@@ -476,12 +634,17 @@ export type Database = {
           ai_rated_at?: string | null
           ai_rating_notes?: string | null
           ai_work_environment_score?: number | null
+          country?: string | null
           created_at?: string
+          description?: string | null
           domain?: string | null
           financials?: Json | null
           id?: string
+          industry?: string | null
           name: string
+          ownership_type?: string | null
           research_log?: Json | null
+          size_estimate?: string | null
           updated_at?: string
         }
         Update: {
@@ -512,15 +675,153 @@ export type Database = {
           ai_rated_at?: string | null
           ai_rating_notes?: string | null
           ai_work_environment_score?: number | null
+          country?: string | null
           created_at?: string
+          description?: string | null
           domain?: string | null
           financials?: Json | null
           id?: string
+          industry?: string | null
           name?: string
+          ownership_type?: string | null
           research_log?: Json | null
+          size_estimate?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      company_profile_atoms: {
+        Row: {
+          category: string
+          company_id: string
+          confidence_score: number | null
+          created_at: string
+          description: string | null
+          dimension: string | null
+          id: string
+          inferred: boolean
+          is_active: boolean
+          label: string
+          normalized_value: string | null
+          refreshed_at: string | null
+          source: string
+          source_hash: string | null
+          stale_at: string | null
+          strength_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          company_id: string
+          confidence_score?: number | null
+          created_at?: string
+          description?: string | null
+          dimension?: string | null
+          id?: string
+          inferred?: boolean
+          is_active?: boolean
+          label: string
+          normalized_value?: string | null
+          refreshed_at?: string | null
+          source?: string
+          source_hash?: string | null
+          stale_at?: string | null
+          strength_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          company_id?: string
+          confidence_score?: number | null
+          created_at?: string
+          description?: string | null
+          dimension?: string | null
+          id?: string
+          inferred?: boolean
+          is_active?: boolean
+          label?: string
+          normalized_value?: string | null
+          refreshed_at?: string | null
+          source?: string
+          source_hash?: string | null
+          stale_at?: string | null
+          strength_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_profile_atoms_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_signal_atoms: {
+        Row: {
+          company_id: string
+          confidence_score: number | null
+          created_at: string
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          label: string
+          observed_at: string | null
+          refreshed_at: string | null
+          signal_strength: number | null
+          signal_type: string
+          source: string
+          source_hash: string | null
+          stale_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          confidence_score?: number | null
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          observed_at?: string | null
+          refreshed_at?: string | null
+          signal_strength?: number | null
+          signal_type: string
+          source?: string
+          source_hash?: string | null
+          stale_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          confidence_score?: number | null
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          observed_at?: string | null
+          refreshed_at?: string | null
+          signal_strength?: number | null
+          signal_type?: string
+          source?: string
+          source_hash?: string | null
+          stale_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_signal_atoms_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contacts: {
         Row: {
@@ -1825,6 +2126,165 @@ export type Database = {
         }
         Relationships: []
       }
+      match_assessments: {
+        Row: {
+          apply_recommendation_score: number | null
+          assessment_type: string
+          company_id: string | null
+          created_at: string
+          evidence_strength_score: number | null
+          expires_at: string | null
+          generated_at: string | null
+          generated_by: string | null
+          id: string
+          listing_id: string | null
+          match_band: string | null
+          opportunity_id: string | null
+          overall_match_score: number | null
+          positioning_score: number | null
+          reasoning: Json
+          recommendation_summary: string | null
+          source: string
+          status: string
+          summary: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          apply_recommendation_score?: number | null
+          assessment_type: string
+          company_id?: string | null
+          created_at?: string
+          evidence_strength_score?: number | null
+          expires_at?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          listing_id?: string | null
+          match_band?: string | null
+          opportunity_id?: string | null
+          overall_match_score?: number | null
+          positioning_score?: number | null
+          reasoning?: Json
+          recommendation_summary?: string | null
+          source?: string
+          status?: string
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          apply_recommendation_score?: number | null
+          assessment_type?: string
+          company_id?: string | null
+          created_at?: string
+          evidence_strength_score?: number | null
+          expires_at?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          listing_id?: string | null
+          match_band?: string | null
+          opportunity_id?: string | null
+          overall_match_score?: number | null
+          positioning_score?: number | null
+          reasoning?: Json
+          recommendation_summary?: string | null
+          source?: string
+          status?: string
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_assessments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_assessments_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "job_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_assessments_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      match_dimension_assessments: {
+        Row: {
+          assessment_id: string
+          created_at: string
+          dimension: string
+          evidence_strength_score: number | null
+          id: string
+          inferred_requirements: Json
+          market_alignment_score: number | null
+          matched_evidence_atoms: Json
+          matched_preference_atoms: Json
+          missing_evidence_atoms: Json
+          overall_dimension_score: number | null
+          preference_alignment_score: number | null
+          reasoning: string | null
+          recommendation: string | null
+          score_band: string | null
+          updated_at: string
+        }
+        Insert: {
+          assessment_id: string
+          created_at?: string
+          dimension: string
+          evidence_strength_score?: number | null
+          id?: string
+          inferred_requirements?: Json
+          market_alignment_score?: number | null
+          matched_evidence_atoms?: Json
+          matched_preference_atoms?: Json
+          missing_evidence_atoms?: Json
+          overall_dimension_score?: number | null
+          preference_alignment_score?: number | null
+          reasoning?: string | null
+          recommendation?: string | null
+          score_band?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assessment_id?: string
+          created_at?: string
+          dimension?: string
+          evidence_strength_score?: number | null
+          id?: string
+          inferred_requirements?: Json
+          market_alignment_score?: number | null
+          matched_evidence_atoms?: Json
+          matched_preference_atoms?: Json
+          missing_evidence_atoms?: Json
+          overall_dimension_score?: number | null
+          preference_alignment_score?: number | null
+          reasoning?: string | null
+          recommendation?: string | null
+          score_band?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_dimension_assessments_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "match_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       next_steps: {
         Row: {
           application_id: string
@@ -1957,6 +2417,87 @@ export type Database = {
           },
         ]
       }
+      opportunity_requirement_atoms: {
+        Row: {
+          category: string
+          confidence_score: number | null
+          created_at: string
+          description: string | null
+          dimension: string | null
+          id: string
+          importance_score: number | null
+          inferred: boolean
+          is_active: boolean
+          label: string
+          listing_id: string | null
+          normalized_value: string | null
+          opportunity_id: string | null
+          refreshed_at: string | null
+          source: string
+          source_field: string | null
+          source_hash: string | null
+          stale_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          confidence_score?: number | null
+          created_at?: string
+          description?: string | null
+          dimension?: string | null
+          id?: string
+          importance_score?: number | null
+          inferred?: boolean
+          is_active?: boolean
+          label: string
+          listing_id?: string | null
+          normalized_value?: string | null
+          opportunity_id?: string | null
+          refreshed_at?: string | null
+          source?: string
+          source_field?: string | null
+          source_hash?: string | null
+          stale_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          confidence_score?: number | null
+          created_at?: string
+          description?: string | null
+          dimension?: string | null
+          id?: string
+          importance_score?: number | null
+          inferred?: boolean
+          is_active?: boolean
+          label?: string
+          listing_id?: string | null
+          normalized_value?: string | null
+          opportunity_id?: string | null
+          refreshed_at?: string | null
+          source?: string
+          source_field?: string | null
+          source_hash?: string | null
+          stale_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_requirement_atoms_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "job_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_requirement_atoms_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunity_source_links: {
         Row: {
           canonical_opportunity_id: string
@@ -1995,6 +2536,65 @@ export type Database = {
             columns: ["source_posting_id"]
             isOneToOne: false
             referencedRelation: "source_postings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      positioning_recommendations: {
+        Row: {
+          assessment_id: string
+          category: string
+          created_at: string
+          description: string
+          effort_score: number | null
+          generated_by: string | null
+          id: string
+          impact_score: number | null
+          priority_score: number | null
+          source_dimension: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assessment_id: string
+          category: string
+          created_at?: string
+          description: string
+          effort_score?: number | null
+          generated_by?: string | null
+          id?: string
+          impact_score?: number | null
+          priority_score?: number | null
+          source_dimension?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assessment_id?: string
+          category?: string
+          created_at?: string
+          description?: string
+          effort_score?: number | null
+          generated_by?: string | null
+          id?: string
+          impact_score?: number | null
+          priority_score?: number | null
+          source_dimension?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "positioning_recommendations_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "match_assessments"
             referencedColumns: ["id"]
           },
         ]
@@ -2391,6 +2991,99 @@ export type Database = {
         }
         Relationships: []
       }
+      user_career_profiles: {
+        Row: {
+          career_stage: string | null
+          compensation_importance: number | null
+          completeness_score: number | null
+          created_at: string
+          desired_industries: string[] | null
+          desired_role_types: string[] | null
+          dimension_weights: Json
+          id: string
+          innovation_importance: number | null
+          last_ai_profile_review_at: string | null
+          leadership_ambition: number | null
+          leadership_level: string | null
+          mission_importance: number | null
+          preferred_company_sizes: string[] | null
+          preferred_locations: string[] | null
+          preferred_work_styles: string[] | null
+          primary_industry: string | null
+          profile_intent: string | null
+          remote_preference: string | null
+          salary_expectation_max: number | null
+          salary_expectation_min: number | null
+          stability_vs_growth: number | null
+          sustainability_importance: number | null
+          travel_preference: string | null
+          updated_at: string
+          user_id: string
+          work_life_balance_importance: number | null
+          years_experience: number | null
+        }
+        Insert: {
+          career_stage?: string | null
+          compensation_importance?: number | null
+          completeness_score?: number | null
+          created_at?: string
+          desired_industries?: string[] | null
+          desired_role_types?: string[] | null
+          dimension_weights?: Json
+          id?: string
+          innovation_importance?: number | null
+          last_ai_profile_review_at?: string | null
+          leadership_ambition?: number | null
+          leadership_level?: string | null
+          mission_importance?: number | null
+          preferred_company_sizes?: string[] | null
+          preferred_locations?: string[] | null
+          preferred_work_styles?: string[] | null
+          primary_industry?: string | null
+          profile_intent?: string | null
+          remote_preference?: string | null
+          salary_expectation_max?: number | null
+          salary_expectation_min?: number | null
+          stability_vs_growth?: number | null
+          sustainability_importance?: number | null
+          travel_preference?: string | null
+          updated_at?: string
+          user_id: string
+          work_life_balance_importance?: number | null
+          years_experience?: number | null
+        }
+        Update: {
+          career_stage?: string | null
+          compensation_importance?: number | null
+          completeness_score?: number | null
+          created_at?: string
+          desired_industries?: string[] | null
+          desired_role_types?: string[] | null
+          dimension_weights?: Json
+          id?: string
+          innovation_importance?: number | null
+          last_ai_profile_review_at?: string | null
+          leadership_ambition?: number | null
+          leadership_level?: string | null
+          mission_importance?: number | null
+          preferred_company_sizes?: string[] | null
+          preferred_locations?: string[] | null
+          preferred_work_styles?: string[] | null
+          primary_industry?: string | null
+          profile_intent?: string | null
+          remote_preference?: string | null
+          salary_expectation_max?: number | null
+          salary_expectation_min?: number | null
+          stability_vs_growth?: number | null
+          sustainability_importance?: number | null
+          travel_preference?: string | null
+          updated_at?: string
+          user_id?: string
+          work_life_balance_importance?: number | null
+          years_experience?: number | null
+        }
+        Relationships: []
+      }
       user_company_ratings: {
         Row: {
           ai_candidate_fit_reasoning: string | null
@@ -2461,6 +3154,80 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_evidence_atoms: {
+        Row: {
+          category: string
+          confidence_score: number | null
+          created_at: string
+          description: string | null
+          evidence_type: string | null
+          id: string
+          is_active: boolean
+          label: string
+          reasoning: string | null
+          refreshed_at: string | null
+          source: string
+          source_document_id: string | null
+          source_hash: string | null
+          source_profile_field: string | null
+          source_url: string | null
+          stale_at: string | null
+          strength_score: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          confidence_score?: number | null
+          created_at?: string
+          description?: string | null
+          evidence_type?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          reasoning?: string | null
+          refreshed_at?: string | null
+          source?: string
+          source_document_id?: string | null
+          source_hash?: string | null
+          source_profile_field?: string | null
+          source_url?: string | null
+          stale_at?: string | null
+          strength_score?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          confidence_score?: number | null
+          created_at?: string
+          description?: string | null
+          evidence_type?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          reasoning?: string | null
+          refreshed_at?: string | null
+          source?: string
+          source_document_id?: string | null
+          source_hash?: string | null
+          source_profile_field?: string | null
+          source_url?: string | null
+          stale_at?: string | null
+          strength_score?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_evidence_atoms_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -2620,6 +3387,74 @@ export type Database = {
             columns: ["legacy_listing_status_id"]
             isOneToOne: false
             referencedRelation: "user_job_listing_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_preference_atoms: {
+        Row: {
+          career_profile_id: string | null
+          confidence_score: number | null
+          created_at: string
+          dimension: string
+          id: string
+          importance_score: number | null
+          is_active: boolean
+          label: string
+          reasoning: string | null
+          refreshed_at: string | null
+          source: string
+          source_field: string | null
+          source_hash: string | null
+          stale_at: string | null
+          updated_at: string
+          user_id: string
+          value: string | null
+        }
+        Insert: {
+          career_profile_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          dimension: string
+          id?: string
+          importance_score?: number | null
+          is_active?: boolean
+          label: string
+          reasoning?: string | null
+          refreshed_at?: string | null
+          source?: string
+          source_field?: string | null
+          source_hash?: string | null
+          stale_at?: string | null
+          updated_at?: string
+          user_id: string
+          value?: string | null
+        }
+        Update: {
+          career_profile_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          dimension?: string
+          id?: string
+          importance_score?: number | null
+          is_active?: boolean
+          label?: string
+          reasoning?: string | null
+          refreshed_at?: string | null
+          source?: string
+          source_field?: string | null
+          source_hash?: string | null
+          stale_at?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_preference_atoms_career_profile_id_fkey"
+            columns: ["career_profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_career_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2884,6 +3719,13 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_user_employers: {
+        Args: { p_user_id: string }
+        Returns: {
+          company_id: string
+          source: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2899,6 +3741,7 @@ export type Database = {
           ai_reasoning: string
           ai_score: number
           ai_scored_at: string
+          canonical_opportunity_id: string
           display_url: string
           employer: string
           identity_fingerprint: string
@@ -2997,6 +3840,25 @@ export type Database = {
         | "tilbud_mottatt"
         | "avsluttet"
         | "trukket"
+      atom_enrichment_batch_status: "open" | "closed" | "cancelled"
+      atom_enrichment_proposal_action:
+        | "create_atom"
+        | "update_atom"
+        | "merge_atoms"
+        | "deactivate_atom"
+        | "flag_conflict"
+        | "suggest_positioning"
+        | "suggest_narrative"
+        | "suggest_evidence"
+        | "suggest_preference_clarification"
+      atom_enrichment_proposal_status:
+        | "pending_review"
+        | "approved"
+        | "rejected"
+        | "merged"
+        | "needs_more_context"
+        | "superseded"
+        | "expired"
       document_type:
         | "cv"
         | "søknadsbrev"
@@ -3162,6 +4024,27 @@ export const Constants = {
         "tilbud_mottatt",
         "avsluttet",
         "trukket",
+      ],
+      atom_enrichment_batch_status: ["open", "closed", "cancelled"],
+      atom_enrichment_proposal_action: [
+        "create_atom",
+        "update_atom",
+        "merge_atoms",
+        "deactivate_atom",
+        "flag_conflict",
+        "suggest_positioning",
+        "suggest_narrative",
+        "suggest_evidence",
+        "suggest_preference_clarification",
+      ],
+      atom_enrichment_proposal_status: [
+        "pending_review",
+        "approved",
+        "rejected",
+        "merged",
+        "needs_more_context",
+        "superseded",
+        "expired",
       ],
       document_type: [
         "cv",
