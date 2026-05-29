@@ -327,6 +327,45 @@ export type Database = {
           },
         ]
       }
+      canonical_opportunities: {
+        Row: {
+          created_at: string
+          display_company: string | null
+          display_location: string | null
+          display_title: string | null
+          display_url: string
+          id: string
+          identity_fingerprint: string
+          merge_summary: string | null
+          primary_source: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_company?: string | null
+          display_location?: string | null
+          display_title?: string | null
+          display_url: string
+          id?: string
+          identity_fingerprint: string
+          merge_summary?: string | null
+          primary_source?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_company?: string | null
+          display_location?: string | null
+          display_title?: string | null
+          display_url?: string
+          id?: string
+          identity_fingerprint?: string
+          merge_summary?: string | null
+          primary_source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       case_documents: {
         Row: {
           case_id: string
@@ -384,6 +423,7 @@ export type Database = {
           agg_process_q6: number | null
           ai_dimension_notes: Json | null
           created_at: string
+          domain: string | null
           financials: Json | null
           id: string
           name: string
@@ -400,6 +440,7 @@ export type Database = {
           agg_process_q6?: number | null
           ai_dimension_notes?: Json | null
           created_at?: string
+          domain?: string | null
           financials?: Json | null
           id?: string
           name: string
@@ -416,6 +457,7 @@ export type Database = {
           agg_process_q6?: number | null
           ai_dimension_notes?: Json | null
           created_at?: string
+          domain?: string | null
           financials?: Json | null
           id?: string
           name?: string
@@ -784,6 +826,13 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentation_packages_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications_with_urgency"
             referencedColumns: ["id"]
           },
           {
@@ -1274,6 +1323,13 @@ export type Database = {
             referencedRelation: "applications"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "job_ads_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications_with_urgency"
+            referencedColumns: ["id"]
+          },
         ]
       }
       job_applications: {
@@ -1634,6 +1690,129 @@ export type Database = {
         }
         Relationships: []
       }
+      opportunity_dedup_candidates: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          evidence: Json
+          fingerprint_a: string
+          fingerprint_b: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          evidence?: Json
+          fingerprint_a: string
+          fingerprint_b: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          evidence?: Json
+          fingerprint_a?: string
+          fingerprint_b?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      opportunity_dedup_decisions: {
+        Row: {
+          decided_at: string
+          decision_type: string
+          id: string
+          keep_canonical_id: string | null
+          merged_canonical_id: string | null
+          reason: string
+          user_id: string | null
+        }
+        Insert: {
+          decided_at?: string
+          decision_type: string
+          id?: string
+          keep_canonical_id?: string | null
+          merged_canonical_id?: string | null
+          reason: string
+          user_id?: string | null
+        }
+        Update: {
+          decided_at?: string
+          decision_type?: string
+          id?: string
+          keep_canonical_id?: string | null
+          merged_canonical_id?: string | null
+          reason?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_dedup_decisions_keep_canonical_id_fkey"
+            columns: ["keep_canonical_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_dedup_decisions_merged_canonical_id_fkey"
+            columns: ["merged_canonical_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunity_source_links: {
+        Row: {
+          canonical_opportunity_id: string
+          created_at: string
+          id: string
+          link_role: string
+          merge_reason: string
+          source_posting_id: string
+        }
+        Insert: {
+          canonical_opportunity_id: string
+          created_at?: string
+          id?: string
+          link_role: string
+          merge_reason?: string
+          source_posting_id: string
+        }
+        Update: {
+          canonical_opportunity_id?: string
+          created_at?: string
+          id?: string
+          link_role?: string
+          merge_reason?: string
+          source_posting_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_source_links_canonical_opportunity_id_fkey"
+            columns: ["canonical_opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_source_links_source_posting_id_fkey"
+            columns: ["source_posting_id"]
+            isOneToOne: false
+            referencedRelation: "source_postings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       professional_cases: {
         Row: {
           actions_taken: string | null
@@ -1940,6 +2119,68 @@ export type Database = {
         }
         Relationships: []
       }
+      source_postings: {
+        Row: {
+          company: string | null
+          created_at: string
+          description_excerpt: string | null
+          display_url: string
+          id: string
+          identity_fingerprint: string
+          listing_id: string | null
+          location: string | null
+          published_at: string | null
+          raw_payload: Json | null
+          raw_url: string
+          source: string
+          source_external_id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          description_excerpt?: string | null
+          display_url: string
+          id?: string
+          identity_fingerprint: string
+          listing_id?: string | null
+          location?: string | null
+          published_at?: string | null
+          raw_payload?: Json | null
+          raw_url: string
+          source: string
+          source_external_id: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          description_excerpt?: string | null
+          display_url?: string
+          id?: string
+          identity_fingerprint?: string
+          listing_id?: string | null
+          location?: string | null
+          published_at?: string | null
+          raw_payload?: Json | null
+          raw_url?: string
+          source?: string
+          source_external_id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_postings_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "job_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -2088,6 +2329,112 @@ export type Database = {
           },
         ]
       }
+      user_opportunities: {
+        Row: {
+          ai_concerns: string | null
+          ai_match_highlights: string | null
+          ai_reasoning: string | null
+          ai_score: number | null
+          ai_scored_at: string | null
+          canonical_opportunity_id: string
+          card_company: string | null
+          card_display_url: string
+          card_location: string | null
+          card_published_at: string | null
+          card_raw_url: string
+          card_salary: string | null
+          card_salary_currency: string | null
+          card_salary_max: number | null
+          card_salary_min: number | null
+          card_title: string | null
+          created_at: string
+          id: string
+          identity_fingerprint: string
+          legacy_listing_id: string | null
+          legacy_listing_status_id: string | null
+          relevance_score: number | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_concerns?: string | null
+          ai_match_highlights?: string | null
+          ai_reasoning?: string | null
+          ai_score?: number | null
+          ai_scored_at?: string | null
+          canonical_opportunity_id: string
+          card_company?: string | null
+          card_display_url: string
+          card_location?: string | null
+          card_published_at?: string | null
+          card_raw_url: string
+          card_salary?: string | null
+          card_salary_currency?: string | null
+          card_salary_max?: number | null
+          card_salary_min?: number | null
+          card_title?: string | null
+          created_at?: string
+          id?: string
+          identity_fingerprint: string
+          legacy_listing_id?: string | null
+          legacy_listing_status_id?: string | null
+          relevance_score?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_concerns?: string | null
+          ai_match_highlights?: string | null
+          ai_reasoning?: string | null
+          ai_score?: number | null
+          ai_scored_at?: string | null
+          canonical_opportunity_id?: string
+          card_company?: string | null
+          card_display_url?: string
+          card_location?: string | null
+          card_published_at?: string | null
+          card_raw_url?: string
+          card_salary?: string | null
+          card_salary_currency?: string | null
+          card_salary_max?: number | null
+          card_salary_min?: number | null
+          card_title?: string | null
+          created_at?: string
+          id?: string
+          identity_fingerprint?: string
+          legacy_listing_id?: string | null
+          legacy_listing_status_id?: string | null
+          relevance_score?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_opportunities_canonical_opportunity_id_fkey"
+            columns: ["canonical_opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_opportunities_legacy_listing_id_fkey"
+            columns: ["legacy_listing_id"]
+            isOneToOne: false
+            referencedRelation: "job_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_opportunities_legacy_listing_status_id_fkey"
+            columns: ["legacy_listing_status_id"]
+            isOneToOne: false
+            referencedRelation: "user_job_listing_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -2111,6 +2458,129 @@ export type Database = {
       }
     }
     Views: {
+      applications_with_urgency: {
+        Row: {
+          applied_date: string | null
+          available_from: string | null
+          company_linkedin: string | null
+          company_name: string | null
+          company_size: string | null
+          company_website: string | null
+          contact_email: string | null
+          contact_linkedin: string | null
+          contact_name: string | null
+          created_at: string | null
+          days_since_applied: number | null
+          days_since_update: number | null
+          document_count: number | null
+          id: string | null
+          industry: string | null
+          internal_assessment: string | null
+          is_starred: boolean | null
+          job_url: string | null
+          location: string | null
+          meeting_count: number | null
+          notes: string | null
+          open_tasks: number | null
+          priority: Database["public"]["Enums"]["priority_level"] | null
+          rating: number | null
+          recruiter_email: string | null
+          recruiter_name: string | null
+          role_title: string | null
+          role_type: string | null
+          salary_currency: string | null
+          salary_range_max: number | null
+          salary_range_min: number | null
+          source: string | null
+          stage_count: number | null
+          status: Database["public"]["Enums"]["application_status"] | null
+          updated_at: string | null
+          urgency_level: string | null
+          user_id: string | null
+          work_type: string | null
+        }
+        Insert: {
+          applied_date?: string | null
+          available_from?: string | null
+          company_linkedin?: string | null
+          company_name?: string | null
+          company_size?: string | null
+          company_website?: string | null
+          contact_email?: string | null
+          contact_linkedin?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          days_since_applied?: never
+          days_since_update?: never
+          document_count?: never
+          id?: string | null
+          industry?: string | null
+          internal_assessment?: string | null
+          is_starred?: boolean | null
+          job_url?: string | null
+          location?: string | null
+          meeting_count?: never
+          notes?: string | null
+          open_tasks?: never
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          rating?: number | null
+          recruiter_email?: string | null
+          recruiter_name?: string | null
+          role_title?: string | null
+          role_type?: string | null
+          salary_currency?: string | null
+          salary_range_max?: number | null
+          salary_range_min?: number | null
+          source?: string | null
+          stage_count?: never
+          status?: Database["public"]["Enums"]["application_status"] | null
+          updated_at?: string | null
+          urgency_level?: never
+          user_id?: string | null
+          work_type?: string | null
+        }
+        Update: {
+          applied_date?: string | null
+          available_from?: string | null
+          company_linkedin?: string | null
+          company_name?: string | null
+          company_size?: string | null
+          company_website?: string | null
+          contact_email?: string | null
+          contact_linkedin?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          days_since_applied?: never
+          days_since_update?: never
+          document_count?: never
+          id?: string | null
+          industry?: string | null
+          internal_assessment?: string | null
+          is_starred?: boolean | null
+          job_url?: string | null
+          location?: string | null
+          meeting_count?: never
+          notes?: string | null
+          open_tasks?: never
+          priority?: Database["public"]["Enums"]["priority_level"] | null
+          rating?: number | null
+          recruiter_email?: string | null
+          recruiter_name?: string | null
+          role_title?: string | null
+          role_type?: string | null
+          salary_currency?: string | null
+          salary_range_max?: number | null
+          salary_range_min?: number | null
+          source?: string | null
+          stage_count?: never
+          status?: Database["public"]["Enums"]["application_status"] | null
+          updated_at?: string | null
+          urgency_level?: never
+          user_id?: string | null
+          work_type?: string | null
+        }
+        Relationships: []
+      }
       career_atoms: {
         Row: {
           atom_type: string | null
@@ -2250,6 +2720,10 @@ export type Database = {
         }
         Returns: string
       }
+      opportunity_fingerprint: {
+        Args: { p_company: string; p_location: string; p_title: string }
+        Returns: string
+      }
       prune_stale_leads: { Args: { p_user_id: string }; Returns: undefined }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
@@ -2273,6 +2747,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      sync_user_opportunity_ai_from_legacy: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
     }
     Enums: {
