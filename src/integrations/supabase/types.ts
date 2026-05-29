@@ -889,6 +889,7 @@ export type Database = {
         | "withdrawn"
         | "accepted"
         | "identifisert"
+        | "søknad_generert"
         | "søknad_sendt"
         | "screening"
         | "intervju_1"
@@ -1046,6 +1047,7 @@ export const Constants = {
         "withdrawn",
         "accepted",
         "identifisert",
+        "søknad_generert",
         "søknad_sendt",
         "screening",
         "intervju_1",
