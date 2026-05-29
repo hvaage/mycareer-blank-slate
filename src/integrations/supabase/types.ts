@@ -1193,6 +1193,7 @@ export type Database = {
           error_message: string | null
           id: string
           progress_percent: number
+          retry_after_at: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["employer_analysis_job_status"]
           updated_at: string
@@ -1207,6 +1208,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           progress_percent?: number
+          retry_after_at?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["employer_analysis_job_status"]
           updated_at?: string
@@ -1221,6 +1223,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           progress_percent?: number
+          retry_after_at?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["employer_analysis_job_status"]
           updated_at?: string
@@ -3007,6 +3010,7 @@ export type Database = {
         | "processing"
         | "completed"
         | "failed"
+        | "rate_limited"
       job_lead_status: "ny" | "avvist" | "promotert" | "arkivert"
       priority_level: "høy" | "middels" | "lav"
     }
@@ -3173,6 +3177,7 @@ export const Constants = {
         "processing",
         "completed",
         "failed",
+        "rate_limited",
       ],
       job_lead_status: ["ny", "avvist", "promotert", "arkivert"],
       priority_level: ["høy", "middels", "lav"],
