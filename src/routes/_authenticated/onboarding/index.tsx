@@ -237,14 +237,10 @@ function OnboardingPage() {
     }
   };
 
-  const connectGmail = async () => {
-    try {
-      const { url } = await startGoogle({ data: { returnTo: window.location.href } });
-      window.location.href = url;
-    } catch (e: any) {
-      toast.error(e?.message ?? "Kunne ikke starte Gmail (sjekk GOOGLE_OAUTH_CLIENT_ID).");
-    }
+  const connectGmail = () => {
+    toast.info("Gmail-tilkobling kommer snart");
   };
+
 
   const analyzeCompanies = async () => {
     const targets = apps
