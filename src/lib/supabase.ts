@@ -1,10 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
-// Use the My Career Builder Supabase project keys.
-// VITE_SUPABASE_PUBLISHABLE_KEY is the correct anon/publishable key for
-// project miwzhbludgwvskmsfqnq. Do NOT use VITE_SUPABASE_ANON_KEY — that
-// variable points at a different Supabase project (ESCO/Markedsinnsikt)
-// and causes "Invalid API key" on auth callbacks.
+// Single source of truth for the Supabase client (project miwzhbludgwvskmsfqnq).
+// All browser-side code — auth-context, callbacks, queries, components, routes —
+// MUST import `supabase` from here so we share one auth session (storageKey:
+// "karrierenmin-auth"). Do NOT import from "@/integrations/supabase/client"
+// in browser code; that client uses a different storage key and produces a
+// second, unauthenticated session that silently breaks RLS queries.
 const url =
   (import.meta.env.VITE_SUPABASE_URL as string | undefined) ??
   "https://miwzhbludgwvskmsfqnq.supabase.co";
@@ -12,7 +14,7 @@ const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 const isBrowser = typeof window !== "undefined";
 
-export const supabase = createClient(url, anonKey, {
+export const supabase = createClient<Database>(url, anonKey, {
   auth: {
     flowType: "pkce",
     persistSession: isBrowser,
