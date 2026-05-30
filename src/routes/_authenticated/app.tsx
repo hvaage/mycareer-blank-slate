@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -7,31 +6,20 @@ export const Route = createFileRoute("/_authenticated/app")({
   component: AppPage,
 });
 
-interface LinkedInData {
-  profile_image_url: string;
-  headline: string;
-}
-
 function AppPage() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const [linkedin, setLinkedin] = useState<LinkedInData | null>(null);
-
-  useEffect(() => {
-    const raw = localStorage.getItem("km_linkedin");
-    if (raw) {
-      try {
-        setLinkedin(JSON.parse(raw));
-      } catch {
-        /* ignore */
-      }
-    }
-  }, []);
 
   const handleLogout = async () => {
     await signOut();
     navigate({ to: "/login" });
   };
+
+  const displayName =
+    (user?.user_metadata?.full_name as string | undefined) ??
+    (user?.user_metadata?.display_name as string | undefined) ??
+    user?.email ??
+    "";
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,22 +32,13 @@ function AppPage() {
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-6 py-20">
-        <h1 className="font-serif text-4xl text-foreground">Du er logget inn</h1>
-        <p className="mt-3 text-base text-muted-foreground">{user?.email}</p>
-
-        {linkedin && (
-          <div className="mt-10 flex items-center gap-4 rounded-lg border border-border bg-card p-6">
-            <img
-              src={linkedin.profile_image_url}
-              alt=""
-              className="h-16 w-16 rounded-full object-cover"
-            />
-            <div>
-              <p className="text-sm text-muted-foreground">Fra LinkedIn</p>
-              <p className="text-lg text-foreground">{linkedin.headline}</p>
-            </div>
-          </div>
+        <h1 className="font-serif text-4xl text-foreground">Velkommen tilbake</h1>
+        {displayName && (
+          <p className="mt-3 text-base text-muted-foreground">{displayName}</p>
         )}
+        <p className="mt-10 text-sm text-muted-foreground">
+          Mer innhold kommer snart.
+        </p>
       </main>
     </div>
   );

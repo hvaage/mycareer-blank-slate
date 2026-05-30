@@ -13,31 +13,53 @@ function AuthCallback() {
 
   useEffect(() => {
     let cancelled = false;
+
     const run = async () => {
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
+      const hash = window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : window.location.hash;
+      const hashParams = new URLSearchParams(hash);
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
 
-      if (code) {
-        const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+      try {
+        if (accessToken && refreshToken) {
+          const { error: setErr } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (setErr) throw setErr;
+          history.replaceState(null, "", window.location.pathname);
+        } else if (code) {
+          const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeErr) throw exchangeErr;
+        }
+
+        const { data: sessionData } = await supabase.auth.getSession();
         if (cancelled) return;
-        if (exchangeErr) {
-          console.error("exchangeCodeForSession error", exchangeErr);
-          setError(exchangeErr.message);
+
+        let userId = sessionData.session?.user.id;
+        if (!userId) {
+          const { data: userData } = await supabase.auth.getUser();
+          userId = userData.user?.id;
+        }
+        if (cancelled) return;
+
+        if (!userId) {
+          setError("Vi klarte ikke å fullføre innloggingen. Prøv igjen.");
           return;
         }
+
+        const target = await getPostLoginRedirect(userId);
+        if (cancelled) return;
+        navigate({ to: target, replace: true });
+      } catch (e) {
+        if (cancelled) return;
+        console.error("auth/callback error", e);
+        setError("Vi klarte ikke å fullføre innloggingen. Prøv igjen.");
       }
-
-      const { data: userData, error: userErr } = await supabase.auth.getUser();
-      if (cancelled) return;
-
-      if (userErr || !userData.user) {
-        setError(userErr?.message ?? "Fant ingen aktiv session");
-        return;
-      }
-
-      const target = await getPostLoginRedirect(userData.user.id);
-      if (cancelled) return;
-      navigate({ to: target, replace: true });
     };
 
     run();
