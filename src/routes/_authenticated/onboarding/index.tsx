@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { JobSearchPrefs } from "@/components/job-search-prefs";
 import { CvUploadFlow } from "@/components/cv-upload/cv-upload-flow";
-import { useServerFn } from "@tanstack/react-start";
+
 import { startLinkedInOAuth } from "@/lib/linkedin-oauth";
 
 export const Route = createFileRoute("/_authenticated/onboarding/")({
