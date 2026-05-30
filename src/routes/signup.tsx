@@ -16,8 +16,26 @@ function SignupPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [linkedinLoading, setLinkedinLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  const handleLinkedIn = async () => {
+    setError(null);
+    setLinkedinLoading(true);
+    const state = crypto.randomUUID();
+    sessionStorage.setItem("linkedin_oauth_state", state);
+    const redirectUri = window.location.origin + "/auth/linkedin-callback";
+    const { data, error } = await supabase.functions.invoke("linkedin-start", {
+      body: { redirect_uri: redirectUri, state },
+    });
+    if (error || !data?.authorization_url) {
+      setLinkedinLoading(false);
+      setError(data?.error ?? "Kunne ikke starte LinkedIn-innlogging");
+      return;
+    }
+    window.location.href = data.authorization_url;
+  };
 
   const handleGoogle = async () => {
     setError(null);
@@ -73,9 +91,19 @@ function SignupPage() {
             variant="outline"
             className="mt-6 w-full"
             onClick={handleGoogle}
-            disabled={googleLoading || loading}
+            disabled={googleLoading || linkedinLoading || loading}
           >
             {googleLoading ? "Åpner Google…" : "Fortsett med Google"}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-3 w-full"
+            onClick={handleLinkedIn}
+            disabled={googleLoading || linkedinLoading || loading}
+          >
+            {linkedinLoading ? "Åpner LinkedIn…" : "Fortsett med LinkedIn"}
           </Button>
 
           <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wider text-muted-foreground">
