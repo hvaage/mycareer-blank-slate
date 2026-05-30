@@ -16,7 +16,25 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [linkedinLoading, setLinkedinLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleLinkedIn = async () => {
+    setError(null);
+    setLinkedinLoading(true);
+    const state = crypto.randomUUID();
+    sessionStorage.setItem("linkedin_oauth_state", state);
+    const redirectUri = window.location.origin + "/auth/linkedin-callback";
+    const { data, error } = await supabase.functions.invoke("linkedin-start", {
+      body: { redirect_uri: redirectUri, state },
+    });
+    if (error || !data?.authorization_url) {
+      setLinkedinLoading(false);
+      setError(data?.error ?? "Kunne ikke starte LinkedIn-innlogging");
+      return;
+    }
+    window.location.href = data.authorization_url;
+  };
 
   const handleGoogle = async () => {
     setError(null);
