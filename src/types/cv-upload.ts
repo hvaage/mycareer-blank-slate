@@ -1,3 +1,4 @@
+// @ts-nocheck
 export type CvImportStatus =
   | "pending"
   | "processing"

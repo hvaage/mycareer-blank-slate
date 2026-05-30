@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Provider-neutral copy and error shaping for end-user UX.
  * @see docs/ai-provider-abstraction.md

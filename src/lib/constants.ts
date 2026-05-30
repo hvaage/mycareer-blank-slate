@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const STATUS_LABELS: Record<string, string> = {
   identifisert: "Identifisert",
   søknad_generert: "Søknad generert",

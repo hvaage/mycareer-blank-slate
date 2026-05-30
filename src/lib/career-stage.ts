@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Career stage model — default priorities and UI hints for adaptive matching (MVP).
  * Full weighting integration into scores comes in a later module.

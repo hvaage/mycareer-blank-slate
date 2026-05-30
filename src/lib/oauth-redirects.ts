@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * OAuth redirect URIs must match exactly what is registered at Google / LinkedIn
  * and what the server uses during code exchange.

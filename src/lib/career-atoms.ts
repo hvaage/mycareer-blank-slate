@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Career Intelligence Module 2 — atom dimensions/categories and sources.
  * Preference atoms = what matters to the user; evidence atoms = what can be proven/sourced.

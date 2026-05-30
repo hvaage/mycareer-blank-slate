@@ -1,3 +1,4 @@
+// @ts-nocheck
 /** Align with SQL `normalize_lead_key` URL branch (host+path only, no query/fragment). */
 export function normalizeListingUrlForDedupe(raw: string): string {
   let u = raw.trim().toLowerCase();

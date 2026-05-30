@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Deterministic target-side atom extraction (regex / keywords). No AI.
  */

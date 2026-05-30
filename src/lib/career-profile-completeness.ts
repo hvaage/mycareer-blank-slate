@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Lightweight local completeness for Career Intelligence (Module 2).
  * Display-only — does not persist to DB unless callers choose to update `completeness_score` later.

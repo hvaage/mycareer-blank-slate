@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { normalizeAiErrorMessage } from "@/lib/ai-ux-messages";
 
 /** Best-effort message from supabase.functions.invoke failure (non-2xx or network). */

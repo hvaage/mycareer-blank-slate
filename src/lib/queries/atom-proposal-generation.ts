@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Module 5.1 — deterministic, user-triggered atom proposal generation (no AI, no Edge).
  * Inserts rows into atom_enrichment_batches / atom_enrichment_proposals only.

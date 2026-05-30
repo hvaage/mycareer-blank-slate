@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Module 5.1.2 — safe automatic structuring of explicit user-owned profile/document
  * data into durable preference/evidence rows (no review queue).

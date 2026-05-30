@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";

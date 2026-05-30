@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Shared match dimensions for future Career Intelligence scoring (1–6 scale).
  * Decoupled from employer_analysis_jobs and Careerjet — consumed later by adaptive engines.

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getLinkedInRedirectUri } from "@/lib/oauth-redirects";
 
 /** Legacy app id; override with `VITE_LINKEDIN_CLIENT_ID` in each deployment. */

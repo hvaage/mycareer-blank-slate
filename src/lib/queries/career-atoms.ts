@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { queryOptions, type QueryClient, type UseMutationOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";

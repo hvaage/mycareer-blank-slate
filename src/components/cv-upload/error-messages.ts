@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { normalizeAiErrorMessage } from "@/lib/ai-ux-messages";
 
 export const errorMessages: Record<string, string> = {

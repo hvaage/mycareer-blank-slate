@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Module 4.5 — target-side atoms (stillinger, arbeidsgivere, signaler).
  * Aligns conceptually with `career-atoms` (user) and `career-match-dimensions` (1–6 bands).

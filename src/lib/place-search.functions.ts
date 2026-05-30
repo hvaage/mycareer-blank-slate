@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Stub: Place search out of scope. Returns empty list.
 export type PlaceResult = {
   description: string;

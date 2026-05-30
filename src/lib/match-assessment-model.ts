@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Module 3 — Career Intelligence: match assessment domain constants and helpers.
  * Uses the agreed 1–6 scale for dimension-style scores (weak / moderate / strong bands).

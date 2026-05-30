@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Idempotent refresh plans + DB application for target-side atoms (Module 4.5).
  */

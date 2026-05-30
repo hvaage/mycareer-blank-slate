@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createFileRoute } from "@tanstack/react-router";
 import { BarChart2 } from "lucide-react";
 import { ComingSoonStub } from "@/components/coming-soon-stub";

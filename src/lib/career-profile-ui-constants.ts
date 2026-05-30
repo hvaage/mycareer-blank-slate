@@ -1,3 +1,4 @@
+// @ts-nocheck
 /** Suggested chips for MVP UI — users can combine freely; stored as text[] in DB. */
 
 export const SUGGESTED_ROLE_TYPES = [

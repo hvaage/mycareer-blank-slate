@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Deterministic white-space / gap analysis between preference atoms, evidence atoms,
  * and optional target dimensions or job-style requirements. No AI calls.

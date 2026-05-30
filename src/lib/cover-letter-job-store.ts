@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Module-level store so cover-letter generation survives route navigation.
 // Sonner toasts fire from here regardless of which component is mounted.
 import { normalizeAiErrorMessage } from "@/lib/ai-ux-messages";

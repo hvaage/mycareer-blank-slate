@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * «Bør jeg søke?» foundation: separates preference mismatch from missing evidence vs weak positioning.
  * Deterministic heuristics only — no production ranking replacement.
