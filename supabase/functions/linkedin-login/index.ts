@@ -57,15 +57,22 @@ Deno.serve(async (req) => {
     const { access_token } = await tokenRes.json();
 
     // Fetch user info from LinkedIn
-    const userInfoRes = await fetch("https://api.linkedin.com/v2/userinfo", {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
+    // Fetch userinfo + /v2/me in parallel for full profile data
+    const [userInfoRes, meRes] = await Promise.all([
+      fetch("https://api.linkedin.com/v2/userinfo", {
+        headers: { Authorization: `Bearer ${access_token}` },
+      }),
+      fetch("https://api.linkedin.com/v2/me?projection=(id,vanityName,localizedHeadline)", {
+        headers: { Authorization: `Bearer ${access_token}` },
+      }),
+    ]);
 
     if (!userInfoRes.ok) {
       return json({ error: "Kunne ikke hente LinkedIn-profil" }, 502);
     }
 
     const userInfo = await userInfoRes.json();
+    const me = meRes.ok ? await meRes.json() : {};
     const email = userInfo.email;
     const name = userInfo.name;
 
@@ -106,12 +113,45 @@ Deno.serve(async (req) => {
       return json({ error: "Kunne ikke generere innloggingslink" }, 500);
     }
 
-    // Update profile with LinkedIn data
-    await admin.from("profiles").update({
+    // Read existing profile so we don't overwrite user-edited fields
+    const { data: existingProfile } = await admin
+      .from("profiles")
+      .select("full_name, given_name, current_role_title")
+      .eq("id", user!.id)
+      .maybeSingle();
+
+    const update: Record<string, unknown> = {
       linkedin_connected_at: new Date().toISOString(),
-      linkedin_id: userInfo.sub,
-      linkedin_picture_url: userInfo.picture,
-    }).eq("id", user!.id);
+    };
+    if (userInfo.sub) update.linkedin_id = userInfo.sub;
+    else if (me.id) update.linkedin_id = String(me.id);
+    if (userInfo.picture) update.linkedin_picture_url = userInfo.picture;
+    if (typeof userInfo.email_verified === "boolean") {
+      update.linkedin_email_verified = userInfo.email_verified;
+    }
+    if (userInfo.locale) {
+      const loc = typeof userInfo.locale === "string"
+        ? userInfo.locale
+        : [userInfo.locale?.language, userInfo.locale?.country].filter(Boolean).join("_");
+      if (loc) update.linkedin_locale = loc;
+    }
+    if (me.localizedHeadline) update.linkedin_headline = me.localizedHeadline;
+    if (me.vanityName) update.linkedin_vanity_url = `https://linkedin.com/in/${me.vanityName}`;
+
+    // Auto-fill only when profile field is empty — never overwrite user edits
+    if (!existingProfile?.full_name && userInfo.name) update.full_name = userInfo.name;
+    if (!existingProfile?.given_name && userInfo.given_name) update.given_name = userInfo.given_name;
+    if (!existingProfile?.current_role_title && me.localizedHeadline) {
+      update.current_role_title = me.localizedHeadline;
+    }
+
+    const { error: updateError } = await admin
+      .from("profiles")
+      .update(update)
+      .eq("id", user!.id);
+    if (updateError) {
+      console.error("Failed to update profile:", updateError);
+    }
 
     return json({
       action_link: linkData.properties?.action_link,
