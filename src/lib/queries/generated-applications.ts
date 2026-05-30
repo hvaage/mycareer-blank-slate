@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 export const GENERATED_STATUSES = [
   "søknad_generert",

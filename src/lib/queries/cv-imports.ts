@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { normalizeAiErrorMessage } from "@/lib/ai-ux-messages";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import type {
   CommitResponse,
   CvImportRow,

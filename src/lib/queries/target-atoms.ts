@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { queryOptions, type QueryClient, type UseMutationOptions } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import type { Tables } from "@/integrations/supabase/types";
 /** Company row for atom refresh: see `COMPANY_ATOM_REFRESH_SELECT` in `company-atom-refresh-select.ts`. */
 import { refreshCompanyAtoms, refreshOpportunityAtoms, type RefreshCounts } from "@/lib/target-atom-refresh";

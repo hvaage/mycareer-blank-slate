@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { queryOptions, type QueryClient, type UseMutationOptions } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { buildUserAtomRefreshPlan } from "@/lib/career-atom-refresh";
 import type { PlannedEvidenceAtom, PlannedPreferenceAtom } from "@/lib/career-atom-refresh";

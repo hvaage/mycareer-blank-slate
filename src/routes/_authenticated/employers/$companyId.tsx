@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Sparkles, Loader2, AlertTriangle, Save, ExternalLink, ChevronDown, User, Clock } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { messageFromFunctionInvokeError } from "@/lib/edge-invoke-error";
 import { companyDetailQuery, candidateFitUiState, displayCandidateFitReasoning, EMPLOYER_ANALYSIS_STEP_LABELS, latestEmployerAnalysisJobQuery, type UserRatingRow } from "@/lib/queries/companies";
 import { Button } from "@/components/ui/button";

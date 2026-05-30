@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 export type GeneratedCvRow = {
   id: string;

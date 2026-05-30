@@ -19,7 +19,7 @@ import {
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { fmtRelative, fmtDateTime } from "@/lib/format";
 import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/careerjet-links";
