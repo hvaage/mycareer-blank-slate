@@ -139,7 +139,7 @@ export const myEmployersQuery = () =>
         }
       }
 
-      const employers: EmployerListItem[] = (companiesRes.data ?? []).map((c) => {
+      const employers: EmployerListItem[] = (companiesRes.data ?? []).map((c: CompanyRow) => {
         const myRating = ratingsByCompany.get(c.id) ?? null;
         return {
           ...c,
