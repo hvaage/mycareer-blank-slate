@@ -4,7 +4,7 @@
  * Inserts rows into atom_enrichment_batches / atom_enrichment_proposals only.
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import type { Json, Tables, TablesInsert } from "@/integrations/supabase/types";
 import {
   insertExplicitEvidenceFromPlan,

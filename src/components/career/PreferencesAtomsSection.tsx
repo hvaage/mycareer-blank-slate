@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Heart, Loader2, Plus, RefreshCw, Shield, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import {
   EVIDENCE_ATOM_CATEGORIES,
   PREFERENCE_ATOM_DIMENSIONS,

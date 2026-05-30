@@ -3,7 +3,7 @@
  * Idempotent refresh plans + DB application for target-side atoms (Module 4.5).
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import {
   COMPANY_ATOM_REFRESH_SELECT,

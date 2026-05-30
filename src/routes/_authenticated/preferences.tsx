@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, Info, Loader2, Save, Sparkles, Target } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { CAREER_STAGES, getCareerStage, type CareerStageId } from "@/lib/career-stage";
 import { clampMatchScore, matchScoreBand, matchScoreBandLabelNb } from "@/lib/career-match-dimensions";

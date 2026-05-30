@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { messageFromFunctionInvokeError } from "@/lib/edge-invoke-error";
 import { normalizeAiErrorMessage } from "@/lib/ai-ux-messages";
 import type { ActiveEmployerAnalysisJobRow, EmployersPageData } from "@/lib/queries/companies";

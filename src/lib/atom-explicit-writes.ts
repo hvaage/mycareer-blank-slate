@@ -4,7 +4,7 @@
  * data into durable preference/evidence rows (no review queue).
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import type { PlannedEvidenceAtom, PlannedPreferenceAtom } from "@/lib/career-atom-refresh";
 

@@ -4,7 +4,7 @@ import type { Database } from "@/integrations/supabase/types";
 // Single source of truth for the Supabase client (project miwzhbludgwvskmsfqnq).
 // All browser-side code — auth-context, callbacks, queries, components, routes —
 // MUST import `supabase` from here so we share one auth session (storageKey:
-// "karrierenmin-auth"). Do NOT import from "@/integrations/supabase/client"
+// "karrierenmin-auth"). Do NOT import from "@/lib/supabase"
 // in browser code; that client uses a different storage key and produces a
 // second, unauthenticated session that silently breaks RLS queries.
 const url =

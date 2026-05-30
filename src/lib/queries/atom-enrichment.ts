@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import type {
   Database,
   Json,
