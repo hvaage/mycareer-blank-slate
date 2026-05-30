@@ -1,12 +1,12 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { authReady } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location }) => {
-    // SSR: do nothing — let the client gate this route.
     if (typeof window === "undefined") return;
-
     await authReady;
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
@@ -16,5 +16,27 @@ export const Route = createFileRoute("/_authenticated")({
       });
     }
   },
-  component: () => <Outlet />,
+  component: AuthenticatedLayout,
 });
+
+function AuthenticatedLayout() {
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-12 flex items-center gap-2 border-b px-2 md:hidden">
+            <SidebarTrigger />
+            <span className="text-sm font-semibold">Karrierenmin</span>
+          </header>
+          <header className="hidden md:flex h-12 items-center gap-2 border-b px-2">
+            <SidebarTrigger />
+          </header>
+          <main className="flex-1 min-w-0">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
