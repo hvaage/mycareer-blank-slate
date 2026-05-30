@@ -77,7 +77,6 @@ function LinkedInCallback() {
       setStatus("Etablerer session…");
       const { error: verifyErr } = await supabase.auth.verifyOtp({
         type: "magiclink",
-        email: data.email,
         token_hash: tokenHash,
       });
 
