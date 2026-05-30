@@ -86,7 +86,7 @@ function OnboardingPage() {
 
   const [savingNext, setSavingNext] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const startGoogle = useServerFn(startGoogleOAuth);
+  // Gmail-tilkobling er out of scope i denne runden
   useEffect(() => {
     if (!user) return;
     (async () => {
