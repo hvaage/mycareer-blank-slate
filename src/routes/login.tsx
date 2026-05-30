@@ -132,7 +132,7 @@ function LoginPage() {
               />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+            <Button type="submit" className="w-full" disabled={loading || googleLoading || linkedinLoading}>
               {loading ? "Logger inn…" : "Logg inn"}
             </Button>
           </form>
