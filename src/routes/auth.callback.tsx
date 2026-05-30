@@ -17,36 +17,61 @@ function AuthCallback() {
     const run = async () => {
       const url = new URL(window.location.href);
       const code = url.searchParams.get("code");
-      const hash = window.location.hash.startsWith("#")
+      const rawHash = window.location.hash.startsWith("#")
         ? window.location.hash.slice(1)
         : window.location.hash;
-      const hashParams = new URLSearchParams(hash);
+      const hashParams = new URLSearchParams(rawHash);
       const accessToken = hashParams.get("access_token");
       const refreshToken = hashParams.get("refresh_token");
 
+      console.info("auth callback input", {
+        href: window.location.href.split("#")[0],
+        hasCode: url.searchParams.has("code"),
+        hasHash: Boolean(window.location.hash),
+        hashKeys: rawHash ? Array.from(new URLSearchParams(rawHash).keys()) : [],
+      });
+
       try {
+        let session: { user?: { id?: string } } | null = null;
+
         if (accessToken && refreshToken) {
-          const { error: setErr } = await supabase.auth.setSession({
+          const { data, error: setErr } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
-          if (setErr) throw setErr;
+          if (setErr) {
+            console.error("setSession failed", setErr?.message);
+            if (!cancelled) setError("Vi klarte ikke å fullføre innloggingen. Prøv igjen.");
+            return;
+          }
+          session = data.session;
           history.replaceState(null, "", window.location.pathname);
         } else if (code) {
-          const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeErr) throw exchangeErr;
+          const { data, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeErr) {
+            console.error("exchangeCodeForSession failed", exchangeErr?.message);
+            if (!cancelled) setError("Vi klarte ikke å fullføre innloggingen. Prøv igjen.");
+            return;
+          }
+          session = data.session;
         }
 
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (cancelled) return;
-
-        let userId = sessionData.session?.user.id;
-        if (!userId) {
-          const { data: userData } = await supabase.auth.getUser();
-          userId = userData.user?.id;
+        if (!session) {
+          const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.error("getSession failed", sessionError?.message);
+          }
+          session = sessionData?.session ?? null;
         }
+
+        console.info("auth callback session", {
+          hasSession: Boolean(session),
+          hasUser: Boolean(session?.user?.id),
+        });
+
         if (cancelled) return;
 
+        const userId = session?.user?.id;
         if (!userId) {
           setError("Vi klarte ikke å fullføre innloggingen. Prøv igjen.");
           return;
@@ -57,7 +82,7 @@ function AuthCallback() {
         navigate({ to: target, replace: true });
       } catch (e) {
         if (cancelled) return;
-        console.error("auth/callback error", e);
+        console.error("auth/callback unexpected", (e as Error)?.message);
         setError("Vi klarte ikke å fullføre innloggingen. Prøv igjen.");
       }
     };
