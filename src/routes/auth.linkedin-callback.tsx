@@ -88,7 +88,7 @@ function LinkedInCallback() {
         return;
       }
 
-      navigate({ to: "/auth/callback", replace: true });
+      navigate({ to: "/onboarding", replace: true });
     };
 
     run();
