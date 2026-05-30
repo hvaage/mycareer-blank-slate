@@ -21,6 +21,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SelskapsanalyseIndexRouteImport } from './routes/selskapsanalyse.index'
 import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
@@ -93,6 +94,11 @@ const SelskapsanalyseTakkRoute = SelskapsanalyseTakkRouteImport.update({
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthLinkedinCallbackRoute = AuthLinkedinCallbackRouteImport.update({
+  id: '/auth/linkedin-callback',
+  path: '/auth/linkedin-callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AuthenticatedAppRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/app': typeof AuthenticatedAppRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
@@ -240,6 +248,7 @@ export interface FileRoutesById {
   '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
@@ -269,6 +278,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/onboarding'
     | '/auth/callback'
+    | '/auth/linkedin-callback'
     | '/email/unsubscribe'
     | '/selskapsanalyse/takk'
     | '/selskapsanalyse/'
@@ -295,6 +305,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/onboarding'
     | '/auth/callback'
+    | '/auth/linkedin-callback'
     | '/email/unsubscribe'
     | '/selskapsanalyse/takk'
     | '/selskapsanalyse'
@@ -323,6 +334,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app'
     | '/_authenticated/onboarding'
     | '/auth/callback'
+    | '/auth/linkedin-callback'
     | '/email/unsubscribe'
     | '/selskapsanalyse/takk'
     | '/selskapsanalyse/'
@@ -350,6 +362,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       path: '/email/unsubscribe'
       fullPath: '/email/unsubscribe'
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/linkedin-callback': {
+      id: '/auth/linkedin-callback'
+      path: '/auth/linkedin-callback'
+      fullPath: '/auth/linkedin-callback'
+      preLoaderRoute: typeof AuthLinkedinCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -595,6 +615,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   UnsubscribeRoute: UnsubscribeRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
@@ -608,13 +629,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

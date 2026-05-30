@@ -20,12 +20,20 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const code = body.code as string | undefined;
     const fromClient = typeof body.redirect_uri === "string" ? body.redirect_uri.trim() : "";
-    const configured = Deno.env.get("LINKEDIN_REDIRECT_URI")?.trim();
-    const redirectUri = configured ?? fromClient;
-    if (!code || !redirectUri) return json({ error: "Mangler code eller redirect_uri" }, 400);
-    if (configured && fromClient && fromClient !== configured) {
-      return json({ error: "redirect_uri matcher ikke LINKEDIN_REDIRECT_URI" }, 400);
+    if (!code || !fromClient) return json({ error: "Mangler code eller redirect_uri" }, 400);
+
+    const allowlistRaw = Deno.env.get("LINKEDIN_REDIRECT_URI_ALLOWLIST") ?? "";
+    const allowlist = allowlistRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    const fallback = Deno.env.get("LINKEDIN_REDIRECT_URI")?.trim();
+    if (fallback && !allowlist.includes(fallback)) allowlist.push(fallback);
+
+    if (allowlist.length === 0) {
+      return json({ error: "Allowlist ikke konfigurert (LINKEDIN_REDIRECT_URI_ALLOWLIST)" }, 500);
     }
+    if (!allowlist.includes(fromClient)) {
+      return json({ error: "redirect_uri ikke i allowlist", redirect_uri: fromClient }, 400);
+    }
+    const redirectUri = fromClient;
 
     // Exchange authorization code for access token
     const tokenRes = await fetch(LINKEDIN_TOKEN_URL, {
