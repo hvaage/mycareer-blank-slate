@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import { lovable } from "@/integrations/lovable";
 
 export const Route = createFileRoute("/signup")({
   component: SignupPage,
@@ -21,14 +22,16 @@ function SignupPage() {
   const handleGoogle = async () => {
     setError(null);
     setGoogleLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: "https://karrierenmin.no/auth/callback" },
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin + "/auth/callback",
     });
-    if (error) {
+    if (result.error) {
       setGoogleLoading(false);
       setError("Kunne ikke opprette konto med Google");
+      return;
     }
+    if (result.redirected) return;
+    navigate({ to: "/auth/callback", replace: true });
   };
 
   const handleSubmit = async (e: FormEvent) => {
