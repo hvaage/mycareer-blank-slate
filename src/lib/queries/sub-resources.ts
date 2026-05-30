@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 export const stagesQuery = (applicationId: string) =>
   queryOptions({
@@ -100,6 +100,7 @@ export const changeLogQuery = (applicationId: string) =>
     },
   });
 
+// Global queries
 export const allDocumentsQuery = () =>
   queryOptions({
     queryKey: ["documents", "all"],
@@ -113,12 +114,14 @@ export const allDocumentsQuery = () =>
     },
   });
 
+/** Columns needed by `/_authenticated/documents/$id` (avoid `select('*')`). */
 const DOCUMENT_DETAIL_SELECT =
   "id, title, document_type, content_text, application_id, is_base_version, tailored_for, version, file_path, file_name, customization_notes, company_name";
 
 export const documentByIdQuery = (id: string) => {
   const trimmed = typeof id === "string" ? id.trim() : "";
   const enabled = trimmed.length > 0;
+
   return queryOptions({
     queryKey: ["documents", trimmed],
     enabled,

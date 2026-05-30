@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
 export type CompanyRow = Tables<"companies">;
@@ -12,6 +12,7 @@ export type EmployerListItem = CompanyRow & {
   myRating: UserRatingRow | null;
 };
 
+/** Reasoning prefix written when profile is too thin for AI match (see analyze-company). */
 export const CANDIDATE_FIT_UNAVAILABLE_PREFIX = "STATUS:KAN_IKKE_VURDERES";
 
 export type CandidateFitUiState = "rated" | "unavailable" | "partial" | "none";
@@ -29,6 +30,7 @@ export function candidateFitUiState(
   return "none";
 }
 
+/** Strip machine prefix before showing reasoning in UI. */
 export function displayCandidateFitReasoning(raw: string | null | undefined): string {
   if (!raw) return "";
   const t = raw.trimStart();
@@ -38,6 +40,7 @@ export function displayCandidateFitReasoning(raw: string | null | undefined): st
   return raw.trim();
 }
 
+/** Norwegian labels for `employer_analysis_jobs.current_step` (Edge + DB). */
 export const EMPLOYER_ANALYSIS_STEP_LABELS: Record<string, string> = {
   queued: "I kø",
   starting: "Starter",
@@ -61,6 +64,7 @@ export type EmployersPageData = {
   jobsByCompanyId: Record<string, EmployerAnalysisJobRow>;
 };
 
+/** Active employer analysis jobs for the current user (sidebar + global polling). */
 export type ActiveEmployerAnalysisJobRow = Pick<
   EmployerAnalysisJobRow,
   | "id"
@@ -139,7 +143,7 @@ export const myEmployersQuery = () =>
         }
       }
 
-      const employers: EmployerListItem[] = (companiesRes.data ?? []).map((c: CompanyRow) => {
+      const employers: EmployerListItem[] = (companiesRes.data ?? []).map((c) => {
         const myRating = ratingsByCompany.get(c.id) ?? null;
         return {
           ...c,
@@ -153,6 +157,7 @@ export const myEmployersQuery = () =>
     },
   });
 
+/** All queued/processing employer analysis jobs for the signed-in user (any company). */
 export const activeEmployerAnalysisJobsQuery = () =>
   queryOptions({
     queryKey: ["employer-analysis-jobs", "active"],

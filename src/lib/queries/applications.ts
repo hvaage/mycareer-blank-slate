@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 export const applicationsListQuery = () =>
@@ -15,6 +15,7 @@ export const applicationsListQuery = () =>
     },
   });
 
+/** Neste steg: lightweight list (avoids per-row document_count i view). */
 export const applicationsGeneratedNotSentQuery = () =>
   queryOptions({
     queryKey: ["applications", "søknad_generert_light"],
