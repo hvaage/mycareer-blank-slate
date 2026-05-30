@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
+import { getPostLoginRedirect } from "@/lib/post-login-redirect";
 
 export const Route = createFileRoute("/auth/linkedin-callback")({
   component: LinkedInCallback,
