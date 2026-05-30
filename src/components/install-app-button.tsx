@@ -69,7 +69,7 @@ export function InstallAppButton({
         variant={variant}
         onClick={handleClick}
         className={className}
-        aria-label="Installer søkr.no som app"
+        aria-label="Installer karrierenmin.no som app"
       >
         <Download className="h-4 w-4" />
         {showLabel && <span>Installer app</span>}
@@ -77,7 +77,7 @@ export function InstallAppButton({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Installer søkr.no på enheten</DialogTitle>
+            <DialogTitle>Installer karrierenmin.no på enheten</DialogTitle>
             <DialogDescription>
               Få raskere tilgang og en app-lignende opplevelse — uten å gå via App Store.
             </DialogDescription>

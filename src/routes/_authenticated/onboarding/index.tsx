@@ -297,7 +297,7 @@ function OnboardingPage() {
   return (
     <div className="p-6 lg:p-10 max-w-2xl mx-auto space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Velkommen til sokr.online</h1>
+        <h1 className="text-2xl font-bold">Velkommen til karrierenmin.no</h1>
         <p className="text-muted-foreground text-sm">
           La oss sette opp profilen din. Steg {currentStep} av {TOTAL_STEPS}
         </p>

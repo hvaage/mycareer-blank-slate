@@ -54,7 +54,7 @@ export function InstallGuide({ defaultPlatform }: { defaultPlatform?: Platform }
       <div className="rounded-lg border border-border bg-card p-4 text-sm text-card-foreground">
         {(tab === "ios" || tab === "ipad") && (
           <ol className="space-y-3 list-decimal list-inside">
-            <li>Åpne <strong>søkr.no</strong> i <strong>Safari</strong> (fungerer ikke i Chrome på iOS).</li>
+            <li>Åpne <strong>karrierenmin.no</strong> i <strong>Safari</strong> (fungerer ikke i Chrome på iOS).</li>
             <li>
               Trykk på <Share className="inline h-4 w-4 align-text-bottom" /> <strong>Del</strong>-knappen
               {tab === "ipad" ? " øverst i Safari." : " nederst i Safari."}
@@ -63,39 +63,39 @@ export function InstallGuide({ defaultPlatform }: { defaultPlatform?: Platform }
               Bla ned og velg <Plus className="inline h-4 w-4 align-text-bottom" /> <strong>Legg til på Hjem-skjerm</strong>.
             </li>
             <li>Trykk <strong>Legg til</strong> øverst til høyre.</li>
-            <li>Du finner nå søkr-ikonet på {tab === "ipad" ? "iPad-en" : "iPhone-en"} din.</li>
+            <li>Du finner nå Karrierenmin-ikonet på {tab === "ipad" ? "iPad-en" : "iPhone-en"} din.</li>
           </ol>
         )}
 
         {tab === "android" && (
           <ol className="space-y-3 list-decimal list-inside">
-            <li>Åpne <strong>søkr.no</strong> i <strong>Chrome</strong>.</li>
+            <li>Åpne <strong>karrierenmin.no</strong> i <strong>Chrome</strong>.</li>
             <li>
               Trykk på <MoreVertical className="inline h-4 w-4 align-text-bottom" /> <strong>menyen</strong> øverst til høyre.
             </li>
             <li>Velg <strong>Installer app</strong> eller <strong>Legg til på startskjerm</strong>.</li>
             <li>Bekreft med <strong>Installer</strong>.</li>
-            <li>søkr.no åpnes nå som en egen app fra startskjermen.</li>
+            <li>karrierenmin.no åpnes nå som en egen app fra startskjermen.</li>
           </ol>
         )}
 
         {tab === "desktop" && (
           <ol className="space-y-3 list-decimal list-inside">
-            <li>Åpne <strong>søkr.no</strong> i <strong>Chrome</strong>, <strong>Edge</strong> eller <strong>Brave</strong>.</li>
+            <li>Åpne <strong>karrierenmin.no</strong> i <strong>Chrome</strong>, <strong>Edge</strong> eller <strong>Brave</strong>.</li>
             <li>
               Se etter <Download className="inline h-4 w-4 align-text-bottom" /> <strong>installasjonsikonet</strong> til høyre i adressefeltet.
             </li>
             <li>Trykk på ikonet og velg <strong>Installer</strong>.</li>
             <li>
-              Alternativt: åpne menyen (⋮) → <strong>Installer søkr.no</strong> / <strong>Apps → Installer dette nettstedet</strong>.
+              Alternativt: åpne menyen (⋮) → <strong>Installer karrierenmin.no</strong> / <strong>Apps → Installer dette nettstedet</strong>.
             </li>
-            <li>søkr.no åpnes nå i eget vindu og finnes i applikasjonsmappen din.</li>
+            <li>karrierenmin.no åpnes nå i eget vindu og finnes i applikasjonsmappen din.</li>
           </ol>
         )}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Tips: Når en ny versjon av søkr.no er klar, får du beskjed nederst i appen med en
+        Tips: Når en ny versjon av karrierenmin.no er klar, får du beskjed nederst i appen med en
         <strong> «Oppdater»</strong>-knapp. Trykk på den for å laste inn siste versjon.
       </p>
     </div>

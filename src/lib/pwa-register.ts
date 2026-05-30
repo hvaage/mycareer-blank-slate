@@ -44,7 +44,7 @@ export function registerServiceWorker() {
 
       const promptUpdate = (worker: ServiceWorker) => {
         toast("Ny versjon tilgjengelig", {
-          description: "Oppdater for å få siste versjon av søkr.",
+          description: "Oppdater for å få siste versjon av Karrierenmin.",
           duration: Infinity,
           action: {
             label: "Oppdater",
