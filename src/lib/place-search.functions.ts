@@ -1,14 +1,13 @@
-// Stub: Google Places search is out of scope in this migration.
-// Returns empty results so location-combobox renders an empty list.
-import { createServerFn } from "@tanstack/react-start";
-
-export type PlaceSuggestion = {
+// Stub: Place search out of scope. Returns empty list.
+export type PlaceResult = {
   description: string;
   place_id?: string;
+  main_text?: string;
+  secondary_text?: string;
 };
 
-export const searchPlaces = createServerFn({ method: "POST" })
-  .inputValidator((input: { query: string; types?: string }) => input)
-  .handler(async (): Promise<PlaceSuggestion[]> => {
-    return [];
-  });
+export type PlaceSuggestion = PlaceResult;
+
+export async function searchPlaces(_input: { query: string; types?: string }): Promise<PlaceResult[]> {
+  return [];
+}
