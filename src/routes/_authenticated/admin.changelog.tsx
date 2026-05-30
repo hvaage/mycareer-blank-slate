@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { requireAdmin } from "@/lib/admin-guard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { recentChangeLogQuery } from "@/lib/queries";
@@ -8,6 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { fmtDateTime } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/admin/changelog")({
+  beforeLoad: () => requireAdmin(),
   component: AdminPage,
 });
 
