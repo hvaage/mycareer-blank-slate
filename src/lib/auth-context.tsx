@@ -2,6 +2,25 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
+/**
+ * Resolves once Supabase has restored the initial session from storage.
+ * Route guards await this so they don't race hydration.
+ */
+let _resolveAuthReady: (() => void) | null = null;
+export const authReady: Promise<void> =
+  typeof window === "undefined"
+    ? Promise.resolve()
+    : new Promise<void>((res) => {
+        _resolveAuthReady = res;
+      });
+
+if (typeof window !== "undefined") {
+  supabase.auth.getSession().finally(() => {
+    _resolveAuthReady?.();
+    _resolveAuthReady = null;
+  });
+}
+
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
