@@ -89,7 +89,13 @@ function LinkedInCallback() {
         return;
       }
 
-      navigate({ to: "/onboarding", replace: true });
+      const { data: userData } = await supabase.auth.getUser();
+      if (cancelled) return;
+      const target = userData.user
+        ? await getPostLoginRedirect(userData.user.id)
+        : "/onboarding";
+      if (cancelled) return;
+      navigate({ to: target, replace: true });
     };
 
     run();
