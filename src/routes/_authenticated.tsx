@@ -1,32 +1,20 @@
-import { createFileRoute, Navigate, Outlet, useLocation } from "@tanstack/react-router";
-import { useAuth } from "@/lib/auth-context";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { authReady } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_authenticated")({
-  component: AuthenticatedLayout,
+  beforeLoad: async ({ location }) => {
+    // SSR: do nothing — let the client gate this route.
+    if (typeof window === "undefined") return;
+
+    await authReady;
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      throw redirect({
+        to: "/login",
+        search: { redirect: `${location.pathname}${location.searchStr ?? ""}` },
+      });
+    }
+  },
+  component: () => <Outlet />,
 });
-
-function AuthenticatedLayout() {
-  const { session, loading } = useAuth();
-  const location = useLocation();
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Laster…</p>
-      </div>
-    );
-  }
-
-  if (!session) {
-    const redirectTo = `${location.pathname}${location.searchStr ?? ""}`;
-    return (
-      <Navigate
-        to="/login"
-        search={{ redirect: redirectTo }}
-        replace
-      />
-    );
-  }
-
-  return <Outlet />;
-}
