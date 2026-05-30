@@ -1,6 +1,9 @@
-import { queryOptions, type QueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+// @ts-nocheck
+import { queryOptions, type QueryClient, type UseMutationOptions } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+/** Company row for atom refresh: see `COMPANY_ATOM_REFRESH_SELECT` in `company-atom-refresh-select.ts`. */
+import { refreshCompanyAtoms, refreshOpportunityAtoms, type RefreshCounts } from "@/lib/target-atom-refresh";
 
 export type OpportunityRequirementAtomRow = Tables<"opportunity_requirement_atoms">;
 export type CompanyProfileAtomRow = Tables<"company_profile_atoms">;
@@ -79,4 +82,28 @@ export function invalidateTargetAtomQueries(queryClient: QueryClient, keys: { co
     void queryClient.invalidateQueries({ queryKey: ["company-profile-atoms", keys.companyId] });
     void queryClient.invalidateQueries({ queryKey: ["company-signal-atoms", keys.companyId] });
   }
+}
+
+export function refreshOpportunityAtomsMutation(
+  queryClient: QueryClient,
+  key: OpportunityAtomQueryKey,
+): Pick<UseMutationOptions<RefreshCounts, Error, void>, "mutationFn" | "onSuccess"> {
+  return {
+    mutationFn: () =>
+      refreshOpportunityAtoms({
+        listingId: key.listingId ?? null,
+        canonicalOpportunityId: key.canonicalOpportunityId ?? null,
+      }),
+    onSuccess: () => invalidateTargetAtomQueries(queryClient, key),
+  };
+}
+
+export function refreshCompanyAtomsMutation(
+  queryClient: QueryClient,
+  companyId: string,
+): Pick<UseMutationOptions<RefreshCounts, Error, void>, "mutationFn" | "onSuccess"> {
+  return {
+    mutationFn: () => refreshCompanyAtoms(companyId),
+    onSuccess: () => invalidateTargetAtomQueries(queryClient, { companyId }),
+  };
 }

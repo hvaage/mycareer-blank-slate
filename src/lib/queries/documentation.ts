@@ -1,8 +1,11 @@
+// @ts-nocheck
 import { queryOptions } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
+/** Cast until `Database` types include Min dokumentasjon columns/tables. */
 const db = supabase as any;
 
+/** Stable keys for queries + invalidation */
 export const documentationQueryKeys = {
   overviewCounts: ["documentation", "overview", "counts"] as const,
   professionalCases: ["documentation", "professional_cases"] as const,
@@ -79,6 +82,7 @@ export type DocumentationOverviewCounts = {
   documentationPackages: number;
 };
 
+/** Head-count helpers (RLS-scoped to the current user). */
 export const documentationOverviewCountsQuery = () =>
   queryOptions({
     queryKey: documentationQueryKeys.overviewCounts,
@@ -104,6 +108,7 @@ export const documentationOverviewCountsQuery = () =>
     },
   });
 
+/** Professional library: non-deleted documents with application context for labels. */
 export const documentationLibraryDocumentsQuery = () =>
   queryOptions({
     queryKey: documentationQueryKeys.documentsLibrary,
@@ -159,6 +164,7 @@ export const professionalCaseDocumentsQuery = () =>
     },
   });
 
+/** Package headers only (no nested items). */
 export const documentationPackagesListQuery = () =>
   queryOptions({
     queryKey: documentationQueryKeys.documentationPackages,

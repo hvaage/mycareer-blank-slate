@@ -23,14 +23,39 @@ import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalys
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenticated/preferences'
+import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
+import { Route as AuthenticatedJobLeadsRouteImport } from './routes/_authenticated/job-leads'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCoverLettersRouteImport } from './routes/_authenticated/cover-letters'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedAboutMeRouteImport } from './routes/_authenticated/about-me'
 import { Route as SelskapsanalyseAnalysedatabaseIndexRouteImport } from './routes/selskapsanalyse.analysedatabase.index'
+import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated/onboarding/index'
+import { Route as AuthenticatedOfferAnalysisIndexRouteImport } from './routes/_authenticated/offer-analysis/index'
+import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authenticated/next-steps/index'
+import { Route as AuthenticatedInterviewPrepIndexRouteImport } from './routes/_authenticated/interview-prep/index'
+import { Route as AuthenticatedEmployersIndexRouteImport } from './routes/_authenticated/employers/index'
+import { Route as AuthenticatedDocumentsIndexRouteImport } from './routes/_authenticated/documents/index'
+import { Route as AuthenticatedDocumentationIndexRouteImport } from './routes/_authenticated/documentation/index'
+import { Route as AuthenticatedCvBuilderIndexRouteImport } from './routes/_authenticated/cv-builder/index'
+import { Route as AuthenticatedApplicationsIndexRouteImport } from './routes/_authenticated/applications/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/selskapsanalyse.analysedatabase.$id'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
+import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
+import { Route as AuthenticatedDocumentsNewRouteImport } from './routes/_authenticated/documents/new'
+import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenticated/documents/$id'
+import { Route as AuthenticatedDocumentationPackagesRouteImport } from './routes/_authenticated/documentation/packages'
+import { Route as AuthenticatedDocumentationLibraryRouteImport } from './routes/_authenticated/documentation/library'
+import { Route as AuthenticatedDocumentationCasesRouteImport } from './routes/_authenticated/documentation/cases'
+import { Route as AuthenticatedCareerAtomReviewRouteImport } from './routes/_authenticated/career/atom-review'
+import { Route as AuthenticatedApplicationsNewRouteImport } from './routes/_authenticated/applications/new'
+import { Route as AuthenticatedApplicationsIdRouteImport } from './routes/_authenticated/applications/$id'
 import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authenticated/admin.leads'
+import { Route as AuthenticatedAdminCvTestRouteImport } from './routes/_authenticated/admin.cv-test'
+import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authenticated/admin.changelog'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -106,14 +131,42 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+const AuthenticatedPreferencesRoute =
+  AuthenticatedPreferencesRouteImport.update({
+    id: '/preferences',
+    path: '/preferences',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMyApplicationsRoute =
+  AuthenticatedMyApplicationsRouteImport.update({
+    id: '/my-applications',
+    path: '/my-applications',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedJobLeadsRoute = AuthenticatedJobLeadsRouteImport.update({
+  id: '/job-leads',
+  path: '/job-leads',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedCoverLettersRoute =
+  AuthenticatedCoverLettersRouteImport.update({
+    id: '/cover-letters',
+    path: '/cover-letters',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAboutMeRoute = AuthenticatedAboutMeRouteImport.update({
+  id: '/about-me',
+  path: '/about-me',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const SelskapsanalyseAnalysedatabaseIndexRoute =
@@ -121,6 +174,60 @@ const SelskapsanalyseAnalysedatabaseIndexRoute =
     id: '/analysedatabase/',
     path: '/analysedatabase/',
     getParentRoute: () => SelskapsanalyseRoute,
+  } as any)
+const AuthenticatedOnboardingIndexRoute =
+  AuthenticatedOnboardingIndexRouteImport.update({
+    id: '/onboarding/',
+    path: '/onboarding/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedOfferAnalysisIndexRoute =
+  AuthenticatedOfferAnalysisIndexRouteImport.update({
+    id: '/offer-analysis/',
+    path: '/offer-analysis/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedNextStepsIndexRoute =
+  AuthenticatedNextStepsIndexRouteImport.update({
+    id: '/next-steps/',
+    path: '/next-steps/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInterviewPrepIndexRoute =
+  AuthenticatedInterviewPrepIndexRouteImport.update({
+    id: '/interview-prep/',
+    path: '/interview-prep/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedEmployersIndexRoute =
+  AuthenticatedEmployersIndexRouteImport.update({
+    id: '/employers/',
+    path: '/employers/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDocumentsIndexRoute =
+  AuthenticatedDocumentsIndexRouteImport.update({
+    id: '/documents/',
+    path: '/documents/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDocumentationIndexRoute =
+  AuthenticatedDocumentationIndexRouteImport.update({
+    id: '/documentation/',
+    path: '/documentation/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedCvBuilderIndexRoute =
+  AuthenticatedCvBuilderIndexRouteImport.update({
+    id: '/cv-builder/',
+    path: '/cv-builder/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedApplicationsIndexRoute =
+  AuthenticatedApplicationsIndexRouteImport.update({
+    id: '/applications/',
+    path: '/applications/',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
@@ -143,11 +250,77 @@ const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
   path: '/api/public/ingest-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedEmployersCompanyIdRoute =
+  AuthenticatedEmployersCompanyIdRouteImport.update({
+    id: '/employers/$companyId',
+    path: '/employers/$companyId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDocumentsNewRoute =
+  AuthenticatedDocumentsNewRouteImport.update({
+    id: '/documents/new',
+    path: '/documents/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDocumentsIdRoute =
+  AuthenticatedDocumentsIdRouteImport.update({
+    id: '/documents/$id',
+    path: '/documents/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDocumentationPackagesRoute =
+  AuthenticatedDocumentationPackagesRouteImport.update({
+    id: '/documentation/packages',
+    path: '/documentation/packages',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDocumentationLibraryRoute =
+  AuthenticatedDocumentationLibraryRouteImport.update({
+    id: '/documentation/library',
+    path: '/documentation/library',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDocumentationCasesRoute =
+  AuthenticatedDocumentationCasesRouteImport.update({
+    id: '/documentation/cases',
+    path: '/documentation/cases',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedCareerAtomReviewRoute =
+  AuthenticatedCareerAtomReviewRouteImport.update({
+    id: '/career/atom-review',
+    path: '/career/atom-review',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedApplicationsNewRoute =
+  AuthenticatedApplicationsNewRouteImport.update({
+    id: '/applications/new',
+    path: '/applications/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedApplicationsIdRoute =
+  AuthenticatedApplicationsIdRouteImport.update({
+    id: '/applications/$id',
+    path: '/applications/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminLeadsRoute = AuthenticatedAdminLeadsRouteImport.update({
   id: '/admin/leads',
   path: '/admin/leads',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAdminCvTestRoute =
+  AuthenticatedAdminCvTestRouteImport.update({
+    id: '/admin/cv-test',
+    path: '/admin/cv-test',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminChangelogRoute =
+  AuthenticatedAdminChangelogRouteImport.update({
+    id: '/admin/changelog',
+    path: '/admin/changelog',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const LovableEmailTransactionalSendRoute =
   LovableEmailTransactionalSendRouteImport.update({
     id: '/lovable/email/transactional/send',
@@ -188,18 +361,43 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
+  '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/cover-letters': typeof AuthenticatedCoverLettersRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/my-applications': typeof AuthenticatedMyApplicationsRoute
+  '/preferences': typeof AuthenticatedPreferencesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
+  '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
+  '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/applications/$id': typeof AuthenticatedApplicationsIdRoute
+  '/applications/new': typeof AuthenticatedApplicationsNewRoute
+  '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
+  '/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
+  '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
+  '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
+  '/documents/$id': typeof AuthenticatedDocumentsIdRoute
+  '/documents/new': typeof AuthenticatedDocumentsNewRoute
+  '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/applications/': typeof AuthenticatedApplicationsIndexRoute
+  '/cv-builder/': typeof AuthenticatedCvBuilderIndexRoute
+  '/documentation/': typeof AuthenticatedDocumentationIndexRoute
+  '/documents/': typeof AuthenticatedDocumentsIndexRoute
+  '/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
+  '/next-steps/': typeof AuthenticatedNextStepsIndexRoute
+  '/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
+  '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -215,18 +413,43 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
+  '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/cover-letters': typeof AuthenticatedCoverLettersRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/my-applications': typeof AuthenticatedMyApplicationsRoute
+  '/preferences': typeof AuthenticatedPreferencesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
+  '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
+  '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/applications/$id': typeof AuthenticatedApplicationsIdRoute
+  '/applications/new': typeof AuthenticatedApplicationsNewRoute
+  '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
+  '/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
+  '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
+  '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
+  '/documents/$id': typeof AuthenticatedDocumentsIdRoute
+  '/documents/new': typeof AuthenticatedDocumentsNewRoute
+  '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/applications': typeof AuthenticatedApplicationsIndexRoute
+  '/cv-builder': typeof AuthenticatedCvBuilderIndexRoute
+  '/documentation': typeof AuthenticatedDocumentationIndexRoute
+  '/documents': typeof AuthenticatedDocumentsIndexRoute
+  '/employers': typeof AuthenticatedEmployersIndexRoute
+  '/interview-prep': typeof AuthenticatedInterviewPrepIndexRoute
+  '/next-steps': typeof AuthenticatedNextStepsIndexRoute
+  '/offer-analysis': typeof AuthenticatedOfferAnalysisIndexRoute
+  '/onboarding': typeof AuthenticatedOnboardingIndexRoute
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -245,18 +468,43 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
+  '/_authenticated/about-me': typeof AuthenticatedAboutMeRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
-  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/cover-letters': typeof AuthenticatedCoverLettersRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
+  '/_authenticated/preferences': typeof AuthenticatedPreferencesRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
+  '/_authenticated/admin/changelog': typeof AuthenticatedAdminChangelogRoute
+  '/_authenticated/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/_authenticated/applications/$id': typeof AuthenticatedApplicationsIdRoute
+  '/_authenticated/applications/new': typeof AuthenticatedApplicationsNewRoute
+  '/_authenticated/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
+  '/_authenticated/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
+  '/_authenticated/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
+  '/_authenticated/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
+  '/_authenticated/documents/$id': typeof AuthenticatedDocumentsIdRoute
+  '/_authenticated/documents/new': typeof AuthenticatedDocumentsNewRoute
+  '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/applications/': typeof AuthenticatedApplicationsIndexRoute
+  '/_authenticated/cv-builder/': typeof AuthenticatedCvBuilderIndexRoute
+  '/_authenticated/documentation/': typeof AuthenticatedDocumentationIndexRoute
+  '/_authenticated/documents/': typeof AuthenticatedDocumentsIndexRoute
+  '/_authenticated/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/_authenticated/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
+  '/_authenticated/next-steps/': typeof AuthenticatedNextStepsIndexRoute
+  '/_authenticated/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
+  '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -275,18 +523,43 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/unsubscribe'
+    | '/about-me'
     | '/app'
-    | '/onboarding'
+    | '/cover-letters'
+    | '/dashboard'
+    | '/job-leads'
+    | '/my-applications'
+    | '/preferences'
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
     | '/selskapsanalyse/takk'
     | '/selskapsanalyse/'
+    | '/admin/changelog'
+    | '/admin/cv-test'
     | '/admin/leads'
+    | '/applications/$id'
+    | '/applications/new'
+    | '/career/atom-review'
+    | '/documentation/cases'
+    | '/documentation/library'
+    | '/documentation/packages'
+    | '/documents/$id'
+    | '/documents/new'
+    | '/employers/$companyId'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin/'
+    | '/applications/'
+    | '/cv-builder/'
+    | '/documentation/'
+    | '/documents/'
+    | '/employers/'
+    | '/interview-prep/'
+    | '/next-steps/'
+    | '/offer-analysis/'
+    | '/onboarding/'
     | '/selskapsanalyse/analysedatabase/'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -302,18 +575,43 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/unsubscribe'
+    | '/about-me'
     | '/app'
-    | '/onboarding'
+    | '/cover-letters'
+    | '/dashboard'
+    | '/job-leads'
+    | '/my-applications'
+    | '/preferences'
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
     | '/selskapsanalyse/takk'
     | '/selskapsanalyse'
+    | '/admin/changelog'
+    | '/admin/cv-test'
     | '/admin/leads'
+    | '/applications/$id'
+    | '/applications/new'
+    | '/career/atom-review'
+    | '/documentation/cases'
+    | '/documentation/library'
+    | '/documentation/packages'
+    | '/documents/$id'
+    | '/documents/new'
+    | '/employers/$companyId'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin'
+    | '/applications'
+    | '/cv-builder'
+    | '/documentation'
+    | '/documents'
+    | '/employers'
+    | '/interview-prep'
+    | '/next-steps'
+    | '/offer-analysis'
+    | '/onboarding'
     | '/selskapsanalyse/analysedatabase'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -331,18 +629,43 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/unsubscribe'
+    | '/_authenticated/about-me'
     | '/_authenticated/app'
-    | '/_authenticated/onboarding'
+    | '/_authenticated/cover-letters'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/job-leads'
+    | '/_authenticated/my-applications'
+    | '/_authenticated/preferences'
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
     | '/selskapsanalyse/takk'
     | '/selskapsanalyse/'
+    | '/_authenticated/admin/changelog'
+    | '/_authenticated/admin/cv-test'
     | '/_authenticated/admin/leads'
+    | '/_authenticated/applications/$id'
+    | '/_authenticated/applications/new'
+    | '/_authenticated/career/atom-review'
+    | '/_authenticated/documentation/cases'
+    | '/_authenticated/documentation/library'
+    | '/_authenticated/documentation/packages'
+    | '/_authenticated/documents/$id'
+    | '/_authenticated/documents/new'
+    | '/_authenticated/employers/$companyId'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/_authenticated/admin/'
+    | '/_authenticated/applications/'
+    | '/_authenticated/cv-builder/'
+    | '/_authenticated/documentation/'
+    | '/_authenticated/documents/'
+    | '/_authenticated/employers/'
+    | '/_authenticated/interview-prep/'
+    | '/_authenticated/next-steps/'
+    | '/_authenticated/offer-analysis/'
+    | '/_authenticated/onboarding/'
     | '/selskapsanalyse/analysedatabase/'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -473,11 +796,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/onboarding': {
-      id: '/_authenticated/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+    '/_authenticated/preferences': {
+      id: '/_authenticated/preferences'
+      path: '/preferences'
+      fullPath: '/preferences'
+      preLoaderRoute: typeof AuthenticatedPreferencesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/my-applications': {
+      id: '/_authenticated/my-applications'
+      path: '/my-applications'
+      fullPath: '/my-applications'
+      preLoaderRoute: typeof AuthenticatedMyApplicationsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/job-leads': {
+      id: '/_authenticated/job-leads'
+      path: '/job-leads'
+      fullPath: '/job-leads'
+      preLoaderRoute: typeof AuthenticatedJobLeadsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/cover-letters': {
+      id: '/_authenticated/cover-letters'
+      path: '/cover-letters'
+      fullPath: '/cover-letters'
+      preLoaderRoute: typeof AuthenticatedCoverLettersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/app': {
@@ -487,12 +838,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/about-me': {
+      id: '/_authenticated/about-me'
+      path: '/about-me'
+      fullPath: '/about-me'
+      preLoaderRoute: typeof AuthenticatedAboutMeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/selskapsanalyse/analysedatabase/': {
       id: '/selskapsanalyse/analysedatabase/'
       path: '/analysedatabase'
       fullPath: '/selskapsanalyse/analysedatabase/'
       preLoaderRoute: typeof SelskapsanalyseAnalysedatabaseIndexRouteImport
       parentRoute: typeof SelskapsanalyseRoute
+    }
+    '/_authenticated/onboarding/': {
+      id: '/_authenticated/onboarding/'
+      path: '/onboarding'
+      fullPath: '/onboarding/'
+      preLoaderRoute: typeof AuthenticatedOnboardingIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/offer-analysis/': {
+      id: '/_authenticated/offer-analysis/'
+      path: '/offer-analysis'
+      fullPath: '/offer-analysis/'
+      preLoaderRoute: typeof AuthenticatedOfferAnalysisIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/next-steps/': {
+      id: '/_authenticated/next-steps/'
+      path: '/next-steps'
+      fullPath: '/next-steps/'
+      preLoaderRoute: typeof AuthenticatedNextStepsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/interview-prep/': {
+      id: '/_authenticated/interview-prep/'
+      path: '/interview-prep'
+      fullPath: '/interview-prep/'
+      preLoaderRoute: typeof AuthenticatedInterviewPrepIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/employers/': {
+      id: '/_authenticated/employers/'
+      path: '/employers'
+      fullPath: '/employers/'
+      preLoaderRoute: typeof AuthenticatedEmployersIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/documents/': {
+      id: '/_authenticated/documents/'
+      path: '/documents'
+      fullPath: '/documents/'
+      preLoaderRoute: typeof AuthenticatedDocumentsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/documentation/': {
+      id: '/_authenticated/documentation/'
+      path: '/documentation'
+      fullPath: '/documentation/'
+      preLoaderRoute: typeof AuthenticatedDocumentationIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/cv-builder/': {
+      id: '/_authenticated/cv-builder/'
+      path: '/cv-builder'
+      fullPath: '/cv-builder/'
+      preLoaderRoute: typeof AuthenticatedCvBuilderIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/applications/': {
+      id: '/_authenticated/applications/'
+      path: '/applications'
+      fullPath: '/applications/'
+      preLoaderRoute: typeof AuthenticatedApplicationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
@@ -522,11 +943,88 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicIngestReportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/employers/$companyId': {
+      id: '/_authenticated/employers/$companyId'
+      path: '/employers/$companyId'
+      fullPath: '/employers/$companyId'
+      preLoaderRoute: typeof AuthenticatedEmployersCompanyIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/documents/new': {
+      id: '/_authenticated/documents/new'
+      path: '/documents/new'
+      fullPath: '/documents/new'
+      preLoaderRoute: typeof AuthenticatedDocumentsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/documents/$id': {
+      id: '/_authenticated/documents/$id'
+      path: '/documents/$id'
+      fullPath: '/documents/$id'
+      preLoaderRoute: typeof AuthenticatedDocumentsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/documentation/packages': {
+      id: '/_authenticated/documentation/packages'
+      path: '/documentation/packages'
+      fullPath: '/documentation/packages'
+      preLoaderRoute: typeof AuthenticatedDocumentationPackagesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/documentation/library': {
+      id: '/_authenticated/documentation/library'
+      path: '/documentation/library'
+      fullPath: '/documentation/library'
+      preLoaderRoute: typeof AuthenticatedDocumentationLibraryRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/documentation/cases': {
+      id: '/_authenticated/documentation/cases'
+      path: '/documentation/cases'
+      fullPath: '/documentation/cases'
+      preLoaderRoute: typeof AuthenticatedDocumentationCasesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/career/atom-review': {
+      id: '/_authenticated/career/atom-review'
+      path: '/career/atom-review'
+      fullPath: '/career/atom-review'
+      preLoaderRoute: typeof AuthenticatedCareerAtomReviewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/applications/new': {
+      id: '/_authenticated/applications/new'
+      path: '/applications/new'
+      fullPath: '/applications/new'
+      preLoaderRoute: typeof AuthenticatedApplicationsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/applications/$id': {
+      id: '/_authenticated/applications/$id'
+      path: '/applications/$id'
+      fullPath: '/applications/$id'
+      preLoaderRoute: typeof AuthenticatedApplicationsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/leads': {
       id: '/_authenticated/admin/leads'
       path: '/admin/leads'
       fullPath: '/admin/leads'
       preLoaderRoute: typeof AuthenticatedAdminLeadsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/cv-test': {
+      id: '/_authenticated/admin/cv-test'
+      path: '/admin/cv-test'
+      fullPath: '/admin/cv-test'
+      preLoaderRoute: typeof AuthenticatedAdminCvTestRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/changelog': {
+      id: '/_authenticated/admin/changelog'
+      path: '/admin/changelog'
+      fullPath: '/admin/changelog'
+      preLoaderRoute: typeof AuthenticatedAdminChangelogRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/lovable/email/transactional/send': {
@@ -568,17 +1066,69 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAboutMeRoute: typeof AuthenticatedAboutMeRoute
   AuthenticatedAppRoute: typeof AuthenticatedAppRoute
-  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedCoverLettersRoute: typeof AuthenticatedCoverLettersRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedJobLeadsRoute: typeof AuthenticatedJobLeadsRoute
+  AuthenticatedMyApplicationsRoute: typeof AuthenticatedMyApplicationsRoute
+  AuthenticatedPreferencesRoute: typeof AuthenticatedPreferencesRoute
+  AuthenticatedAdminChangelogRoute: typeof AuthenticatedAdminChangelogRoute
+  AuthenticatedAdminCvTestRoute: typeof AuthenticatedAdminCvTestRoute
   AuthenticatedAdminLeadsRoute: typeof AuthenticatedAdminLeadsRoute
+  AuthenticatedApplicationsIdRoute: typeof AuthenticatedApplicationsIdRoute
+  AuthenticatedApplicationsNewRoute: typeof AuthenticatedApplicationsNewRoute
+  AuthenticatedCareerAtomReviewRoute: typeof AuthenticatedCareerAtomReviewRoute
+  AuthenticatedDocumentationCasesRoute: typeof AuthenticatedDocumentationCasesRoute
+  AuthenticatedDocumentationLibraryRoute: typeof AuthenticatedDocumentationLibraryRoute
+  AuthenticatedDocumentationPackagesRoute: typeof AuthenticatedDocumentationPackagesRoute
+  AuthenticatedDocumentsIdRoute: typeof AuthenticatedDocumentsIdRoute
+  AuthenticatedDocumentsNewRoute: typeof AuthenticatedDocumentsNewRoute
+  AuthenticatedEmployersCompanyIdRoute: typeof AuthenticatedEmployersCompanyIdRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedApplicationsIndexRoute: typeof AuthenticatedApplicationsIndexRoute
+  AuthenticatedCvBuilderIndexRoute: typeof AuthenticatedCvBuilderIndexRoute
+  AuthenticatedDocumentationIndexRoute: typeof AuthenticatedDocumentationIndexRoute
+  AuthenticatedDocumentsIndexRoute: typeof AuthenticatedDocumentsIndexRoute
+  AuthenticatedEmployersIndexRoute: typeof AuthenticatedEmployersIndexRoute
+  AuthenticatedInterviewPrepIndexRoute: typeof AuthenticatedInterviewPrepIndexRoute
+  AuthenticatedNextStepsIndexRoute: typeof AuthenticatedNextStepsIndexRoute
+  AuthenticatedOfferAnalysisIndexRoute: typeof AuthenticatedOfferAnalysisIndexRoute
+  AuthenticatedOnboardingIndexRoute: typeof AuthenticatedOnboardingIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAboutMeRoute: AuthenticatedAboutMeRoute,
   AuthenticatedAppRoute: AuthenticatedAppRoute,
-  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedCoverLettersRoute: AuthenticatedCoverLettersRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedJobLeadsRoute: AuthenticatedJobLeadsRoute,
+  AuthenticatedMyApplicationsRoute: AuthenticatedMyApplicationsRoute,
+  AuthenticatedPreferencesRoute: AuthenticatedPreferencesRoute,
+  AuthenticatedAdminChangelogRoute: AuthenticatedAdminChangelogRoute,
+  AuthenticatedAdminCvTestRoute: AuthenticatedAdminCvTestRoute,
   AuthenticatedAdminLeadsRoute: AuthenticatedAdminLeadsRoute,
+  AuthenticatedApplicationsIdRoute: AuthenticatedApplicationsIdRoute,
+  AuthenticatedApplicationsNewRoute: AuthenticatedApplicationsNewRoute,
+  AuthenticatedCareerAtomReviewRoute: AuthenticatedCareerAtomReviewRoute,
+  AuthenticatedDocumentationCasesRoute: AuthenticatedDocumentationCasesRoute,
+  AuthenticatedDocumentationLibraryRoute:
+    AuthenticatedDocumentationLibraryRoute,
+  AuthenticatedDocumentationPackagesRoute:
+    AuthenticatedDocumentationPackagesRoute,
+  AuthenticatedDocumentsIdRoute: AuthenticatedDocumentsIdRoute,
+  AuthenticatedDocumentsNewRoute: AuthenticatedDocumentsNewRoute,
+  AuthenticatedEmployersCompanyIdRoute: AuthenticatedEmployersCompanyIdRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedApplicationsIndexRoute: AuthenticatedApplicationsIndexRoute,
+  AuthenticatedCvBuilderIndexRoute: AuthenticatedCvBuilderIndexRoute,
+  AuthenticatedDocumentationIndexRoute: AuthenticatedDocumentationIndexRoute,
+  AuthenticatedDocumentsIndexRoute: AuthenticatedDocumentsIndexRoute,
+  AuthenticatedEmployersIndexRoute: AuthenticatedEmployersIndexRoute,
+  AuthenticatedInterviewPrepIndexRoute: AuthenticatedInterviewPrepIndexRoute,
+  AuthenticatedNextStepsIndexRoute: AuthenticatedNextStepsIndexRoute,
+  AuthenticatedOfferAnalysisIndexRoute: AuthenticatedOfferAnalysisIndexRoute,
+  AuthenticatedOnboardingIndexRoute: AuthenticatedOnboardingIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
