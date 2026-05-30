@@ -87,9 +87,19 @@ function LoginPage() {
             variant="outline"
             className="mt-6 w-full"
             onClick={handleGoogle}
-            disabled={googleLoading || loading}
+            disabled={googleLoading || linkedinLoading || loading}
           >
             {googleLoading ? "Åpner Google…" : "Fortsett med Google"}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-3 w-full"
+            onClick={handleLinkedIn}
+            disabled={googleLoading || linkedinLoading || loading}
+          >
+            {linkedinLoading ? "Åpner LinkedIn…" : "Fortsett med LinkedIn"}
           </Button>
 
           <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wider text-muted-foreground">
