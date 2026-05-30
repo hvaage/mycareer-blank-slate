@@ -138,7 +138,7 @@ function SignupPage() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             {info && <p className="text-sm text-muted-foreground">{info}</p>}
-            <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+            <Button type="submit" className="w-full" disabled={loading || googleLoading || linkedinLoading}>
               {loading ? "Oppretter konto…" : "Opprett konto med e-post"}
             </Button>
           </form>
