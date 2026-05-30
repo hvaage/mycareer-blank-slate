@@ -15,6 +15,9 @@ verify_jwt = true
 [functions.linkedin-login]
 verify_jwt = false
 
+[functions.linkedin-start]
+verify_jwt = false
+
 [functions.fetch-careerjet-listings]
 verify_jwt = true
 
