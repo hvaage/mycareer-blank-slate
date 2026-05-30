@@ -104,8 +104,8 @@ export function preferenceLogicalKeyFromRow(row: Pick<Tables<"user_preference_at
   return prefKey(row.source ?? "", row.source_field ?? "", row.dimension, row.label, row.value);
 }
 
-export function evidenceLogicalKeyFromRow(row: Pick<Tables<"user_evidence_atoms">, "source" | "source_field" | "category" | "label">): string {
-  return evKey(row.source ?? "", row.source_field ?? "", row.category, row.label);
+export function evidenceLogicalKeyFromRow(row: Pick<Tables<"user_evidence_atoms">, "source" | "source_profile_field" | "category" | "label">): string {
+  return evKey(row.source ?? "", row.source_profile_field ?? "", row.category, row.label);
 }
 
 export function generatePreferenceAtomsFromCareerProfile(profile: UserCareerProfileRow | null): PlannedPreferenceAtom[] {
