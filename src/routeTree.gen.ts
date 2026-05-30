@@ -23,8 +23,8 @@ import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalys
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedAboutMeRouteImport } from './routes/_authenticated/about-me'
 import { Route as SelskapsanalyseAnalysedatabaseIndexRouteImport } from './routes/selskapsanalyse.analysedatabase.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/selskapsanalyse.analysedatabase.$id'
@@ -106,14 +106,14 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAboutMeRoute = AuthenticatedAboutMeRouteImport.update({
+  id: '/about-me',
+  path: '/about-me',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const SelskapsanalyseAnalysedatabaseIndexRoute =
@@ -188,8 +188,8 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
+  '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -215,8 +215,8 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
+  '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -245,8 +245,8 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/unsubscribe': typeof UnsubscribeRoute
+  '/_authenticated/about-me': typeof AuthenticatedAboutMeRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
-  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -275,8 +275,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/unsubscribe'
+    | '/about-me'
     | '/app'
-    | '/onboarding'
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
@@ -302,8 +302,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/unsubscribe'
+    | '/about-me'
     | '/app'
-    | '/onboarding'
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
@@ -331,8 +331,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/unsubscribe'
+    | '/_authenticated/about-me'
     | '/_authenticated/app'
-    | '/_authenticated/onboarding'
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
@@ -473,18 +473,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/onboarding': {
-      id: '/_authenticated/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/app': {
       id: '/_authenticated/app'
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AuthenticatedAppRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/about-me': {
+      id: '/_authenticated/about-me'
+      path: '/about-me'
+      fullPath: '/about-me'
+      preLoaderRoute: typeof AuthenticatedAboutMeRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/selskapsanalyse/analysedatabase/': {
@@ -568,15 +568,15 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAboutMeRoute: typeof AuthenticatedAboutMeRoute
   AuthenticatedAppRoute: typeof AuthenticatedAppRoute
-  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedAdminLeadsRoute: typeof AuthenticatedAdminLeadsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAboutMeRoute: AuthenticatedAboutMeRoute,
   AuthenticatedAppRoute: AuthenticatedAppRoute,
-  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedAdminLeadsRoute: AuthenticatedAdminLeadsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
@@ -629,3 +629,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
