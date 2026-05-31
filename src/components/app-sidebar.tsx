@@ -1,5 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Search,
@@ -15,6 +15,7 @@ import {
   MessageSquare,
   FileSignature,
   UserRound,
+  Plug,
 } from "lucide-react";
 
 import {
@@ -52,6 +53,7 @@ const primaryNav: NavItem[] = [
   { title: "Arbeidsgivere", to: "/employers", icon: Building2 },
   { title: "CV-bygger", to: "/cv-builder", icon: FileEdit },
   { title: "Karriereprofil", to: "/career/atom-review", icon: Sparkles },
+  { title: "Integrasjoner", to: "/integrations", icon: Plug },
   { title: "Preferanser", to: "/preferences", icon: Settings },
   { title: "Min profil", to: "/about-me", icon: UserRound },
 ];
@@ -69,6 +71,8 @@ export function AppSidebar() {
   const { state, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const currentPath = useRouterState({ select: (s) => s.location.pathname });
 
   const { data: admin } = useQuery({
@@ -156,7 +160,15 @@ export function AppSidebar() {
           variant="ghost"
           size="sm"
           className="w-full justify-start gap-2"
-          onClick={() => signOut()}
+          onClick={async () => {
+            try {
+              await signOut();
+            } catch {
+              /* ignore */
+            }
+            qc.clear();
+            await navigate({ to: "/", replace: true });
+          }}
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>Logg ut</span>}

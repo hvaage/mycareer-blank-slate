@@ -26,6 +26,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenticated/preferences'
 import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
 import { Route as AuthenticatedJobLeadsRouteImport } from './routes/_authenticated/job-leads'
+import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCoverLettersRouteImport } from './routes/_authenticated/cover-letters'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
@@ -148,6 +149,12 @@ const AuthenticatedJobLeadsRoute = AuthenticatedJobLeadsRouteImport.update({
   path: '/job-leads',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedIntegrationsRoute =
+  AuthenticatedIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -365,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/integrations': typeof AuthenticatedIntegrationsRoute
   '/job-leads': typeof AuthenticatedJobLeadsRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
@@ -417,6 +425,7 @@ export interface FileRoutesByTo {
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/integrations': typeof AuthenticatedIntegrationsRoute
   '/job-leads': typeof AuthenticatedJobLeadsRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
@@ -472,6 +481,7 @@ export interface FileRoutesById {
   '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/cover-letters': typeof AuthenticatedCoverLettersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/job-leads': typeof AuthenticatedJobLeadsRoute
   '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/_authenticated/preferences': typeof AuthenticatedPreferencesRoute
@@ -527,6 +537,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/cover-letters'
     | '/dashboard'
+    | '/integrations'
     | '/job-leads'
     | '/my-applications'
     | '/preferences'
@@ -579,6 +590,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/cover-letters'
     | '/dashboard'
+    | '/integrations'
     | '/job-leads'
     | '/my-applications'
     | '/preferences'
@@ -633,6 +645,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app'
     | '/_authenticated/cover-letters'
     | '/_authenticated/dashboard'
+    | '/_authenticated/integrations'
     | '/_authenticated/job-leads'
     | '/_authenticated/my-applications'
     | '/_authenticated/preferences'
@@ -815,6 +828,13 @@ declare module '@tanstack/react-router' {
       path: '/job-leads'
       fullPath: '/job-leads'
       preLoaderRoute: typeof AuthenticatedJobLeadsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/integrations': {
+      id: '/_authenticated/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof AuthenticatedIntegrationsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/dashboard': {
@@ -1070,6 +1090,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAppRoute: typeof AuthenticatedAppRoute
   AuthenticatedCoverLettersRoute: typeof AuthenticatedCoverLettersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedJobLeadsRoute: typeof AuthenticatedJobLeadsRoute
   AuthenticatedMyApplicationsRoute: typeof AuthenticatedMyApplicationsRoute
   AuthenticatedPreferencesRoute: typeof AuthenticatedPreferencesRoute
@@ -1102,6 +1123,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAppRoute: AuthenticatedAppRoute,
   AuthenticatedCoverLettersRoute: AuthenticatedCoverLettersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedJobLeadsRoute: AuthenticatedJobLeadsRoute,
   AuthenticatedMyApplicationsRoute: AuthenticatedMyApplicationsRoute,
   AuthenticatedPreferencesRoute: AuthenticatedPreferencesRoute,
