@@ -126,9 +126,21 @@ export function useRegisterCvUpload(userId: string) {
       const safeName = sanitizeFilename(file.name);
       const path = `${userId}/${Date.now()}-${safeName}`;
 
-      const { error: upErr } = await supabase.storage
+      const uploadPromise = supabase.storage
         .from("cv-uploads")
         .upload(path, file, { contentType: file.type, upsert: false });
+      const timeout = new Promise<{ error: Error }>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              error: new Error(
+                "Tidsavbrudd under opplasting (over 90 sek). Sjekk nettverket og prøv igjen.",
+              ),
+            }),
+          90_000,
+        ),
+      );
+      const { error: upErr } = (await Promise.race([uploadPromise, timeout])) as any;
       if (upErr) {
         const err: any = new Error(upErr.message);
         err.code = "upload_failed";
