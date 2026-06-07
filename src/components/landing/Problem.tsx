@@ -30,8 +30,8 @@ export function Problem() {
     <section className="border-b border-border bg-muted/50">
       <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
         <SectionHeading
-          eyebrow="Problemet"
-          title="Karrierearbeid skjer i dag uten struktur"
+          eyebrow="Utfordringen"
+          title="Karrierearbeid er ofte spredt og lite samlet"
         />
         <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {items.map((item) => (
