@@ -3,33 +3,33 @@ import { SectionHeading } from "./SectionHeading";
 const steps = [
   {
     num: "01",
-    title: "Hent inn muligheter",
-    description: "Koble e-post og importer jobber, kombinert med offentlige data.",
+    title: "Bygg karriereprofil",
+    description: "Samle erfaring, kompetanse og resultater i én strukturert profil du eier selv.",
   },
   {
     num: "02",
-    title: "Bygg karriereprofil",
-    description: "Dokumenter erfaring, resultater og kvalifikasjoner.",
+    title: "Analyser stillingsannonser",
+    description: "Forstå hva annonsen faktisk etterspør av kompetanse, erfaring og kvalifikasjoner.",
   },
   {
     num: "03",
-    title: "Få markedsinnsikt",
-    description: "Forstå roller, arbeidsgivere og etterspørsel.",
+    title: "Forstå arbeidsgiveren",
+    description: "Få innsikt i selskapet, rollen og hva som kjennetegner en god match.",
   },
   {
     num: "04",
-    title: "Evaluer og prioriter",
-    description: "Vurder hvilke muligheter som er riktige.",
+    title: "Lag CV og søknadsbrev",
+    description: "Tilpass utkast basert på din egen erfaring og det den konkrete rollen krever.",
   },
   {
     num: "05",
-    title: "Gjennomfør søknadsprosessen",
-    description: "Lag CV og søknader, bruk nettverk og følg opp.",
+    title: "Forbered intervju",
+    description: "Jobb gjennom relevante spørsmål og eksempler før du møter arbeidsgiver.",
   },
   {
     num: "06",
-    title: "Vurder tilbud",
-    description: "Sammenlign alternativer og ta beslutninger.",
+    title: "Følg opp søknadsprosessen",
+    description: "Hold oversikt over søknader, dialoger og neste steg på ett sted.",
   },
 ];
 
