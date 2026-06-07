@@ -2905,6 +2905,129 @@ export type Database = {
         }
         Relationships: []
       }
+      respondent_profile: {
+        Row: {
+          candidate_focus: string | null
+          created_at: string
+          id: string
+          industries: string[]
+          respondent_type: string
+          response_id: string
+          sector: string | null
+          seniority_levels: string[]
+          years_experience: string | null
+        }
+        Insert: {
+          candidate_focus?: string | null
+          created_at?: string
+          id?: string
+          industries?: string[]
+          respondent_type: string
+          response_id: string
+          sector?: string | null
+          seniority_levels?: string[]
+          years_experience?: string | null
+        }
+        Update: {
+          candidate_focus?: string | null
+          created_at?: string
+          id?: string
+          industries?: string[]
+          respondent_type?: string
+          response_id?: string
+          sector?: string | null
+          seniority_levels?: string[]
+          years_experience?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "respondent_profile_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: true
+            referencedRelation: "survey_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      result_access_signups: {
+        Row: {
+          access_granted_at: string | null
+          access_token: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          version_id: string | null
+        }
+        Insert: {
+          access_granted_at?: string | null
+          access_token?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name?: string | null
+          version_id?: string | null
+        }
+        Update: {
+          access_granted_at?: string | null
+          access_token?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "result_access_signups_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "survey_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      result_sections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          sort_order: number
+          title: string
+          version_id: string | null
+          visibility_level: Database["public"]["Enums"]["survey_visibility"]
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          sort_order?: number
+          title: string
+          version_id?: string | null
+          visibility_level?: Database["public"]["Enums"]["survey_visibility"]
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          sort_order?: number
+          title?: string
+          version_id?: string | null
+          visibility_level?: Database["public"]["Enums"]["survey_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "result_sections_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "survey_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       source_postings: {
         Row: {
           company: string | null
@@ -2988,6 +3111,208 @@ export type Database = {
           id?: string
           metadata?: Json | null
           reason?: string
+        }
+        Relationships: []
+      }
+      survey_answers: {
+        Row: {
+          admin_note: string | null
+          answer_value: Json
+          created_at: string
+          id: string
+          is_flagged: boolean
+          is_full_quote_approved: boolean
+          is_public_quote_approved: boolean
+          question_id: string
+          response_id: string
+          text_answer: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          answer_value: Json
+          created_at?: string
+          id?: string
+          is_flagged?: boolean
+          is_full_quote_approved?: boolean
+          is_public_quote_approved?: boolean
+          question_id: string
+          response_id: string
+          text_answer?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          answer_value?: Json
+          created_at?: string
+          id?: string
+          is_flagged?: boolean
+          is_full_quote_approved?: boolean
+          is_public_quote_approved?: boolean
+          question_id?: string
+          response_id?: string
+          text_answer?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "survey_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_answers_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "survey_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_questions: {
+        Row: {
+          category: string | null
+          created_at: string
+          helper_text: string | null
+          id: string
+          is_active: boolean
+          is_full_result_enabled: boolean
+          is_public_result_enabled: boolean
+          is_required: boolean
+          max_choices: number | null
+          options: Json
+          question_text: string
+          question_type: Database["public"]["Enums"]["survey_question_type"]
+          scale_max: number | null
+          scale_max_label: string | null
+          scale_mid_label: string | null
+          scale_min: number | null
+          scale_min_label: string | null
+          sort_order: number
+          updated_at: string
+          version_id: string
+          visibility_level: Database["public"]["Enums"]["survey_visibility"]
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          helper_text?: string | null
+          id?: string
+          is_active?: boolean
+          is_full_result_enabled?: boolean
+          is_public_result_enabled?: boolean
+          is_required?: boolean
+          max_choices?: number | null
+          options?: Json
+          question_text: string
+          question_type: Database["public"]["Enums"]["survey_question_type"]
+          scale_max?: number | null
+          scale_max_label?: string | null
+          scale_mid_label?: string | null
+          scale_min?: number | null
+          scale_min_label?: string | null
+          sort_order?: number
+          updated_at?: string
+          version_id: string
+          visibility_level?: Database["public"]["Enums"]["survey_visibility"]
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          helper_text?: string | null
+          id?: string
+          is_active?: boolean
+          is_full_result_enabled?: boolean
+          is_public_result_enabled?: boolean
+          is_required?: boolean
+          max_choices?: number | null
+          options?: Json
+          question_text?: string
+          question_type?: Database["public"]["Enums"]["survey_question_type"]
+          scale_max?: number | null
+          scale_max_label?: string | null
+          scale_mid_label?: string | null
+          scale_min?: number | null
+          scale_min_label?: string | null
+          sort_order?: number
+          updated_at?: string
+          version_id?: string
+          visibility_level?: Database["public"]["Enums"]["survey_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_questions_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "survey_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_responses: {
+        Row: {
+          created_at: string
+          id: string
+          submission_hash: string | null
+          submitted_at: string
+          user_agent: string | null
+          version_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          submission_hash?: string | null
+          submitted_at?: string
+          user_agent?: string | null
+          version_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          submission_hash?: string | null
+          submitted_at?: string
+          user_agent?: string | null
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "survey_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_versions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          slug: string
+          title: string
+          updated_at: string
+          version_number: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          slug: string
+          title: string
+          updated_at?: string
+          version_number?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          slug?: string
+          title?: string
+          updated_at?: string
+          version_number?: number
         }
         Relationships: []
       }
@@ -3875,6 +4200,12 @@ export type Database = {
         | "rate_limited"
       job_lead_status: "ny" | "avvist" | "promotert" | "arkivert"
       priority_level: "høy" | "middels" | "lav"
+      survey_question_type:
+        | "single_choice"
+        | "multi_choice"
+        | "scale"
+        | "open_text"
+      survey_visibility: "hidden" | "full_only" | "public"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4064,6 +4395,13 @@ export const Constants = {
       ],
       job_lead_status: ["ny", "avvist", "promotert", "arkivert"],
       priority_level: ["høy", "middels", "lav"],
+      survey_question_type: [
+        "single_choice",
+        "multi_choice",
+        "scale",
+        "open_text",
+      ],
+      survey_visibility: ["hidden", "full_only", "public"],
     },
   },
 } as const
