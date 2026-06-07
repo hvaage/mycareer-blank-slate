@@ -3,33 +3,33 @@ import { SectionHeading } from "./SectionHeading";
 const steps = [
   {
     num: "01",
-    title: "Bygg karriereprofil",
-    description: "Samle erfaring, kompetanse og resultater i én strukturert profil du eier selv.",
+    title: "Profilering og oppsett",
+    description: "Forstå deg selv: ønsker, mål, erfaringer, kompetanser og det du mangler. Sett opp integrasjoner og grunnlaget for resten av løpet.",
   },
   {
     num: "02",
-    title: "Analyser stillingsannonser",
-    description: "Forstå hva annonsen faktisk etterspør av kompetanse, erfaring og kvalifikasjoner.",
+    title: "Kontinuerlig oppdatering",
+    description: "Hold kompetanser, erfaringer og resultater oppdatert — og planlegg videre kompetansebygging der det trengs.",
   },
   {
     num: "03",
-    title: "Forstå arbeidsgiveren",
-    description: "Få innsikt i selskapet, rollen og hva som kjennetegner en god match.",
+    title: "Nettverk og synlighet",
+    description: "Networking, LinkedIn-optimalisering, profilering og strukturert CRM mot rekrutterere og headhuntere.",
   },
   {
     num: "04",
-    title: "Lag CV og søknadsbrev",
-    description: "Tilpass utkast basert på din egen erfaring og det den konkrete rollen krever.",
+    title: "Marked og arbeidsgiverinnsikt",
+    description: "Analyser markedet og potensielle arbeidsgivere, og matche mot egne verdier, ønsker og mål.",
   },
   {
     num: "05",
-    title: "Forbered intervju",
-    description: "Jobb gjennom relevante spørsmål og eksempler før du møter arbeidsgiver.",
+    title: "Søknadsprosessen A til Å",
+    description: "Jobbannonser, CV, søknadsbrev, intervju, prioritering, matching, utvelgelse og oppfølging — samlet på ett sted.",
   },
   {
     num: "06",
-    title: "Følg opp søknadsprosessen",
-    description: "Hold oversikt over søknader, dialoger og neste steg på ett sted.",
+    title: "Evaluering og forhandling",
+    description: "Hjelp til å vurdere oppgaver, jobbtilbud og kontrakter, og forberede 1:1-samtaler med din sjef.",
   },
 ];
 
