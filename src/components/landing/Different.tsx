@@ -10,8 +10,8 @@ const items = [
   },
   {
     icon: PenLine,
-    title: "Ikke AI-tekst som avsløres",
-    description: "Bygger på dokumentert erfaring, ikke generiske formuleringer.",
+    title: "Bygget på din egen erfaring",
+    description: "Innholdet tar utgangspunkt i det du faktisk har gjort, så det du sender ut blir personlig og gjenkjennelig.",
   },
   {
     icon: Target,
