@@ -13,13 +13,16 @@ import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SelskapsanalyseRouteImport } from './routes/selskapsanalyse'
+import { Route as RekruttererundersokelseRouteImport } from './routes/rekruttererundersokelse'
 import { Route as PersonvernRouteImport } from './routes/personvern'
 import { Route as MarkedsinnsiktRouteImport } from './routes/markedsinnsikt'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SelskapsanalyseIndexRouteImport } from './routes/selskapsanalyse.index'
+import { Route as RekruttererundersokelseIndexRouteImport } from './routes/rekruttererundersokelse.index'
 import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
+import { Route as RekruttererundersokelseTakkRouteImport } from './routes/rekruttererundersokelse.takk'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -32,6 +35,7 @@ import { Route as AuthenticatedCoverLettersRouteImport } from './routes/_authent
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAboutMeRouteImport } from './routes/_authenticated/about-me'
 import { Route as SelskapsanalyseAnalysedatabaseIndexRouteImport } from './routes/selskapsanalyse.analysedatabase.index'
+import { Route as RekruttererundersokelseResultaterIndexRouteImport } from './routes/rekruttererundersokelse.resultater.index'
 import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated/onboarding/index'
 import { Route as AuthenticatedOfferAnalysisIndexRouteImport } from './routes/_authenticated/offer-analysis/index'
 import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authenticated/next-steps/index'
@@ -43,6 +47,7 @@ import { Route as AuthenticatedCvBuilderIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedApplicationsIndexRouteImport } from './routes/_authenticated/applications/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/selskapsanalyse.analysedatabase.$id'
+import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
 import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
@@ -54,6 +59,7 @@ import { Route as AuthenticatedDocumentationCasesRouteImport } from './routes/_a
 import { Route as AuthenticatedCareerAtomReviewRouteImport } from './routes/_authenticated/career/atom-review'
 import { Route as AuthenticatedApplicationsNewRouteImport } from './routes/_authenticated/applications/new'
 import { Route as AuthenticatedApplicationsIdRouteImport } from './routes/_authenticated/applications/$id'
+import { Route as AuthenticatedAdminRekruttererundersokelseRouteImport } from './routes/_authenticated/admin.rekruttererundersokelse'
 import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authenticated/admin.leads'
 import { Route as AuthenticatedAdminCvTestRouteImport } from './routes/_authenticated/admin.cv-test'
 import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authenticated/admin.changelog'
@@ -81,6 +87,11 @@ const SignupRoute = SignupRouteImport.update({
 const SelskapsanalyseRoute = SelskapsanalyseRouteImport.update({
   id: '/selskapsanalyse',
   path: '/selskapsanalyse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RekruttererundersokelseRoute = RekruttererundersokelseRouteImport.update({
+  id: '/rekruttererundersokelse',
+  path: '/rekruttererundersokelse',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PersonvernRoute = PersonvernRouteImport.update({
@@ -112,11 +123,23 @@ const SelskapsanalyseIndexRoute = SelskapsanalyseIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SelskapsanalyseRoute,
 } as any)
+const RekruttererundersokelseIndexRoute =
+  RekruttererundersokelseIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => RekruttererundersokelseRoute,
+  } as any)
 const SelskapsanalyseTakkRoute = SelskapsanalyseTakkRouteImport.update({
   id: '/takk',
   path: '/takk',
   getParentRoute: () => SelskapsanalyseRoute,
 } as any)
+const RekruttererundersokelseTakkRoute =
+  RekruttererundersokelseTakkRouteImport.update({
+    id: '/takk',
+    path: '/takk',
+    getParentRoute: () => RekruttererundersokelseRoute,
+  } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
@@ -181,6 +204,12 @@ const SelskapsanalyseAnalysedatabaseIndexRoute =
     id: '/analysedatabase/',
     path: '/analysedatabase/',
     getParentRoute: () => SelskapsanalyseRoute,
+  } as any)
+const RekruttererundersokelseResultaterIndexRoute =
+  RekruttererundersokelseResultaterIndexRouteImport.update({
+    id: '/resultater/',
+    path: '/resultater/',
+    getParentRoute: () => RekruttererundersokelseRoute,
   } as any)
 const AuthenticatedOnboardingIndexRoute =
   AuthenticatedOnboardingIndexRouteImport.update({
@@ -247,6 +276,12 @@ const SelskapsanalyseAnalysedatabaseIdRoute =
     path: '/analysedatabase/$id',
     getParentRoute: () => SelskapsanalyseRoute,
   } as any)
+const RekruttererundersokelseResultaterFullRoute =
+  RekruttererundersokelseResultaterFullRouteImport.update({
+    id: '/resultater/full',
+    path: '/resultater/full',
+    getParentRoute: () => RekruttererundersokelseRoute,
+  } as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   id: '/lovable/email/suppression',
   path: '/lovable/email/suppression',
@@ -311,6 +346,12 @@ const AuthenticatedApplicationsIdRoute =
     path: '/applications/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminRekruttererundersokelseRoute =
+  AuthenticatedAdminRekruttererundersokelseRouteImport.update({
+    id: '/admin/rekruttererundersokelse',
+    path: '/admin/rekruttererundersokelse',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminLeadsRoute = AuthenticatedAdminLeadsRouteImport.update({
   id: '/admin/leads',
   path: '/admin/leads',
@@ -364,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
+  '/rekruttererundersokelse': typeof RekruttererundersokelseRouteWithChildren
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -379,11 +421,14 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/admin/rekruttererundersokelse': typeof AuthenticatedAdminRekruttererundersokelseRoute
   '/applications/$id': typeof AuthenticatedApplicationsIdRoute
   '/applications/new': typeof AuthenticatedApplicationsNewRoute
   '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
@@ -395,6 +440,7 @@ export interface FileRoutesByFullPath {
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/applications/': typeof AuthenticatedApplicationsIndexRoute
@@ -406,6 +452,7 @@ export interface FileRoutesByFullPath {
   '/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
+  '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -432,11 +479,14 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/rekruttererundersokelse': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/admin/rekruttererundersokelse': typeof AuthenticatedAdminRekruttererundersokelseRoute
   '/applications/$id': typeof AuthenticatedApplicationsIdRoute
   '/applications/new': typeof AuthenticatedApplicationsNewRoute
   '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
@@ -448,6 +498,7 @@ export interface FileRoutesByTo {
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/applications': typeof AuthenticatedApplicationsIndexRoute
@@ -459,6 +510,7 @@ export interface FileRoutesByTo {
   '/next-steps': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
+  '/rekruttererundersokelse/resultater': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -473,6 +525,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
+  '/rekruttererundersokelse': typeof RekruttererundersokelseRouteWithChildren
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -488,11 +541,14 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/_authenticated/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/_authenticated/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/_authenticated/admin/rekruttererundersokelse': typeof AuthenticatedAdminRekruttererundersokelseRoute
   '/_authenticated/applications/$id': typeof AuthenticatedApplicationsIdRoute
   '/_authenticated/applications/new': typeof AuthenticatedApplicationsNewRoute
   '/_authenticated/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
@@ -504,6 +560,7 @@ export interface FileRoutesById {
   '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/applications/': typeof AuthenticatedApplicationsIndexRoute
@@ -515,6 +572,7 @@ export interface FileRoutesById {
   '/_authenticated/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/_authenticated/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
+  '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -529,6 +587,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
+    | '/rekruttererundersokelse'
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
@@ -544,11 +603,14 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
+    | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
+    | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
     | '/admin/changelog'
     | '/admin/cv-test'
     | '/admin/leads'
+    | '/admin/rekruttererundersokelse'
     | '/applications/$id'
     | '/applications/new'
     | '/career/atom-review'
@@ -560,6 +622,7 @@ export interface FileRouteTypes {
     | '/employers/$companyId'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
+    | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin/'
     | '/applications/'
@@ -571,6 +634,7 @@ export interface FileRouteTypes {
     | '/next-steps/'
     | '/offer-analysis/'
     | '/onboarding/'
+    | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -597,11 +661,14 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
+    | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
+    | '/rekruttererundersokelse'
     | '/selskapsanalyse'
     | '/admin/changelog'
     | '/admin/cv-test'
     | '/admin/leads'
+    | '/admin/rekruttererundersokelse'
     | '/applications/$id'
     | '/applications/new'
     | '/career/atom-review'
@@ -613,6 +680,7 @@ export interface FileRouteTypes {
     | '/employers/$companyId'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
+    | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin'
     | '/applications'
@@ -624,6 +692,7 @@ export interface FileRouteTypes {
     | '/next-steps'
     | '/offer-analysis'
     | '/onboarding'
+    | '/rekruttererundersokelse/resultater'
     | '/selskapsanalyse/analysedatabase'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -637,6 +706,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
+    | '/rekruttererundersokelse'
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
@@ -652,11 +722,14 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
+    | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
+    | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
     | '/_authenticated/admin/changelog'
     | '/_authenticated/admin/cv-test'
     | '/_authenticated/admin/leads'
+    | '/_authenticated/admin/rekruttererundersokelse'
     | '/_authenticated/applications/$id'
     | '/_authenticated/applications/new'
     | '/_authenticated/career/atom-review'
@@ -668,6 +741,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employers/$companyId'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
+    | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/_authenticated/admin/'
     | '/_authenticated/applications/'
@@ -679,6 +753,7 @@ export interface FileRouteTypes {
     | '/_authenticated/next-steps/'
     | '/_authenticated/offer-analysis/'
     | '/_authenticated/onboarding/'
+    | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -693,6 +768,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MarkedsinnsiktRoute: typeof MarkedsinnsiktRoute
   PersonvernRoute: typeof PersonvernRoute
+  RekruttererundersokelseRoute: typeof RekruttererundersokelseRouteWithChildren
   SelskapsanalyseRoute: typeof SelskapsanalyseRouteWithChildren
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -739,6 +815,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SelskapsanalyseRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rekruttererundersokelse': {
+      id: '/rekruttererundersokelse'
+      path: '/rekruttererundersokelse'
+      fullPath: '/rekruttererundersokelse'
+      preLoaderRoute: typeof RekruttererundersokelseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/personvern': {
       id: '/personvern'
       path: '/personvern'
@@ -781,12 +864,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SelskapsanalyseIndexRouteImport
       parentRoute: typeof SelskapsanalyseRoute
     }
+    '/rekruttererundersokelse/': {
+      id: '/rekruttererundersokelse/'
+      path: '/'
+      fullPath: '/rekruttererundersokelse/'
+      preLoaderRoute: typeof RekruttererundersokelseIndexRouteImport
+      parentRoute: typeof RekruttererundersokelseRoute
+    }
     '/selskapsanalyse/takk': {
       id: '/selskapsanalyse/takk'
       path: '/takk'
       fullPath: '/selskapsanalyse/takk'
       preLoaderRoute: typeof SelskapsanalyseTakkRouteImport
       parentRoute: typeof SelskapsanalyseRoute
+    }
+    '/rekruttererundersokelse/takk': {
+      id: '/rekruttererundersokelse/takk'
+      path: '/takk'
+      fullPath: '/rekruttererundersokelse/takk'
+      preLoaderRoute: typeof RekruttererundersokelseTakkRouteImport
+      parentRoute: typeof RekruttererundersokelseRoute
     }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
@@ -872,6 +969,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SelskapsanalyseAnalysedatabaseIndexRouteImport
       parentRoute: typeof SelskapsanalyseRoute
     }
+    '/rekruttererundersokelse/resultater/': {
+      id: '/rekruttererundersokelse/resultater/'
+      path: '/resultater'
+      fullPath: '/rekruttererundersokelse/resultater/'
+      preLoaderRoute: typeof RekruttererundersokelseResultaterIndexRouteImport
+      parentRoute: typeof RekruttererundersokelseRoute
+    }
     '/_authenticated/onboarding/': {
       id: '/_authenticated/onboarding/'
       path: '/onboarding'
@@ -948,6 +1052,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/selskapsanalyse/analysedatabase/$id'
       preLoaderRoute: typeof SelskapsanalyseAnalysedatabaseIdRouteImport
       parentRoute: typeof SelskapsanalyseRoute
+    }
+    '/rekruttererundersokelse/resultater/full': {
+      id: '/rekruttererundersokelse/resultater/full'
+      path: '/resultater/full'
+      fullPath: '/rekruttererundersokelse/resultater/full'
+      preLoaderRoute: typeof RekruttererundersokelseResultaterFullRouteImport
+      parentRoute: typeof RekruttererundersokelseRoute
     }
     '/lovable/email/suppression': {
       id: '/lovable/email/suppression'
@@ -1026,6 +1137,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedApplicationsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/rekruttererundersokelse': {
+      id: '/_authenticated/admin/rekruttererundersokelse'
+      path: '/admin/rekruttererundersokelse'
+      fullPath: '/admin/rekruttererundersokelse'
+      preLoaderRoute: typeof AuthenticatedAdminRekruttererundersokelseRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/leads': {
       id: '/_authenticated/admin/leads'
       path: '/admin/leads'
@@ -1097,6 +1215,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminChangelogRoute: typeof AuthenticatedAdminChangelogRoute
   AuthenticatedAdminCvTestRoute: typeof AuthenticatedAdminCvTestRoute
   AuthenticatedAdminLeadsRoute: typeof AuthenticatedAdminLeadsRoute
+  AuthenticatedAdminRekruttererundersokelseRoute: typeof AuthenticatedAdminRekruttererundersokelseRoute
   AuthenticatedApplicationsIdRoute: typeof AuthenticatedApplicationsIdRoute
   AuthenticatedApplicationsNewRoute: typeof AuthenticatedApplicationsNewRoute
   AuthenticatedCareerAtomReviewRoute: typeof AuthenticatedCareerAtomReviewRoute
@@ -1130,6 +1249,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminChangelogRoute: AuthenticatedAdminChangelogRoute,
   AuthenticatedAdminCvTestRoute: AuthenticatedAdminCvTestRoute,
   AuthenticatedAdminLeadsRoute: AuthenticatedAdminLeadsRoute,
+  AuthenticatedAdminRekruttererundersokelseRoute:
+    AuthenticatedAdminRekruttererundersokelseRoute,
   AuthenticatedApplicationsIdRoute: AuthenticatedApplicationsIdRoute,
   AuthenticatedApplicationsNewRoute: AuthenticatedApplicationsNewRoute,
   AuthenticatedCareerAtomReviewRoute: AuthenticatedCareerAtomReviewRoute,
@@ -1157,6 +1278,28 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface RekruttererundersokelseRouteChildren {
+  RekruttererundersokelseTakkRoute: typeof RekruttererundersokelseTakkRoute
+  RekruttererundersokelseIndexRoute: typeof RekruttererundersokelseIndexRoute
+  RekruttererundersokelseResultaterFullRoute: typeof RekruttererundersokelseResultaterFullRoute
+  RekruttererundersokelseResultaterIndexRoute: typeof RekruttererundersokelseResultaterIndexRoute
+}
+
+const RekruttererundersokelseRouteChildren: RekruttererundersokelseRouteChildren =
+  {
+    RekruttererundersokelseTakkRoute: RekruttererundersokelseTakkRoute,
+    RekruttererundersokelseIndexRoute: RekruttererundersokelseIndexRoute,
+    RekruttererundersokelseResultaterFullRoute:
+      RekruttererundersokelseResultaterFullRoute,
+    RekruttererundersokelseResultaterIndexRoute:
+      RekruttererundersokelseResultaterIndexRoute,
+  }
+
+const RekruttererundersokelseRouteWithChildren =
+  RekruttererundersokelseRoute._addFileChildren(
+    RekruttererundersokelseRouteChildren,
+  )
+
 interface SelskapsanalyseRouteChildren {
   SelskapsanalyseTakkRoute: typeof SelskapsanalyseTakkRoute
   SelskapsanalyseIndexRoute: typeof SelskapsanalyseIndexRoute
@@ -1182,6 +1325,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MarkedsinnsiktRoute: MarkedsinnsiktRoute,
   PersonvernRoute: PersonvernRoute,
+  RekruttererundersokelseRoute: RekruttererundersokelseRouteWithChildren,
   SelskapsanalyseRoute: SelskapsanalyseRouteWithChildren,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
