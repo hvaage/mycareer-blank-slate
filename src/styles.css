@@ -2,8 +2,8 @@
 @source "../src";
 @import "tw-animate-css";
 
-/* IBM Plex fonts for the km-scope (Markedsinnsikt) */
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+/* IBM Plex Mono is loaded via <link> in src/routes/__root.tsx
+   (never @import remote URLs from src/styles.css — Lightning CSS breaks). */
 
 @custom-variant dark (&:is(.dark *));
 
