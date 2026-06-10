@@ -49,6 +49,14 @@ function SignupPage() {
       return;
     }
     if (result.redirected) return;
+    if (result.tokens) {
+      const { error: setErr } = await supabase.auth.setSession(result.tokens);
+      if (setErr) {
+        setGoogleLoading(false);
+        setError("Kunne ikke fullføre Google-innlogging");
+        return;
+      }
+    }
     navigate({ to: "/auth/callback", replace: true });
   };
 

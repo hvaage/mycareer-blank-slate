@@ -48,6 +48,17 @@ function LoginPage() {
       return;
     }
     if (result.redirected) return;
+    if (result.tokens) {
+      // lovable.auth setter sesjonen på sin egen Supabase-klient (default storageKey).
+      // Vi må også sette den på vår delte klient (storageKey: "karrierenmin-auth"),
+      // ellers ser ikke resten av appen brukeren som innlogget.
+      const { error: setErr } = await supabase.auth.setSession(result.tokens);
+      if (setErr) {
+        setGoogleLoading(false);
+        setError("Kunne ikke fullføre Google-innlogging");
+        return;
+      }
+    }
     navigate({ to: "/auth/callback", replace: true });
   };
 
