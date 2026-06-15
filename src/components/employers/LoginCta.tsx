@@ -1,16 +1,16 @@
-import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
 /**
- * Passiv login-CTA. Bevarer returveien via redirect-param.
+ * Passiv login-CTA. Bevarer returveien via `?redirect=` (URL-encoded).
+ * Bruker plain anchor fordi /login ikke har dynamiske segmenter eller
+ * validateSearch — Link med search-prop ville krevd ekstra typing-jobb
+ * uten praktisk gevinst.
  */
 export function LoginCta({ label, redirectTo }: { label: string; redirectTo: string }) {
-  const search = { redirect: redirectTo } as const;
+  const href = `/login?redirect=${encodeURIComponent(redirectTo)}`;
   return (
     <Button asChild variant="outline" size="sm">
-      <Link to="/login" search={search as never}>
-        {label}
-      </Link>
+      <a href={href}>{label}</a>
     </Button>
   );
 }
