@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { z } from "zod";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
@@ -18,21 +16,44 @@ import {
 
 const PAGE_SIZE = 25;
 
-const searchSchema = z.object({
-  q: fallback(z.string(), "").default(""),
-  fylke: fallback(z.string(), "").default(""),
-  kommune: fallback(z.string(), "").default(""),
-  nace: fallback(z.string(), "").default(""),
-  ansatteMin: fallback(z.number().int().min(0).optional(), undefined),
-  ansatteMaks: fallback(z.number().int().min(0).optional(), undefined),
-  omsMin: fallback(z.number().min(0).optional(), undefined),
-  omsMaks: fallback(z.number().min(0).optional(), undefined),
-  type: fallback(z.string(), "").default(""),
-  page: fallback(z.number().int().min(1), 1).default(1),
-});
+type SearchState = {
+  q: string;
+  fylke: string;
+  kommune: string;
+  nace: string;
+  ansatteMin?: number;
+  ansatteMaks?: number;
+  omsMin?: number;
+  omsMaks?: number;
+  type: string;
+  page: number;
+};
+
+function asStr(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+function asNum(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v !== "") {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
 
 export const Route = createFileRoute("/arbeidsgivere/")({
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: (raw: Record<string, unknown>): SearchState => ({
+    q: asStr(raw.q),
+    fylke: asStr(raw.fylke),
+    kommune: asStr(raw.kommune),
+    nace: asStr(raw.nace),
+    ansatteMin: asNum(raw.ansatteMin),
+    ansatteMaks: asNum(raw.ansatteMaks),
+    omsMin: asNum(raw.omsMin),
+    omsMaks: asNum(raw.omsMaks),
+    type: asStr(raw.type),
+    page: Math.max(1, asNum(raw.page) ?? 1),
+  }),
   head: () => ({
     meta: [
       { title: "Arbeidsgiverinnsikt — Karrierenmin" },
@@ -77,19 +98,26 @@ function ArbeidsgivereIndex() {
 
   const { data, isFetching } = useQuery(searchEmployersQuery(filters));
 
-  const update = (patch: Record<string, unknown>) => {
+  const update = (patch: Partial<SearchState>) => {
     navigate({
-      search: (prev) => ({ ...prev, ...patch, page: 1 }),
-    } as never);
+      search: ((prev: SearchState) => ({ ...prev, ...patch, page: 1 })) as never,
+    });
   };
-
   const goPage = (n: number) => {
-    navigate({ search: (prev) => ({ ...prev, page: n }) } as never);
+    navigate({
+      search: ((prev: SearchState) => ({ ...prev, page: n })) as never,
+    });
   };
-
   const reset = () => {
     navigate({
-      search: { q: "", fylke: "", kommune: "", nace: "", type: "", page: 1 } as never,
+      search: {
+        q: "",
+        fylke: "",
+        kommune: "",
+        nace: "",
+        type: "",
+        page: 1,
+      } as never,
     });
   };
 
@@ -121,7 +149,7 @@ function ArbeidsgivereIndex() {
           </header>
 
           <div className="space-y-4">
-            <SearchBar value={search.q ?? ""} onChange={(v) => update({ q: v })} />
+            <SearchBar value={search.q} onChange={(v) => update({ q: v })} />
             <div className="rounded-lg border border-border bg-card p-4">
               <FilterPanel
                 values={{
@@ -134,7 +162,18 @@ function ArbeidsgivereIndex() {
                   omsMaks: search.omsMaks,
                   type: search.type || undefined,
                 }}
-                onChange={(patch) => update(patch as Record<string, unknown>)}
+                onChange={(patch) =>
+                  update({
+                    fylke: patch.fylke ?? "",
+                    kommune: patch.kommune ?? "",
+                    nace: patch.nace ?? "",
+                    ansatteMin: patch.ansatteMin,
+                    ansatteMaks: patch.ansatteMaks,
+                    omsMin: patch.omsMin,
+                    omsMaks: patch.omsMaks,
+                    type: patch.type ?? "",
+                  })
+                }
                 onReset={reset}
               />
             </div>

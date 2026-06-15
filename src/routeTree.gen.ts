@@ -17,15 +17,18 @@ import { Route as RekruttererundersokelseRouteImport } from './routes/rekruttere
 import { Route as PersonvernRouteImport } from './routes/personvern'
 import { Route as MarkedsinnsiktRouteImport } from './routes/markedsinnsikt'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ArbeidsgivereRouteImport } from './routes/arbeidsgivere'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SelskapsanalyseIndexRouteImport } from './routes/selskapsanalyse.index'
 import { Route as RekruttererundersokelseIndexRouteImport } from './routes/rekruttererundersokelse.index'
+import { Route as ArbeidsgivereIndexRouteImport } from './routes/arbeidsgivere.index'
 import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
 import { Route as RekruttererundersokelseTakkRouteImport } from './routes/rekruttererundersokelse.takk'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as ArbeidsgivereOrgnrRouteImport } from './routes/arbeidsgivere.$orgnr'
 import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenticated/preferences'
 import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
 import { Route as AuthenticatedJobLeadsRouteImport } from './routes/_authenticated/job-leads'
@@ -109,6 +112,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ArbeidsgivereRoute = ArbeidsgivereRouteImport.update({
+  id: '/arbeidsgivere',
+  path: '/arbeidsgivere',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -129,6 +137,11 @@ const RekruttererundersokelseIndexRoute =
     path: '/',
     getParentRoute: () => RekruttererundersokelseRoute,
   } as any)
+const ArbeidsgivereIndexRoute = ArbeidsgivereIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ArbeidsgivereRoute,
+} as any)
 const SelskapsanalyseTakkRoute = SelskapsanalyseTakkRouteImport.update({
   id: '/takk',
   path: '/takk',
@@ -154,6 +167,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ArbeidsgivereOrgnrRoute = ArbeidsgivereOrgnrRouteImport.update({
+  id: '/$orgnr',
+  path: '/$orgnr',
+  getParentRoute: () => ArbeidsgivereRoute,
 } as any)
 const AuthenticatedPreferencesRoute =
   AuthenticatedPreferencesRouteImport.update({
@@ -402,6 +420,7 @@ const ApiPublicSelskapsanalyseDownloadRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/arbeidsgivere': typeof ArbeidsgivereRouteWithChildren
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
@@ -418,11 +437,13 @@ export interface FileRoutesByFullPath {
   '/job-leads': typeof AuthenticatedJobLeadsRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
+  '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/arbeidsgivere/': typeof ArbeidsgivereIndexRoute
   '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
@@ -476,11 +497,13 @@ export interface FileRoutesByTo {
   '/job-leads': typeof AuthenticatedJobLeadsRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
+  '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/arbeidsgivere': typeof ArbeidsgivereIndexRoute
   '/rekruttererundersokelse': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
@@ -522,6 +545,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/arbeidsgivere': typeof ArbeidsgivereRouteWithChildren
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
@@ -538,11 +562,13 @@ export interface FileRoutesById {
   '/_authenticated/job-leads': typeof AuthenticatedJobLeadsRoute
   '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/_authenticated/preferences': typeof AuthenticatedPreferencesRoute
+  '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
+  '/arbeidsgivere/': typeof ArbeidsgivereIndexRoute
   '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/_authenticated/admin/changelog': typeof AuthenticatedAdminChangelogRoute
@@ -584,6 +610,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/arbeidsgivere'
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
@@ -600,11 +627,13 @@ export interface FileRouteTypes {
     | '/job-leads'
     | '/my-applications'
     | '/preferences'
+    | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
+    | '/arbeidsgivere/'
     | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
     | '/admin/changelog'
@@ -658,11 +687,13 @@ export interface FileRouteTypes {
     | '/job-leads'
     | '/my-applications'
     | '/preferences'
+    | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
+    | '/arbeidsgivere'
     | '/rekruttererundersokelse'
     | '/selskapsanalyse'
     | '/admin/changelog'
@@ -703,6 +734,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/arbeidsgivere'
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
@@ -719,11 +751,13 @@ export interface FileRouteTypes {
     | '/_authenticated/job-leads'
     | '/_authenticated/my-applications'
     | '/_authenticated/preferences'
+    | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
+    | '/arbeidsgivere/'
     | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
     | '/_authenticated/admin/changelog'
@@ -765,6 +799,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  ArbeidsgivereRoute: typeof ArbeidsgivereRouteWithChildren
   LoginRoute: typeof LoginRoute
   MarkedsinnsiktRoute: typeof MarkedsinnsiktRoute
   PersonvernRoute: typeof PersonvernRoute
@@ -843,6 +878,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/arbeidsgivere': {
+      id: '/arbeidsgivere'
+      path: '/arbeidsgivere'
+      fullPath: '/arbeidsgivere'
+      preLoaderRoute: typeof ArbeidsgivereRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -870,6 +912,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/rekruttererundersokelse/'
       preLoaderRoute: typeof RekruttererundersokelseIndexRouteImport
       parentRoute: typeof RekruttererundersokelseRoute
+    }
+    '/arbeidsgivere/': {
+      id: '/arbeidsgivere/'
+      path: '/'
+      fullPath: '/arbeidsgivere/'
+      preLoaderRoute: typeof ArbeidsgivereIndexRouteImport
+      parentRoute: typeof ArbeidsgivereRoute
     }
     '/selskapsanalyse/takk': {
       id: '/selskapsanalyse/takk'
@@ -905,6 +954,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/callback'
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/arbeidsgivere/$orgnr': {
+      id: '/arbeidsgivere/$orgnr'
+      path: '/$orgnr'
+      fullPath: '/arbeidsgivere/$orgnr'
+      preLoaderRoute: typeof ArbeidsgivereOrgnrRouteImport
+      parentRoute: typeof ArbeidsgivereRoute
     }
     '/_authenticated/preferences': {
       id: '/_authenticated/preferences'
@@ -1278,6 +1334,20 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface ArbeidsgivereRouteChildren {
+  ArbeidsgivereOrgnrRoute: typeof ArbeidsgivereOrgnrRoute
+  ArbeidsgivereIndexRoute: typeof ArbeidsgivereIndexRoute
+}
+
+const ArbeidsgivereRouteChildren: ArbeidsgivereRouteChildren = {
+  ArbeidsgivereOrgnrRoute: ArbeidsgivereOrgnrRoute,
+  ArbeidsgivereIndexRoute: ArbeidsgivereIndexRoute,
+}
+
+const ArbeidsgivereRouteWithChildren = ArbeidsgivereRoute._addFileChildren(
+  ArbeidsgivereRouteChildren,
+)
+
 interface RekruttererundersokelseRouteChildren {
   RekruttererundersokelseTakkRoute: typeof RekruttererundersokelseTakkRoute
   RekruttererundersokelseIndexRoute: typeof RekruttererundersokelseIndexRoute
@@ -1322,6 +1392,7 @@ const SelskapsanalyseRouteWithChildren = SelskapsanalyseRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  ArbeidsgivereRoute: ArbeidsgivereRouteWithChildren,
   LoginRoute: LoginRoute,
   MarkedsinnsiktRoute: MarkedsinnsiktRoute,
   PersonvernRoute: PersonvernRoute,
