@@ -186,14 +186,14 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
       }
 
       if (!dryRun && runId !== null) {
-        try { await insertRunItems(c, runItems); }
+        try { await tagStage("insert_run_items", () => insertRunItems(c, runItems)); }
         catch (e) { lastErr = e instanceof Error ? e.message : String(e); }
         result.durationMs = Date.now() - t0;
         const runStatus = result.status === "partial"
           ? "partial"
           : (result.failed > 0 && result.checked === result.failed ? "failed" : "ok");
-        await finishRun(c, {
-          runId, status: runStatus, durationMs: result.durationMs,
+        await tagStage("finish_run", () => finishRun(c, {
+          runId: runId!, status: runStatus, durationMs: result.durationMs,
           selected: result.selected, checked: result.checked,
           withRegnskap: result.withRegnskap, noRegnskap: result.noRegnskap,
           failed: result.failed, skipped: result.skipped,
@@ -201,7 +201,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
           http429: result.http429, http503: result.http503, retries: result.retries,
           lastError: lastErr,
           extraMeta: { stoppedReason: result.stoppedReason, includePdfYears, candidateCount: candidates.length },
-        });
+        }));
         result.status = runStatus;
       } else {
         result.durationMs = Date.now() - t0;
