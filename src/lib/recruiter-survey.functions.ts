@@ -388,24 +388,26 @@ export const getFullResults = createServerFn({ method: "POST" })
 export const adminGetOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { userId } = context as { userId: string };
-    await assertAdmin(userId);
-    const admin = await getAdmin();
+    const { userId, supabase } = context as { userId: string; supabase: any };
+    await assertAdmin(supabase, userId);
     const [v, sUps] = await Promise.all([
-      admin.from("survey_versions").select("*").order("version_number", { ascending: false }),
-      admin.from("result_access_signups").select("*").order("created_at", { ascending: false }),
+      supabase.from("survey_versions").select("*").order("version_number", { ascending: false }),
+      supabase.from("result_access_signups").select("*").order("created_at", { ascending: false }),
     ]);
+    if (v.error) throw new Error(`survey_versions: ${v.error.message}`);
+    if (sUps.error) throw new Error(`result_access_signups: ${sUps.error.message}`);
     const versions = v.data ?? [];
     const signups = sUps.data ?? [];
     let counts: Record<string, number> = {};
     if (versions.length) {
-      const { data } = await admin
+      const { data, error } = await supabase
         .from("survey_responses")
         .select("version_id")
         .in(
           "version_id",
           versions.map((x: any) => x.id),
         );
+      if (error) throw new Error(`survey_responses: ${error.message}`);
       for (const r of data ?? []) counts[r.version_id] = (counts[r.version_id] ?? 0) + 1;
     }
     return { versions, signups, counts };
