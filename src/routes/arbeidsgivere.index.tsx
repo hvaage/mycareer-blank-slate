@@ -184,20 +184,22 @@ function ArbeidsgivereIndex() {
                   omsMaks: search.omsMaks,
                   type: search.type || undefined,
                 }}
-                onChange={(patch) =>
-                  update({
-                    kommuneQuery: patch.kommuneQuery ?? "",
-                    bransjeQuery: patch.bransjeQuery ?? "",
-                    fylke: patch.fylke ?? "",
-                    kommune: patch.kommune ?? "",
-                    nace: patch.nace ?? "",
-                    ansatteMin: patch.ansatteMin,
-                    ansatteMaks: patch.ansatteMaks,
-                    omsMin: patch.omsMin,
-                    omsMaks: patch.omsMaks,
-                    type: patch.type ?? "",
-                  })
-                }
+                onChange={(patch) => {
+                  // Kumulativ innsnevring: bare endrede felter sendes,
+                  // andre filtre bevares via { ...prev, ...patch } i update().
+                  const normalized: Partial<SearchState> = {};
+                  if ("kommuneQuery" in patch) normalized.kommuneQuery = patch.kommuneQuery ?? "";
+                  if ("bransjeQuery" in patch) normalized.bransjeQuery = patch.bransjeQuery ?? "";
+                  if ("fylke" in patch) normalized.fylke = patch.fylke ?? "";
+                  if ("kommune" in patch) normalized.kommune = patch.kommune ?? "";
+                  if ("nace" in patch) normalized.nace = patch.nace ?? "";
+                  if ("type" in patch) normalized.type = patch.type ?? "";
+                  if ("ansatteMin" in patch) normalized.ansatteMin = patch.ansatteMin;
+                  if ("ansatteMaks" in patch) normalized.ansatteMaks = patch.ansatteMaks;
+                  if ("omsMin" in patch) normalized.omsMin = patch.omsMin;
+                  if ("omsMaks" in patch) normalized.omsMaks = patch.omsMaks;
+                  update(normalized);
+                }}
                 onReset={reset}
               />
             </div>
