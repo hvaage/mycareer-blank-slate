@@ -132,7 +132,7 @@ Deno.serve(async (req: Request) => {
         mode: "due",
         limit: 1,
         rps: 1,
-        timeBudgetMs: 10_000,
+        timeBudgetMs: 20_000,
         dryRun: false,
         includePdfYears: true,
         meta: { triggeredBy: authedAs, admin_uid: userId ?? undefined, kind: "smoke" },
