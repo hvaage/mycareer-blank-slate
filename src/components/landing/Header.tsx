@@ -24,8 +24,6 @@ const navItems: NavItem[] = [
   { label: "Hvordan", to: "/", hash: "hvordan" },
   { label: "Markedsinnsikt", to: "/markedsinnsikt" },
   { label: "Arbeidsgivere", to: "/arbeidsgivere" },
-  { label: "Arbeidsgiveranalysen", to: "/selskapsanalyse" },
-  { label: "Analysedatabase", to: "/selskapsanalyse/analysedatabase" },
   { label: "Kom i gang", to: "/signup" },
 ];
 
