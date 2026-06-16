@@ -21,7 +21,8 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUP
 const QA_ORGNRS_DEFAULT = ["923609016","976239997","984851006","929877950","984661185"];
 
 function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
+  const serialized = JSON.stringify(body, (_k, v) => (typeof v === "bigint" ? Number(v) : v));
+  return new Response(serialized, {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
