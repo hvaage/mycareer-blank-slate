@@ -6,6 +6,20 @@ import { RiskBadges, DataQualityBadges, TypeBadge } from "./Badges";
 import { fmtNumber, fmtNok, fmtPercent } from "./MetricTile";
 import { fylkesnavn } from "@/lib/employers/no-regions";
 
+function stedFra(r: EmployerSearchRow): string {
+  return [
+    r.forretningsadresse_kommune,
+    r.forretningsadresse_fylke ?? fylkesnavn(r.forretningsadresse_fylkesnummer),
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function bransjeFra(r: EmployerSearchRow): string {
+  return r.naeringskode1_beskrivelse ?? r.naeringskode1_kode ?? "";
+}
+
+
 export function ResultsTable({
   rows,
   loading,
