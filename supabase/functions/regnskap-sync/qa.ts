@@ -2,6 +2,7 @@
 
 import { runSync, type RunSyncResult } from "./runner.ts";
 import { withClient } from "./db.ts";
+import { tagStage } from "./_stage.ts";
 
 type Snap = {
   organisasjonsnummer: string;
