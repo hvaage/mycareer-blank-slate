@@ -418,3 +418,89 @@ export async function getStatusSummary(c: PoolClient, staleDays = 180): Promise<
     inProgressStuck: Number(stuckRes.rows[0]?.n ?? 0),
   };
 }
+
+// ===== Post-batch helpers (M5.4). Aldri throw — runneren håndterer logging. =====
+
+export type PostStepResult = {
+  ok: boolean;
+  durationMs: number;
+  mode?: string;
+  skipped?: boolean;
+  reason?: string;
+  error?: string;
+};
+
+/** Patcher meta JSONB på en eksisterende run uten å endre status. */
+export async function patchRunMeta(
+  c: PoolClient, runId: number, patch: Record<string, unknown>,
+): Promise<void> {
+  await c.queryObject({
+    text: `UPDATE reg.regnskap_sync_runs SET meta = meta || $2::jsonb WHERE id = $1`,
+    args: [runId, JSON.stringify(patch)],
+  });
+}
+
+/** Sjekker om reg.regnskap_siste_per_org finnes og hvilken relkind den har. */
+async function getRelkind(c: PoolClient, qualified: string): Promise<string | null> {
+  try {
+    const r = await c.queryObject<{ relkind: string }>({
+      text: `SELECT relkind::text FROM pg_class WHERE oid = $1::regclass`,
+      args: [qualified],
+    });
+    return r.rows[0]?.relkind ?? null;
+  } catch { return null; }
+}
+
+/**
+ * REFRESH av reg.regnskap_siste_per_org hvis den er materialized view.
+ * Prøver CONCURRENTLY først, faller tilbake til plain. Aldri throw.
+ */
+export async function refreshLatestRegnskapMV(c: PoolClient): Promise<PostStepResult> {
+  const t0 = Date.now();
+  const kind = await getRelkind(c, "reg.regnskap_siste_per_org");
+  if (kind !== "m") {
+    return { ok: true, durationMs: Date.now() - t0, skipped: true, reason: kind ? `relkind=${kind}` : "not_found" };
+  }
+  try {
+    await c.queryObject(`REFRESH MATERIALIZED VIEW CONCURRENTLY reg.regnskap_siste_per_org`);
+    return { ok: true, durationMs: Date.now() - t0, mode: "concurrent" };
+  } catch (e1) {
+    try {
+      await c.queryObject(`REFRESH MATERIALIZED VIEW reg.regnskap_siste_per_org`);
+      return {
+        ok: true, durationMs: Date.now() - t0, mode: "plain",
+        reason: e1 instanceof Error ? e1.message.slice(0, 200) : String(e1).slice(0, 200),
+      };
+    } catch (e2) {
+      return {
+        ok: false, durationMs: Date.now() - t0, mode: "failed",
+        error: e2 instanceof Error ? e2.message.slice(0, 300) : String(e2).slice(0, 300),
+      };
+    }
+  }
+}
+
+/**
+ * ANALYZE av berørte tabeller. reg.enheter kun ved store batcher.
+ * MV analyseres hvis materialisert. Aldri throw.
+ */
+export async function analyzeRegnskapTables(
+  c: PoolClient, opts: { includeEnheter: boolean },
+): Promise<PostStepResult & { tables: string[] }> {
+  const t0 = Date.now();
+  const tables: string[] = ["reg.regnskap", "reg.regnskap_sync_status"];
+  if (opts.includeEnheter) tables.push("reg.enheter");
+  const mvKind = await getRelkind(c, "reg.regnskap_siste_per_org");
+  if (mvKind === "m") tables.push("reg.regnskap_siste_per_org");
+  const errors: string[] = [];
+  for (const t of tables) {
+    try { await c.queryObject(`ANALYZE ${t}`); }
+    catch (e) { errors.push(`${t}: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200)); }
+  }
+  return {
+    ok: errors.length === 0,
+    durationMs: Date.now() - t0,
+    tables,
+    ...(errors.length ? { error: errors.join(" | ").slice(0, 400) } : {}),
+  };
+}

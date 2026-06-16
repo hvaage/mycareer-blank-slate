@@ -191,6 +191,7 @@ function AdminRegnskap() {
                   <Th>Sel</Th><Th>Chk</Th><Th>OK</Th><Th>NoReg</Th>
                   <Th>Fail</Th><Th>Skip</Th><Th>Recs</Th>
                   <Th>429</Th><Th>503</Th><Th>Retry</Th>
+                  <Th>Post</Th>
                   <Th>Error</Th>
                 </tr>
               </thead>
@@ -213,11 +214,12 @@ function AdminRegnskap() {
                     <Td>{r.http_429_count ?? 0}</Td>
                     <Td>{r.http_503_count ?? 0}</Td>
                     <Td>{r.retry_count ?? 0}</Td>
+                    <Td><PostCell meta={r.meta} /></Td>
                     <Td className="max-w-[240px] truncate" title={r.last_error ?? ""}>{r.last_error ?? "—"}</Td>
                   </tr>
                 ))}
                 {!runs.length && !statusQuery.isLoading && (
-                  <tr><td colSpan={17} className="p-6 text-center text-muted-foreground">Ingen runs ennå.</td></tr>
+                  <tr><td colSpan={18} className="p-6 text-center text-muted-foreground">Ingen runs ennå.</td></tr>
                 )}
               </tbody>
             </table>
@@ -276,4 +278,23 @@ function Td({ children, className = "", title }: { children: React.ReactNode; cl
 function fmtTime(s: string | null): string {
   if (!s) return "—";
   try { return new Date(s).toLocaleString("no-NO", { hour12: false }); } catch { return s; }
+}
+
+function PostCell({ meta }: { meta: Record<string, unknown> | null }) {
+  const post = (meta && typeof meta === "object" ? (meta as any).post : null) as
+    | { refreshMv?: any; analyze?: any; warmup?: any }
+    | null
+    | undefined;
+  if (!post) return <span className="text-muted-foreground">—</span>;
+  const mv = post.refreshMv ?? {};
+  const an = post.analyze ?? {};
+  const wu = post.warmup ?? {};
+  const mvLabel = mv.skipped ? "mv:skip" : mv.ok ? `mv:${mv.mode ?? "ok"}` : "mv:fail";
+  const anLabel = an.ok ? `an:${an.durationMs ?? 0}ms` : "an:fail";
+  const wuLabel = `wu:${wu.okCount ?? 0}/${wu.ran ?? 0}`;
+  return (
+    <span title={JSON.stringify(post, null, 2)} className="text-[11px]">
+      {mvLabel} · {anLabel} · {wuLabel}
+    </span>
+  );
 }
