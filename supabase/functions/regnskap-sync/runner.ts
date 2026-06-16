@@ -175,7 +175,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
         });
 
         if (!dryRun && runId !== null) {
-          const isOk = finalStatus === "ok" || finalStatus === "no_regnskap";
+          const isOk = finalStatus === "ok" || finalStatus === "no_regnskap" || finalStatus === "not_found";
           if (!isOk || sampleOk(orgnr)) {
             runItems.push({
               runId, orgnr, status: finalStatus, httpStatus,
