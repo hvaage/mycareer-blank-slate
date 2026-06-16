@@ -27,17 +27,18 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function errJson(stage: Stage, status: number, message: string, extra: Record<string, unknown> = {}, code: string | null = null) {
+function errJson(stage: Stage, status: number, message: string, extra: Record<string, unknown> = {}, code: string | null = null, transportStatus = status) {
   const reqId = crypto.randomUUID();
   console.error(`[regnskap-sync] stage=${stage} status=${status} code=${code ?? "-"} reqId=${reqId} :: ${message}`);
   return json({
+    ok: false,
     error: safeMessage(message),
     stage,
     code,
     httpStatus: status,
     reqId,
     ...extra,
-  }, status);
+  }, transportStatus);
 }
 
 Deno.serve(async (req: Request) => {
@@ -45,16 +46,26 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return errJson("unknown", 405, "method not allowed");
 
   let stage: Stage = "auth";
+  let qaResponseMode = false;
+  const fail = (failStage: Stage, status: number, message: string, extra: Record<string, unknown> = {}, code: string | null = null) =>
+    errJson(failStage, status, message, extra, code, qaResponseMode ? 200 : status);
   try {
+    let body: any = {};
+    stage = "parse";
+    try { body = await req.json(); } catch { return errJson("parse", 400, "invalid json body"); }
+    const op = String(body?.op ?? "run");
+    qaResponseMode = op === "qa";
+
+    stage = "auth";
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.toLowerCase().startsWith("bearer ")) {
-      return errJson("auth", 401, "missing bearer token");
+      return fail("auth", 401, "missing bearer token");
     }
 
     // Env presence (uten å avsløre verdier).
     const dbUrlPresent = !!Deno.env.get("SUPABASE_DB_URL");
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      return errJson("auth", 500, "SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY missing", { env: { SUPABASE_DB_URL: dbUrlPresent } });
+      return fail("auth", 500, "SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY missing", { env: { SUPABASE_DB_URL: dbUrlPresent } });
     }
 
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -64,7 +75,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: userRes, error: userErr } = await userClient.auth.getUser();
     if (userErr || !userRes?.user) {
-      return errJson("auth", 401, userErr?.message ?? "unauthenticated");
+      return fail("auth", 401, userErr?.message ?? "unauthenticated");
     }
     const userId = userRes.user.id;
 
@@ -73,17 +84,12 @@ Deno.serve(async (req: Request) => {
       _user_id: userId,
       _role: "admin",
     });
-    if (roleErr) return errJson("admin_check", 500, `role check failed: ${roleErr.message}`, {}, (roleErr as any).code ?? null);
-    if (isAdmin !== true) return errJson("admin_check", 403, "forbidden: admin required");
+    if (roleErr) return fail("admin_check", 500, `role check failed: ${roleErr.message}`, {}, (roleErr as any).code ?? null);
+    if (isAdmin !== true) return fail("admin_check", 403, "forbidden: admin required");
 
     if (!dbUrlPresent) {
-      return errJson("db_connect", 500, "SUPABASE_DB_URL missing in Edge Function runtime");
+      return fail("db_connect", 500, "SUPABASE_DB_URL missing in Edge Function runtime");
     }
-
-    stage = "parse";
-    let body: any;
-    try { body = await req.json(); } catch { return errJson("parse", 400, "invalid json body"); }
-    const op = String(body?.op ?? "run");
 
     stage = "dispatch";
     if (op === "qa") {
@@ -109,13 +115,13 @@ Deno.serve(async (req: Request) => {
       const result = await runSync(input);
       return json(result);
     }
-    return errJson("dispatch", 400, `unknown op: ${op}`);
+    return fail("dispatch", 400, `unknown op: ${op}`);
   } catch (e) {
     const se = e instanceof StageError ? e : new StageError(stage, e);
     const extra: Record<string, unknown> = {};
     const anyE = e as any;
     if (anyE && typeof anyE.runId === "number") extra.runId = anyE.runId;
-    return errJson(se.stage, 500, se.message, extra, se.code);
+    return fail(se.stage, 500, se.message, extra, se.code);
   } finally {
     try { await closePool(); } catch { /* */ }
   }
