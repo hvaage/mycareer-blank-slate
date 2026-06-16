@@ -7,6 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { runSync, type RunSyncInput } from "./runner.ts";
 import { runQaSequence } from "./qa.ts";
 import { closePool } from "./db.ts";
+import { StageError, type Stage, safeMessage } from "./_stage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,40 +27,65 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+function errJson(stage: Stage, status: number, message: string, extra: Record<string, unknown> = {}, code: string | null = null) {
+  const reqId = crypto.randomUUID();
+  console.error(`[regnskap-sync] stage=${stage} status=${status} code=${code ?? "-"} reqId=${reqId} :: ${message}`);
+  return json({
+    error: safeMessage(message),
+    stage,
+    code,
+    httpStatus: status,
+    reqId,
+    ...extra,
+  }, status);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+  if (req.method !== "POST") return errJson("unknown", 405, "method not allowed");
 
-  // 1) caller-JWT (verify_jwt=true håndterer verifisering; vi henter user med samme token)
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (!authHeader.toLowerCase().startsWith("bearer ")) {
-    return json({ error: "missing bearer token" }, 401);
-  }
-
+  let stage: Stage = "auth";
   try {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (!authHeader.toLowerCase().startsWith("bearer ")) {
+      return errJson("auth", 401, "missing bearer token");
+    }
+
+    // Env presence (uten å avsløre verdier).
+    const dbUrlPresent = !!Deno.env.get("SUPABASE_DB_URL");
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return errJson("auth", 500, "SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY missing", { env: { SUPABASE_DB_URL: dbUrlPresent } });
+    }
+
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
     const { data: userRes, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userRes?.user) return json({ error: "unauthenticated" }, 401);
+    if (userErr || !userRes?.user) {
+      return errJson("auth", 401, userErr?.message ?? "unauthenticated");
+    }
     const userId = userRes.user.id;
 
-    // 2) Admin-sjekk via has_role som autentisert bruker
+    stage = "admin_check";
     const { data: isAdmin, error: roleErr } = await userClient.rpc("has_role", {
       _user_id: userId,
       _role: "admin",
     });
-    if (roleErr) return json({ error: `role check failed: ${roleErr.message}` }, 500);
-    if (isAdmin !== true) return json({ error: "forbidden: admin required" }, 403);
+    if (roleErr) return errJson("admin_check", 500, `role check failed: ${roleErr.message}`, {}, (roleErr as any).code ?? null);
+    if (isAdmin !== true) return errJson("admin_check", 403, "forbidden: admin required");
 
-    // 3) Parse body
+    if (!dbUrlPresent) {
+      return errJson("db_connect", 500, "SUPABASE_DB_URL missing in Edge Function runtime");
+    }
+
+    stage = "parse";
     let body: any;
-    try { body = await req.json(); } catch { return json({ error: "invalid json body" }, 400); }
-
+    try { body = await req.json(); } catch { return errJson("parse", 400, "invalid json body"); }
     const op = String(body?.op ?? "run");
 
+    stage = "dispatch";
     if (op === "qa") {
       const orgnrs: string[] = Array.isArray(body?.orgnrs) && body.orgnrs.length > 0
         ? body.orgnrs.slice(0, 5).map((s: unknown) => String(s))
@@ -67,7 +93,6 @@ Deno.serve(async (req: Request) => {
       const result = await runQaSequence(orgnrs, userId);
       return json(result);
     }
-
     if (op === "run") {
       const mode = String(body?.mode ?? "due") as RunSyncInput["mode"];
       const input: RunSyncInput = {
@@ -84,11 +109,13 @@ Deno.serve(async (req: Request) => {
       const result = await runSync(input);
       return json(result);
     }
-
-    return json({ error: `unknown op: ${op}` }, 400);
+    return errJson("dispatch", 400, `unknown op: ${op}`);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return json({ error: msg }, 500);
+    const se = e instanceof StageError ? e : new StageError(stage, e);
+    const extra: Record<string, unknown> = {};
+    const anyE = e as any;
+    if (anyE && typeof anyE.runId === "number") extra.runId = anyE.runId;
+    return errJson(se.stage, 500, se.message, extra, se.code);
   } finally {
     try { await closePool(); } catch { /* */ }
   }
