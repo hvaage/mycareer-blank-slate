@@ -223,10 +223,21 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
             post.analyze = { ok: false, error: e instanceof Error ? e.message : String(e) };
           }
           try {
-            const warmup = await warmupSearch(c, { perQueryTimeoutMs: 8000, totalBudgetMs: 30000 });
+            const warmup = await warmupSearch(c, { perQueryTimeoutMs: 8000, totalBudgetMs: 25000 });
             post.warmup = warmup;
           } catch (e) {
             post.warmup = { ok: false, error: e instanceof Error ? e.message : String(e) };
+          }
+          // Observasjon: bransje-varianter. Påvirker IKKE run-status.
+          try {
+            const observe = await warmupSearch(c, {
+              variants: OBSERVE_VARIANTS,
+              perQueryTimeoutMs: 8000,
+              totalBudgetMs: 30000,
+            });
+            post.observe = observe;
+          } catch (e) {
+            post.observe = { ok: false, error: e instanceof Error ? e.message : String(e) };
           }
           try {
             await patchRunMeta(c, runId!, { post });
