@@ -1,0 +1,31 @@
+-- regnskap-sync cron schedule.
+--
+-- !! IKKE KJØRT !! Aktiveres først etter M5.4 smoke-test er grønn.
+--
+-- Forutsetninger før aktivering:
+--   1. Edge Function env REGNSKAP_SYNC_CRON_SECRET er satt.
+--   2. Samme verdi tilgjengelig i SQL — enten via vault.decrypted_secrets
+--      (navn 'regnskap_sync_cron_secret') eller hardkodet i body under oppsett
+--      (mindre sikkert; foretrukket er Vault).
+--   3. M5.4 MV-refresh er deployet og smoke-testet.
+--   4. pg_cron + pg_net er aktivert i prosjektet.
+--
+-- Konservative startverdier: limit=20, rps=0.5. Juster etter observasjon.
+
+-- SELECT cron.schedule(
+--   'regnskap-sync-nightly',
+--   '0 3 * * *',
+--   $$
+--   SELECT net.http_post(
+--     url := 'https://miwzhbludgwvskmsfqnq.supabase.co/functions/v1/regnskap-sync',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'regnskap_sync_cron_secret')
+--     ),
+--     body := '{"op":"run","mode":"due","limit":20,"rps":0.5,"timeBudgetMs":50000}'::jsonb
+--   ) AS request_id;
+--   $$
+-- );
+
+-- Avregistrering ved behov:
+-- SELECT cron.unschedule('regnskap-sync-nightly');

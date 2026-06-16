@@ -331,3 +331,90 @@ export async function insertRunItems(c: PoolClient, items: RunItem[]): Promise<v
     });
   }
 }
+
+// ===== Status-helpers for op:'status'. Leses kun via SUPABASE_DB_URL i Edge Function. =====
+
+export type RecentRun = {
+  id: number;
+  started_at: string | null;
+  finished_at: string | null;
+  status: string | null;
+  mode: string | null;
+  scope: string | null;
+  dry_run: boolean | null;
+  duration_ms: number | null;
+  selected_count: number | null;
+  checked_count: number | null;
+  with_regnskap_count: number | null;
+  no_regnskap_count: number | null;
+  failed_count: number | null;
+  skipped_count: number | null;
+  records_lagret: number | null;
+  http_429_count: number | null;
+  http_503_count: number | null;
+  retry_count: number | null;
+  last_error: string | null;
+  meta: Record<string, unknown> | null;
+};
+
+export async function getRecentRuns(c: PoolClient, limit = 5): Promise<RecentRun[]> {
+  const r = await c.queryObject<RecentRun & { id: bigint | number }>({
+    text: `SELECT id, started_at, finished_at, status, mode, scope, dry_run, duration_ms,
+                  selected_count, checked_count, with_regnskap_count, no_regnskap_count,
+                  failed_count, skipped_count, records_lagret,
+                  http_429_count, http_503_count, retry_count, last_error, meta
+             FROM reg.regnskap_sync_runs
+            ORDER BY started_at DESC NULLS LAST, id DESC
+            LIMIT $1`,
+    args: [limit],
+  });
+  return r.rows.map((x) => ({ ...x, id: Number(x.id) }));
+}
+
+export type StatusSummary = {
+  byStatus: Record<string, number>;
+  total: number;
+  missing: number;          // ingen rad i sync_status (kandidat for first-run)
+  neverSucceeded: number;   // last_success_at IS NULL
+  stale: number;            // status='ok' med last_success_at < now() - staleDays
+  inProgressStuck: number;  // status='in_progress' og lease utløpt (>10 min)
+};
+
+export async function getStatusSummary(c: PoolClient, staleDays = 180): Promise<StatusSummary> {
+  const byStatusRes = await c.queryObject<{ status: string; n: bigint | number }>({
+    text: `SELECT status, COUNT(*)::bigint AS n FROM reg.regnskap_sync_status GROUP BY status`,
+  });
+  const byStatus: Record<string, number> = {};
+  let total = 0;
+  for (const row of byStatusRes.rows) {
+    const n = Number(row.n);
+    byStatus[row.status ?? "unknown"] = n;
+    total += n;
+  }
+  const missingRes = await c.queryObject<{ n: bigint | number }>({
+    text: `SELECT COUNT(*)::bigint AS n
+             FROM reg.enheter e
+             LEFT JOIN reg.regnskap_sync_status s ON s.organisasjonsnummer = e.organisasjonsnummer
+            WHERE coalesce(e.slettet,false)=false AND s.organisasjonsnummer IS NULL`,
+  });
+  const neverRes = await c.queryObject<{ n: bigint | number }>({
+    text: `SELECT COUNT(*)::bigint AS n FROM reg.regnskap_sync_status WHERE last_success_at IS NULL`,
+  });
+  const staleRes = await c.queryObject<{ n: bigint | number }>({
+    text: `SELECT COUNT(*)::bigint AS n FROM reg.regnskap_sync_status
+            WHERE status = 'ok' AND last_success_at < now() - ($1 || ' days')::interval`,
+    args: [String(staleDays)],
+  });
+  const stuckRes = await c.queryObject<{ n: bigint | number }>({
+    text: `SELECT COUNT(*)::bigint AS n FROM reg.regnskap_sync_status
+            WHERE status = 'in_progress' AND last_checked_at < now() - interval '10 minutes'`,
+  });
+  return {
+    byStatus,
+    total,
+    missing: Number(missingRes.rows[0]?.n ?? 0),
+    neverSucceeded: Number(neverRes.rows[0]?.n ?? 0),
+    stale: Number(staleRes.rows[0]?.n ?? 0),
+    inProgressStuck: Number(stuckRes.rows[0]?.n ?? 0),
+  };
+}
