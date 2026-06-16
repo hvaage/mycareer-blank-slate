@@ -292,9 +292,21 @@ function PostCell({ meta }: { meta: Record<string, unknown> | null }) {
   const mvLabel = mv.skipped ? "mv:skip" : mv.ok ? `mv:${mv.mode ?? "ok"}` : "mv:fail";
   const anLabel = an.ok ? `an:${an.durationMs ?? 0}ms` : "an:fail";
   const wuLabel = `wu:${wu.okCount ?? 0}/${wu.ran ?? 0}`;
+  const wuFailed = Array.isArray(wu.samples)
+    ? wu.samples.filter((s: any) => !s.ok)
+    : [];
+  const errSummary = wuFailed
+    .map((s: any) => `${s.label}:${s.error ?? "fail"} (${s.ms}ms)`)
+    .join(" | ");
+  const wuClass = wu.ran > 0 && wu.okCount === wu.ran
+    ? ""
+    : wu.okCount > 0
+    ? "text-amber-600"
+    : "text-destructive";
   return (
     <span title={JSON.stringify(post, null, 2)} className="text-[11px]">
-      {mvLabel} · {anLabel} · {wuLabel}
+      {mvLabel} · {anLabel} · <span className={wuClass}>{wuLabel}</span>
+      {errSummary ? <span className="ml-1 text-destructive">[{errSummary}]</span> : null}
     </span>
   );
 }
