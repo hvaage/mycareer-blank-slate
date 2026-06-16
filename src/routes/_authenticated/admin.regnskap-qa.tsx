@@ -103,8 +103,16 @@ function RegnskapQaPage() {
       </div>
 
       {err && (
-        <div className="mt-6 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {err}
+        <div className="mt-6 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive space-y-2">
+          <div className="font-semibold">QA feilet</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div><span className="opacity-70">HTTP:</span> {err.status ?? "—"}</div>
+            <div><span className="opacity-70">stage:</span> {err.stage ?? "unknown"}</div>
+            <div><span className="opacity-70">code:</span> {err.code ?? "—"}</div>
+            <div><span className="opacity-70">runId:</span> {err.runId ?? "—"}</div>
+          </div>
+          <div className="text-xs whitespace-pre-wrap break-words">{err.message}</div>
+          {err.reqId && <div className="text-[10px] opacity-60">reqId: {err.reqId}</div>}
         </div>
       )}
 
