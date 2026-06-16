@@ -26,10 +26,6 @@ export const Route = createFileRoute("/api/public/_qa-regnskap-sync")({
         if (!expected || expected.length < 20 || !safeEq(token, expected)) {
           return new Response("Unauthorized", { status: 401 });
         }
-        const body0 = await request.clone().text().catch(() => "");
-        if (body0.length === 0) {
-          // ensure POST-only path requires a JSON body to avoid accidental GET-like probes
-        }
 
         let body: any = {};
         try { body = await request.json(); } catch { /* allow empty */ }
