@@ -1,5 +1,11 @@
-// M5.4 search warmup. Kjører noen representative kall mot public.search_employers
+// M5.4 search warmup. Kjører representative kall mot public.search_employers
 // så første bruker etter sync slipper kald plan. Aldri throw — runneren logger.
+//
+// M5.4.1: Splittet i MAIN_VARIANTS (teller mot wu:n/m og run-status) og
+// OBSERVE_VARIANTS (rene observasjoner; påvirker IKKE run-status).
+// Bransje-grenene er trege av strukturelle grunner (OR-trær over
+// naeringskode-prefixer + ILIKE på beskrivelser/aktivitet) og hører hjemme
+// i et eget søk/ranking-arbeid — observeres her, men blokkerer ikke wu.
 
 import type { PoolClient } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 
@@ -13,18 +19,23 @@ export type WarmupResult = {
   samples: WarmupSample[];
 };
 
-type Variant = {
+export type Variant = {
   label: string;
   params: Record<string, string | number | null>;
 };
 
-// Konservativt sett. Alle med p_limit => 1, navngitte parametre.
-const VARIANTS: Variant[] = [
+// Hoved-warmup: 3 trygge/raske varianter. Disse teller mot wu:n/m.
+export const MAIN_VARIANTS: Variant[] = [
   { label: "default", params: {} },
+  { label: "kommune_oslo", params: { p_kommune_query: "Oslo" } },
+  { label: "min_omsetning_10m", params: { p_min_omsetning: 10_000_000 } },
+];
+
+// Observasjon: bransje-varianter. Eget søk/ranking-problem; logges, påvirker ikke status.
+export const OBSERVE_VARIANTS: Variant[] = [
   { label: "bransje_it", params: { p_bransje_query: "it" } },
   { label: "bransje_bygg", params: { p_bransje_query: "bygg" } },
-  { label: "min_omsetning_10m", params: { p_min_omsetning: 10_000_000 } },
-  { label: "kommune_oslo", params: { p_kommune_query: "Oslo" } },
+  { label: "bransje_regnskap", params: { p_bransje_query: "regnskap" } },
 ];
 
 // Bygg "SELECT 1 FROM public.search_employers(p_x => $1, ..., p_limit => 1) LIMIT 1"
@@ -46,20 +57,20 @@ function buildCall(params: Record<string, string | number | null>): { sql: strin
 }
 
 /**
- * Kjør warmup-varianter. Hver query wraps i transaksjon med SET LOCAL statement_timeout.
- * Total budsjett ~5s; vi stopper å starte nye varianter når budsjettet er brukt.
- * Aldri throw.
+ * Kjør warmup-varianter. Hver query wrappes i transaksjon med SET LOCAL statement_timeout.
+ * Stopper å starte nye varianter når totalbudsjettet er brukt. Aldri throw.
  */
 export async function warmupSearch(
   c: PoolClient,
-  opts: { perQueryTimeoutMs?: number; totalBudgetMs?: number } = {},
+  opts: { variants?: Variant[]; perQueryTimeoutMs?: number; totalBudgetMs?: number } = {},
 ): Promise<WarmupResult> {
+  const variants = opts.variants ?? MAIN_VARIANTS;
   const perQueryTimeoutMs = opts.perQueryTimeoutMs ?? 8000;
-  const totalBudgetMs = opts.totalBudgetMs ?? 30000;
+  const totalBudgetMs = opts.totalBudgetMs ?? 25000;
   const t0 = Date.now();
   const samples: WarmupSample[] = [];
 
-  for (const v of VARIANTS) {
+  for (const v of variants) {
     if (Date.now() - t0 > totalBudgetMs) break;
     const { sql, args } = buildCall(v.params);
     const qt0 = Date.now();
