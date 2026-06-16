@@ -1,12 +1,12 @@
 /**
  * Typed wrapper rundt Supabase-kallene for Arbeidsgiverinnsikt.
  *
- * Bakgrunn: `search_employers` (RPC) og `employer_search_v1` (view) finnes
- * ikke i de genererte Supabase-typene ennå. Vi kapsler alle casts her, og
- * eksponerer rene typede data utad. Komponenter skal IKKE caste selv.
+ * Frontend skal aldri SELECT direkte mot `reg.*`. Vi går via:
+ *   - RPC `public.search_employers`
+ *   - view `public.employer_search_v1`
  *
- * Frontend skal aldri SELECT direkte mot `reg.*`. Hvis RPC/view mangler
- * eller mangler anon access → vis empty/error state. Ingen workarounds.
+ * Vanlig bruker skal aldri behøve å kjenne kommunenummer eller NACE-koder.
+ * Tekstsøk på kommune og bransje er primært UI; kodefelt er "avansert".
  */
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -15,6 +15,10 @@ import { supabase } from "@/lib/supabase";
 
 export type EmployerSearchFilters = {
   q?: string;
+  // Tekstsøk — primært UI
+  kommuneQuery?: string;
+  bransjeQuery?: string;
+  // Kodefelt — avansert
   fylke?: string;
   kommune?: string;
   nace?: string;
@@ -28,18 +32,21 @@ export type EmployerSearchFilters = {
 };
 
 /**
- * Felt vi forventer fra `search_employers` RPC. Alt er optional — UI tåler
- * at backend ikke leverer feltet ennå.
+ * Felt fra `search_employers` RPC (= `employer_search_v1`). Alt optional —
+ * UI tåler at backend ikke leverer feltet ennå.
  */
 export type EmployerSearchRow = {
   organisasjonsnummer: string;
   navn: string;
-  fylkesnummer?: string | null;
-  fylke_navn?: string | null;
-  kommunenummer?: string | null;
-  kommune_navn?: string | null;
-  naeringskode?: string | null;
-  bransje?: string | null;
+  // Sted — Brreg er source of truth
+  forretningsadresse_kommune?: string | null;
+  forretningsadresse_kommunenummer?: string | null;
+  forretningsadresse_fylke?: string | null;
+  forretningsadresse_fylkesnummer?: string | null;
+  // Bransje — Brreg næringskoder
+  naeringskode1_kode?: string | null;
+  naeringskode1_beskrivelse?: string | null;
+  // Ansatte og økonomi
   antall_ansatte?: number | null;
   ansatte_bucket?: string | null;
   driftsinntekter?: number | null;
@@ -54,52 +61,68 @@ export type EmployerSearchRow = {
 export type EmployerSearchResult = {
   rows: EmployerSearchRow[];
   totalCount: number | null;
-  available: boolean; // false = RPC mangler / ikke konfigurert
+  available: boolean;
   errorMessage: string | null;
 };
 
 /**
- * Felt vi forventer fra `employer_search_v1` view. Alt er optional — felt
- * som `agg_process_*`, `research_log`, `epostadresse`, `telefon`, `mobil`
- * kan komme senere. UI viser tomtilstand når de mangler.
+ * Felt fra `employer_search_v1` view. Speilet 1:1 mot Brreg-feltnavn.
  */
 export type EmployerDetail = {
   organisasjonsnummer: string;
   navn: string;
-  // Sted
-  fylkesnummer?: string | null;
-  fylke_navn?: string | null;
-  kommunenummer?: string | null;
-  kommune_navn?: string | null;
-  // Register
-  organisasjonsform?: string | null;
-  naeringskode?: string | null;
-  naeringskoder?: string[] | null;
-  bransje?: string | null;
+  // Brreg adresse
+  forretningsadresse_kommune?: string | null;
+  forretningsadresse_kommunenummer?: string | null;
+  forretningsadresse_fylke?: string | null;
+  forretningsadresse_fylkesnummer?: string | null;
+  forretningsadresse_poststed?: string | null;
+  forretningsadresse_postnummer?: string | null;
+  // Brreg form og næring
+  organisasjonsform_kode?: string | null;
+  organisasjonsform_beskrivelse?: string | null;
+  naeringskode1_kode?: string | null;
+  naeringskode1_beskrivelse?: string | null;
+  naeringskode2_kode?: string | null;
+  naeringskode2_beskrivelse?: string | null;
+  naeringskode3_kode?: string | null;
+  naeringskode3_beskrivelse?: string | null;
+  aktivitet?: string | null;
+  institusjonell_sektorkode?: string | null;
   stiftelsesdato?: string | null;
-  mva_registrert?: boolean | null;
-  arbeidsgiver_type?: string | null;
+  selskapsalder_aar?: number | null;
+  registrert_i_foretaksregisteret?: boolean | null;
+  registrert_i_mvaregisteret?: boolean | null;
+  registrert_i_frivillighetsregisteret?: boolean | null;
+  er_i_konsern?: boolean | null;
   overordnet_enhet?: string | null;
-  konsern?: string | null;
+  konkurs?: boolean | null;
+  under_avvikling?: boolean | null;
+  slettet?: boolean | null;
+  er_offentlig?: boolean | null;
+  arbeidsgiver_type?: string | null;
   hjemmeside?: string | null;
-  epostadresse?: string | null;
-  telefon?: string | null;
-  mobil?: string | null;
   // Regnskap — siste tilgjengelige år
   regnskapsaar?: number | null;
+  regnskapstype?: string | null;
   driftsinntekter?: number | null;
   driftsresultat?: number | null;
   aarsresultat?: number | null;
-  egenkapital?: number | null;
-  gjeld?: number | null;
-  eiendeler?: number | null;
+  sum_egenkapital?: number | null;
+  sum_gjeld?: number | null;
+  sum_eiendeler?: number | null;
+  sum_omloepsmidler?: number | null;
+  sum_anleggsmidler?: number | null;
   driftsmargin_prosent?: number | null;
+  aarsresultat_margin_prosent?: number | null;
   egenkapitalandel_prosent?: number | null;
   gjeldsgrad?: number | null;
+  omsetning_per_ansatt?: number | null;
   antall_ansatte?: number | null;
   ansatte_bucket?: string | null;
   omsetning_bucket?: string | null;
-  // Eksisterende 6-dim AI-vurdering
+  valuta?: string | null;
+  // 6-dim AI
   ai_culture_score?: number | null;
   ai_leadership_score?: number | null;
   ai_work_environment_score?: number | null;
@@ -108,7 +131,8 @@ export type EmployerDetail = {
   ai_mission_score?: number | null;
   ai_overall_score?: number | null;
   ai_rating_notes?: string | null;
-  ai_dimension_notes?: string | null;
+  ai_dimension_notes?: unknown;
+  ai_rated_at?: string | null;
   // Aggregerte ansattvurderinger
   agg_culture_score?: number | null;
   agg_leadership_score?: number | null;
@@ -118,7 +142,7 @@ export type EmployerDetail = {
   agg_mission_score?: number | null;
   agg_overall_score?: number | null;
   agg_rating_count?: number | null;
-  // Aggregerte søkervurderinger (optional — kan komme senere)
+  // Aggregerte søkervurderinger (optional)
   agg_process_overall?: number | null;
   agg_process_count?: number | null;
   agg_process_q1?: number | null;
@@ -130,12 +154,14 @@ export type EmployerDetail = {
   // Kilder og datakvalitet
   regnskap_sync_status?: string | null;
   regnskap_last_checked_at?: string | null;
+  regnskap_last_success_at?: string | null;
+  available_pdf_years?: number[] | null;
   research_log?: unknown;
   risiko_flags?: string[] | null;
   datakvalitet_flags?: string[] | null;
 };
 
-// ---------- Internal helpers (eneste sted vi caster) ----------
+// ---------- Internal helpers ----------
 
 type AnySupabase = {
   rpc: (fn: string, params?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
@@ -161,7 +187,7 @@ function isMissingRpcOrView(err: unknown): boolean {
     msg.includes("could not find") ||
     msg.includes("does not exist") ||
     msg.includes("schema cache") ||
-    msg.includes("function") && msg.includes("not found")
+    (msg.includes("function") && msg.includes("not found"))
   );
 }
 
@@ -174,6 +200,8 @@ export async function searchEmployers(filters: EmployerSearchFilters): Promise<E
     p_fylkesnummer: filters.fylke || null,
     p_kommunenummer: filters.kommune || null,
     p_naeringskode_prefix: filters.nace || null,
+    p_kommune_query: filters.kommuneQuery?.trim() || null,
+    p_bransje_query: filters.bransjeQuery?.trim() || null,
     p_min_ansatte: filters.ansatteMin ?? null,
     p_max_ansatte: filters.ansatteMaks ?? null,
     p_min_omsetning: filters.omsMin ?? null,
@@ -196,7 +224,6 @@ export async function searchEmployers(filters: EmployerSearchFilters): Promise<E
   }
 
   const arr = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
-  // Hvis backend leverer total_count per rad, plukk den fra første rad.
   const firstTotal = arr.length > 0 ? (arr[0] as { total_count?: number }).total_count : undefined;
   const totalCount = typeof firstTotal === "number" ? firstTotal : null;
 
@@ -221,7 +248,7 @@ export function searchEmployersQuery(filters: EmployerSearchFilters) {
 export type EmployerDetailLoadResult =
   | { kind: "ok"; data: EmployerDetail }
   | { kind: "not_found" }
-  | { kind: "unavailable" }; // view mangler
+  | { kind: "unavailable" };
 
 export async function loadEmployerDetail(orgnr: string): Promise<EmployerDetailLoadResult> {
   const { data, error } = await sb
