@@ -44,13 +44,7 @@ export const CANDIDATE_FOCUS = [
 ] as const;
 
 export const SECTORS = [
-  "B2B",
+  "Privat sektor",
   "Offentlig sektor",
-  "Teknologi",
-  "Industri",
-  "Finans",
-  "Konsulent",
-  "Helse",
-  "Retail",
-  "Annet",
+  "Ideell / non-profit",
 ] as const;
