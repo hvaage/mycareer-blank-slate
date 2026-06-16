@@ -30,5 +30,5 @@ verify_jwt = true
 [functions.parse-uploaded-cv]
 verify_jwt = true
 
-[functions.regnskap-sync]
-verify_jwt = true
+# regnskap-sync håndterer auth i kode (caller-JWT + has_role ELLER x-cron-secret),
+# derfor verify_jwt = false (default). Bevisst sikkerhetsvalg for cron-støtte.
