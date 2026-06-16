@@ -8,6 +8,14 @@
  */
 
 import { createFileRoute } from "@tanstack/react-router";
+import { timingSafeEqual } from "node:crypto";
+
+function safeEq(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  try { return timingSafeEqual(ab, bb); } catch { return false; }
+}
 
 export const Route = createFileRoute("/api/public/_qa-regnskap-sync")({
   server: {
@@ -15,7 +23,7 @@ export const Route = createFileRoute("/api/public/_qa-regnskap-sync")({
       POST: async ({ request }) => {
         const token = request.headers.get("x-qa-token") ?? "";
         const expected = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-        if (!expected || token.length < 20 || token !== expected) {
+        if (!expected || expected.length < 20 || !safeEq(token, expected)) {
           return new Response("Unauthorized", { status: 401 });
         }
 
