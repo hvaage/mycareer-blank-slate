@@ -8,7 +8,7 @@ import {
   refreshLatestRegnskapMV, analyzeRegnskapTables, patchRunMeta,
   type SyncMode, type ClaimedOrg, type FinalStatus, type RunItem,
 } from "./db.ts";
-import { warmupSearch } from "./warmup.ts";
+import { warmupSearch, OBSERVE_VARIANTS } from "./warmup.ts";
 import { tagStage, StageError } from "./_stage.ts";
 
 export type RunSyncInput = {
