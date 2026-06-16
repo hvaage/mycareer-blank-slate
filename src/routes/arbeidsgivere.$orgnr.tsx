@@ -13,7 +13,7 @@ import { OverviewPanel } from "@/components/employers/OverviewPanel";
 import { RegisterPanel } from "@/components/employers/RegisterPanel";
 import { EightDimensionsPanel } from "@/components/employers/EightDimensionsPanel";
 import { AiMaturityPanel } from "@/components/employers/AiMaturityPanel";
-import { SixDimensionAiPanel } from "@/components/employers/SixDimensionAiPanel";
+
 import { EmployeeRatingsPanel } from "@/components/employers/EmployeeRatingsPanel";
 import { JobseekerProcessPanel } from "@/components/employers/JobseekerProcessPanel";
 import { SourcesPanel } from "@/components/employers/SourcesPanel";
