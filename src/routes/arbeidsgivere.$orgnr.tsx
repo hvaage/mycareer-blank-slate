@@ -68,12 +68,24 @@ function DetailPage() {
   }
 
   const d = res.data;
-  const sted = [d.kommune_navn, d.fylke_navn ?? fylkesnavn(d.fylkesnummer)]
+  const sted = [
+    d.forretningsadresse_kommune,
+    d.forretningsadresse_fylke ?? fylkesnavn(d.forretningsadresse_fylkesnummer),
+  ]
     .filter(Boolean)
     .join(", ");
+  const bransje = d.naeringskode1_beskrivelse ?? d.naeringskode1_kode ?? null;
 
   return (
     <Shell>
+      <div className="mb-4">
+        <Link
+          to="/arbeidsgivere"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Tilbake til arbeidsgiversøk
+        </Link>
+      </div>
       <header className="space-y-2">
         <div className="flex flex-wrap items-baseline gap-2">
           <h1 className="text-2xl font-semibold text-foreground">{d.navn}</h1>
@@ -83,10 +95,10 @@ function DetailPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           {sted && <span>{sted}</span>}
-          {(d.bransje || d.naeringskode) && (
+          {bransje && (
             <>
               <span aria-hidden>·</span>
-              <span>{d.bransje ?? d.naeringskode}</span>
+              <span>{bransje}</span>
             </>
           )}
           <TypeBadge value={d.arbeidsgiver_type} />
