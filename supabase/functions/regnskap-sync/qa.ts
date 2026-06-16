@@ -106,7 +106,7 @@ export async function runQaSequence(orgnrs: string[], adminUid: string) {
       args: [runIds],
     }) : { rows: [] as any[] };
     return { snapAfter2: sa2.rows, status: st.rows, runs: rs.rows, items: it.rows };
-  });
+  }));
 
   // attempts delta
   const beforeAttemptsByOrg = new Map(before.map((b) => [b.organisasjonsnummer, b.attempts ?? 0]));
