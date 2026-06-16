@@ -191,11 +191,36 @@ function AdminRegnskap() {
                   <Th>Sel</Th><Th>Chk</Th><Th>OK</Th><Th>NoReg</Th>
                   <Th>Fail</Th><Th>Skip</Th><Th>Recs</Th>
                   <Th>429</Th><Th>503</Th><Th>Retry</Th>
+                  <Th>Post</Th>
                   <Th>Error</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {runs.map((r) => (
+                  <tr key={r.id}>
+                    <Td>{r.id}</Td>
+                    <Td>{fmtTime(r.started_at)}</Td>
+                    <Td>{fmtTime(r.finished_at)}</Td>
+                    <Td><StatusBadge status={r.status} /></Td>
+                    <Td>{r.mode ?? "—"}{r.dry_run ? " (dry)" : ""}</Td>
+                    <Td>{r.duration_ms ?? "—"}</Td>
+                    <Td>{r.selected_count ?? 0}</Td>
+                    <Td>{r.checked_count ?? 0}</Td>
+                    <Td>{r.with_regnskap_count ?? 0}</Td>
+                    <Td>{r.no_regnskap_count ?? 0}</Td>
+                    <Td>{r.failed_count ?? 0}</Td>
+                    <Td>{r.skipped_count ?? 0}</Td>
+                    <Td>{r.records_lagret ?? 0}</Td>
+                    <Td>{r.http_429_count ?? 0}</Td>
+                    <Td>{r.http_503_count ?? 0}</Td>
+                    <Td>{r.retry_count ?? 0}</Td>
+                    <Td><PostCell meta={r.meta} /></Td>
+                    <Td className="max-w-[240px] truncate" title={r.last_error ?? ""}>{r.last_error ?? "—"}</Td>
+                  </tr>
+                ))}
+                {!runs.length && !statusQuery.isLoading && (
+                  <tr><td colSpan={18} className="p-6 text-center text-muted-foreground">Ingen runs ennå.</td></tr>
+                )}
                   <tr key={r.id}>
                     <Td>{r.id}</Td>
                     <Td>{fmtTime(r.started_at)}</Td>
