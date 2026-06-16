@@ -282,13 +282,14 @@ function fmtTime(s: string | null): string {
 
 function PostCell({ meta }: { meta: Record<string, unknown> | null }) {
   const post = (meta && typeof meta === "object" ? (meta as any).post : null) as
-    | { refreshMv?: any; analyze?: any; warmup?: any }
+    | { refreshMv?: any; analyze?: any; warmup?: any; observe?: any }
     | null
     | undefined;
   if (!post) return <span className="text-muted-foreground">—</span>;
   const mv = post.refreshMv ?? {};
   const an = post.analyze ?? {};
   const wu = post.warmup ?? {};
+  const ob = post.observe;
   const mvLabel = mv.skipped ? "mv:skip" : mv.ok ? `mv:${mv.mode ?? "ok"}` : "mv:fail";
   const anLabel = an.ok ? `an:${an.durationMs ?? 0}ms` : "an:fail";
   const wuLabel = `wu:${wu.okCount ?? 0}/${wu.ran ?? 0}`;
@@ -303,8 +304,33 @@ function PostCell({ meta }: { meta: Record<string, unknown> | null }) {
     : wu.okCount > 0
     ? "text-amber-600"
     : "text-destructive";
+
+  // Tooltip: vis warmup + observe-samples separat for lesbarhet
+  const tooltipLines: string[] = [];
+  tooltipLines.push("Warmup:");
+  if (Array.isArray(wu.samples) && wu.samples.length > 0) {
+    for (const s of wu.samples) {
+      tooltipLines.push(`  ${s.label}: ${s.ms}ms ${s.ok ? "ok" : `error${s.error ? " — " + s.error : ""}`}`);
+    }
+  } else {
+    tooltipLines.push("  (ingen samples)");
+  }
+  if (ob && typeof ob === "object") {
+    tooltipLines.push("");
+    tooltipLines.push("Observe (påvirker ikke status):");
+    if (Array.isArray(ob.samples) && ob.samples.length > 0) {
+      for (const s of ob.samples) {
+        tooltipLines.push(`  ${s.label}: ${s.ms}ms ${s.ok ? "ok" : `error${s.error ? " — " + s.error : ""}`}`);
+      }
+    } else if (ob.error) {
+      tooltipLines.push(`  error: ${ob.error}`);
+    } else {
+      tooltipLines.push("  (ingen samples)");
+    }
+  }
+
   return (
-    <span title={JSON.stringify(post, null, 2)} className="text-[11px]">
+    <span title={tooltipLines.join("\n")} className="text-[11px]">
       {mvLabel} · {anLabel} · <span className={wuClass}>{wuLabel}</span>
       {errSummary ? <span className="ml-1 text-destructive">[{errSummary}]</span> : null}
     </span>
