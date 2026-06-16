@@ -149,7 +149,7 @@ function SurveyPage() {
     if (q.question_type === "open_text") {
       return (texts[q.id] ?? "").trim().length > 0;
     }
-    if (q.question_type === "multi_choice") {
+    if (q.question_type === "multi_choice" || q.question_type === "ranked_choice") {
       const a = answers[q.id];
       return Array.isArray(a) && a.length > 0;
     }
