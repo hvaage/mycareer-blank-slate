@@ -41,7 +41,7 @@ export function SixDimensionAiPanel({ d }: { d: EmployerDetail }) {
               <MetricTile key={x.key} label={x.label} value={fmtScore(d[x.key] as number | null | undefined)} />
             ))}
           </div>
-          {d.ai_dimension_notes && (
+          {typeof d.ai_dimension_notes === "string" && d.ai_dimension_notes && (
             <p className="whitespace-pre-line text-sm text-muted-foreground">{d.ai_dimension_notes}</p>
           )}
           {d.ai_rating_notes && (
