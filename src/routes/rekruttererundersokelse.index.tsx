@@ -338,7 +338,9 @@ function SurveyPage() {
             </h2>
             {currentQ.max_choices && (
               <p className="mt-1 text-xs text-muted-foreground">
-                Maks {currentQ.max_choices} valg
+                {currentQ.question_type === "ranked_choice"
+                  ? `Velg opptil ${currentQ.max_choices} i prioritert rekkefølge — første klikk = 1. mest vanlig.`
+                  : `Maks ${currentQ.max_choices} valg`}
               </p>
             )}
 
