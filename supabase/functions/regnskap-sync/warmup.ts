@@ -54,8 +54,8 @@ export async function warmupSearch(
   c: PoolClient,
   opts: { perQueryTimeoutMs?: number; totalBudgetMs?: number } = {},
 ): Promise<WarmupResult> {
-  const perQueryTimeoutMs = opts.perQueryTimeoutMs ?? 1500;
-  const totalBudgetMs = opts.totalBudgetMs ?? 5000;
+  const perQueryTimeoutMs = opts.perQueryTimeoutMs ?? 8000;
+  const totalBudgetMs = opts.totalBudgetMs ?? 30000;
   const t0 = Date.now();
   const samples: WarmupSample[] = [];
 
