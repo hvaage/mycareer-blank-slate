@@ -106,6 +106,7 @@ function RegnskapQaPage() {
           code: data.code ?? null,
           reqId: data.reqId ?? null,
           runId: typeof data.runId === "number" ? data.runId : null,
+          debug: { directData: data },
         } satisfies EdgeErr;
       }
       return data;
@@ -145,6 +146,11 @@ function RegnskapQaPage() {
           </div>
           <div className="text-xs whitespace-pre-wrap break-words">{err.message}</div>
           {err.reqId && <div className="text-[10px] opacity-60">reqId: {err.reqId}</div>}
+          {err.debug && (
+            <pre className="mt-3 max-h-80 overflow-auto rounded-md border border-destructive/20 bg-background/70 p-3 text-[10px] text-foreground">
+              {JSON.stringify(err.debug, null, 2)}
+            </pre>
+          )}
         </div>
       )}
 
