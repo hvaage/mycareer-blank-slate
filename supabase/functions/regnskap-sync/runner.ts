@@ -223,7 +223,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
             post.analyze = { ok: false, error: e instanceof Error ? e.message : String(e) };
           }
           try {
-            const warmup = await warmupSearch(c, { perQueryTimeoutMs: 1500, totalBudgetMs: 5000 });
+            const warmup = await warmupSearch(c, { perQueryTimeoutMs: 8000, totalBudgetMs: 30000 });
             post.warmup = warmup;
           } catch (e) {
             post.warmup = { ok: false, error: e instanceof Error ? e.message : String(e) };
