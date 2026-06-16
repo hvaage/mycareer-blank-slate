@@ -31,7 +31,8 @@ type EdgeErr = {
 };
 
 async function parseEdgeError(error: any): Promise<EdgeErr> {
-  const out: EdgeErr = { message: "", status: null, stage: null, code: null, reqId: null, runId: null, debug: {} };
+  const debug: Record<string, unknown> = {};
+  const out: EdgeErr = { message: "", status: null, stage: null, code: null, reqId: null, runId: null, debug };
   const context = error?.context;
   const contextKeys = context && typeof context === "object" ? Object.keys(context) : [];
   const candidates = [
@@ -44,7 +45,7 @@ async function parseEdgeError(error: any): Promise<EdgeErr> {
   let raw = "";
   let body: any = null;
 
-  out.debug = {
+  Object.assign(debug, {
     errorName: error?.name ?? null,
     errorMessage: error?.message ?? null,
     contextType: typeof context,
@@ -55,16 +56,16 @@ async function parseEdgeError(error: any): Promise<EdgeErr> {
     contextKeys,
     responseFound: resp instanceof Response,
     responseStatus: resp?.status ?? null,
-  };
+  });
 
   if (resp instanceof Response) {
     out.status = resp.status;
     try { raw = await resp.clone().text(); } catch (e) { raw = `[body read failed: ${e instanceof Error ? e.message : String(e)}]`; }
-    out.debug.responseBodyText = raw.slice(0, 1500);
+    debug.responseBodyText = raw.slice(0, 1500);
     if (raw) {
       try {
         body = JSON.parse(raw);
-        out.debug.responseBodyJson = body;
+        debug.responseBodyJson = body;
         out.message = String(body?.error?.message ?? body?.error ?? body?.message ?? resp.statusText ?? "Edge Function error");
         out.stage = body?.stage ?? null;
         out.code = body?.code ?? body?.error?.code ?? null;
