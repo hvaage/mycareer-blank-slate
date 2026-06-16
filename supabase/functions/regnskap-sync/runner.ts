@@ -203,6 +203,37 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
           extraMeta: { stoppedReason: result.stoppedReason, includePdfYears, candidateCount: candidates.length },
         }));
         result.status = runStatus;
+
+        // ===== M5.4 post-batch: refresh MV, ANALYZE, warmup. Aldri throw, aldri
+        // endre run.status. Resultatene patches inn i meta etter finishRun. =====
+        if (result.checked > 0) {
+          const post: Record<string, unknown> = {};
+          try {
+            const refreshMv = await refreshLatestRegnskapMV(c);
+            post.refreshMv = refreshMv;
+          } catch (e) {
+            post.refreshMv = { ok: false, error: e instanceof Error ? e.message : String(e) };
+          }
+          try {
+            // Bare ANALYZE reg.enheter ved større batcher (>= 100 sjekkede).
+            const includeEnheter = result.checked >= 100;
+            const analyze = await analyzeRegnskapTables(c, { includeEnheter });
+            post.analyze = analyze;
+          } catch (e) {
+            post.analyze = { ok: false, error: e instanceof Error ? e.message : String(e) };
+          }
+          try {
+            const warmup = await warmupSearch(c, { perQueryTimeoutMs: 1500, totalBudgetMs: 5000 });
+            post.warmup = warmup;
+          } catch (e) {
+            post.warmup = { ok: false, error: e instanceof Error ? e.message : String(e) };
+          }
+          try {
+            await patchRunMeta(c, runId!, { post });
+          } catch (e) {
+            console.error("[runner] patchRunMeta failed:", e instanceof Error ? e.message : String(e));
+          }
+        }
       } else {
         result.durationMs = Date.now() - t0;
       }
