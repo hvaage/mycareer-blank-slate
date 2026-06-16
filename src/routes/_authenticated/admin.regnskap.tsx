@@ -146,7 +146,7 @@ function AdminRegnskap() {
             onClick={() => smokeMut.mutate()}
             disabled={smokeMut.isPending}
             className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-accent disabled:opacity-50"
-            title="op:smoke — mode=due, limit=1, rps=1, timeBudgetMs=10s"
+            title="op:smoke — mode=due, limit=1, rps=1, timeBudgetMs=20s"
           >
             {smokeMut.isPending ? "Smoke kjører…" : "Kjør smoke (limit=1)"}
           </button>
