@@ -279,3 +279,22 @@ function fmtTime(s: string | null): string {
   if (!s) return "—";
   try { return new Date(s).toLocaleString("no-NO", { hour12: false }); } catch { return s; }
 }
+
+function PostCell({ meta }: { meta: Record<string, unknown> | null }) {
+  const post = (meta && typeof meta === "object" ? (meta as any).post : null) as
+    | { refreshMv?: any; analyze?: any; warmup?: any }
+    | null
+    | undefined;
+  if (!post) return <span className="text-muted-foreground">—</span>;
+  const mv = post.refreshMv ?? {};
+  const an = post.analyze ?? {};
+  const wu = post.warmup ?? {};
+  const mvLabel = mv.skipped ? "mv:skip" : mv.ok ? `mv:${mv.mode ?? "ok"}` : "mv:fail";
+  const anLabel = an.ok ? `an:${an.durationMs ?? 0}ms` : "an:fail";
+  const wuLabel = `wu:${wu.okCount ?? 0}/${wu.ran ?? 0}`;
+  return (
+    <span title={JSON.stringify(post, null, 2)} className="text-[11px]">
+      {mvLabel} · {anLabel} · {wuLabel}
+    </span>
+  );
+}
