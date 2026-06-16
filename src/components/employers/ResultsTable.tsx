@@ -130,9 +130,8 @@ export function ResultsTable({
       {/* Mobil-kort */}
       <ul className="md:hidden space-y-2">
         {rows.map((r) => {
-          const sted = [r.kommune_navn, r.fylke_navn ?? fylkesnavn(r.fylkesnummer)]
-            .filter(Boolean)
-            .join(", ");
+          const sted = stedFra(r);
+          const bransje = bransjeFra(r);
           return (
             <li key={r.organisasjonsnummer}>
               <Link
@@ -148,7 +147,7 @@ export function ResultsTable({
                   {r.organisasjonsnummer}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  {sted || "—"} · {r.bransje ?? r.naeringskode ?? "—"}
+                  {sted || "—"} · {bransje || "—"}
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                   <div>
