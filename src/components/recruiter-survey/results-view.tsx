@@ -111,8 +111,11 @@ function ResultCard({ r }: { r: Result }) {
       <p className="mt-1 text-xs text-muted-foreground">{r.total} svar</p>
 
       <div className="mt-4">
-        {r.type === "single_choice" || r.type === "multi_choice" ? (
-          <BarChart counts={r.counts} total={r.type === "multi_choice" ? r.option_total : r.total} />
+        {r.type === "single_choice" || r.type === "multi_choice" || r.type === "ranked_choice" ? (
+          <BarChart
+            counts={r.counts}
+            total={r.type === "single_choice" ? r.total : r.option_total}
+          />
         ) : r.type === "scale" ? (
           <ScaleView r={r as any} />
         ) : (
