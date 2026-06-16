@@ -7,6 +7,7 @@ import {
   upsertRegnskap, writeFinalStatus, startRun, finishRun, insertRunItems,
   type SyncMode, type ClaimedOrg, type FinalStatus, type RunItem,
 } from "./db.ts";
+import { tagStage, StageError } from "./_stage.ts";
 
 export type RunSyncInput = {
   mode: SyncMode;
