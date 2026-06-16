@@ -208,11 +208,14 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
       }
 
       return result;
-    });
+    }));
   } catch (e) {
     result.stoppedReason = "error";
     result.status = "failed";
     result.durationMs = Date.now() - t0;
+    // attach runId for diagnostics
+    if (e instanceof StageError) (e as any).runId = runId;
+    else { const se = new StageError("unknown", e); (se as any).runId = runId; throw se; }
     throw e;
   }
 }
