@@ -6,7 +6,7 @@ type Result =
       question_id: string;
       question_text: string;
       category: string | null;
-      type: "single_choice" | "multi_choice";
+      type: "single_choice" | "multi_choice" | "ranked_choice";
       total: number;
       max_choices?: number | null;
       counts: Record<string, number>;
