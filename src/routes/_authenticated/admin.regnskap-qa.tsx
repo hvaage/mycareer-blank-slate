@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_authenticated/admin/regnskap-qa")({
   head: () => ({
@@ -92,8 +92,14 @@ function RegnskapQaPage() {
     mutationFn: async () => {
       setErr(null);
       setResult(null);
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        throw { message: "Ingen aktiv sesjon. Logg inn på nytt.", status: 401, stage: "auth", code: null, reqId: null, runId: null } satisfies EdgeErr;
+      }
       const { data, error } = await supabase.functions.invoke("regnskap-sync", {
         body: { op: "qa" },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (error) {
         const parsed = await parseEdgeError(error);
