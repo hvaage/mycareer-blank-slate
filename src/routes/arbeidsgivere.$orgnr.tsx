@@ -121,7 +121,6 @@ function DetailPage() {
             <TabsTrigger value="register">Register og regnskap</TabsTrigger>
             <TabsTrigger value="dim8">8 dimensjoner</TabsTrigger>
             <TabsTrigger value="ai_maturity">AI-kompetanse</TabsTrigger>
-            <TabsTrigger value="ai6">AI-vurdering (6 dim)</TabsTrigger>
             <TabsTrigger value="ansatte">Ansattes vurderinger</TabsTrigger>
             <TabsTrigger value="sokere">Søkeres vurderinger</TabsTrigger>
             <TabsTrigger value="kilder">Kilder og datakvalitet</TabsTrigger>
@@ -137,10 +136,7 @@ function DetailPage() {
           <EightDimensionsPanel orgnr={d.organisasjonsnummer} />
         </TabsContent>
         <TabsContent value="ai_maturity" className="mt-4">
-          <AiMaturityPanel orgnr={d.organisasjonsnummer} />
-        </TabsContent>
-        <TabsContent value="ai6" className="mt-4">
-          <SixDimensionAiPanel d={d} />
+          <AiMaturityPanel d={d} />
         </TabsContent>
         <TabsContent value="ansatte" className="mt-4">
           <EmployeeRatingsPanel d={d} orgnr={d.organisasjonsnummer} />
