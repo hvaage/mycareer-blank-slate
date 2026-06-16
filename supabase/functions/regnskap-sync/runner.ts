@@ -164,7 +164,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
         }
 
         if (finalStatus === "ok") { result.withRegnskap++; result.recordsLagret += recordsFunnet; }
-        else if (finalStatus === "no_regnskap") result.noRegnskap++;
+        else if (finalStatus === "no_regnskap" || finalStatus === "not_found") result.noRegnskap++;
         else result.failed++;
 
         result.items.push({
