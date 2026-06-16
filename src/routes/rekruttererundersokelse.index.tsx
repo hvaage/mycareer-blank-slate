@@ -557,6 +557,58 @@ function QuestionInput({
       </div>
     );
   }
+  if (q.question_type === "ranked_choice") {
+    const arr: string[] = Array.isArray(value) ? value : [];
+    const max = q.max_choices ?? 3;
+    const rankFor = (o: string) => {
+      const i = arr.indexOf(o);
+      return i === -1 ? null : i + 1;
+    };
+    const toggle = (o: string) => {
+      if (arr.includes(o)) {
+        onValueChange(arr.filter((x) => x !== o));
+      } else if (arr.length < max) {
+        onValueChange([...arr, o]);
+      }
+    };
+    return (
+      <div className="space-y-1.5">
+        {(q.options as string[]).map((o) => {
+          const rank = rankFor(o);
+          const on = rank !== null;
+          const disabled = !on && arr.length >= max;
+          return (
+            <button
+              key={o}
+              type="button"
+              onClick={() => toggle(o)}
+              disabled={disabled}
+              className={`flex w-full items-center gap-3 rounded-md border p-2.5 text-left text-sm transition ${
+                on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
+              } ${disabled ? "opacity-50" : ""}`}
+            >
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums ${
+                  on
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-rule text-muted-foreground"
+                }`}
+                aria-hidden
+              >
+                {rank ?? "·"}
+              </span>
+              <span className="flex-1">{o}</span>
+            </button>
+          );
+        })}
+        {arr.length > 0 && (
+          <p className="pt-1 text-xs text-muted-foreground">
+            Klikk et valgt alternativ igjen for å fjerne det.
+          </p>
+        )}
+      </div>
+    );
+  }
   if (q.question_type === "scale") {
     const min = q.scale_min ?? 1;
     const max = q.scale_max ?? 10;
