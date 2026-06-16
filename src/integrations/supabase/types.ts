@@ -4469,6 +4469,7 @@ export type Database = {
         | "multi_choice"
         | "scale"
         | "open_text"
+        | "ranked_choice"
       survey_visibility: "hidden" | "full_only" | "public"
     }
     CompositeTypes: {
@@ -4664,6 +4665,7 @@ export const Constants = {
         "multi_choice",
         "scale",
         "open_text",
+        "ranked_choice",
       ],
       survey_visibility: ["hidden", "full_only", "public"],
     },
