@@ -1,5 +1,5 @@
 import type { EmployerDetail } from "@/lib/queries/employer-insight";
-import { MetricTile, fmtNumber, fmtNok, fmtPercent } from "./MetricTile";
+import { MetricTile, fmtNumber, fmtNok, fmtPercent, fmtRatio } from "./MetricTile";
 
 export function OverviewPanel({ d }: { d: EmployerDetail }) {
   const aar = d.regnskapsaar ?? null;
@@ -17,10 +17,10 @@ export function OverviewPanel({ d }: { d: EmployerDetail }) {
         <MetricTile label="Årsresultat" value={fmtNok(d.aarsresultat)} />
         <MetricTile label="Driftsmargin" value={fmtPercent(d.driftsmargin_prosent)} />
         <MetricTile label="EK-andel" value={fmtPercent(d.egenkapitalandel_prosent)} />
-        <MetricTile label="Gjeldsgrad" value={fmtPercent(d.gjeldsgrad)} />
+        <MetricTile label="Gjeldsgrad" value={fmtRatio(d.gjeldsgrad)} />
         <MetricTile
           label="Selskapsalder"
-          value={selskapsalder(d.stiftelsesdato)}
+          value={selskapsalder(d.stiftelsesdato, d.selskapsalder_aar)}
           hint={d.stiftelsesdato ?? undefined}
         />
       </div>
@@ -28,10 +28,15 @@ export function OverviewPanel({ d }: { d: EmployerDetail }) {
   );
 }
 
-function selskapsalder(dato: string | null | undefined): string | null {
+function selskapsalder(
+  dato: string | null | undefined,
+  aar: number | null | undefined,
+): string | null {
+  if (typeof aar === "number") return `${aar} år`;
   if (!dato) return null;
   const d = new Date(dato);
   if (Number.isNaN(d.getTime())) return null;
   const years = Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
   return `${years} år`;
 }
+

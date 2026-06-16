@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ const PAGE_SIZE = 25;
 
 type SearchState = {
   q: string;
+  kommuneQuery: string;
+  bransjeQuery: string;
   fylke: string;
   kommune: string;
   nace: string;
@@ -44,6 +47,8 @@ function asNum(v: unknown): number | undefined {
 export const Route = createFileRoute("/arbeidsgivere/")({
   validateSearch: (raw: Record<string, unknown>): SearchState => ({
     q: asStr(raw.q),
+    kommuneQuery: asStr(raw.kommuneQuery),
+    bransjeQuery: asStr(raw.bransjeQuery),
     fylke: asStr(raw.fylke),
     kommune: asStr(raw.kommune),
     nace: asStr(raw.nace),
@@ -60,7 +65,7 @@ export const Route = createFileRoute("/arbeidsgivere/")({
       {
         name: "description",
         content:
-          "Søk i norske arbeidsgivere, filtrer på bransje, fylke, kommune, ansatte og omsetning, og se register- og regnskapsdata samlet ett sted.",
+          "Søk i norske arbeidsgivere, filtrer på bransje, sted, ansatte og omsetning, og se register- og regnskapsdata samlet ett sted.",
       },
       { property: "og:title", content: "Arbeidsgiverinnsikt — Karrierenmin" },
       {
@@ -82,6 +87,8 @@ function ArbeidsgivereIndex() {
   const filters: EmployerSearchFilters = useMemo(
     () => ({
       q: search.q || undefined,
+      kommuneQuery: search.kommuneQuery || undefined,
+      bransjeQuery: search.bransjeQuery || undefined,
       fylke: search.fylke || undefined,
       kommune: search.kommune || undefined,
       nace: search.nace || undefined,
@@ -112,6 +119,8 @@ function ArbeidsgivereIndex() {
     navigate({
       search: {
         q: "",
+        kommuneQuery: "",
+        bransjeQuery: "",
         fylke: "",
         kommune: "",
         nace: "",
@@ -122,7 +131,9 @@ function ArbeidsgivereIndex() {
   };
 
   const hasAnyFilter = Boolean(
-    search.fylke ||
+    search.kommuneQuery ||
+      search.bransjeQuery ||
+      search.fylke ||
       search.kommune ||
       search.nace ||
       search.type ||
@@ -141,6 +152,15 @@ function ArbeidsgivereIndex() {
       <Header />
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 space-y-6">
+          <div>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" /> Tilbake til forsiden
+            </Link>
+          </div>
+
           <header>
             <h1 className="text-xl font-semibold text-foreground">Arbeidsgiverinnsikt</h1>
             <p className="text-sm text-muted-foreground">
@@ -153,6 +173,8 @@ function ArbeidsgivereIndex() {
             <div className="rounded-lg border border-border bg-card p-4">
               <FilterPanel
                 values={{
+                  kommuneQuery: search.kommuneQuery || undefined,
+                  bransjeQuery: search.bransjeQuery || undefined,
                   fylke: search.fylke || undefined,
                   kommune: search.kommune || undefined,
                   nace: search.nace || undefined,
@@ -164,6 +186,8 @@ function ArbeidsgivereIndex() {
                 }}
                 onChange={(patch) =>
                   update({
+                    kommuneQuery: patch.kommuneQuery ?? "",
+                    bransjeQuery: patch.bransjeQuery ?? "",
                     fylke: patch.fylke ?? "",
                     kommune: patch.kommune ?? "",
                     nace: patch.nace ?? "",

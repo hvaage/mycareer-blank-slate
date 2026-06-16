@@ -3,12 +3,14 @@ import { Logo } from "./Logo";
 
 type NavItem =
   | { label: string; to: "/"; hash?: string }
-  | { label: string; to: "/signup" };
+  | { label: string; to: "/signup" }
+  | { label: string; to: "/arbeidsgivere" };
 
 const navItems: NavItem[] = [
   { label: "Hva", to: "/", hash: "hva" },
   { label: "Annerledes", to: "/", hash: "annerledes" },
   { label: "Hvordan", to: "/", hash: "hvordan" },
+  { label: "Arbeidsgivere", to: "/arbeidsgivere" },
   { label: "Kom i gang", to: "/signup" },
 ];
 

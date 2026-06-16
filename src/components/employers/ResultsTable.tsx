@@ -6,6 +6,20 @@ import { RiskBadges, DataQualityBadges, TypeBadge } from "./Badges";
 import { fmtNumber, fmtNok, fmtPercent } from "./MetricTile";
 import { fylkesnavn } from "@/lib/employers/no-regions";
 
+function stedFra(r: EmployerSearchRow): string {
+  return [
+    r.forretningsadresse_kommune,
+    r.forretningsadresse_fylke ?? fylkesnavn(r.forretningsadresse_fylkesnummer),
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function bransjeFra(r: EmployerSearchRow): string {
+  return r.naeringskode1_beskrivelse ?? r.naeringskode1_kode ?? "";
+}
+
+
 export function ResultsTable({
   rows,
   loading,
@@ -67,9 +81,8 @@ export function ResultsTable({
           </thead>
           <tbody>
             {rows.map((r) => {
-              const sted = [r.kommune_navn, r.fylke_navn ?? fylkesnavn(r.fylkesnummer)]
-                .filter(Boolean)
-                .join(", ");
+              const sted = stedFra(r);
+              const bransje = bransjeFra(r);
               return (
                 <tr key={r.organisasjonsnummer} className="border-t border-border hover:bg-muted/30">
                   <td className="px-3 py-2">
@@ -85,9 +98,7 @@ export function ResultsTable({
                     {r.organisasjonsnummer}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{sted || "—"}</td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {r.bransje ?? r.naeringskode ?? "—"}
-                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">{bransje || "—"}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {fmtNumber(r.antall_ansatte) ?? "—"}
                   </td>
@@ -119,9 +130,8 @@ export function ResultsTable({
       {/* Mobil-kort */}
       <ul className="md:hidden space-y-2">
         {rows.map((r) => {
-          const sted = [r.kommune_navn, r.fylke_navn ?? fylkesnavn(r.fylkesnummer)]
-            .filter(Boolean)
-            .join(", ");
+          const sted = stedFra(r);
+          const bransje = bransjeFra(r);
           return (
             <li key={r.organisasjonsnummer}>
               <Link
@@ -137,7 +147,7 @@ export function ResultsTable({
                   {r.organisasjonsnummer}
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  {sted || "—"} · {r.bransje ?? r.naeringskode ?? "—"}
+                  {sted || "—"} · {bransje || "—"}
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                   <div>

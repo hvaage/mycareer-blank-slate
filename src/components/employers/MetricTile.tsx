@@ -35,3 +35,8 @@ export function fmtPercent(n: number | null | undefined): string | null {
   if (n === null || n === undefined || Number.isNaN(n)) return null;
   return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 1 }).format(n)} %`;
 }
+
+export function fmtRatio(n: number | null | undefined): string | null {
+  if (n === null || n === undefined || Number.isNaN(n)) return null;
+  return `${new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 1 }).format(n)}x`;
+}
