@@ -417,8 +417,8 @@ export const adminGetQuestions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { versionId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { userId } = context as { userId: string };
-    await assertAdmin(userId);
+    const { userId, supabase } = context as { userId: string; supabase: any };
+    await assertAdmin(supabase, userId);
     const admin = await getAdmin();
     const { data: questions } = await admin
       .from("survey_questions")
@@ -432,8 +432,8 @@ export const adminUpdateQuestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string; patch: Record<string, any> }) => d)
   .handler(async ({ data, context }) => {
-    const { userId } = context as { userId: string };
-    await assertAdmin(userId);
+    const { userId, supabase } = context as { userId: string; supabase: any };
+    await assertAdmin(supabase, userId);
     const admin = await getAdmin();
     const { error } = await admin
       .from("survey_questions")
@@ -447,8 +447,8 @@ export const adminGetTextAnswers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { questionId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { userId } = context as { userId: string };
-    await assertAdmin(userId);
+    const { userId, supabase } = context as { userId: string; supabase: any };
+    await assertAdmin(supabase, userId);
     const admin = await getAdmin();
     const { data: answers } = await admin
       .from("survey_answers")
@@ -463,8 +463,8 @@ export const adminUpdateAnswer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string; patch: Record<string, any> }) => d)
   .handler(async ({ data, context }) => {
-    const { userId } = context as { userId: string };
-    await assertAdmin(userId);
+    const { userId, supabase } = context as { userId: string; supabase: any };
+    await assertAdmin(supabase, userId);
     const admin = await getAdmin();
     const { error } = await admin
       .from("survey_answers")
@@ -478,8 +478,8 @@ export const adminIssueAccessToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { signupId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { userId } = context as { userId: string };
-    await assertAdmin(userId);
+    const { userId, supabase } = context as { userId: string; supabase: any };
+    await assertAdmin(supabase, userId);
     const admin = await getAdmin();
     const token =
       typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -497,8 +497,8 @@ export const adminExportCsv = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { versionId: string }) => d)
   .handler(async ({ data, context }) => {
-    const { userId } = context as { userId: string };
-    await assertAdmin(userId);
+    const { userId, supabase } = context as { userId: string; supabase: any };
+    await assertAdmin(supabase, userId);
     const admin = await getAdmin();
     const { data: questions } = await admin
       .from("survey_questions")
