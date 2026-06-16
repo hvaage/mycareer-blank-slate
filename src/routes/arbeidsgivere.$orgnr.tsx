@@ -1,5 +1,6 @@
-import { createFileRoute, useRouter, notFound } from "@tanstack/react-router";
+import { createFileRoute, useRouter, notFound, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
