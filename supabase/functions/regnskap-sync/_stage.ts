@@ -4,6 +4,7 @@ export type Stage =
   | "qa_before" | "qa_real1" | "qa_snap1" | "qa_real2" | "qa_after"
   | "select_candidates" | "ensure_status" | "claim" | "start_run"
   | "brreg_fetch" | "upsert" | "write_status" | "insert_run_items" | "finish_run"
+  | "finish_run_failed" | "post_refresh_mv" | "post_analyze" | "post_warmup" | "post_patch_meta"
   | "db_connect" | "verify" | "unknown";
 
 export class StageError extends Error {
