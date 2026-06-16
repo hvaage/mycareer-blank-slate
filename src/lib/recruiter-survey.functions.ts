@@ -7,14 +7,14 @@ async function getAdmin() {
   return supabaseAdmin;
 }
 
-async function assertAdmin(userId: string) {
-  const admin = await getAdmin();
-  const { data } = await admin
+async function assertAdmin(supabase: any, userId: string) {
+  const { data, error } = await supabase
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
     .eq("role", "admin")
     .maybeSingle();
+  if (error) throw new Error(`Tilgangskontroll feilet: ${error.message}`);
   if (!data) throw new Error("Forbidden: admin role required");
 }
 
