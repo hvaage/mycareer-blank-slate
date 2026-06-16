@@ -26,7 +26,7 @@ type EdgeErr = {
   stage: string | null;
   code: string | null;
   reqId: string | null;
-  runId: number | null;
+  runId: number | string | null;
   debug?: Record<string, unknown>;
 };
 
@@ -65,11 +65,11 @@ async function parseEdgeError(error: any): Promise<EdgeErr> {
       try {
         body = JSON.parse(raw);
         out.debug.responseBodyJson = body;
-        out.message = String(body?.error ?? body?.message ?? resp.statusText ?? "Edge Function error");
+        out.message = String(body?.error?.message ?? body?.error ?? body?.message ?? resp.statusText ?? "Edge Function error");
         out.stage = body?.stage ?? null;
-        out.code = body?.code ?? null;
+        out.code = body?.code ?? body?.error?.code ?? null;
         out.reqId = body?.reqId ?? null;
-        out.runId = typeof body?.runId === "number" ? body.runId : null;
+        out.runId = typeof body?.runId === "number" || typeof body?.runId === "string" ? body.runId : null;
         return out;
       } catch {
         out.message = raw.slice(0, 500) || resp.statusText;
@@ -98,14 +98,14 @@ function RegnskapQaPage() {
         const parsed = await parseEdgeError(error);
         throw parsed;
       }
-      if (data?.error) {
+      if (data?.ok === false || data?.error) {
         throw {
-          message: String(data.error),
+          message: String(data?.error?.message ?? data.error ?? "Edge Function reported ok:false"),
           status: typeof data.httpStatus === "number" ? data.httpStatus : 200,
           stage: data.stage ?? null,
-          code: data.code ?? null,
+          code: data.code ?? data?.error?.code ?? null,
           reqId: data.reqId ?? null,
-          runId: typeof data.runId === "number" ? data.runId : null,
+          runId: typeof data.runId === "number" || typeof data.runId === "string" ? data.runId : null,
           debug: { directData: data },
         } satisfies EdgeErr;
       }
