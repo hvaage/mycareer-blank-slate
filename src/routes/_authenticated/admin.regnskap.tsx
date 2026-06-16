@@ -130,7 +130,7 @@ function AdminRegnskap() {
           <h1 className="text-2xl font-bold text-foreground">Regnskap-sync</h1>
           <p className="text-sm text-muted-foreground">
             Admin trigger for regnskap-sync Edge Function. Konservative defaults.
-            Ingen MV-refresh i M5.3. Ingen cron schedule aktivert.
+            M5.4: post-batch MV-refresh (concurrent), ANALYZE og search warmup. Ingen cron schedule aktivert.
           </p>
         </header>
 
