@@ -139,7 +139,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
         else { finalStatus = "retry"; lastError = (fetchRes as any).error; }
 
         if (includePdfYears && (finalStatus === "ok" || finalStatus === "no_regnskap")) {
-          const pdf = await fetchPdfYears(orgnr, limiter);
+          const pdf = await tagStage("brreg_fetch", () => fetchPdfYears(orgnr, limiter));
           if (pdf.kind === "ok") pdfYears = pdf.years;
           else if (pdf.kind === "none") pdfYears = [];
         }
