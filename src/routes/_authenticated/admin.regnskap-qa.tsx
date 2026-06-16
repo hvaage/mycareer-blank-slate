@@ -27,26 +27,44 @@ type EdgeErr = {
   code: string | null;
   reqId: string | null;
   runId: number | null;
+  debug?: Record<string, unknown>;
 };
 
 async function parseEdgeError(error: any): Promise<EdgeErr> {
-  const out: EdgeErr = { message: "", status: null, stage: null, code: null, reqId: null, runId: null };
-  // supabase-js v2 FunctionsHttpError: error.context === Response
-  // older/other shapes: error.context.response, error.response
-  const candidate = error?.context ?? error?.response;
-  const resp: Response | undefined =
-    candidate instanceof Response
-      ? candidate
-      : candidate?.response instanceof Response
-        ? candidate.response
-        : undefined;
+  const out: EdgeErr = { message: "", status: null, stage: null, code: null, reqId: null, runId: null, debug: {} };
+  const context = error?.context;
+  const contextKeys = context && typeof context === "object" ? Object.keys(context) : [];
+  const candidates = [
+    context instanceof Response ? context : null,
+    context?.response instanceof Response ? context.response : null,
+    error?.response instanceof Response ? error.response : null,
+    error?.cause?.response instanceof Response ? error.cause.response : null,
+  ].filter(Boolean) as Response[];
+  const resp = candidates[0];
+  let raw = "";
+  let body: any = null;
+
+  out.debug = {
+    errorName: error?.name ?? null,
+    errorMessage: error?.message ?? null,
+    contextType: typeof context,
+    contextIsResponse: context instanceof Response,
+    contextResponseIsResponse: context?.response instanceof Response,
+    responseIsResponse: error?.response instanceof Response,
+    causeResponseIsResponse: error?.cause?.response instanceof Response,
+    contextKeys,
+    responseFound: resp instanceof Response,
+    responseStatus: resp?.status ?? null,
+  };
+
   if (resp instanceof Response) {
     out.status = resp.status;
-    let raw = "";
-    try { raw = await resp.clone().text(); } catch { /* */ }
+    try { raw = await resp.clone().text(); } catch (e) { raw = `[body read failed: ${e instanceof Error ? e.message : String(e)}]`; }
+    out.debug.responseBodyText = raw.slice(0, 1500);
     if (raw) {
       try {
-        const body = JSON.parse(raw);
+        body = JSON.parse(raw);
+        out.debug.responseBodyJson = body;
         out.message = String(body?.error ?? body?.message ?? resp.statusText ?? "Edge Function error");
         out.stage = body?.stage ?? null;
         out.code = body?.code ?? null;
