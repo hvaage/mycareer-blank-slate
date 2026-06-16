@@ -31,21 +31,35 @@ type EdgeErr = {
 
 async function parseEdgeError(error: any): Promise<EdgeErr> {
   const out: EdgeErr = { message: "", status: null, stage: null, code: null, reqId: null, runId: null };
-  const resp: Response | undefined = error?.context?.response ?? error?.response;
+  // supabase-js v2 FunctionsHttpError: error.context === Response
+  // older/other shapes: error.context.response, error.response
+  const candidate = error?.context ?? error?.response;
+  const resp: Response | undefined =
+    candidate instanceof Response
+      ? candidate
+      : candidate?.response instanceof Response
+        ? candidate.response
+        : undefined;
   if (resp instanceof Response) {
     out.status = resp.status;
-    try {
-      const body = await resp.clone().json();
-      out.message = String(body?.error ?? body?.message ?? resp.statusText ?? "Edge Function error");
-      out.stage = body?.stage ?? null;
-      out.code = body?.code ?? null;
-      out.reqId = body?.reqId ?? null;
-      out.runId = typeof body?.runId === "number" ? body.runId : null;
-      return out;
-    } catch {
-      try { out.message = (await resp.clone().text()) || resp.statusText; } catch { out.message = resp.statusText; }
-      return out;
+    let raw = "";
+    try { raw = await resp.clone().text(); } catch { /* */ }
+    if (raw) {
+      try {
+        const body = JSON.parse(raw);
+        out.message = String(body?.error ?? body?.message ?? resp.statusText ?? "Edge Function error");
+        out.stage = body?.stage ?? null;
+        out.code = body?.code ?? null;
+        out.reqId = body?.reqId ?? null;
+        out.runId = typeof body?.runId === "number" ? body.runId : null;
+        return out;
+      } catch {
+        out.message = raw.slice(0, 500) || resp.statusText;
+        return out;
+      }
     }
+    out.message = resp.statusText || `HTTP ${resp.status}`;
+    return out;
   }
   out.message = error?.message ?? String(error);
   return out;
