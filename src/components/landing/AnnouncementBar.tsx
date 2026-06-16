@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+
 
 export function AnnouncementBar() {
   return (
@@ -11,16 +11,6 @@ export function AnnouncementBar() {
           </span>
           Lanseres i{" "}
           <span className="font-medium text-foreground">august 2026</span>.
-        </p>
-        <p className="text-muted-foreground">
-          Arbeidsgiveranalysen?{" "}
-          <Link
-            to="/selskapsanalyse"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Finn den her
-          </Link>
-          .
         </p>
       </div>
     </div>
