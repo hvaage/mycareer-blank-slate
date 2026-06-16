@@ -1,13 +1,5 @@
-/**
- * Mapping Brreg regnskap → reg.regnskap-rad.
- *
- * Portert 1:1 fra eksisterende sync-regnskap/hent-regnskap-implementasjon.
- * Feltnavnet `regnkapsprinsipper` (ikke `regnskapsprinsipper`) er bekreftet
- * mot live Brreg-respons (EQUINOR) — behold stavemåten.
- *
- * raw_data settes alltid til null i M5.2 (STORE_RAW=false).
- * hentet_tidspunkt settes ikke her — DB-tid er kilden i upsert.
- */
+// Mapping Brreg regnskap → reg.regnskap-rad. 1:1 port fra src/lib/regnskap-sync.normalize.ts.
+// raw_data settes alltid til null (STORE_RAW=false i M5.2).
 
 export type RegnskapRow = {
   organisasjonsnummer: string;
@@ -44,13 +36,9 @@ export type RegnskapRow = {
 function n(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
-
 function d(value: unknown): string | null {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)
-    ? value.slice(0, 10)
-    : null;
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null;
 }
-
 function regnskapsaar(row: any): number | null {
   const to = row?.regnskapsperiode?.tilDato;
   if (typeof to !== "string" || !/^\d{4}-\d{2}-\d{2}/.test(to)) return null;
@@ -64,19 +52,16 @@ export function regnskapRad(organisasjonsnummer: string, rr: any): RegnskapRow {
   const finansresultat = resultat?.finansresultat;
   const egenkapitalGjeld = rr?.egenkapitalGjeld;
   const eiendeler = rr?.eiendeler;
-
   return {
     organisasjonsnummer,
     regnskapsaar: regnskapsaar(rr),
     brreg_regnskap_id: Number.isInteger(rr?.id) ? rr.id : null,
     journalnr: typeof rr?.journalnr === "string" ? rr.journalnr : null,
     regnskapstype: typeof rr?.regnskapstype === "string" ? rr.regnskapstype : "SELSKAP",
-    regnskap_dokumenttype:
-      typeof rr?.regnskapDokumenttype === "string" ? rr.regnskapDokumenttype : null,
+    regnskap_dokumenttype: typeof rr?.regnskapDokumenttype === "string" ? rr.regnskapDokumenttype : null,
     regnskapsperiode_fra: d(rr?.regnskapsperiode?.fraDato),
     regnskapsperiode_til: d(rr?.regnskapsperiode?.tilDato),
-    morselskap:
-      typeof rr?.virksomhet?.morselskap === "boolean" ? rr.virksomhet.morselskap : null,
+    morselskap: typeof rr?.virksomhet?.morselskap === "boolean" ? rr.virksomhet.morselskap : null,
     driftsinntekter: n(driftsresultat?.driftsinntekter?.sumDriftsinntekter),
     driftsresultat: n(driftsresultat?.driftsresultat),
     aarsresultat: n(resultat?.aarsresultat),
@@ -90,35 +75,18 @@ export function regnskapRad(organisasjonsnummer: string, rr: any): RegnskapRow {
     sum_finansinntekter: n(finansresultat?.finansinntekt?.sumFinansinntekter),
     sum_finanskostnad: n(finansresultat?.finanskostnad?.sumFinanskostnad),
     valuta: typeof rr?.valuta === "string" ? rr.valuta : "NOK",
-    avviklingsregnskap:
-      typeof rr?.avviklingsregnskap === "boolean" ? rr.avviklingsregnskap : null,
-    oppstillingsplan:
-      typeof rr?.oppstillingsplan === "string" ? rr.oppstillingsplan : null,
-    smaa_foretak:
-      typeof rr?.regnkapsprinsipper?.smaaForetak === "boolean"
-        ? rr.regnkapsprinsipper.smaaForetak
-        : null,
-    regnskapsregler:
-      typeof rr?.regnkapsprinsipper?.regnskapsregler === "string"
-        ? rr.regnkapsprinsipper.regnskapsregler
-        : null,
-    ikke_revidert_aarsregnskap:
-      typeof rr?.revisjon?.ikkeRevidertAarsregnskap === "boolean"
-        ? rr.revisjon.ikkeRevidertAarsregnskap
-        : null,
-    fravalg_revisjon:
-      typeof rr?.revisjon?.fravalgRevisjon === "boolean"
-        ? rr.revisjon.fravalgRevisjon
-        : null,
+    avviklingsregnskap: typeof rr?.avviklingsregnskap === "boolean" ? rr.avviklingsregnskap : null,
+    oppstillingsplan: typeof rr?.oppstillingsplan === "string" ? rr.oppstillingsplan : null,
+    smaa_foretak: typeof rr?.regnkapsprinsipper?.smaaForetak === "boolean" ? rr.regnkapsprinsipper.smaaForetak : null,
+    regnskapsregler: typeof rr?.regnkapsprinsipper?.regnskapsregler === "string" ? rr.regnkapsprinsipper.regnskapsregler : null,
+    ikke_revidert_aarsregnskap: typeof rr?.revisjon?.ikkeRevidertAarsregnskap === "boolean" ? rr.revisjon.ikkeRevidertAarsregnskap : null,
+    fravalg_revisjon: typeof rr?.revisjon?.fravalgRevisjon === "boolean" ? rr.revisjon.fravalgRevisjon : null,
     raw_data: null,
   };
 }
 
-/** Stabil hash for OK-sampling i run-items (1% deterministisk). */
 export function sampleOk(orgnr: string): boolean {
   let h = 0;
-  for (let i = 0; i < orgnr.length; i++) {
-    h = (h * 31 + orgnr.charCodeAt(i)) | 0;
-  }
+  for (let i = 0; i < orgnr.length; i++) h = (h * 31 + orgnr.charCodeAt(i)) | 0;
   return Math.abs(h) % 100 === 0;
 }
