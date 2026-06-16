@@ -112,7 +112,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
           break;
         }
 
-        const fetchRes = await fetchRegnskap(orgnr, limiter);
+        const fetchRes = await tagStage("brreg_fetch", () => fetchRegnskap(orgnr, limiter));
         result.http429 += fetchRes.http429;
         result.http503 += fetchRes.http503;
         result.retries += Math.max(0, fetchRes.attempts - 1);
