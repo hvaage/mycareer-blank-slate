@@ -61,6 +61,11 @@ export function ResultsTable({
     );
   }
 
+  const navigate = useNavigate();
+  const goTo = (orgnr: string) => {
+    navigate({ to: "/arbeidsgivere/$orgnr", params: { orgnr } });
+  };
+
   return (
     <>
       {/* Desktop-tabell */}
@@ -78,6 +83,7 @@ export function ResultsTable({
               <th className="px-3 py-2 text-right font-medium min-w-[6ch]">EK-andel</th>
               <th className="px-3 py-2 text-left font-medium">Type</th>
               <th className="px-3 py-2 text-left font-medium">Flagg</th>
+              <th className="px-3 py-2 text-right font-medium sr-only">Detaljer</th>
             </tr>
           </thead>
           <tbody>
@@ -85,11 +91,24 @@ export function ResultsTable({
               const sted = stedFra(r);
               const bransje = bransjeFra(r);
               return (
-                <tr key={r.organisasjonsnummer} className="border-t border-border hover:bg-muted/30">
+                <tr
+                  key={r.organisasjonsnummer}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => goTo(r.organisasjonsnummer)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      goTo(r.organisasjonsnummer);
+                    }
+                  }}
+                  className="border-t border-border cursor-pointer hover:bg-muted/30 focus:outline-none focus:bg-muted/40"
+                >
                   <td className="px-3 py-2">
                     <Link
                       to="/arbeidsgivere/$orgnr"
                       params={{ orgnr: r.organisasjonsnummer }}
+                      onClick={(e) => e.stopPropagation()}
                       className="font-medium text-foreground hover:text-[var(--km-blue)] hover:underline"
                     >
                       {r.navn}
@@ -120,6 +139,17 @@ export function ResultsTable({
                       <RiskBadges flags={r.risiko_flags} />
                       <DataQualityBadges flags={r.datakvalitet_flags} />
                     </div>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Link
+                      to="/arbeidsgivere/$orgnr"
+                      params={{ orgnr: r.organisasjonsnummer }}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Se detaljer for ${r.navn}`}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-[var(--km-blue)] hover:underline whitespace-nowrap"
+                    >
+                      Se detaljer <ChevronRight className="h-3.5 w-3.5" />
+                    </Link>
                   </td>
                 </tr>
               );
