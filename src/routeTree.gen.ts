@@ -63,7 +63,6 @@ import { Route as AuthenticatedCareerAtomReviewRouteImport } from './routes/_aut
 import { Route as AuthenticatedApplicationsNewRouteImport } from './routes/_authenticated/applications/new'
 import { Route as AuthenticatedApplicationsIdRouteImport } from './routes/_authenticated/applications/$id'
 import { Route as AuthenticatedAdminRekruttererundersokelseRouteImport } from './routes/_authenticated/admin.rekruttererundersokelse'
-import { Route as AuthenticatedAdminRegnskapQaRouteImport } from './routes/_authenticated/admin.regnskap-qa'
 import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authenticated/admin.leads'
 import { Route as AuthenticatedAdminCvTestRouteImport } from './routes/_authenticated/admin.cv-test'
 import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authenticated/admin.changelog'
@@ -371,12 +370,6 @@ const AuthenticatedAdminRekruttererundersokelseRoute =
     path: '/admin/rekruttererundersokelse',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedAdminRegnskapQaRoute =
-  AuthenticatedAdminRegnskapQaRouteImport.update({
-    id: '/admin/regnskap-qa',
-    path: '/admin/regnskap-qa',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedAdminLeadsRoute = AuthenticatedAdminLeadsRouteImport.update({
   id: '/admin/leads',
   path: '/admin/leads',
@@ -456,7 +449,6 @@ export interface FileRoutesByFullPath {
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
-  '/admin/regnskap-qa': typeof AuthenticatedAdminRegnskapQaRoute
   '/admin/rekruttererundersokelse': typeof AuthenticatedAdminRekruttererundersokelseRoute
   '/applications/$id': typeof AuthenticatedApplicationsIdRoute
   '/applications/new': typeof AuthenticatedApplicationsNewRoute
@@ -517,7 +509,6 @@ export interface FileRoutesByTo {
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
-  '/admin/regnskap-qa': typeof AuthenticatedAdminRegnskapQaRoute
   '/admin/rekruttererundersokelse': typeof AuthenticatedAdminRekruttererundersokelseRoute
   '/applications/$id': typeof AuthenticatedApplicationsIdRoute
   '/applications/new': typeof AuthenticatedApplicationsNewRoute
@@ -583,7 +574,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/_authenticated/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
-  '/_authenticated/admin/regnskap-qa': typeof AuthenticatedAdminRegnskapQaRoute
   '/_authenticated/admin/rekruttererundersokelse': typeof AuthenticatedAdminRekruttererundersokelseRoute
   '/_authenticated/applications/$id': typeof AuthenticatedApplicationsIdRoute
   '/_authenticated/applications/new': typeof AuthenticatedApplicationsNewRoute
@@ -649,7 +639,6 @@ export interface FileRouteTypes {
     | '/admin/changelog'
     | '/admin/cv-test'
     | '/admin/leads'
-    | '/admin/regnskap-qa'
     | '/admin/rekruttererundersokelse'
     | '/applications/$id'
     | '/applications/new'
@@ -710,7 +699,6 @@ export interface FileRouteTypes {
     | '/admin/changelog'
     | '/admin/cv-test'
     | '/admin/leads'
-    | '/admin/regnskap-qa'
     | '/admin/rekruttererundersokelse'
     | '/applications/$id'
     | '/applications/new'
@@ -775,7 +763,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/changelog'
     | '/_authenticated/admin/cv-test'
     | '/_authenticated/admin/leads'
-    | '/_authenticated/admin/regnskap-qa'
     | '/_authenticated/admin/rekruttererundersokelse'
     | '/_authenticated/applications/$id'
     | '/_authenticated/applications/new'
@@ -1213,13 +1200,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRekruttererundersokelseRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/admin/regnskap-qa': {
-      id: '/_authenticated/admin/regnskap-qa'
-      path: '/admin/regnskap-qa'
-      fullPath: '/admin/regnskap-qa'
-      preLoaderRoute: typeof AuthenticatedAdminRegnskapQaRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/admin/leads': {
       id: '/_authenticated/admin/leads'
       path: '/admin/leads'
@@ -1291,7 +1271,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminChangelogRoute: typeof AuthenticatedAdminChangelogRoute
   AuthenticatedAdminCvTestRoute: typeof AuthenticatedAdminCvTestRoute
   AuthenticatedAdminLeadsRoute: typeof AuthenticatedAdminLeadsRoute
-  AuthenticatedAdminRegnskapQaRoute: typeof AuthenticatedAdminRegnskapQaRoute
   AuthenticatedAdminRekruttererundersokelseRoute: typeof AuthenticatedAdminRekruttererundersokelseRoute
   AuthenticatedApplicationsIdRoute: typeof AuthenticatedApplicationsIdRoute
   AuthenticatedApplicationsNewRoute: typeof AuthenticatedApplicationsNewRoute
@@ -1326,7 +1305,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminChangelogRoute: AuthenticatedAdminChangelogRoute,
   AuthenticatedAdminCvTestRoute: AuthenticatedAdminCvTestRoute,
   AuthenticatedAdminLeadsRoute: AuthenticatedAdminLeadsRoute,
-  AuthenticatedAdminRegnskapQaRoute: AuthenticatedAdminRegnskapQaRoute,
   AuthenticatedAdminRekruttererundersokelseRoute:
     AuthenticatedAdminRekruttererundersokelseRoute,
   AuthenticatedApplicationsIdRoute: AuthenticatedApplicationsIdRoute,

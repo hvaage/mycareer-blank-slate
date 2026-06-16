@@ -189,9 +189,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
         try { await tagStage("insert_run_items", () => insertRunItems(c, runItems)); }
         catch (e) { lastErr = e instanceof Error ? e.message : String(e); }
         result.durationMs = Date.now() - t0;
-        const runStatus = result.status === "partial"
-          ? "partial"
-          : (result.failed > 0 && result.checked === result.failed ? "failed" : "ok");
+        const runStatus = (result.stoppedReason !== "done" || result.failed > 0) ? "partial" : "ok";
         await tagStage("finish_run", () => finishRun(c, {
           runId: runId!, status: runStatus, durationMs: result.durationMs,
           selected: result.selected, checked: result.checked,
@@ -213,6 +211,23 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
     result.stoppedReason = "error";
     result.status = "failed";
     result.durationMs = Date.now() - t0;
+    // Marker run som failed hvis vi rakk å starte den
+    if (runId !== null) {
+      try {
+        await tagStage("finish_run_failed", () => withClient(async (c2) => finishRun(c2, {
+          runId: runId!, status: "failed", durationMs: result.durationMs,
+          selected: result.selected, checked: result.checked,
+          withRegnskap: result.withRegnskap, noRegnskap: result.noRegnskap,
+          failed: result.failed, skipped: result.skipped,
+          recordsLagret: result.recordsLagret,
+          http429: result.http429, http503: result.http503, retries: result.retries,
+          lastError: e instanceof Error ? e.message : String(e),
+          extraMeta: { stoppedReason: "error", includePdfYears, candidateCount: 0 },
+        })));
+      } catch (finishErr) {
+        console.error("[runner] finishRun failed after exception:", finishErr);
+      }
+    }
     // attach runId for diagnostics
     if (e instanceof StageError) (e as any).runId = runId;
     else { const se = new StageError("unknown", e); (se as any).runId = runId; throw se; }
