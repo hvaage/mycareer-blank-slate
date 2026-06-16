@@ -81,9 +81,8 @@ export function ResultsTable({
           </thead>
           <tbody>
             {rows.map((r) => {
-              const sted = [r.kommune_navn, r.fylke_navn ?? fylkesnavn(r.fylkesnummer)]
-                .filter(Boolean)
-                .join(", ");
+              const sted = stedFra(r);
+              const bransje = bransjeFra(r);
               return (
                 <tr key={r.organisasjonsnummer} className="border-t border-border hover:bg-muted/30">
                   <td className="px-3 py-2">
@@ -99,9 +98,7 @@ export function ResultsTable({
                     {r.organisasjonsnummer}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{sted || "—"}</td>
-                  <td className="px-3 py-2 text-muted-foreground">
-                    {r.bransje ?? r.naeringskode ?? "—"}
-                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">{bransje || "—"}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {fmtNumber(r.antall_ansatte) ?? "—"}
                   </td>
