@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.parse-uploaded-cv]
 verify_jwt = true
+
+[functions.regnskap-sync]
+verify_jwt = true
