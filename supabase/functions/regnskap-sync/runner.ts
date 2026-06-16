@@ -7,6 +7,7 @@ import {
   upsertRegnskap, writeFinalStatus, startRun, finishRun, insertRunItems,
   type SyncMode, type ClaimedOrg, type FinalStatus, type RunItem,
 } from "./db.ts";
+import { tagStage, StageError } from "./_stage.ts";
 
 export type RunSyncInput = {
   mode: SyncMode;
@@ -60,36 +61,36 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
   let lastErr: string | null = null;
 
   try {
-    return await withClient(async (c) => {
-      const candidates = await selectCandidates(c, mode, limit, staleDays, input.orgnrs);
+    return await tagStage("db_connect", () => withClient(async (c) => {
+      const candidates = await tagStage("select_candidates", () => selectCandidates(c, mode, limit, staleDays, input.orgnrs));
       if (candidates.length === 0) {
         result.durationMs = Date.now() - t0;
         if (!dryRun) {
-          runId = await startRun(c, { mode, dryRun, limit, staleDays, timeBudgetMs, rps, meta });
-          await finishRun(c, {
-            runId, status: "ok", durationMs: result.durationMs,
+          runId = await tagStage("start_run", () => startRun(c, { mode, dryRun, limit, staleDays, timeBudgetMs, rps, meta }));
+          await tagStage("finish_run", () => finishRun(c, {
+            runId: runId!, status: "ok", durationMs: result.durationMs,
             selected: 0, checked: 0, withRegnskap: 0, noRegnskap: 0,
             failed: 0, skipped: 0, recordsLagret: 0,
             http429: 0, http503: 0, retries: 0, lastError: null,
             extraMeta: { stoppedReason: "done", includePdfYears, candidateCount: 0 },
-          });
+          }));
           result.runId = runId;
         }
         return result;
       }
 
-      if (!dryRun) await ensureStatusRows(c, candidates);
+      if (!dryRun) await tagStage("ensure_status", () => ensureStatusRows(c, candidates));
 
       let claimed: ClaimedOrg[];
       if (dryRun) {
         claimed = candidates.slice(0, limit).map((o) => ({ organisasjonsnummer: o, prevStatus: null }));
       } else {
-        claimed = await claimOrgs(c, candidates, limit, mode);
+        claimed = await tagStage("claim", () => claimOrgs(c, candidates, limit, mode));
       }
       result.selected = claimed.length;
 
       if (!dryRun) {
-        runId = await startRun(c, { mode, dryRun, limit, staleDays, timeBudgetMs, rps, meta });
+        runId = await tagStage("start_run", () => startRun(c, { mode, dryRun, limit, staleDays, timeBudgetMs, rps, meta }));
         result.runId = runId;
       }
 
@@ -111,7 +112,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
           break;
         }
 
-        const fetchRes = await fetchRegnskap(orgnr, limiter);
+        const fetchRes = await tagStage("brreg_fetch", () => fetchRegnskap(orgnr, limiter));
         result.http429 += fetchRes.http429;
         result.http503 += fetchRes.http503;
         result.retries += Math.max(0, fetchRes.attempts - 1);
@@ -138,7 +139,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
         else { finalStatus = "retry"; lastError = (fetchRes as any).error; }
 
         if (includePdfYears && (finalStatus === "ok" || finalStatus === "no_regnskap")) {
-          const pdf = await fetchPdfYears(orgnr, limiter);
+          const pdf = await tagStage("brreg_fetch", () => fetchPdfYears(orgnr, limiter));
           if (pdf.kind === "ok") pdfYears = pdf.years;
           else if (pdf.kind === "none") pdfYears = [];
         }
@@ -185,14 +186,14 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
       }
 
       if (!dryRun && runId !== null) {
-        try { await insertRunItems(c, runItems); }
+        try { await tagStage("insert_run_items", () => insertRunItems(c, runItems)); }
         catch (e) { lastErr = e instanceof Error ? e.message : String(e); }
         result.durationMs = Date.now() - t0;
         const runStatus = result.status === "partial"
           ? "partial"
           : (result.failed > 0 && result.checked === result.failed ? "failed" : "ok");
-        await finishRun(c, {
-          runId, status: runStatus, durationMs: result.durationMs,
+        await tagStage("finish_run", () => finishRun(c, {
+          runId: runId!, status: runStatus, durationMs: result.durationMs,
           selected: result.selected, checked: result.checked,
           withRegnskap: result.withRegnskap, noRegnskap: result.noRegnskap,
           failed: result.failed, skipped: result.skipped,
@@ -200,18 +201,21 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
           http429: result.http429, http503: result.http503, retries: result.retries,
           lastError: lastErr,
           extraMeta: { stoppedReason: result.stoppedReason, includePdfYears, candidateCount: candidates.length },
-        });
+        }));
         result.status = runStatus;
       } else {
         result.durationMs = Date.now() - t0;
       }
 
       return result;
-    });
+    }));
   } catch (e) {
     result.stoppedReason = "error";
     result.status = "failed";
     result.durationMs = Date.now() - t0;
+    // attach runId for diagnostics
+    if (e instanceof StageError) (e as any).runId = runId;
+    else { const se = new StageError("unknown", e); (se as any).runId = runId; throw se; }
     throw e;
   }
 }

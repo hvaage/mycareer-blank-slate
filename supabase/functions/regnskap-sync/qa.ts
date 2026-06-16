@@ -2,6 +2,7 @@
 
 import { runSync, type RunSyncResult } from "./runner.ts";
 import { withClient } from "./db.ts";
+import { tagStage } from "./_stage.ts";
 
 type Snap = {
   organisasjonsnummer: string;
@@ -33,7 +34,7 @@ export async function runQaSequence(orgnrs: string[], adminUid: string) {
   };
 
   // before-snapshot for attempts-delta
-  const before = await withClient(async (c) => {
+  const before = await tagStage("qa_before", () => withClient(async (c) => {
     const r = await c.queryObject<{ organisasjonsnummer: string; attempts: number | null; status: string | null; last_success_at: string | null }>({
       text: `SELECT organisasjonsnummer, attempts, status, last_success_at
              FROM reg.regnskap_sync_status
@@ -42,13 +43,13 @@ export async function runQaSequence(orgnrs: string[], adminUid: string) {
       args: [orgnrs],
     });
     return r.rows;
-  });
+  }));
 
   // Run real 1
-  const real1 = await runSync({ ...common, dryRun: false });
+  const real1 = await tagStage("qa_real1", () => runSync({ ...common, dryRun: false }));
 
   // mid-snapshot (hentet_tidspunkt etter real1)
-  const snapAfter1 = await withClient(async (c) => {
+  const snapAfter1 = await tagStage("qa_snap1", () => withClient(async (c) => {
     const r = await c.queryObject<Snap>({
       text: `SELECT organisasjonsnummer, regnskapsaar, regnskapstype,
                     to_char(hentet_tidspunkt,'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS hentet_tidspunkt,
@@ -59,13 +60,13 @@ export async function runQaSequence(orgnrs: string[], adminUid: string) {
       args: [orgnrs],
     });
     return r.rows;
-  });
+  }));
 
   // Re-run
-  const real2 = await runSync({ ...common, dryRun: false });
+  const real2 = await tagStage("qa_real2", () => runSync({ ...common, dryRun: false }));
 
   // after-snapshot
-  const { snapAfter2, status, runs, items } = await withClient(async (c) => {
+  const { snapAfter2, status, runs, items } = await tagStage("qa_after", () => withClient(async (c) => {
     const sa2 = await c.queryObject<Snap>({
       text: `SELECT organisasjonsnummer, regnskapsaar, regnskapstype,
                     to_char(hentet_tidspunkt,'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS hentet_tidspunkt,
@@ -105,7 +106,7 @@ export async function runQaSequence(orgnrs: string[], adminUid: string) {
       args: [runIds],
     }) : { rows: [] as any[] };
     return { snapAfter2: sa2.rows, status: st.rows, runs: rs.rows, items: it.rows };
-  });
+  }));
 
   // attempts delta
   const beforeAttemptsByOrg = new Map(before.map((b) => [b.organisasjonsnummer, b.attempts ?? 0]));

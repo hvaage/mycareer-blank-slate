@@ -20,9 +20,40 @@ export const Route = createFileRoute("/_authenticated/admin/regnskap-qa")({
   component: RegnskapQaPage,
 });
 
+type EdgeErr = {
+  message: string;
+  status: number | null;
+  stage: string | null;
+  code: string | null;
+  reqId: string | null;
+  runId: number | null;
+};
+
+async function parseEdgeError(error: any): Promise<EdgeErr> {
+  const out: EdgeErr = { message: "", status: null, stage: null, code: null, reqId: null, runId: null };
+  const resp: Response | undefined = error?.context?.response ?? error?.response;
+  if (resp instanceof Response) {
+    out.status = resp.status;
+    try {
+      const body = await resp.clone().json();
+      out.message = String(body?.error ?? body?.message ?? resp.statusText ?? "Edge Function error");
+      out.stage = body?.stage ?? null;
+      out.code = body?.code ?? null;
+      out.reqId = body?.reqId ?? null;
+      out.runId = typeof body?.runId === "number" ? body.runId : null;
+      return out;
+    } catch {
+      try { out.message = (await resp.clone().text()) || resp.statusText; } catch { out.message = resp.statusText; }
+      return out;
+    }
+  }
+  out.message = error?.message ?? String(error);
+  return out;
+}
+
 function RegnskapQaPage() {
   const [result, setResult] = useState<any>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<EdgeErr | null>(null);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -31,12 +62,24 @@ function RegnskapQaPage() {
       const { data, error } = await supabase.functions.invoke("regnskap-sync", {
         body: { op: "qa" },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(String(data.error));
+      if (error) {
+        const parsed = await parseEdgeError(error);
+        throw parsed;
+      }
+      if (data?.error) {
+        throw {
+          message: String(data.error),
+          status: typeof data.httpStatus === "number" ? data.httpStatus : 200,
+          stage: data.stage ?? null,
+          code: data.code ?? null,
+          reqId: data.reqId ?? null,
+          runId: typeof data.runId === "number" ? data.runId : null,
+        } satisfies EdgeErr;
+      }
       return data;
     },
     onSuccess: (data) => setResult(data),
-    onError: (e: any) => setErr(e?.message ?? String(e)),
+    onError: (e: any) => setErr(e && typeof e === "object" && "message" in e ? e as EdgeErr : { message: String(e), status: null, stage: null, code: null, reqId: null, runId: null }),
   });
 
   const v = result?.verification;
@@ -60,8 +103,16 @@ function RegnskapQaPage() {
       </div>
 
       {err && (
-        <div className="mt-6 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {err}
+        <div className="mt-6 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive space-y-2">
+          <div className="font-semibold">QA feilet</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div><span className="opacity-70">HTTP:</span> {err.status ?? "—"}</div>
+            <div><span className="opacity-70">stage:</span> {err.stage ?? "unknown"}</div>
+            <div><span className="opacity-70">code:</span> {err.code ?? "—"}</div>
+            <div><span className="opacity-70">runId:</span> {err.runId ?? "—"}</div>
+          </div>
+          <div className="text-xs whitespace-pre-wrap break-words">{err.message}</div>
+          {err.reqId && <div className="text-[10px] opacity-60">reqId: {err.reqId}</div>}
         </div>
       )}
 
