@@ -1,17 +1,17 @@
--- regnskap-sync cron schedule.
+-- regnskap-sync cron schedule — RUNBOOK / REFERENCE (M5.5).
 --
--- !! IKKE KJØRT !! Aktiveres først etter M5.4 smoke-test er grønn.
+-- Live schedule:
+--   Aktivert i Supabase pg_cron som jobben 'regnskap-sync-nightly'
+--   (0 3 * * * UTC) via migrasjonen for M5.5. Cron-secret hentes fra
+--   vault.decrypted_secrets ('regnskap_sync_cron_secret') ved hvert kall;
+--   samme verdi ligger som Edge Function env REGNSKAP_SYNC_CRON_SECRET.
 --
--- Forutsetninger før aktivering:
---   1. Edge Function env REGNSKAP_SYNC_CRON_SECRET er satt.
---   2. Samme verdi tilgjengelig i SQL — enten via vault.decrypted_secrets
---      (navn 'regnskap_sync_cron_secret') eller hardkodet i body under oppsett
---      (mindre sikkert; foretrukket er Vault).
---   3. M5.4 MV-refresh er deployet og smoke-testet.
---   4. pg_cron + pg_net er aktivert i prosjektet.
---
--- Konservative startverdier: limit=20, rps=0.5. Juster etter observasjon.
+-- Denne filen beholdes som referanse hvis jobben må gjenopprettes manuelt
+-- (f.eks. etter restore eller migrering). Body og defaults skal matche live
+-- migrasjon: limit=20, rps=0.5, timeBudgetMs=50000. Juster bare etter
+-- observasjon i admin-panelet /admin/regnskap.
 
+-- Manuell (re)schedule — kjør kun ved behov:
 -- SELECT cron.schedule(
 --   'regnskap-sync-nightly',
 --   '0 3 * * *',
@@ -29,3 +29,8 @@
 
 -- Avregistrering ved behov:
 -- SELECT cron.unschedule('regnskap-sync-nightly');
+
+-- Inspisere leveranser (admin-only RPC):
+-- SELECT * FROM public.list_regnskap_cron_runs(20);
+--
+-- Merknad: pg_net-respons i dette prosjektet eksponeres via net._http_response.
