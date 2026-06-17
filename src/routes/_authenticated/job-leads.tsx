@@ -180,23 +180,28 @@ function JobLeadsPage() {
     },
   });
 
-  // Careerjet-leads
+  // Canonical (NAV + Careerjet) + legacy Careerjet via unified RPC.
+  // LinkedIn beholdes i egen query (linkedinLeads) for å bevare ekstrafelt.
   const { data: cjLeads, isLoading: loadingCJ } = useQuery({
     queryKey: ["job-leads-careerjet", user?.id, statusFilter],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase.rpc("list_user_careerjet_leads", {
+      const { data, error } = await supabase.rpc("list_user_job_opportunities", {
         p_status: statusFilter,
+        p_source: "all",
       });
       if (error) throw error;
-      return (data ?? []) as Array<{
+      const rows = (data ?? []) as Array<{
         row_kind: string;
+        source: string;
         user_opportunity_id: string | null;
         listing_status_id: string | null;
         listing_id: string | null;
+        canonical_opportunity_id: string | null;
         status: string;
+        is_expired: boolean | null;
         relevance_score: number | null;
         ai_score: number | null;
         ai_scored_at: string | null;
@@ -215,8 +220,9 @@ function JobLeadsPage() {
         display_url: string | null;
         raw_url: string | null;
         identity_fingerprint: string | null;
-        canonical_opportunity_id: string | null;
       }>;
+      // LinkedIn håndteres av egen query — filtrer bort her.
+      return rows.filter((r) => r.source !== "linkedin");
     },
   });
 
