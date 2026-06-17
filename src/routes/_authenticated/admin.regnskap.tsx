@@ -255,7 +255,57 @@ function AdminRegnskap() {
   );
 }
 
+function CronDeliverySection() {
+  const q = useQuery<{ rows: CronRun[]; error?: string }>({
+    queryKey: ["regnskap-cron-runs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("list_regnskap_cron_runs", { p_limit: 10 });
+      if (error) return { rows: [], error: error.message };
+      return { rows: (data ?? []) as CronRun[] };
+    },
+    refetchOnWindowFocus: false,
+  });
+  const rows = q.data?.rows ?? [];
+  return (
+    <section className="mb-8">
+      <h2 className="mb-2 text-lg font-semibold">Cron delivery — regnskap-sync-nightly</h2>
+      <p className="mb-2 text-xs text-muted-foreground">
+        Leveranse-status fra pg_cron (HTTP request fra cron til Edge Function). Skill mellom dette og faktisk sync-run-status under.
+      </p>
+      {q.data?.error && (
+        <div className="mb-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+          {q.data.error}
+        </div>
+      )}
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <table className="min-w-full text-xs">
+          <thead className="bg-muted/40 text-muted-foreground">
+            <tr><Th>Run ID</Th><Th>Job</Th><Th>Status</Th><Th>Startet</Th><Th>Ferdig</Th><Th>Dur ms</Th><Th>Melding</Th></tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((r) => (
+              <tr key={r.runid}>
+                <Td>{r.runid}</Td>
+                <Td>{r.jobname ?? "—"}</Td>
+                <Td>{r.status ?? "—"}</Td>
+                <Td>{fmtTime(r.start_time)}</Td>
+                <Td>{fmtTime(r.end_time)}</Td>
+                <Td>{r.duration_ms ?? "—"}</Td>
+                <Td className="max-w-[320px] truncate" title={r.return_message ?? ""}>{r.return_message ?? "—"}</Td>
+              </tr>
+            ))}
+            {!rows.length && !q.isLoading && (
+              <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Ingen cron-leveranser ennå.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: number | string }) {
+
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
