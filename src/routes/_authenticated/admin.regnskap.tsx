@@ -3,6 +3,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
+type CronRun = {
+  runid: number;
+  jobid: number;
+  jobname: string | null;
+  status: string | null;
+  return_message: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  duration_ms: number | null;
+};
+
+
 export const Route = createFileRoute("/_authenticated/admin/regnskap")({
   head: () => ({
     meta: [
@@ -130,9 +142,13 @@ function AdminRegnskap() {
           <h1 className="text-2xl font-bold text-foreground">Regnskap-sync</h1>
           <p className="text-sm text-muted-foreground">
             Admin trigger for regnskap-sync Edge Function. Konservative defaults.
-            M5.4: post-batch MV-refresh (concurrent), ANALYZE og search warmup. Ingen cron schedule aktivert.
+            M5.5: nattlig cron-schedule aktivert (0 3 * * * UTC) via pg_cron + pg_net.
+            Permanent driftspanel — sync-run-status og cron delivery-status vises separat.
           </p>
         </header>
+
+        <CronDeliverySection />
+
 
         <section className="mb-8 flex flex-wrap gap-2">
           <button
