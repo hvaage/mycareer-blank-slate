@@ -36,20 +36,22 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type SortBy = "relevance" | "newest";
-type SourceFilter = "all" | "linkedin" | "careerjet";
+type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
 /** Client-side slice on top of status (RPC / job_leads still enforce status + not dismissed). */
 type RelevanceView = "all" | "recommended" | "unreviewed";
 
 /** In «Anbefalt»: only leads with numeric ai_score ≥ this (unevaluated rows excluded). */
 const MIN_RECOMMENDED_SCORE = 40;
 
+type LeadSource = "linkedin" | "careerjet" | "nav";
+
 type Lead = {
   id: string;
-  rowKind: "linkedin" | "careerjet";
+  rowKind: "linkedin" | "careerjet" | "nav";
   rowId: string; // id used for status updates
-  /** Careerjet: canonical user_opportunity vs legacy user_job_listing_status */
+  /** Canonical user_opportunity vs legacy user_job_listing_status (Careerjet only) */
   cjBackend?: "uo" | "legacy";
-  source: "linkedin" | "careerjet";
+  source: LeadSource;
   title: string | null;
   company: string | null;
   location: string | null;
@@ -63,8 +65,10 @@ type Lead = {
   url: string | null;
   /** Careerjet: `job_listings.id` when known (legacy path). */
   listingId?: string | null;
-  /** Careerjet: `canonical_opportunities.id` for canonical user opportunities. */
+  /** Canonical NAV/Careerjet: `canonical_opportunities.id`. */
   canonicalOpportunityId?: string | null;
+  /** True when canonical opportunity is past live cutoff (NAV expired karens). */
+  isExpired?: boolean;
   // linkedin extras
   ai_reasoning?: string | null;
   ai_match_highlights?: string | null;
