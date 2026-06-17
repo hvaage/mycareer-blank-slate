@@ -451,6 +451,8 @@ function JobLeadsPage() {
     const jobUrl = lead.source === "careerjet"
       ? (buildCareerjetSearchUrl(lead) ?? lead.url)
       : lead.url;
+    const sourceLabel =
+      lead.source === "linkedin" ? "LinkedIn" : lead.source === "nav" ? "NAV" : "Careerjet";
     const { data: app, error: appErr } = await supabase
       .from("applications")
       .insert({
@@ -460,7 +462,7 @@ function JobLeadsPage() {
         location: lead.location ?? null,
         work_type: lead.work_type ?? null,
         job_url: jobUrl ?? null,
-        source: lead.source === "linkedin" ? "LinkedIn" : "Careerjet",
+        source: sourceLabel,
         status: "identifisert",
         priority: (lead.score ?? 0) >= 70 ? "høy" : "middels",
         ai_score: lead.score ?? null,
@@ -483,12 +485,19 @@ function JobLeadsPage() {
     // Tombstone dedupe key as promoted so it doesn't re-import
     await tombstoneDedupe(lead, "promoted");
 
-    // Delete the lead from its source so it only lives on Søknader
-    if (lead.rowKind === "linkedin") {
+    if (lead.source === "linkedin") {
+      // LinkedIn: behold dagens flyt (delete from job_leads)
       await supabase.from("job_leads").delete().eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
       qc.invalidateQueries({ queryKey: ["job-leads"] });
+    } else if (lead.source === "nav") {
+      // NAV: ALDRI delete. Sett status='applied' på user_opportunities.
+      await (supabase.from("user_opportunities") as any)
+        .update({ status: "applied", updated_at: new Date().toISOString() })
+        .eq("id", lead.rowId);
+      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
     } else {
+      // Careerjet: behold eksisterende flyt (delete)
       if (lead.cjBackend === "uo") {
         await supabase.from("user_opportunities").delete().eq("id", lead.rowId);
       } else {
@@ -517,16 +526,16 @@ function JobLeadsPage() {
     }
     // dismiss
     await tombstoneDedupe(lead, "dismissed");
-    if (lead.rowKind === "careerjet") {
-      if (lead.cjBackend === "uo") {
-        await (supabase.from("user_opportunities") as any)
-          .update({ status: "dismissed", updated_at: new Date().toISOString() })
-          .eq("id", lead.rowId);
-      } else {
-        await (supabase.from("user_job_listing_status") as any)
-          .update({ status: "dismissed", updated_at: new Date().toISOString() })
-          .eq("id", lead.rowId);
-      }
+    if (lead.source === "nav" || (lead.rowKind === "careerjet" && lead.cjBackend === "uo")) {
+      // NAV + canonical Careerjet: status-update på user_opportunities (aldri delete for NAV)
+      await (supabase.from("user_opportunities") as any)
+        .update({ status: "dismissed", updated_at: new Date().toISOString() })
+        .eq("id", lead.rowId);
+      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
+    } else if (lead.rowKind === "careerjet") {
+      await (supabase.from("user_job_listing_status") as any)
+        .update({ status: "dismissed", updated_at: new Date().toISOString() })
+        .eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
     } else {
       await (supabase.from("job_leads") as any)
