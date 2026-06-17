@@ -268,20 +268,24 @@ function JobLeadsPage() {
       const aiScore = row.ai_score;
       const aiEvaluated = isCareerjetAiEvaluated(aiScore, row.ai_scored_at);
       const score = aiEvaluated && typeof aiScore === "number" && !Number.isNaN(aiScore) ? aiScore : null;
+      const leadSource: LeadSource = row.source === "nav" ? "nav" : "careerjet";
       const rawUrl = row.raw_url ?? row.source_url;
-      const urlForCard = effectiveCareerjetCardUrl({
-        raw_url: rawUrl,
-        display_url: row.display_url,
-        title: row.title,
-        company: row.employer,
-        location: row.location,
-      });
+      const urlForCard =
+        leadSource === "nav"
+          ? (row.display_url ?? rawUrl ?? null)
+          : effectiveCareerjetCardUrl({
+              raw_url: rawUrl,
+              display_url: row.display_url,
+              title: row.title,
+              company: row.employer,
+              location: row.location,
+            });
       out.push({
-        id: isCanonical ? `cj-uo-${rowId}` : `cj-${rowId}`,
-        rowKind: "careerjet",
+        id: `${leadSource}-${isCanonical ? "uo" : "legacy"}-${rowId}`,
+        rowKind: leadSource === "nav" ? "nav" : "careerjet",
         rowId,
         cjBackend: isCanonical ? "uo" : "legacy",
-        source: "careerjet",
+        source: leadSource,
         title: row.title,
         company: row.employer,
         location: row.location,
@@ -294,6 +298,7 @@ function JobLeadsPage() {
         url: urlForCard,
         listingId: row.listing_id,
         canonicalOpportunityId: row.canonical_opportunity_id,
+        isExpired: row.is_expired === true,
         ai_reasoning: row.ai_reasoning ?? null,
         ai_match_highlights: row.ai_match_highlights ?? null,
         ai_concerns: row.ai_concerns ?? null,
