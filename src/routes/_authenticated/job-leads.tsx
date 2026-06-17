@@ -36,20 +36,22 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type SortBy = "relevance" | "newest";
-type SourceFilter = "all" | "linkedin" | "careerjet";
+type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
 /** Client-side slice on top of status (RPC / job_leads still enforce status + not dismissed). */
 type RelevanceView = "all" | "recommended" | "unreviewed";
 
 /** In «Anbefalt»: only leads with numeric ai_score ≥ this (unevaluated rows excluded). */
 const MIN_RECOMMENDED_SCORE = 40;
 
+type LeadSource = "linkedin" | "careerjet" | "nav";
+
 type Lead = {
   id: string;
-  rowKind: "linkedin" | "careerjet";
+  rowKind: "linkedin" | "careerjet" | "nav";
   rowId: string; // id used for status updates
-  /** Careerjet: canonical user_opportunity vs legacy user_job_listing_status */
+  /** Canonical user_opportunity vs legacy user_job_listing_status (Careerjet only) */
   cjBackend?: "uo" | "legacy";
-  source: "linkedin" | "careerjet";
+  source: LeadSource;
   title: string | null;
   company: string | null;
   location: string | null;
@@ -63,8 +65,10 @@ type Lead = {
   url: string | null;
   /** Careerjet: `job_listings.id` when known (legacy path). */
   listingId?: string | null;
-  /** Careerjet: `canonical_opportunities.id` for canonical user opportunities. */
+  /** Canonical NAV/Careerjet: `canonical_opportunities.id`. */
   canonicalOpportunityId?: string | null;
+  /** True when canonical opportunity is past live cutoff (NAV expired karens). */
+  isExpired?: boolean;
   // linkedin extras
   ai_reasoning?: string | null;
   ai_match_highlights?: string | null;
@@ -176,23 +180,28 @@ function JobLeadsPage() {
     },
   });
 
-  // Careerjet-leads
+  // Canonical (NAV + Careerjet) + legacy Careerjet via unified RPC.
+  // LinkedIn beholdes i egen query (linkedinLeads) for å bevare ekstrafelt.
   const { data: cjLeads, isLoading: loadingCJ } = useQuery({
     queryKey: ["job-leads-careerjet", user?.id, statusFilter],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase.rpc("list_user_careerjet_leads", {
+      const { data, error } = await supabase.rpc("list_user_job_opportunities", {
         p_status: statusFilter,
+        p_source: "all",
       });
       if (error) throw error;
-      return (data ?? []) as Array<{
+      const rows = (data ?? []) as Array<{
         row_kind: string;
+        source: string;
         user_opportunity_id: string | null;
         listing_status_id: string | null;
         listing_id: string | null;
+        canonical_opportunity_id: string | null;
         status: string;
+        is_expired: boolean | null;
         relevance_score: number | null;
         ai_score: number | null;
         ai_scored_at: string | null;
@@ -211,8 +220,9 @@ function JobLeadsPage() {
         display_url: string | null;
         raw_url: string | null;
         identity_fingerprint: string | null;
-        canonical_opportunity_id: string | null;
       }>;
+      // LinkedIn håndteres av egen query — filtrer bort her.
+      return rows.filter((r) => r.source !== "linkedin");
     },
   });
 
@@ -258,20 +268,24 @@ function JobLeadsPage() {
       const aiScore = row.ai_score;
       const aiEvaluated = isCareerjetAiEvaluated(aiScore, row.ai_scored_at);
       const score = aiEvaluated && typeof aiScore === "number" && !Number.isNaN(aiScore) ? aiScore : null;
+      const leadSource: LeadSource = row.source === "nav" ? "nav" : "careerjet";
       const rawUrl = row.raw_url ?? row.source_url;
-      const urlForCard = effectiveCareerjetCardUrl({
-        raw_url: rawUrl,
-        display_url: row.display_url,
-        title: row.title,
-        company: row.employer,
-        location: row.location,
-      });
+      const urlForCard =
+        leadSource === "nav"
+          ? (row.display_url ?? rawUrl ?? null)
+          : effectiveCareerjetCardUrl({
+              raw_url: rawUrl,
+              display_url: row.display_url,
+              title: row.title,
+              company: row.employer,
+              location: row.location,
+            });
       out.push({
-        id: isCanonical ? `cj-uo-${rowId}` : `cj-${rowId}`,
-        rowKind: "careerjet",
+        id: `${leadSource}-${isCanonical ? "uo" : "legacy"}-${rowId}`,
+        rowKind: leadSource === "nav" ? "nav" : "careerjet",
         rowId,
         cjBackend: isCanonical ? "uo" : "legacy",
-        source: "careerjet",
+        source: leadSource,
         title: row.title,
         company: row.employer,
         location: row.location,
@@ -284,6 +298,7 @@ function JobLeadsPage() {
         url: urlForCard,
         listingId: row.listing_id,
         canonicalOpportunityId: row.canonical_opportunity_id,
+        isExpired: row.is_expired === true,
         ai_reasoning: row.ai_reasoning ?? null,
         ai_match_highlights: row.ai_match_highlights ?? null,
         ai_concerns: row.ai_concerns ?? null,
@@ -436,6 +451,8 @@ function JobLeadsPage() {
     const jobUrl = lead.source === "careerjet"
       ? (buildCareerjetSearchUrl(lead) ?? lead.url)
       : lead.url;
+    const sourceLabel =
+      lead.source === "linkedin" ? "LinkedIn" : lead.source === "nav" ? "NAV" : "Careerjet";
     const { data: app, error: appErr } = await supabase
       .from("applications")
       .insert({
@@ -445,7 +462,7 @@ function JobLeadsPage() {
         location: lead.location ?? null,
         work_type: lead.work_type ?? null,
         job_url: jobUrl ?? null,
-        source: lead.source === "linkedin" ? "LinkedIn" : "Careerjet",
+        source: sourceLabel,
         status: "identifisert",
         priority: (lead.score ?? 0) >= 70 ? "høy" : "middels",
         ai_score: lead.score ?? null,
@@ -468,12 +485,19 @@ function JobLeadsPage() {
     // Tombstone dedupe key as promoted so it doesn't re-import
     await tombstoneDedupe(lead, "promoted");
 
-    // Delete the lead from its source so it only lives on Søknader
-    if (lead.rowKind === "linkedin") {
+    if (lead.source === "linkedin") {
+      // LinkedIn: behold dagens flyt (delete from job_leads)
       await supabase.from("job_leads").delete().eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
       qc.invalidateQueries({ queryKey: ["job-leads"] });
+    } else if (lead.source === "nav") {
+      // NAV: ALDRI delete. Sett status='applied' på user_opportunities.
+      await (supabase.from("user_opportunities") as any)
+        .update({ status: "applied", updated_at: new Date().toISOString() })
+        .eq("id", lead.rowId);
+      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
     } else {
+      // Careerjet: behold eksisterende flyt (delete)
       if (lead.cjBackend === "uo") {
         await supabase.from("user_opportunities").delete().eq("id", lead.rowId);
       } else {
@@ -502,16 +526,16 @@ function JobLeadsPage() {
     }
     // dismiss
     await tombstoneDedupe(lead, "dismissed");
-    if (lead.rowKind === "careerjet") {
-      if (lead.cjBackend === "uo") {
-        await (supabase.from("user_opportunities") as any)
-          .update({ status: "dismissed", updated_at: new Date().toISOString() })
-          .eq("id", lead.rowId);
-      } else {
-        await (supabase.from("user_job_listing_status") as any)
-          .update({ status: "dismissed", updated_at: new Date().toISOString() })
-          .eq("id", lead.rowId);
-      }
+    if (lead.source === "nav" || (lead.rowKind === "careerjet" && lead.cjBackend === "uo")) {
+      // NAV + canonical Careerjet: status-update på user_opportunities (aldri delete for NAV)
+      await (supabase.from("user_opportunities") as any)
+        .update({ status: "dismissed", updated_at: new Date().toISOString() })
+        .eq("id", lead.rowId);
+      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
+    } else if (lead.rowKind === "careerjet") {
+      await (supabase.from("user_job_listing_status") as any)
+        .update({ status: "dismissed", updated_at: new Date().toISOString() })
+        .eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
     } else {
       await (supabase.from("job_leads") as any)
