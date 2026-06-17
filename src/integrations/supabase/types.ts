@@ -496,6 +496,7 @@ export type Database = {
           display_url: string
           id: string
           identity_fingerprint: string
+          live_until: string | null
           merge_summary: string | null
           primary_source: string
           updated_at: string
@@ -508,6 +509,7 @@ export type Database = {
           display_url: string
           id?: string
           identity_fingerprint: string
+          live_until?: string | null
           merge_summary?: string | null
           primary_source?: string
           updated_at?: string
@@ -520,6 +522,7 @@ export type Database = {
           display_url?: string
           id?: string
           identity_fingerprint?: string
+          live_until?: string | null
           merge_summary?: string | null
           primary_source?: string
           updated_at?: string
@@ -2332,6 +2335,48 @@ export type Database = {
           },
         ]
       }
+      nav_sync_runs: {
+        Row: {
+          error_summary: string | null
+          expired: number
+          fetched: number
+          finished_at: string | null
+          id: string
+          matched_user_opps: number
+          meta: Json
+          reactivated: number
+          scored: number
+          started_at: string
+          upserted: number
+        }
+        Insert: {
+          error_summary?: string | null
+          expired?: number
+          fetched?: number
+          finished_at?: string | null
+          id?: string
+          matched_user_opps?: number
+          meta?: Json
+          reactivated?: number
+          scored?: number
+          started_at?: string
+          upserted?: number
+        }
+        Update: {
+          error_summary?: string | null
+          expired?: number
+          fetched?: number
+          finished_at?: string | null
+          id?: string
+          matched_user_opps?: number
+          meta?: Json
+          reactivated?: number
+          scored?: number
+          started_at?: string
+          upserted?: number
+        }
+        Relationships: []
+      }
       next_steps: {
         Row: {
           application_id: string
@@ -3081,10 +3126,13 @@ export type Database = {
           created_at: string
           description_excerpt: string | null
           display_url: string
+          expired_at: string | null
           id: string
           identity_fingerprint: string
+          last_seen_at: string | null
           listing_id: string | null
           location: string | null
+          posting_status: string
           published_at: string | null
           raw_payload: Json | null
           raw_url: string
@@ -3098,10 +3146,13 @@ export type Database = {
           created_at?: string
           description_excerpt?: string | null
           display_url: string
+          expired_at?: string | null
           id?: string
           identity_fingerprint: string
+          last_seen_at?: string | null
           listing_id?: string | null
           location?: string | null
+          posting_status?: string
           published_at?: string | null
           raw_payload?: Json | null
           raw_url: string
@@ -3115,10 +3166,13 @@ export type Database = {
           created_at?: string
           description_excerpt?: string | null
           display_url?: string
+          expired_at?: string | null
           id?: string
           identity_fingerprint?: string
+          last_seen_at?: string | null
           listing_id?: string | null
           location?: string | null
+          posting_status?: string
           published_at?: string | null
           raw_payload?: Json | null
           raw_url?: string
@@ -3681,6 +3735,7 @@ export type Database = {
           card_salary_currency: string | null
           card_salary_max: number | null
           card_salary_min: number | null
+          card_source: string | null
           card_title: string | null
           created_at: string
           id: string
@@ -3708,6 +3763,7 @@ export type Database = {
           card_salary_currency?: string | null
           card_salary_max?: number | null
           card_salary_min?: number | null
+          card_source?: string | null
           card_title?: string | null
           created_at?: string
           id?: string
@@ -3735,6 +3791,7 @@ export type Database = {
           card_salary_currency?: string | null
           card_salary_max?: number | null
           card_salary_min?: number | null
+          card_source?: string | null
           card_title?: string | null
           created_at?: string
           id?: string
@@ -4246,6 +4303,46 @@ export type Database = {
           status: string
           title: string
           user_opportunity_id: string
+        }[]
+      }
+      list_user_job_opportunities: {
+        Args: { p_source?: string; p_status?: string }
+        Returns: {
+          ai_concerns: string
+          ai_match_highlights: string
+          ai_reasoning: string
+          ai_score: number
+          ai_scored_at: string
+          canonical_opportunity_id: string
+          display_url: string
+          employer: string
+          identity_fingerprint: string
+          is_expired: boolean
+          linkedin_lead_id: string
+          listing_id: string
+          listing_status_id: string
+          live_until: string
+          location: string
+          posted_text: string
+          published_at: string
+          raw_snippet: string
+          raw_url: string
+          received_at: string
+          relevance_score: number
+          row_kind: string
+          salary: string
+          salary_currency: string
+          salary_max: number
+          salary_min: number
+          source: string
+          source_email_from: string
+          source_subject: string
+          source_url: string
+          sources: string[]
+          status: string
+          title: string
+          user_opportunity_id: string
+          work_type: string
         }[]
       }
       move_to_dlq: {
