@@ -4206,6 +4206,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_regnskap_cron_runs: {
+        Args: { p_limit?: number }
+        Returns: {
+          duration_ms: number
+          end_time: string
+          jobid: number
+          jobname: string
+          return_message: string
+          runid: number
+          start_time: string
+          status: string
+        }[]
+      }
       list_user_careerjet_leads: {
         Args: { p_status?: string }
         Returns: {
