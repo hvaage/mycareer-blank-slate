@@ -151,7 +151,7 @@ function JobLeadsPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("job_search_keywords, preferred_locations, listings_last_fetched_at")
+        .select("job_search_keywords, preferred_locations, target_city, target_region, target_country, listings_last_fetched_at")
         .eq("id", user!.id)
         .maybeSingle();
       return data as any;
@@ -547,7 +547,10 @@ function JobLeadsPage() {
 
   const hasPrefs =
     !!profile?.job_search_keywords?.trim() ||
-    (Array.isArray(profile?.preferred_locations) && profile.preferred_locations.length > 0);
+    (Array.isArray(profile?.preferred_locations) && profile.preferred_locations.length > 0) ||
+    !!profile?.target_city?.trim() ||
+    !!profile?.target_region?.trim() ||
+    !!profile?.target_country?.trim();
 
   const isLoading = loadingLI || loadingCJ;
 

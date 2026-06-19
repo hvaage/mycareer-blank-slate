@@ -265,37 +265,35 @@ function AboutMePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>4. Geografi</CardTitle>
-              <CardDescription>Hvor søker du jobb?</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid sm:grid-cols-3 gap-4">
-                <AutoSaveInput label="Land" value={p.target_country} onSave={save("target_country")} placeholder="Norge" />
-                <AutoSaveInput label="Region / fylke" value={p.target_region} onSave={save("target_region")} placeholder="Oslo / Viken" />
-                <AutoSaveInput label="By" value={p.target_city} onSave={save("target_city")} placeholder="Oslo" />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={!!p.willing_to_relocate}
-                  onCheckedChange={async (v) => {
-                    const { error } = await supabase.from("profiles").update({ willing_to_relocate: !!v }).eq("id", user.id);
-                    if (error) toast.error(error.message);
-                    qc.invalidateQueries({ queryKey: ["profile", user.id] });
-                  }}
-                />
-                Åpen for flytting
-              </label>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Tilbudsvurdering</CardTitle>
+              <CardTitle>4. Geografi og jobbsøk</CardTitle>
               <CardDescription>
-                Brukes når vi henter stillingsannonser fra Careerjet på Jobb-leads-siden.
+                Hvor søker du jobb? Brukes som filter mot NAV, Careerjet og
+                parsede e-post-jobbannonser.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <AutoSaveInput
+                  label="Land"
+                  value={p.target_country}
+                  onSave={save("target_country")}
+                  placeholder="Norge"
+                />
+                <label className="flex items-center gap-2 text-sm self-end pb-2">
+                  <Checkbox
+                    checked={!!p.willing_to_relocate}
+                    onCheckedChange={async (v) => {
+                      const { error } = await supabase
+                        .from("profiles")
+                        .update({ willing_to_relocate: !!v })
+                        .eq("id", user.id);
+                      if (error) toast.error(error.message);
+                      qc.invalidateQueries({ queryKey: ["profile", user.id] });
+                    }}
+                  />
+                  Åpen for flytting
+                </label>
+              </div>
               <JobSearchPrefs
                 keywords={p.job_search_keywords ?? ""}
                 locations={(p.preferred_locations ?? []) as string[]}
@@ -306,8 +304,22 @@ function AboutMePage() {
                   qc.invalidateQueries({ queryKey: ["profile", user.id] });
                 }}
                 onLocationsChange={async (v) => {
+                  // Synk første valgte sted også inn i target_city/target_region
+                  // så eldre matching-koder fortsatt har data å jobbe med.
+                  const first = v[0] ?? null;
+                  const firstCity = first ? first.replace(/\s*\(.*\)\s*$/, "").trim() : null;
+                  const firstRegion = (() => {
+                    const m = first ? /\(([^)]+)\)\s*$/.exec(first) : null;
+                    if (!m) return null;
+                    const parts = m[1].split(",").map((s) => s.trim()).filter(Boolean);
+                    return parts[parts.length - 1] ?? null;
+                  })();
                   await (supabase.from("profiles") as any)
-                    .update({ preferred_locations: v })
+                    .update({
+                      preferred_locations: v,
+                      target_city: firstCity ?? p.target_city ?? null,
+                      target_region: firstRegion ?? p.target_region ?? null,
+                    })
                     .eq("id", user.id);
                   qc.invalidateQueries({ queryKey: ["profile", user.id] });
                 }}
