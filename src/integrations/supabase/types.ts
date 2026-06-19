@@ -529,6 +529,99 @@ export type Database = {
         }
         Relationships: []
       }
+      careerjet_search_terms: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          last_run_at: string | null
+          locale: string
+          location: string | null
+          priority: number
+          source: string
+          term: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          last_run_at?: string | null
+          locale?: string
+          location?: string | null
+          priority?: number
+          source?: string
+          term: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          last_run_at?: string | null
+          locale?: string
+          location?: string | null
+          priority?: number
+          source?: string
+          term?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      careerjet_sync_runs: {
+        Row: {
+          api_errors: Json
+          cursor_page: number | null
+          cursor_term: string | null
+          error_summary: string | null
+          finished_at: string | null
+          id: string
+          meta: Json
+          rows_expired: number
+          rows_failed: number
+          rows_fetched: number
+          rows_reactivated: number
+          rows_upserted: number
+          started_at: string
+          status: string
+          terms_covered: number
+        }
+        Insert: {
+          api_errors?: Json
+          cursor_page?: number | null
+          cursor_term?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          id?: string
+          meta?: Json
+          rows_expired?: number
+          rows_failed?: number
+          rows_fetched?: number
+          rows_reactivated?: number
+          rows_upserted?: number
+          started_at?: string
+          status?: string
+          terms_covered?: number
+        }
+        Update: {
+          api_errors?: Json
+          cursor_page?: number | null
+          cursor_term?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          id?: string
+          meta?: Json
+          rows_expired?: number
+          rows_failed?: number
+          rows_fetched?: number
+          rows_reactivated?: number
+          rows_upserted?: number
+          started_at?: string
+          status?: string
+          terms_covered?: number
+        }
+        Relationships: []
+      }
       case_documents: {
         Row: {
           case_id: string
@@ -3136,6 +3229,7 @@ export type Database = {
           published_at: string | null
           raw_payload: Json | null
           raw_url: string
+          reactivated_at: string | null
           source: string
           source_external_id: string
           title: string | null
@@ -3156,6 +3250,7 @@ export type Database = {
           published_at?: string | null
           raw_payload?: Json | null
           raw_url: string
+          reactivated_at?: string | null
           source: string
           source_external_id: string
           title?: string | null
@@ -3176,6 +3271,7 @@ export type Database = {
           published_at?: string | null
           raw_payload?: Json | null
           raw_url?: string
+          reactivated_at?: string | null
           source?: string
           source_external_id?: string
           title?: string | null
@@ -4241,6 +4337,42 @@ export type Database = {
       }
     }
     Functions: {
+      careerjet_sync_count_missing_raw_payload: { Args: never; Returns: number }
+      careerjet_sync_distinct_external_count: { Args: never; Returns: number }
+      careerjet_sync_duplicate_external_ids: {
+        Args: never
+        Returns: {
+          count: number
+          external_id: string
+        }[]
+      }
+      careerjet_sync_external_id_prefix_counts: {
+        Args: never
+        Returns: {
+          count: number
+          prefix: string
+        }[]
+      }
+      careerjet_sync_last_seen_stats: {
+        Args: never
+        Returns: {
+          active_count: number
+          expired_count: number
+          max_last_seen: string
+          median_last_seen: string
+          min_last_seen: string
+        }[]
+      }
+      careerjet_sync_term_coverage: {
+        Args: never
+        Returns: {
+          oldest_last_run_at: string
+          run_last_24h: number
+          run_last_7d: number
+          total_active: number
+        }[]
+      }
+      careerjet_sync_vault_has_secret: { Args: never; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -4248,6 +4380,14 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      get_careerjet_sync_cron_info: {
+        Args: never
+        Returns: {
+          active: boolean
+          jobname: string
+          schedule: string
+        }[]
       }
       get_nav_sync_cron_info: {
         Args: never
@@ -4270,6 +4410,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      link_canonical_to_source: {
+        Args: {
+          p_canonical: string
+          p_merge_reason?: string
+          p_posting: string
+        }
+        Returns: string
       }
       list_regnskap_cron_runs: {
         Args: { p_limit?: number }
@@ -4352,6 +4500,10 @@ export type Database = {
           user_opportunity_id: string
           work_type: string
         }[]
+      }
+      mark_stale_careerjet_postings: {
+        Args: { p_days?: number }
+        Returns: number
       }
       move_to_dlq: {
         Args: {
