@@ -4,6 +4,15 @@
 // Auth: x-sync-careerjet-secret (konstant-tids sammenligning).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createHash } from "node:crypto";
+
+const ROW_CONCURRENCY = 8;
+
+function computeFingerprintLocal(company: string, title: string, location: string | null): string {
+  const norm = (s: string) => s.replace(/\s+/g, " ").toLowerCase();
+  const key = `cmp:${norm(company)}|${norm(title)}|${norm(location ?? "")}`;
+  return "fp1:" + createHash("md5").update(key).digest("hex");
+}
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -374,7 +383,7 @@ Deno.serve(async (req: Request) => {
         rowsFetched += rows.length;
         if (rows.length === 0) break; // no more pages for this term
 
-        for (const row of rows) {
+        const processRow = async (row: CjRow) => {
           try {
             const { id: extId, prefix } = await computeExternalId(row);
             prefixCounts[prefix] = (prefixCounts[prefix] ?? 0) + 1;
@@ -385,7 +394,7 @@ Deno.serve(async (req: Request) => {
             const company = (row.company ?? "").trim();
             if (!title || !company) {
               dataIssues.push({ external_id: extId, reason: "missing title/company" });
-              continue;
+              return;
             }
 
             const safeUrl =
@@ -393,13 +402,7 @@ Deno.serve(async (req: Request) => {
               `https://www.careerjet.no/jobbsoek?s=${encodeURIComponent(title)}`;
             const location = (row.locations ?? "").trim() || null;
 
-            const { data: fpData, error: fpErr } = await admin.rpc("opportunity_fingerprint", {
-              p_company: company,
-              p_title: title,
-              p_location: location ?? "",
-            });
-            if (fpErr) throw new Error(`fingerprint: ${fpErr.message}`);
-            const fp = String(fpData);
+            const fp = computeFingerprintLocal(company, title, location);
 
             // Existing source posting
             const { data: existingSp } = await admin
@@ -426,7 +429,7 @@ Deno.serve(async (req: Request) => {
               lifecycleEvent,
             );
 
-            if (dryRun) continue;
+            if (dryRun) return;
 
             const upsertRow: Record<string, unknown> = {
               source: "careerjet",
@@ -506,6 +509,10 @@ Deno.serve(async (req: Request) => {
             rowsFailed++;
             dataIssues.push({ error: String(e?.message ?? e) });
           }
+        };
+
+        for (let i = 0; i < rows.length; i += ROW_CONCURRENCY) {
+          await Promise.all(rows.slice(i, i + ROW_CONCURRENCY).map(processRow));
         }
       }
       // mark term as run
