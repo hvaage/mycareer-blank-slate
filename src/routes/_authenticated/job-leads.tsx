@@ -572,7 +572,7 @@ function JobLeadsPage() {
         </div>
         <Button onClick={handleFetch} disabled={fetching || !hasPrefs} className="shrink-0">
           <RefreshCw className={`h-4 w-4 mr-2 ${fetching ? "animate-spin" : ""}`} />
-          {fetching ? "Henter…" : "Hent fra Careerjet"}
+          {fetching ? "Henter…" : "Hent fra Careerjet + NAV"}
         </Button>
       </div>
 
