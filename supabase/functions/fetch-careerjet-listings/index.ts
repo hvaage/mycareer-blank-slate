@@ -747,6 +747,61 @@ Deno.serve(async (req) => {
     console.error("[fetch-careerjet] post-ai canonical sync", e);
   }
 
+  // ---- NAV: match existing canonical NAV-opportunities to this user ----
+  let navMatched = 0;
+  let navScanned = 0;
+  try {
+    const kwLc = keywords.map((k) => k.toLowerCase()).filter(Boolean);
+    const locLc = locations.map((l) => l.toLowerCase()).filter(Boolean);
+    if (kwLc.length > 0 || locLc.length > 0) {
+      // Pull a bounded set of active NAV canonicals; filter in-memory to avoid heavy ILIKE OR chains.
+      const { data: navCanon } = await serviceClient
+        .from("canonical_opportunities")
+        .select("id, identity_fingerprint, display_title, display_company, display_location, display_url, primary_source, live_until")
+        .eq("primary_source", "nav")
+        .is("live_until", null)
+        .order("updated_at", { ascending: false })
+        .limit(2000);
+
+      navScanned = navCanon?.length ?? 0;
+      for (const co of navCanon ?? []) {
+        const titleLc = String(co.display_title ?? "").toLowerCase();
+        const cLocLc = String(co.display_location ?? "").toLowerCase();
+        const kwMatch = kwLc.length === 0 ? true : kwLc.some((k) => k && titleLc.includes(k));
+        const locMatch = locLc.length === 0 ? true : locLc.some((l) => l && cLocLc.includes(l));
+        if (!kwMatch || !locMatch) continue;
+
+        const { data: existing } = await serviceClient
+          .from("user_opportunities")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("canonical_opportunity_id", co.id)
+          .maybeSingle();
+        if (existing) continue;
+
+        const ins = await serviceClient
+          .from("user_opportunities")
+          .insert({
+            user_id: user.id,
+            canonical_opportunity_id: co.id,
+            identity_fingerprint: (co as any).identity_fingerprint ?? "",
+            status: "new",
+            card_title: co.display_title,
+            card_company: co.display_company,
+            card_location: co.display_location,
+            card_display_url: co.display_url,
+            card_raw_url: co.display_url,
+            card_source: "nav",
+          })
+          .select("id")
+          .maybeSingle();
+        if (ins.data) navMatched++;
+      }
+    }
+  } catch (e) {
+    console.error("[fetch-careerjet] NAV matching error:", e);
+  }
+
   await serviceClient
     .from("profiles")
     .update({ listings_last_fetched_at: now })
@@ -764,6 +819,8 @@ Deno.serve(async (req) => {
       skipped_duplicates: skipped,
       existing_rows_refreshed: refreshed,
       ai_scored: aiScored,
+      nav_scanned: navScanned,
+      nav_matched: navMatched,
       dedupe_diagnostics: dedupeDiagnostics,
       canonical_rows_synced: canonicalSynced,
     }),
