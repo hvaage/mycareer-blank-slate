@@ -228,7 +228,7 @@ async function fetchCareerjetPage(opts: {
   params.set("contractperiod", "");
 
   try {
-    const res = await fetch(`https://public.api.careerjet.net/search?${params.toString()}`, {
+    const res = await fetch(`http://public.api.careerjet.net/search?${params.toString()}`, {
       method: "GET",
       headers: { "User-Agent": CAREERJET_USER_AGENT, Accept: "application/json" },
     });
