@@ -14,9 +14,9 @@ const STALE_LOCK_MINUTES = 60;
 const RUN_TIME_BUDGET_MS = 130_000;
 const DEFAULT_TERMS_PER_RUN = 20;
 const DEFAULT_PAGES_PER_TERM = 3;
-const CAREERJET_USER_AGENT =
-  "karrierenmin.no careerjet-sync/1.0 (+https://karrierenmin.no)";
-const CAREERJET_USER_IP = "127.0.0.1"; // konstant; må avklares med affid-eier før cron
+const CAREERJET_USER_AGENT = "karrierenmin.no/1.0";
+const CAREERJET_USER_IP = "1.1.1.1";
+const CAREERJET_REFERER = "https://karrierenmin.no/";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
