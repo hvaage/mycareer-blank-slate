@@ -755,12 +755,16 @@ Deno.serve(async (req) => {
     const kwLc = keywords.map((k) => k.toLowerCase()).filter(Boolean);
     const locLc = locations.map((l) => l.toLowerCase()).filter(Boolean);
     if (kwLc.length > 0 || locLc.length > 0) {
-      // Pull a bounded set of active NAV canonicals; filter in-memory to avoid heavy ILIKE OR chains.
+      // Pull canonical NAV opportunities with at least one ACTIVE NAV source_posting.
       const nowIso = new Date().toISOString();
       const { data: navCanon, error: navCanonErr } = await serviceClient
         .from("canonical_opportunities")
-        .select("id, identity_fingerprint, display_title, display_company, display_location, display_url, primary_source, live_until")
+        .select(
+          "id, identity_fingerprint, display_title, display_company, display_location, display_url, primary_source, live_until, opportunity_source_links!inner(source_postings!inner(posting_status, source))",
+        )
         .eq("primary_source", "nav")
+        .eq("opportunity_source_links.source_postings.source", "nav")
+        .eq("opportunity_source_links.source_postings.posting_status", "active")
         .or(`live_until.is.null,live_until.gt.${nowIso}`)
         .order("updated_at", { ascending: false })
         .limit(3000);
