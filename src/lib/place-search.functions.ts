@@ -62,10 +62,6 @@ async function fetchPlaces(query: string): Promise<PlaceResult[]> {
   url.searchParams.set("utkoordsys", "4258");
   url.searchParams.set("treffPerSide", "25");
   url.searchParams.set("side", "1");
-  url.searchParams.set(
-    "filtrer",
-    "navn.skrivemåte,navn.navneobjekttype,navn.kommuner.kommunenavn,navn.kommuner.fylkesnavn,navn.fylker.fylkesnavn,navn.stedsnummer",
-  );
 
   const res = await fetch(url.toString(), {
     headers: { Accept: "application/json", "User-Agent": "karrierenmin.no/1.0" },
