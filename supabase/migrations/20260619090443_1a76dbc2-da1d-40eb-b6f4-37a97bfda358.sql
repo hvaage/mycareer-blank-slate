@@ -1,0 +1,1 @@
+UPDATE public.nav_sync_runs SET finished_at = now(), error_summary = 'system_error: edge timeout' WHERE finished_at IS NULL AND started_at < now();
