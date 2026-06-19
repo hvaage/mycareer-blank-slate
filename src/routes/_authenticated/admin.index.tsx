@@ -139,6 +139,12 @@ function AdminDashboard() {
             >
               Detaljert leads-visning
             </Link>
+            <Link
+              to="/admin/nav-sync"
+              className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-accent"
+            >
+              NAV-sync
+            </Link>
             <button
               onClick={exportCsv}
               disabled={!filtered.length}

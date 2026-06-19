@@ -89,14 +89,19 @@ function AdminNavSync() {
 
         {isLoading && <p className="mt-8 text-muted-foreground">Laster…</p>}
 
-        {errMessage && (
+        {errMessage && errMessage.includes("Forbidden") && (
+          <div className="mt-8 rounded-lg border border-destructive/40 bg-destructive/5 p-6">
+            <h2 className="text-lg font-semibold text-destructive">403 · Ingen tilgang</h2>
+            <p className="mt-2 text-sm text-foreground">
+              Denne siden er kun for admin-brukere. Din konto mangler admin-rollen
+              i <code>user_roles</code>.
+            </p>
+          </div>
+        )}
+
+        {errMessage && !errMessage.includes("Forbidden") && (
           <div className="mt-8 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
             {errMessage}
-            {errMessage.includes("Forbidden") && (
-              <p className="mt-2 text-xs">
-                Brukeren din mangler admin-rollen i <code>user_roles</code>.
-              </p>
-            )}
           </div>
         )}
 
