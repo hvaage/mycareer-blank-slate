@@ -315,19 +315,50 @@ function JobLeadsPage() {
           !Number.isNaN(lead.score) &&
           lead.score >= MIN_RECOMMENDED_SCORE,
       );
+    } else if (relevanceView === "medium") {
+      afterRelevance = out.filter(
+        (lead) =>
+          lead.aiEvaluated &&
+          typeof lead.score === "number" &&
+          !Number.isNaN(lead.score) &&
+          lead.score >= MEDIUM_SCORE_MIN &&
+          lead.score < MIN_RECOMMENDED_SCORE,
+      );
+    } else if (relevanceView === "low") {
+      afterRelevance = out.filter(
+        (lead) =>
+          lead.aiEvaluated &&
+          typeof lead.score === "number" &&
+          !Number.isNaN(lead.score) &&
+          lead.score < MEDIUM_SCORE_MIN,
+      );
     } else if (relevanceView === "unreviewed") {
       afterRelevance = out.filter((lead) => !lead.aiEvaluated);
     }
 
-    const filtered =
+    const sourceMatched =
       sourceFilter === "all"
         ? afterRelevance
         : afterRelevance.filter((x) => x.source === sourceFilter);
 
-    filtered.sort((a, b) => {
-      if (sortBy === "newest") {
-        return new Date(b.posted_at ?? 0).getTime() - new Date(a.posted_at ?? 0).getTime();
+    const cutoffMs = (() => {
+      const now = Date.now();
+      switch (timeFilter) {
+        case "2d": return now - 2 * 24 * 3600 * 1000;
+        case "1w": return now - 7 * 24 * 3600 * 1000;
+        case "1m": return now - 30 * 24 * 3600 * 1000;
+        default: return null;
       }
+    })();
+    const filtered = cutoffMs == null
+      ? sourceMatched
+      : sourceMatched.filter((lead) => {
+          if (!lead.posted_at) return false;
+          const t = new Date(lead.posted_at).getTime();
+          return Number.isFinite(t) && t >= cutoffMs;
+        });
+
+    filtered.sort((a, b) => {
       if (!a.aiEvaluated && b.aiEvaluated) return -1;
       if (a.aiEvaluated && !b.aiEvaluated) return 1;
       if (!a.aiEvaluated && !b.aiEvaluated) {
@@ -338,46 +369,8 @@ function JobLeadsPage() {
       return new Date(b.posted_at ?? 0).getTime() - new Date(a.posted_at ?? 0).getTime();
     });
 
-    if (import.meta.env.DEV) {
-      const rpcCj = cjLeads?.length ?? 0;
-      const hiddenByRelevance = out.length - afterRelevance.length;
-      const hiddenBySource = afterRelevance.length - filtered.length;
-      const log: Record<string, unknown> = {
-        statusFilter,
-        relevanceView,
-        sourceFilter,
-        sortBy,
-        rpcCareerjetRows: rpcCj,
-        merged: out.length,
-        rendered: filtered.length,
-        skippedNoRowId,
-      };
-      if (hiddenByRelevance > 0 && relevanceView === "recommended") {
-        log.anbefaltExcluded = {
-          unevaluated: out.filter((l) => !l.aiEvaluated).length,
-          evaluatedBelowMin: out.filter(
-            (l) =>
-              l.aiEvaluated &&
-              (l.score == null ||
-                Number.isNaN(l.score) ||
-                l.score < MIN_RECOMMENDED_SCORE),
-          ).length,
-        };
-      }
-      if (hiddenByRelevance > 0 && relevanceView === "unreviewed") {
-        log.uvurderteExcludedEvaluated = out.filter((l) => l.aiEvaluated).length;
-      }
-      if (hiddenBySource > 0) log.hiddenBySourceFilter = hiddenBySource;
-      if (
-        skippedNoRowId > 0 ||
-        hiddenByRelevance > 0 ||
-        hiddenBySource > 0
-      ) {
-        console.debug("[job-leads] merge", log);
-      }
-    }
   return filtered;
-  }, [linkedinLeads, cjLeads, sourceFilter, sortBy, statusFilter, relevanceView]);
+  }, [linkedinLeads, cjLeads, sourceFilter, timeFilter, statusFilter, relevanceView]);
 
   const handleFetch = async () => {
     setFetching(true);
