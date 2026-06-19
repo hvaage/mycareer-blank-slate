@@ -208,10 +208,11 @@ function CareerjetTab() {
                 </>
               ) : <Muted>Ikke registrert (cron disabled inntil verifisering)</Muted>}
             </Card>
-            <Card label="Vault secret">
+            <Card label="Vault secret (kun for cron)">
               <Badge active={data.vault.has_sync_careerjet_secret}>
                 sync_careerjet_secret {data.vault.has_sync_careerjet_secret ? "FUNNET" : "MANGLER"}
               </Badge>
+              <Muted>Manuell trigger bruker runtime-env og er upåvirket.</Muted>
             </Card>
             <Card label="Careerjet source_postings">
               <Big>{data.duplicates.source_postings_careerjet}</Big>
