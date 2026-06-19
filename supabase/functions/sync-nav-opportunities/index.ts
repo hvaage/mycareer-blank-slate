@@ -229,7 +229,29 @@ Deno.serve(async (req: Request) => {
       if (navErr) {
         errorSummary = `system_error: nav rpc failed: ${navErr.message}`;
       } else {
-        const rows: NavRow[] = (navRows ?? []) as any;
+        const rawRows: any[] = (navRows ?? []) as any;
+        // Normalize source row shape -> adapter NavRow shape.
+        const rows: NavRow[] = rawRows.map((r) => {
+          const rp = (r && typeof r.raw_payload === "object" && r.raw_payload) || {};
+          const navDetail =
+            (rp && typeof (rp as any).nav_detail === "object" && (rp as any).nav_detail) ||
+            (r && typeof r.nav_detail === "object" && r.nav_detail) ||
+            null;
+          const changedAt =
+            r.changed_at ?? r.nav_event_modified_at ?? r.date_modified ?? r.updated_at ?? null;
+          return {
+            external_id: r.external_id,
+            status: r.status,
+            title: r.title ?? null,
+            employer: r.employer ?? r.company_name ?? null,
+            location: r.location ?? null,
+            url: r.url ?? null,
+            published_at: r.published_at ?? null,
+            changed_at: changedAt,
+            nav_detail: navDetail,
+            description_excerpt: r.description_excerpt ?? null,
+          } as NavRow;
+        });
         fetched = rows.length;
 
         const newCanonicalIds: string[] = [];
