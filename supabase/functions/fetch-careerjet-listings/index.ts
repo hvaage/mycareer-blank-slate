@@ -756,13 +756,15 @@ Deno.serve(async (req) => {
     const locLc = locations.map((l) => l.toLowerCase()).filter(Boolean);
     if (kwLc.length > 0 || locLc.length > 0) {
       // Pull a bounded set of active NAV canonicals; filter in-memory to avoid heavy ILIKE OR chains.
-      const { data: navCanon } = await serviceClient
+      const nowIso = new Date().toISOString();
+      const { data: navCanon, error: navCanonErr } = await serviceClient
         .from("canonical_opportunities")
         .select("id, identity_fingerprint, display_title, display_company, display_location, display_url, primary_source, live_until")
         .eq("primary_source", "nav")
-        .is("live_until", null)
+        .or(`live_until.is.null,live_until.gt.${nowIso}`)
         .order("updated_at", { ascending: false })
-        .limit(2000);
+        .limit(3000);
+      if (navCanonErr) console.error("[fetch-careerjet] NAV canonical select error:", navCanonErr);
 
       navScanned = navCanon?.length ?? 0;
       for (const co of navCanon ?? []) {
