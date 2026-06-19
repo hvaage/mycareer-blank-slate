@@ -13,7 +13,7 @@ const SYNC_NAV_SECRET = Deno.env.get("SYNC_NAV_SECRET") ?? "";
 const AI_MODEL = Deno.env.get("NAV_SYNC_AI_MODEL") ?? "google/gemini-2.5-flash";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
 
-const BATCH_LIMIT = 4000;
+const BATCH_LIMIT = 200;
 const STALE_LOCK_MINUTES = 60;
 const AI_MAX_PER_RUN = 20;
 
