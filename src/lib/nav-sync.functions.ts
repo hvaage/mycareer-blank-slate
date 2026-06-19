@@ -24,7 +24,7 @@ export type NavSyncRunRow = {
   reactivated: number | null;
   matched_user_opps: number | null;
   scored: number | null;
-  meta: Record<string, unknown> | null;
+  meta: any;
   duration_ms: number | null;
   cursor_changed_at: string | null;
   cursor_external_id: string | null;
