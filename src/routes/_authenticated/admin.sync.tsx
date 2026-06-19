@@ -180,7 +180,10 @@ function CareerjetTab() {
           {mutation.isPending ? "Kjører sync…" : "Kjør sync nå"}
         </button>
         <button
-          onClick={() => refetch()}
+          onClick={() => {
+            setLastTrigger(null);
+            refetch();
+          }}
           disabled={isFetching}
           className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-accent disabled:opacity-50"
         >
