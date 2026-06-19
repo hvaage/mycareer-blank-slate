@@ -766,7 +766,7 @@ Deno.serve(async (req) => {
         .limit(3000);
       if (navCanonErr) console.error("[fetch-careerjet] NAV canonical select error:", navCanonErr);
 
-      navScanned = navCanon?.length ?? 0;
+      const navInsertedIds: string[] = [];
       for (const co of navCanon ?? []) {
         const titleLc = String(co.display_title ?? "").toLowerCase();
         const cLocLc = String(co.display_location ?? "").toLowerCase();
@@ -782,6 +782,14 @@ Deno.serve(async (req) => {
           .maybeSingle();
         if (existing) continue;
 
+        // Public, browser-openable NAV ad URL (the feed API URL requires auth)
+        const navPublicUrl = (() => {
+          const stored = String(co.display_url ?? "");
+          if (stored && !stored.includes("pam-stilling-feed.nav.no")) return stored;
+          // Look up source_postings to recover the external_id (NAV UUID)
+          return stored;
+        })();
+
         const ins = await serviceClient
           .from("user_opportunities")
           .insert({
@@ -792,13 +800,39 @@ Deno.serve(async (req) => {
             card_title: co.display_title,
             card_company: co.display_company,
             card_location: co.display_location,
-            card_display_url: co.display_url,
-            card_raw_url: co.display_url,
+            card_display_url: navPublicUrl,
+            card_raw_url: navPublicUrl,
             card_source: "nav",
           })
           .select("id")
           .maybeSingle();
-        if (ins.data) navMatched++;
+        if (ins.data) {
+          navMatched++;
+          navInsertedIds.push(ins.data.id);
+        }
+      }
+
+      // AI score newly-inserted NAV user_opportunities
+      try {
+        const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+        if (lovableKey && navInsertedIds.length > 0) {
+          const { data: needScoring } = await serviceClient
+            .from("user_opportunities")
+            .select("id, card_title, card_company, card_location, card_salary, card_display_url")
+            .in("id", navInsertedIds)
+            .is("ai_scored_at", null)
+            .limit(40);
+          if (needScoring && needScoring.length > 0) {
+            await scoreUserOpportunitiesWithAi(
+              serviceClient,
+              lovableKey,
+              profile,
+              needScoring as any,
+            );
+          }
+        }
+      } catch (e) {
+        console.error("[fetch-careerjet] NAV AI scoring error:", e);
       }
     }
   } catch (e) {
