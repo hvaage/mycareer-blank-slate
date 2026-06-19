@@ -255,6 +255,7 @@ Deno.serve(async (req: Request) => {
         fetched = rows.length;
 
         const newCanonicalIds: string[] = [];
+        const touchedCanonicalIds: string[] = [];
 
         for (const row of rows) {
           try {
@@ -341,6 +342,7 @@ Deno.serve(async (req: Request) => {
                 upd.display_url = safeUrl;
               }
               await admin.from("canonical_opportunities").update(upd).eq("id", canonicalId);
+              if (isActive) touchedCanonicalIds.push(canonicalId);
             } else {
               const { data: coIns, error: coErr } = await admin
                 .from("canonical_opportunities")
@@ -357,6 +359,7 @@ Deno.serve(async (req: Request) => {
               if (coErr) throw new Error(`canonical insert: ${coErr.message}`);
               canonicalId = coIns.id;
               newCanonicalIds.push(canonicalId);
+              if (isActive) touchedCanonicalIds.push(canonicalId);
             }
 
             // Link
@@ -412,49 +415,62 @@ Deno.serve(async (req: Request) => {
         }
 
         // Per-user matching (ACTIVE canonical only). Only when no system error.
-        if (!errorSummary && newCanonicalIds.length > 0) {
+        const matchCandidateIds = Array.from(new Set(touchedCanonicalIds));
+        if (!errorSummary && matchCandidateIds.length > 0) {
           // Fetch active canonical with their NAV source posting
           const { data: activeCanon } = await admin
             .from("canonical_opportunities")
-            .select("id, display_title, display_company, display_location, display_url, live_until")
-            .in("id", newCanonicalIds)
+            .select("id, identity_fingerprint, display_title, display_company, display_location, display_url, live_until")
+            .in("id", matchCandidateIds)
             .is("live_until", null);
 
           const { data: profiles } = await admin
             .from("profiles")
             .select("id, job_search_keywords, preferred_locations");
 
+          // Parse profile keywords: tolerate text or array, split on , ; newline
+          const parsedProfiles = (profiles ?? []).map((p: any) => {
+            const rawKw = p.job_search_keywords;
+            const kws: string[] = Array.isArray(rawKw)
+              ? rawKw.map((k) => String(k))
+              : typeof rawKw === "string"
+                ? rawKw.split(/[,;\n]+/)
+                : [];
+            const locs: string[] = Array.isArray(p.preferred_locations)
+              ? p.preferred_locations.map((l: any) => String(l))
+              : [];
+            return {
+              id: p.id as string,
+              kws: kws.map((k) => k.trim().toLowerCase()).filter(Boolean),
+              locs: locs.map((l) => l.trim().toLowerCase()).filter(Boolean),
+            };
+          });
+
           const usersToScore: { userId: string; canonicalId: string; co: any }[] = [];
 
           for (const co of activeCanon ?? []) {
             const titleLc = (co.display_title ?? "").toLowerCase();
             const locLc = (co.display_location ?? "").toLowerCase();
-            for (const p of profiles ?? []) {
-              const kws: string[] = Array.isArray((p as any).job_search_keywords)
-                ? (p as any).job_search_keywords
-                : [];
-              const locs: string[] = Array.isArray((p as any).preferred_locations)
-                ? (p as any).preferred_locations
-                : [];
-              const kwMatch = kws.length === 0
-                ? false
-                : kws.some((k) => k && titleLc.includes(String(k).toLowerCase()));
-              const locMatch = locs.length === 0
-                ? true
-                : locs.some((l) => l && locLc.includes(String(l).toLowerCase()));
+            for (const p of parsedProfiles) {
+              const kwMatch = p.kws.length === 0 ? false : p.kws.some((k) => titleLc.includes(k));
+              const locMatch = p.locs.length === 0 ? true : p.locs.some((l) => locLc.includes(l));
               if (!kwMatch || !locMatch) continue;
 
-              const { data: fpRow } = await admin
-                .from("canonical_opportunities")
-                .select("identity_fingerprint")
-                .eq("id", co.id)
+              // Skip if user already has this canonical (avoid unique-violation noise)
+              const { data: existingUo } = await admin
+                .from("user_opportunities")
+                .select("id")
+                .eq("user_id", p.id)
+                .eq("canonical_opportunity_id", co.id)
                 .maybeSingle();
+              if (existingUo) continue;
+
               const ins = await admin
                 .from("user_opportunities")
                 .insert({
-                  user_id: (p as any).id,
+                  user_id: p.id,
                   canonical_opportunity_id: co.id,
-                  identity_fingerprint: fpRow?.identity_fingerprint ?? "",
+                  identity_fingerprint: (co as any).identity_fingerprint ?? "",
                   status: "new",
                   card_title: co.display_title,
                   card_company: co.display_company,
@@ -467,7 +483,7 @@ Deno.serve(async (req: Request) => {
                 .maybeSingle();
               if (ins.data) {
                 matched_user_opps++;
-                usersToScore.push({ userId: (p as any).id, canonicalId: co.id, co });
+                usersToScore.push({ userId: p.id, canonicalId: co.id, co });
               }
             }
           }
