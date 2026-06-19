@@ -359,6 +359,7 @@ Deno.serve(async (req: Request) => {
               if (coErr) throw new Error(`canonical insert: ${coErr.message}`);
               canonicalId = coIns.id;
               newCanonicalIds.push(canonicalId);
+              if (isActive) touchedCanonicalIds.push(canonicalId);
             }
 
             // Link
