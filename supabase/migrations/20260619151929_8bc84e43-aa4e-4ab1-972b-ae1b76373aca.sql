@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.rotate_sync_careerjet_secret(text);

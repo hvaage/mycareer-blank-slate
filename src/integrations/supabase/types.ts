@@ -4565,10 +4565,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      rotate_sync_careerjet_secret: {
-        Args: { p_new_secret: string }
-        Returns: string
-      }
       search_employers: {
         Args: {
           p_arbeidsgiver_type?: string
