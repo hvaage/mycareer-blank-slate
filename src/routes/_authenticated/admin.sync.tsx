@@ -154,7 +154,14 @@ function CareerjetTab() {
   const mutation = useMutation({
     mutationFn: () => triggerSync(),
     onSuccess: (result) => {
-      setLastTrigger({ kind: "ok", result });
+      if (result && typeof result === "object" && "ok" in result) {
+        setLastTrigger({ kind: "ok", result: result as TriggerCareerjetSyncResult });
+      } else {
+        setLastTrigger({
+          kind: "err",
+          message: `Uventet svar fra server (ingen result): ${JSON.stringify(result)}`,
+        });
+      }
       refetch();
     },
     onError: (err: unknown) => {
