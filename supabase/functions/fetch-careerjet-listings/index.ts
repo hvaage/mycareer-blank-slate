@@ -766,6 +766,7 @@ Deno.serve(async (req) => {
         .limit(3000);
       if (navCanonErr) console.error("[fetch-careerjet] NAV canonical select error:", navCanonErr);
 
+      navScanned = navCanon?.length ?? 0;
       const navInsertedIds: string[] = [];
       for (const co of navCanon ?? []) {
         const titleLc = String(co.display_title ?? "").toLowerCase();
