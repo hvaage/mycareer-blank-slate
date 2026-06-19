@@ -35,13 +35,14 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
 });
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
-type SortBy = "relevance" | "newest";
+type TimeFilter = "all" | "2d" | "1w" | "1m";
 type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
 /** Client-side slice on top of status (RPC / job_leads still enforce status + not dismissed). */
-type RelevanceView = "all" | "recommended" | "unreviewed";
+type RelevanceView = "all" | "recommended" | "medium" | "low" | "unreviewed";
 
 /** In «Anbefalt»: only leads with numeric ai_score ≥ this (unevaluated rows excluded). */
-const MIN_RECOMMENDED_SCORE = 40;
+const MIN_RECOMMENDED_SCORE = 70;
+const MEDIUM_SCORE_MIN = 40;
 
 type LeadSource = "linkedin" | "careerjet" | "nav";
 
@@ -142,7 +143,7 @@ function JobLeadsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("new");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [relevanceView, setRelevanceView] = useState<RelevanceView>("all");
-  const [sortBy, setSortBy] = useState<SortBy>("relevance");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [fetching, setFetching] = useState(false);
 
   const { data: profile } = useQuery({
@@ -314,19 +315,50 @@ function JobLeadsPage() {
           !Number.isNaN(lead.score) &&
           lead.score >= MIN_RECOMMENDED_SCORE,
       );
+    } else if (relevanceView === "medium") {
+      afterRelevance = out.filter(
+        (lead) =>
+          lead.aiEvaluated &&
+          typeof lead.score === "number" &&
+          !Number.isNaN(lead.score) &&
+          lead.score >= MEDIUM_SCORE_MIN &&
+          lead.score < MIN_RECOMMENDED_SCORE,
+      );
+    } else if (relevanceView === "low") {
+      afterRelevance = out.filter(
+        (lead) =>
+          lead.aiEvaluated &&
+          typeof lead.score === "number" &&
+          !Number.isNaN(lead.score) &&
+          lead.score < MEDIUM_SCORE_MIN,
+      );
     } else if (relevanceView === "unreviewed") {
       afterRelevance = out.filter((lead) => !lead.aiEvaluated);
     }
 
-    const filtered =
+    const sourceMatched =
       sourceFilter === "all"
         ? afterRelevance
         : afterRelevance.filter((x) => x.source === sourceFilter);
 
-    filtered.sort((a, b) => {
-      if (sortBy === "newest") {
-        return new Date(b.posted_at ?? 0).getTime() - new Date(a.posted_at ?? 0).getTime();
+    const cutoffMs = (() => {
+      const now = Date.now();
+      switch (timeFilter) {
+        case "2d": return now - 2 * 24 * 3600 * 1000;
+        case "1w": return now - 7 * 24 * 3600 * 1000;
+        case "1m": return now - 30 * 24 * 3600 * 1000;
+        default: return null;
       }
+    })();
+    const filtered = cutoffMs == null
+      ? sourceMatched
+      : sourceMatched.filter((lead) => {
+          if (!lead.posted_at) return false;
+          const t = new Date(lead.posted_at).getTime();
+          return Number.isFinite(t) && t >= cutoffMs;
+        });
+
+    filtered.sort((a, b) => {
       if (!a.aiEvaluated && b.aiEvaluated) return -1;
       if (a.aiEvaluated && !b.aiEvaluated) return 1;
       if (!a.aiEvaluated && !b.aiEvaluated) {
@@ -337,46 +369,8 @@ function JobLeadsPage() {
       return new Date(b.posted_at ?? 0).getTime() - new Date(a.posted_at ?? 0).getTime();
     });
 
-    if (import.meta.env.DEV) {
-      const rpcCj = cjLeads?.length ?? 0;
-      const hiddenByRelevance = out.length - afterRelevance.length;
-      const hiddenBySource = afterRelevance.length - filtered.length;
-      const log: Record<string, unknown> = {
-        statusFilter,
-        relevanceView,
-        sourceFilter,
-        sortBy,
-        rpcCareerjetRows: rpcCj,
-        merged: out.length,
-        rendered: filtered.length,
-        skippedNoRowId,
-      };
-      if (hiddenByRelevance > 0 && relevanceView === "recommended") {
-        log.anbefaltExcluded = {
-          unevaluated: out.filter((l) => !l.aiEvaluated).length,
-          evaluatedBelowMin: out.filter(
-            (l) =>
-              l.aiEvaluated &&
-              (l.score == null ||
-                Number.isNaN(l.score) ||
-                l.score < MIN_RECOMMENDED_SCORE),
-          ).length,
-        };
-      }
-      if (hiddenByRelevance > 0 && relevanceView === "unreviewed") {
-        log.uvurderteExcludedEvaluated = out.filter((l) => l.aiEvaluated).length;
-      }
-      if (hiddenBySource > 0) log.hiddenBySourceFilter = hiddenBySource;
-      if (
-        skippedNoRowId > 0 ||
-        hiddenByRelevance > 0 ||
-        hiddenBySource > 0
-      ) {
-        console.debug("[job-leads] merge", log);
-      }
-    }
   return filtered;
-  }, [linkedinLeads, cjLeads, sourceFilter, sortBy, statusFilter, relevanceView]);
+  }, [linkedinLeads, cjLeads, sourceFilter, timeFilter, statusFilter, relevanceView]);
 
   const handleFetch = async () => {
     setFetching(true);
@@ -583,6 +577,7 @@ function JobLeadsPage() {
             <SelectItem value="all">Alle kilder</SelectItem>
             <SelectItem value="linkedin">LinkedIn</SelectItem>
             <SelectItem value="careerjet">Careerjet</SelectItem>
+            <SelectItem value="nav">NAV</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
@@ -595,20 +590,26 @@ function JobLeadsPage() {
           </SelectContent>
         </Select>
         <Select value={relevanceView} onValueChange={(v: any) => setRelevanceView(v)}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="Relevans" />
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Match-score" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle relevanser</SelectItem>
-            <SelectItem value="unreviewed">Uvurderte</SelectItem>
+            <SelectItem value="all">Alle match-scorer</SelectItem>
             <SelectItem value="recommended">Anbefalt (≥{MIN_RECOMMENDED_SCORE})</SelectItem>
+            <SelectItem value="medium">Middels ({MEDIUM_SCORE_MIN}–{MIN_RECOMMENDED_SCORE - 1})</SelectItem>
+            <SelectItem value="low">Lav (&lt;{MEDIUM_SCORE_MIN})</SelectItem>
+            <SelectItem value="unreviewed">Uvurderte</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-          <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
+        <Select value={timeFilter} onValueChange={(v: any) => setTimeFilter(v)}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Tidsavgrensning" />
+          </SelectTrigger>
           <SelectContent>
-            <SelectItem value="relevance">Relevans</SelectItem>
-            <SelectItem value="newest">Nyeste</SelectItem>
+            <SelectItem value="all">Alle tider</SelectItem>
+            <SelectItem value="2d">Siste 2 dager</SelectItem>
+            <SelectItem value="1w">Siste uke</SelectItem>
+            <SelectItem value="1m">Siste måned</SelectItem>
           </SelectContent>
         </Select>
       </div>
