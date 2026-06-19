@@ -342,6 +342,7 @@ Deno.serve(async (req: Request) => {
                 upd.display_url = safeUrl;
               }
               await admin.from("canonical_opportunities").update(upd).eq("id", canonicalId);
+              if (isActive) touchedCanonicalIds.push(canonicalId);
             } else {
               const { data: coIns, error: coErr } = await admin
                 .from("canonical_opportunities")
