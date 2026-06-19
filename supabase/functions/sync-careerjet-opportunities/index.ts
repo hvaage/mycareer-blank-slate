@@ -226,11 +226,12 @@ async function fetchCareerjetPage(opts: {
   params.set("user_agent", CAREERJET_USER_AGENT);
   params.set("contracttype", "");
   params.set("contractperiod", "");
+  params.set("sort", "date");
 
   try {
     const res = await fetch(`http://public.api.careerjet.net/search?${params.toString()}`, {
       method: "GET",
-      headers: { "User-Agent": CAREERJET_USER_AGENT, Accept: "application/json" },
+      headers: { Referer: CAREERJET_REFERER, Accept: "application/json" },
     });
     if (!res.ok) return { rows: [], status: res.status, error: `http ${res.status}` };
     const data: any = await res.json();
