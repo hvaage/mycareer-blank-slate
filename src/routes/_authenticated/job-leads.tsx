@@ -765,7 +765,9 @@ function LeadCard({
   const [open, setOpen] = useState(false);
   const badge = relevanceReviewBadge(lead);
   const isLI = lead.source === "linkedin";
-  const actionUrl = isLI ? lead.url : buildCareerjetSearchUrl(lead);
+  const isNav = lead.source === "nav";
+  const sourceLabel = isLI ? "LinkedIn" : isNav ? "NAV" : "Careerjet";
+  const actionUrl = isLI || isNav ? lead.url : buildCareerjetSearchUrl(lead);
   const hasAIDetails =
     !!(lead.ai_reasoning || lead.ai_match_highlights || lead.ai_concerns || lead.raw_snippet);
 
@@ -777,7 +779,7 @@ function LeadCard({
           {badge.label}
         </span>
         <Badge variant="outline" className="text-[10px]">
-          {isLI ? "LinkedIn" : "Careerjet"}
+          {sourceLabel}
         </Badge>
       </div>
 
@@ -842,7 +844,7 @@ function LeadCard({
                 referrerPolicy="no-referrer-when-downgrade"
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
-                {isLI ? "Se annonse" : "Finn i Careerjet"}
+                {isLI ? "Se annonse" : isNav ? "Finn hos NAV" : "Finn i Careerjet"}
               </a>
             </Button>
           )}

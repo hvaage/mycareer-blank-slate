@@ -266,9 +266,9 @@ Deno.serve(async (req: Request) => {
               continue;
             }
 
-            const safeUrl =
-              (row.url && row.url.trim()) ||
-              `https://arbeidsplassen.nav.no/stillinger/stilling/${row.external_id}`;
+            // Always use the public arbeidsplassen URL — row.url is the NAV feed
+            // API endpoint which requires auth and returns 401 in the browser.
+            const safeUrl = `https://arbeidsplassen.nav.no/stillinger/stilling/${row.external_id}`;
 
             // Get DB-canonical fingerprint
             const { data: fpData, error: fpErr } = await admin.rpc("opportunity_fingerprint", {
