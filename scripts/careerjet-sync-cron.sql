@@ -1,0 +1,63 @@
+-- careerjet-sync cron schedule — RUNBOOK / REFERENCE (M5.7).
+--
+-- Live schedule:
+--   Aktivert i Supabase pg_cron som jobben 'careerjet-sync-60min'
+--   (7 * * * * UTC). Cron-secret hentes fra vault.decrypted_secrets
+--   ('sync_careerjet_secret') ved hvert kall; samme verdi ligger som
+--   Lovable Backend Secret SYNC_CAREERJET_SECRET (brukes av edge-funksjonen
+--   for konstant-tids sammenligning av x-sync-careerjet-secret-headeren).
+--
+-- VIKTIG: Faktisk secret-verdi skal ALDRI committes. Vault-secret opprettes
+-- som engangs-operasjon via Lovable insert-tool (eller manuelt i Supabase
+-- SQL editor) med samme verdi som Lovable Backend Secret.
+--
+-- Engangs-oppretting av Vault-secret (ikke commit verdien):
+-- SELECT vault.create_secret(
+--   '<SETT_INN_SECRET_I_VAULT_MANUELT>',
+--   'sync_careerjet_secret',
+--   'Shared secret for careerjet sync cron'
+-- );
+--
+-- Rotasjon (slett først, så opprett på nytt med ny verdi):
+-- DELETE FROM vault.secrets WHERE name = 'sync_careerjet_secret';
+-- SELECT vault.create_secret('<NY_VERDI>', 'sync_careerjet_secret',
+--                            'Shared secret for careerjet sync cron');
+-- Husk å oppdatere Lovable Backend Secret SYNC_CAREERJET_SECRET til samme verdi.
+
+-- Manuell (re)schedule — kjør kun ved behov:
+-- DO $$
+-- BEGIN
+--   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'careerjet-sync-60min') THEN
+--     PERFORM cron.unschedule('careerjet-sync-60min');
+--   END IF;
+-- END $$;
+--
+-- SELECT cron.schedule(
+--   'careerjet-sync-60min',
+--   '7 * * * *',
+--   $$
+--   SELECT net.http_post(
+--     url := 'https://miwzhbludgwvskmsfqnq.supabase.co/functions/v1/sync-careerjet-opportunities',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-sync-careerjet-secret',
+--         (SELECT decrypted_secret FROM vault.decrypted_secrets
+--           WHERE name = 'sync_careerjet_secret' LIMIT 1)
+--     ),
+--     body := '{}'::jsonb,
+--     timeout_milliseconds := 150000
+--   ) AS request_id;
+--   $$
+-- );
+
+-- Avregistrering ved behov:
+-- SELECT cron.unschedule('careerjet-sync-60min');
+
+-- Inspisere leveranser:
+-- SELECT * FROM cron.job_run_details
+--   WHERE jobid = (SELECT jobid FROM cron.job WHERE jobname = 'careerjet-sync-60min')
+--   ORDER BY start_time DESC LIMIT 20;
+--
+-- Merknad: pg_net's net.http_post i dette prosjektet støtter
+-- timeout_milliseconds (default 5000); satt til 150000 for å gi sync-jobben
+-- nok tid til å fullføre én batch innenfor edge-funksjonens 130s budsjett.
