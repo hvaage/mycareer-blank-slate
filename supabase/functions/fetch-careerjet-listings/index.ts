@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
 
   const { data: profile } = await serviceClient
     .from("profiles")
-    .select("preferred_locations, job_search_keywords, target_role")
+    .select("preferred_locations, job_search_keywords, target_role, target_roles, target_city, target_region, target_country")
     .eq("id", user.id)
     .single();
 
@@ -378,9 +378,36 @@ Deno.serve(async (req) => {
   }
 
   const affid = Deno.env.get("CAREERJET_AFFID") ?? "";
-  const rawKw = profile.job_search_keywords || profile.target_role || "";
-  const keywords = rawKw.split(",").map((k: string) => k.trim()).filter(Boolean);
-  const locations: string[] = profile.preferred_locations ?? [];
+  // Keywords: job_search_keywords -> target_role -> target_roles[]
+  const kwSources: string[] = [];
+  if (typeof profile.job_search_keywords === "string" && profile.job_search_keywords.trim()) {
+    kwSources.push(...profile.job_search_keywords.split(",").map((k: string) => k.trim()));
+  }
+  if (kwSources.length === 0 && typeof profile.target_role === "string" && profile.target_role.trim()) {
+    kwSources.push(...profile.target_role.split(",").map((k: string) => k.trim()));
+  }
+  if (kwSources.length === 0 && Array.isArray(profile.target_roles)) {
+    kwSources.push(...(profile.target_roles as string[]).map((k) => String(k).trim()));
+  }
+  const keywords = kwSources.filter(Boolean);
+
+  // Locations: preferred_locations -> [target_city, target_region]
+  const locSet = new Set<string>();
+  if (Array.isArray(profile.preferred_locations)) {
+    for (const l of profile.preferred_locations as string[]) {
+      if (l && String(l).trim()) locSet.add(String(l).trim());
+    }
+  }
+  if (locSet.size === 0) {
+    if (profile.target_city && String(profile.target_city).trim()) locSet.add(String(profile.target_city).trim());
+    if (profile.target_region && String(profile.target_region).trim()) {
+      // target_region may be comma-separated ("Oslo, Viken") — split for broader match
+      for (const part of String(profile.target_region).split(",").map((s) => s.trim()).filter(Boolean)) {
+        locSet.add(part);
+      }
+    }
+  }
+  const locations: string[] = Array.from(locSet);
 
   const searches = buildSearches(keywords, locations);
   if (searches.length === 0) {
@@ -388,7 +415,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ok: false,
         message:
-          "Ingen søkekriterier. Gå til Profil → Jobbsøk-innstillinger og legg inn søkeord eller byer.",
+          "Ingen søkekriterier. Legg inn ønsket rolle/søkeord eller by/region under Profil → Geografi og jobbsøk.",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
