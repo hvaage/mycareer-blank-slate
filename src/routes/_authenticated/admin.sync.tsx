@@ -1,12 +1,15 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { getNavSyncStatus, type NavSyncRunRow } from "@/lib/nav-sync.functions";
 import {
   getCareerjetSyncStatus,
+  triggerCareerjetSync,
   type CareerjetRunRow,
+  type TriggerCareerjetSyncResult,
 } from "@/lib/careerjet-sync.functions";
 
 type TabKey = "nav" | "careerjet";
