@@ -399,7 +399,7 @@ Deno.serve(async (req: Request) => {
 
             const safeUrl =
               (row.url && row.url.trim()) ||
-              `https://www.careerjet.no/jobbsoek?s=${encodeURIComponent(title)}`;
+              `https://www.careerjet.no/sok/jobber?s=${encodeURIComponent(title)}`;
             const location = (row.locations ?? "").trim() || null;
 
             const fp = computeFingerprintLocal(company, title, location);
