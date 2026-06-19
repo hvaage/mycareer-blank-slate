@@ -394,10 +394,12 @@ function JobLeadsPage() {
       const newLinks = Number(data.new_lead_links ?? data.scored ?? 0);
       const upserted = Number(data.listing_rows_upserted ?? data.upserted ?? 0);
       const refreshed = Number(data.existing_rows_refreshed ?? 0);
+      const navMatched = Number(data.nav_matched ?? 0);
       const msg = [
-        `${data.fetched} annonser fra API`,
+        `${data.fetched} fra Careerjet`,
         upserted ? `${upserted} rader i jobbliste` : null,
         `${newLinks} nye koblinger til deg`,
+        navMatched ? `${navMatched} NAV-treff` : null,
         skipped ? `${skipped} duplikater hoppet over` : null,
         refreshed ? `${refreshed} eksisterende oppdatert` : null,
       ]
@@ -406,6 +408,7 @@ function JobLeadsPage() {
       toast.success(msg);
       qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
       qc.invalidateQueries({ queryKey: ["profile-jobprefs"] });
+      qc.invalidateQueries({ queryKey: ["user-opportunities"] });
     } finally {
       setFetching(false);
     }
@@ -569,7 +572,7 @@ function JobLeadsPage() {
         </div>
         <Button onClick={handleFetch} disabled={fetching || !hasPrefs} className="shrink-0">
           <RefreshCw className={`h-4 w-4 mr-2 ${fetching ? "animate-spin" : ""}`} />
-          {fetching ? "Henter…" : "Hent fra Careerjet"}
+          {fetching ? "Henter…" : "Hent fra Careerjet + NAV"}
         </Button>
       </div>
 

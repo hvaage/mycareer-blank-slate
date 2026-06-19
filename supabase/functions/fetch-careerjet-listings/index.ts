@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
 
   const { data: profile } = await serviceClient
     .from("profiles")
-    .select("preferred_locations, job_search_keywords, target_role")
+    .select("preferred_locations, job_search_keywords, target_role, target_roles, target_city, target_region, target_country")
     .eq("id", user.id)
     .single();
 
@@ -378,9 +378,36 @@ Deno.serve(async (req) => {
   }
 
   const affid = Deno.env.get("CAREERJET_AFFID") ?? "";
-  const rawKw = profile.job_search_keywords || profile.target_role || "";
-  const keywords = rawKw.split(",").map((k: string) => k.trim()).filter(Boolean);
-  const locations: string[] = profile.preferred_locations ?? [];
+  // Keywords: job_search_keywords -> target_role -> target_roles[]
+  const kwSources: string[] = [];
+  if (typeof profile.job_search_keywords === "string" && profile.job_search_keywords.trim()) {
+    kwSources.push(...profile.job_search_keywords.split(",").map((k: string) => k.trim()));
+  }
+  if (kwSources.length === 0 && typeof profile.target_role === "string" && profile.target_role.trim()) {
+    kwSources.push(...profile.target_role.split(",").map((k: string) => k.trim()));
+  }
+  if (kwSources.length === 0 && Array.isArray(profile.target_roles)) {
+    kwSources.push(...(profile.target_roles as string[]).map((k) => String(k).trim()));
+  }
+  const keywords = kwSources.filter(Boolean);
+
+  // Locations: preferred_locations -> [target_city, target_region]
+  const locSet = new Set<string>();
+  if (Array.isArray(profile.preferred_locations)) {
+    for (const l of profile.preferred_locations as string[]) {
+      if (l && String(l).trim()) locSet.add(String(l).trim());
+    }
+  }
+  if (locSet.size === 0) {
+    if (profile.target_city && String(profile.target_city).trim()) locSet.add(String(profile.target_city).trim());
+    if (profile.target_region && String(profile.target_region).trim()) {
+      // target_region may be comma-separated ("Oslo, Viken") — split for broader match
+      for (const part of String(profile.target_region).split(",").map((s) => s.trim()).filter(Boolean)) {
+        locSet.add(part);
+      }
+    }
+  }
+  const locations: string[] = Array.from(locSet);
 
   const searches = buildSearches(keywords, locations);
   if (searches.length === 0) {
@@ -388,7 +415,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ok: false,
         message:
-          "Ingen søkekriterier. Gå til Profil → Jobbsøk-innstillinger og legg inn søkeord eller byer.",
+          "Ingen søkekriterier. Legg inn ønsket rolle/søkeord eller by/region under Profil → Geografi og jobbsøk.",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
@@ -720,6 +747,61 @@ Deno.serve(async (req) => {
     console.error("[fetch-careerjet] post-ai canonical sync", e);
   }
 
+  // ---- NAV: match existing canonical NAV-opportunities to this user ----
+  let navMatched = 0;
+  let navScanned = 0;
+  try {
+    const kwLc = keywords.map((k) => k.toLowerCase()).filter(Boolean);
+    const locLc = locations.map((l) => l.toLowerCase()).filter(Boolean);
+    if (kwLc.length > 0 || locLc.length > 0) {
+      // Pull a bounded set of active NAV canonicals; filter in-memory to avoid heavy ILIKE OR chains.
+      const { data: navCanon } = await serviceClient
+        .from("canonical_opportunities")
+        .select("id, identity_fingerprint, display_title, display_company, display_location, display_url, primary_source, live_until")
+        .eq("primary_source", "nav")
+        .is("live_until", null)
+        .order("updated_at", { ascending: false })
+        .limit(2000);
+
+      navScanned = navCanon?.length ?? 0;
+      for (const co of navCanon ?? []) {
+        const titleLc = String(co.display_title ?? "").toLowerCase();
+        const cLocLc = String(co.display_location ?? "").toLowerCase();
+        const kwMatch = kwLc.length === 0 ? true : kwLc.some((k) => k && titleLc.includes(k));
+        const locMatch = locLc.length === 0 ? true : locLc.some((l) => l && cLocLc.includes(l));
+        if (!kwMatch || !locMatch) continue;
+
+        const { data: existing } = await serviceClient
+          .from("user_opportunities")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("canonical_opportunity_id", co.id)
+          .maybeSingle();
+        if (existing) continue;
+
+        const ins = await serviceClient
+          .from("user_opportunities")
+          .insert({
+            user_id: user.id,
+            canonical_opportunity_id: co.id,
+            identity_fingerprint: (co as any).identity_fingerprint ?? "",
+            status: "new",
+            card_title: co.display_title,
+            card_company: co.display_company,
+            card_location: co.display_location,
+            card_display_url: co.display_url,
+            card_raw_url: co.display_url,
+            card_source: "nav",
+          })
+          .select("id")
+          .maybeSingle();
+        if (ins.data) navMatched++;
+      }
+    }
+  } catch (e) {
+    console.error("[fetch-careerjet] NAV matching error:", e);
+  }
+
   await serviceClient
     .from("profiles")
     .update({ listings_last_fetched_at: now })
@@ -737,6 +819,8 @@ Deno.serve(async (req) => {
       skipped_duplicates: skipped,
       existing_rows_refreshed: refreshed,
       ai_scored: aiScored,
+      nav_scanned: navScanned,
+      nav_matched: navMatched,
       dedupe_diagnostics: dedupeDiagnostics,
       canonical_rows_synced: canonicalSynced,
     }),
