@@ -1020,3 +1020,112 @@ Scoring:
   }
   return n;
 }
+
+async function scoreUserOpportunitiesWithAi(
+  client: ReturnType<typeof createClient>,
+  apiKey: string,
+  profile: Record<string, unknown>,
+  rows: Array<{
+    id: string;
+    card_title: string | null;
+    card_company: string | null;
+    card_location: string | null;
+    card_salary: string | null;
+    card_display_url: string | null;
+  }>,
+): Promise<number> {
+  const items = rows.map((r, i) => ({
+    idx: i,
+    row_id: r.id,
+    title: r.card_title ?? "",
+    company: r.card_company ?? "",
+    location: r.card_location ?? "",
+    salary: r.card_salary ?? "",
+    description: "",
+  }));
+  if (items.length === 0) return 0;
+
+  const profileSlim = {
+    target_roles: (profile as any).target_roles,
+    target_seniority: (profile as any).target_seniority,
+    target_industries: (profile as any).target_industries,
+    target_country: (profile as any).target_country,
+    target_region: (profile as any).target_region,
+    target_city: (profile as any).target_city,
+    work_types: (profile as any).work_types,
+    skills: (profile as any).skills,
+    languages: (profile as any).languages,
+    salary_expectation_min: (profile as any).salary_expectation_min,
+    salary_expectation_max: (profile as any).salary_expectation_max,
+    salary_currency: (profile as any).salary_currency,
+    motivation: (profile as any).motivation,
+    strengths: (profile as any).strengths,
+    deal_breakers: (profile as any).deal_breakers,
+    years_experience: (profile as any).years_experience,
+  };
+
+  const prompt = `Du scorer jobbannonser mot en kandidatprofil.
+
+KANDIDATPROFIL:
+${JSON.stringify(profileSlim, null, 2)}
+
+ANNONSER (idx, tittel, selskap, sted, lønn):
+${JSON.stringify(items, null, 2)}
+
+Returner KUN gyldig JSON (ingen markdown):
+{
+  "scores": [
+    { "idx": <number>, "row_id": "<string>", "ai_score": <0-100>,
+      "ai_reasoning": "<1-2 setninger på norsk>",
+      "ai_match_highlights": "<kort: hva passer (norsk)>",
+      "ai_concerns": "<kort: hva passer dårlig (norsk, kan være tom)>" }
+  ]
+}
+
+Scoring:
+- 80-100: sterk match på rolle/seniority + lokasjon/work_type
+- 60-79: god match på rolle og 1-2 andre faktorer
+- 40-59: delvis match
+- 0-39: lite relevant`;
+
+  const res = await fetch(LOVABLE_AI_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+    }),
+  });
+  if (!res.ok) {
+    console.error("[fetch-careerjet] NAV AI gateway", res.status, await res.text());
+    return 0;
+  }
+  const json = await res.json() as { choices?: { message?: { content?: string } }[] };
+  const content = json.choices?.[0]?.message?.content ?? "";
+  let parsed: { scores?: Array<{ row_id: string; ai_score: number; ai_reasoning?: string; ai_match_highlights?: string; ai_concerns?: string }> };
+  try { parsed = JSON.parse(content); } catch {
+    console.error("[fetch-careerjet] NAV AI non-JSON:", content.slice(0, 500));
+    return 0;
+  }
+  const scores = Array.isArray(parsed.scores) ? parsed.scores : [];
+  const nowIso = new Date().toISOString();
+  let n = 0;
+  for (const s of scores) {
+    if (!s?.row_id) continue;
+    const aiScore = typeof s.ai_score === "number" ? Math.max(0, Math.min(100, Math.round(s.ai_score))) : null;
+    const { error } = await (client.from("user_opportunities") as any)
+      .update({
+        ai_score: aiScore,
+        ai_reasoning: s.ai_reasoning ?? null,
+        ai_match_highlights: s.ai_match_highlights ?? null,
+        ai_concerns: s.ai_concerns ?? null,
+        ai_scored_at: nowIso,
+        relevance_score: aiScore ?? undefined,
+        updated_at: nowIso,
+      })
+      .eq("id", s.row_id);
+    if (!error) n++;
+  }
+  return n;
+}
