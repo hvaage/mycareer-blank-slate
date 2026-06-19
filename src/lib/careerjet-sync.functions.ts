@@ -215,7 +215,7 @@ export const getCareerjetSyncStatus = createServerFn({ method: "GET" })
 export type TriggerCareerjetSyncResult = {
   http_status: number;
   ok: boolean;
-  body: unknown;
+  body: string;
   duration_ms: number;
 };
 
