@@ -62,6 +62,7 @@ import { Route as AuthenticatedDocumentationCasesRouteImport } from './routes/_a
 import { Route as AuthenticatedCareerAtomReviewRouteImport } from './routes/_authenticated/career/atom-review'
 import { Route as AuthenticatedApplicationsNewRouteImport } from './routes/_authenticated/applications/new'
 import { Route as AuthenticatedApplicationsIdRouteImport } from './routes/_authenticated/applications/$id'
+import { Route as AuthenticatedAdminSyncRouteImport } from './routes/_authenticated/admin.sync'
 import { Route as AuthenticatedAdminRekruttererundersokelseRouteImport } from './routes/_authenticated/admin.rekruttererundersokelse'
 import { Route as AuthenticatedAdminRegnskapRouteImport } from './routes/_authenticated/admin.regnskap'
 import { Route as AuthenticatedAdminNavSyncRouteImport } from './routes/_authenticated/admin.nav-sync'
@@ -366,6 +367,11 @@ const AuthenticatedApplicationsIdRoute =
     path: '/applications/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminSyncRoute = AuthenticatedAdminSyncRouteImport.update({
+  id: '/admin/sync',
+  path: '/admin/sync',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedAdminRekruttererundersokelseRoute =
   AuthenticatedAdminRekruttererundersokelseRouteImport.update({
     id: '/admin/rekruttererundersokelse',
@@ -466,6 +472,7 @@ export interface FileRoutesByFullPath {
   '/admin/nav-sync': typeof AuthenticatedAdminNavSyncRoute
   '/admin/regnskap': typeof AuthenticatedAdminRegnskapRoute
   '/admin/rekruttererundersokelse': typeof AuthenticatedAdminRekruttererundersokelseRoute
+  '/admin/sync': typeof AuthenticatedAdminSyncRoute
   '/applications/$id': typeof AuthenticatedApplicationsIdRoute
   '/applications/new': typeof AuthenticatedApplicationsNewRoute
   '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
@@ -528,6 +535,7 @@ export interface FileRoutesByTo {
   '/admin/nav-sync': typeof AuthenticatedAdminNavSyncRoute
   '/admin/regnskap': typeof AuthenticatedAdminRegnskapRoute
   '/admin/rekruttererundersokelse': typeof AuthenticatedAdminRekruttererundersokelseRoute
+  '/admin/sync': typeof AuthenticatedAdminSyncRoute
   '/applications/$id': typeof AuthenticatedApplicationsIdRoute
   '/applications/new': typeof AuthenticatedApplicationsNewRoute
   '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
@@ -595,6 +603,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/nav-sync': typeof AuthenticatedAdminNavSyncRoute
   '/_authenticated/admin/regnskap': typeof AuthenticatedAdminRegnskapRoute
   '/_authenticated/admin/rekruttererundersokelse': typeof AuthenticatedAdminRekruttererundersokelseRoute
+  '/_authenticated/admin/sync': typeof AuthenticatedAdminSyncRoute
   '/_authenticated/applications/$id': typeof AuthenticatedApplicationsIdRoute
   '/_authenticated/applications/new': typeof AuthenticatedApplicationsNewRoute
   '/_authenticated/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
@@ -662,6 +671,7 @@ export interface FileRouteTypes {
     | '/admin/nav-sync'
     | '/admin/regnskap'
     | '/admin/rekruttererundersokelse'
+    | '/admin/sync'
     | '/applications/$id'
     | '/applications/new'
     | '/career/atom-review'
@@ -724,6 +734,7 @@ export interface FileRouteTypes {
     | '/admin/nav-sync'
     | '/admin/regnskap'
     | '/admin/rekruttererundersokelse'
+    | '/admin/sync'
     | '/applications/$id'
     | '/applications/new'
     | '/career/atom-review'
@@ -790,6 +801,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/nav-sync'
     | '/_authenticated/admin/regnskap'
     | '/_authenticated/admin/rekruttererundersokelse'
+    | '/_authenticated/admin/sync'
     | '/_authenticated/applications/$id'
     | '/_authenticated/applications/new'
     | '/_authenticated/career/atom-review'
@@ -1219,6 +1231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedApplicationsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/sync': {
+      id: '/_authenticated/admin/sync'
+      path: '/admin/sync'
+      fullPath: '/admin/sync'
+      preLoaderRoute: typeof AuthenticatedAdminSyncRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/rekruttererundersokelse': {
       id: '/_authenticated/admin/rekruttererundersokelse'
       path: '/admin/rekruttererundersokelse'
@@ -1314,6 +1333,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminNavSyncRoute: typeof AuthenticatedAdminNavSyncRoute
   AuthenticatedAdminRegnskapRoute: typeof AuthenticatedAdminRegnskapRoute
   AuthenticatedAdminRekruttererundersokelseRoute: typeof AuthenticatedAdminRekruttererundersokelseRoute
+  AuthenticatedAdminSyncRoute: typeof AuthenticatedAdminSyncRoute
   AuthenticatedApplicationsIdRoute: typeof AuthenticatedApplicationsIdRoute
   AuthenticatedApplicationsNewRoute: typeof AuthenticatedApplicationsNewRoute
   AuthenticatedCareerAtomReviewRoute: typeof AuthenticatedCareerAtomReviewRoute
@@ -1351,6 +1371,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRegnskapRoute: AuthenticatedAdminRegnskapRoute,
   AuthenticatedAdminRekruttererundersokelseRoute:
     AuthenticatedAdminRekruttererundersokelseRoute,
+  AuthenticatedAdminSyncRoute: AuthenticatedAdminSyncRoute,
   AuthenticatedApplicationsIdRoute: AuthenticatedApplicationsIdRoute,
   AuthenticatedApplicationsNewRoute: AuthenticatedApplicationsNewRoute,
   AuthenticatedCareerAtomReviewRoute: AuthenticatedCareerAtomReviewRoute,
