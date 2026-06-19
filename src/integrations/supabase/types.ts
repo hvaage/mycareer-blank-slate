@@ -4249,6 +4249,14 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_nav_sync_cron_info: {
+        Args: never
+        Returns: {
+          active: boolean
+          jobname: string
+          schedule: string
+        }[]
+      }
       get_user_employers: {
         Args: { p_user_id: string }
         Returns: {
@@ -4354,6 +4362,15 @@ export type Database = {
         }
         Returns: number
       }
+      nav_sync_distinct_external_count: { Args: never; Returns: number }
+      nav_sync_duplicate_external_ids: {
+        Args: never
+        Returns: {
+          count: number
+          external_id: string
+        }[]
+      }
+      nav_sync_vault_has_secret: { Args: never; Returns: boolean }
       normalize_lead_key: {
         Args: {
           p_company: string
