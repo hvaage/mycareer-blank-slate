@@ -4,6 +4,15 @@
 // Auth: x-sync-careerjet-secret (konstant-tids sammenligning).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createHash } from "node:crypto";
+
+const ROW_CONCURRENCY = 8;
+
+function computeFingerprintLocal(company: string, title: string, location: string | null): string {
+  const norm = (s: string) => s.replace(/\s+/g, " ").toLowerCase();
+  const key = `cmp:${norm(company)}|${norm(title)}|${norm(location ?? "")}`;
+  return "fp1:" + createHash("md5").update(key).digest("hex");
+}
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
