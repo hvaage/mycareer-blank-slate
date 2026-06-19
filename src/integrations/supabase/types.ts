@@ -4362,6 +4362,7 @@ export type Database = {
         }
         Returns: number
       }
+      nav_sync_count_missing_nav_detail: { Args: never; Returns: number }
       nav_sync_distinct_external_count: { Args: never; Returns: number }
       nav_sync_duplicate_external_ids: {
         Args: never
