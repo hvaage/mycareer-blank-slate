@@ -211,3 +211,34 @@ export const getCareerjetSyncStatus = createServerFn({ method: "GET" })
       last_seen,
     };
   });
+
+export type TriggerCareerjetSyncResult = {
+  http_status: number;
+  ok: boolean;
+  body: string;
+  duration_ms: number;
+};
+
+export const triggerCareerjetSync = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<TriggerCareerjetSyncResult> => {
+    const { userId } = context as { userId: string };
+    await assertAdmin(userId);
+
+    const url = process.env.SUPABASE_URL;
+    const secret = process.env.SYNC_CAREERJET_SECRET;
+    if (!url) throw new Error("SUPABASE_URL missing");
+    if (!secret) throw new Error("SYNC_CAREERJET_SECRET missing");
+
+    const started = Date.now();
+    const resp = await fetch(`${url}/functions/v1/sync-careerjet-opportunities`, {
+      method: "POST",
+      headers: {
+        "x-sync-careerjet-secret": secret,
+        "Content-Type": "application/json",
+      },
+    });
+    const duration_ms = Date.now() - started;
+    const body = await resp.text();
+    return { http_status: resp.status, ok: resp.ok, body, duration_ms };
+  });

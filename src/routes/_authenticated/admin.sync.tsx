@@ -1,12 +1,15 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { getNavSyncStatus, type NavSyncRunRow } from "@/lib/nav-sync.functions";
 import {
   getCareerjetSyncStatus,
+  triggerCareerjetSync,
   type CareerjetRunRow,
+  type TriggerCareerjetSyncResult,
 } from "@/lib/careerjet-sync.functions";
 
 type TabKey = "nav" | "careerjet";
@@ -134,6 +137,7 @@ function NavTab() {
 
 function CareerjetTab() {
   const fetchStatus = useServerFn(getCareerjetSyncStatus);
+  const triggerSync = useServerFn(triggerCareerjetSync);
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-careerjet-sync-status"],
     queryFn: () => fetchStatus(),
@@ -141,9 +145,33 @@ function CareerjetTab() {
   });
   const errMessage = error ? (error as Error).message : null;
 
+  const [lastTrigger, setLastTrigger] = useState<
+    | { kind: "ok"; result: TriggerCareerjetSyncResult }
+    | { kind: "err"; message: string }
+    | null
+  >(null);
+
+  const mutation = useMutation({
+    mutationFn: () => triggerSync(),
+    onSuccess: (result) => {
+      setLastTrigger({ kind: "ok", result });
+      refetch();
+    },
+    onError: (err: unknown) => {
+      setLastTrigger({ kind: "err", message: err instanceof Error ? err.message : String(err) });
+    },
+  });
+
   return (
     <div className="mt-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {mutation.isPending ? "Kjører sync…" : "Kjør sync nå"}
+        </button>
         <button
           onClick={() => refetch()}
           disabled={isFetching}
@@ -152,6 +180,19 @@ function CareerjetTab() {
           {isFetching ? "Oppdaterer…" : "Oppdater"}
         </button>
       </div>
+      {lastTrigger && (
+        <div
+          className={`mt-3 rounded-md border p-3 text-xs font-mono whitespace-pre-wrap break-all ${
+            lastTrigger.kind === "ok" && lastTrigger.result.ok
+              ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-800"
+              : "border-destructive/40 bg-destructive/5 text-destructive"
+          }`}
+        >
+          {lastTrigger.kind === "ok"
+            ? `HTTP ${lastTrigger.result.http_status} · ${lastTrigger.result.duration_ms} ms\n${lastTrigger.result.body}`
+            : `Feil: ${lastTrigger.message}`}
+        </div>
+      )}
       {isLoading && <p className="mt-6 text-muted-foreground">Laster…</p>}
       {errMessage && <ErrorBox msg={errMessage} />}
       {data && (
