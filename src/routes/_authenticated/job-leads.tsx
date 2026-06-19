@@ -844,7 +844,7 @@ function LeadCard({
                 referrerPolicy="no-referrer-when-downgrade"
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
-                {isLI ? "Se annonse" : "Finn i Careerjet"}
+                {isLI ? "Se annonse" : isNav ? "Finn hos NAV" : "Finn i Careerjet"}
               </a>
             </Button>
           )}
