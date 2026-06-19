@@ -150,11 +150,10 @@ export const getNavSyncStatus = createServerFn({ method: "GET" })
     const { data: distinctRow } = await supabaseAdmin.rpc("nav_sync_distinct_external_count");
     const distinct_external_ids = Number((distinctRow as any) ?? 0);
 
-    const { count: missingDetail } = await supabaseAdmin
-      .from("source_postings")
-      .select("id", { count: "exact", head: true })
-      .eq("source", "nav")
-      .is("raw_payload->nav_detail", null);
+    const { data: missingDetailRow } = await supabaseAdmin.rpc(
+      "nav_sync_count_missing_nav_detail"
+    );
+    const missingDetail = Number((missingDetailRow as any) ?? 0);
 
     const { count: canonTotal } = await supabaseAdmin
       .from("canonical_opportunities")
