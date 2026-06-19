@@ -249,16 +249,17 @@ Deno.serve(async (req: Request) => {
 
   const url = new URL(req.url);
 
+  // ===== Selftest (pre-auth: pure in-memory tests, no DB/network) =====
+  if (url.searchParams.get("selftest") === "1") {
+    return json({ ok: true, selftest: runSelftest() });
+  }
+
   // ===== AUTH =====
   const provided = req.headers.get("x-sync-careerjet-secret") ?? "";
   if (!SYNC_CAREERJET_SECRET || !provided || !timingSafeEqualStr(provided, SYNC_CAREERJET_SECRET)) {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
 
-  // ===== Selftest =====
-  if (url.searchParams.get("selftest") === "1") {
-    return json({ ok: true, selftest: runSelftest() });
-  }
 
   if (req.method !== "POST") return json({ ok: false, error: "method not allowed" }, 405);
 
