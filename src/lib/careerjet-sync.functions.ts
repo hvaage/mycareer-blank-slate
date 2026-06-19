@@ -239,8 +239,6 @@ export const triggerCareerjetSync = createServerFn({ method: "POST" })
       },
     });
     const duration_ms = Date.now() - started;
-    const text = await resp.text();
-    let body: unknown = text;
-    try { body = JSON.parse(text); } catch { /* keep as text */ }
+    const body = await resp.text();
     return { http_status: resp.status, ok: resp.ok, body, duration_ms };
   });
