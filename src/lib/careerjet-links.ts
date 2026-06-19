@@ -30,14 +30,12 @@ export function careerjetJobbsoekUrl(opts: {
   if (keywords) params.set("s", keywords);
   if (opts.location) params.set("l", opts.location.split(",")[0].trim());
   const qs = params.toString();
-  return qs ? `https://www.careerjet.no/jobbsoek?${qs}` : "https://www.careerjet.no/";
+  return qs ? `https://www.careerjet.no/sok/jobber?${qs}` : "https://www.careerjet.no/";
 }
 
 /**
- * Card / list URL: prefer the raw Careerjet URL (incl. jobviewtrack.com — that is
- * Careerjet's official tracker which redirects to the actual ad). Only fall back
- * to a stable jobbsoek search URL when no usable raw/display URL exists, since
- * very long titles produce 404 on careerjet.no/jobbsoek.
+ * Card / list URL: prefer a direct non-tracking URL. Careerjet's jobviewtrack
+ * URLs can expire/404, so route those to the active Careerjet search page.
  */
 export function effectiveCareerjetCardUrl(opts: {
   raw_url: string | null | undefined;
@@ -48,12 +46,10 @@ export function effectiveCareerjetCardUrl(opts: {
 }): string {
   const raw = (opts.raw_url ?? "").trim();
   const disp = (opts.display_url ?? "").trim();
-  // Prefer raw (working ad link, including jobviewtrack redirects)
-  if (raw.startsWith("http")) return raw;
-  // Then stored display_url, unless it's a broken jobbsoek search URL
-  if (disp.startsWith("http") && !disp.includes("careerjet.no/jobbsoek")) return disp;
-  // Last resort: build a short company-based search URL
-  return careerjetJobbsoekUrl({ title: null, company: opts.company, location: opts.location });
+  const searchUrl = careerjetJobbsoekUrl({ title: opts.title, company: opts.company, location: opts.location });
+  if (raw.startsWith("http") && !isJobviewtrackUrl(raw) && !raw.includes("careerjet.no/jobbsoek")) return raw;
+  if (disp.startsWith("http") && !isJobviewtrackUrl(disp) && !disp.includes("careerjet.no/jobbsoek")) return disp;
+  return searchUrl;
 }
 
 /** Prefer a stable Careerjet search link when the API only gives a brittle redirect URL. */
@@ -64,9 +60,10 @@ export function preferredCareerjetBrowseUrl(opts: {
   location: string | null | undefined;
 }): string | null {
   const { sourceUrl, title, company, location } = opts;
-  if (sourceUrl && sourceUrl.startsWith("http")) return sourceUrl;
   if (isJobviewtrackUrl(sourceUrl ?? undefined)) {
-    return careerjetJobbsoekUrl({ title: null, company, location });
+    return careerjetJobbsoekUrl({ title, company, location });
   }
+  if (sourceUrl && sourceUrl.startsWith("http") && !sourceUrl.includes("careerjet.no/jobbsoek")) return sourceUrl;
+  if (sourceUrl && sourceUrl.includes("careerjet.no/jobbsoek")) return careerjetJobbsoekUrl({ title, company, location });
   return null;
 }
