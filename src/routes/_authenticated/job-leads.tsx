@@ -143,7 +143,7 @@ function JobLeadsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("new");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [relevanceView, setRelevanceView] = useState<RelevanceView>("all");
-  const [sortBy, setSortBy] = useState<SortBy>("relevance");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [fetching, setFetching] = useState(false);
 
   const { data: profile } = useQuery({
