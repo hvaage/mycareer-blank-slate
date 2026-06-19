@@ -137,10 +137,12 @@ function careerjetJobbsoekUrlEdge(title: string, company: string, location: stri
   return qs ? `https://www.careerjet.no/jobbsoek?${qs}` : "https://www.careerjet.no/";
 }
 
-/** Public browse URL for cards; avoid storing jobviewtrack as the primary display link. */
-function effectiveCardDisplayUrl(rawUrl: string, title: string, company: string, location: string): string {
-  if (isJobviewtrackUrlEdge(rawUrl)) return careerjetJobbsoekUrlEdge(title, company, location);
-  return safeDisplayUrl(rawUrl);
+/** Card display URL: prefer the raw Careerjet URL (jobviewtrack redirects to the real ad). */
+function effectiveCardDisplayUrl(rawUrl: string, _title: string, company: string, location: string): string {
+  const safe = safeDisplayUrl(rawUrl);
+  if (safe !== "about:blank") return safe;
+  // Last resort: short company-based search URL (long titles 404 on careerjet.no/jobbsoek)
+  return careerjetJobbsoekUrlEdge("", company, location);
 }
 
 function formatCardSalaryFields(l: Record<string, unknown>): {
