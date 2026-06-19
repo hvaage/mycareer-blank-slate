@@ -35,13 +35,14 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
 });
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
-type SortBy = "relevance" | "newest";
+type TimeFilter = "all" | "2d" | "1w" | "1m";
 type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
 /** Client-side slice on top of status (RPC / job_leads still enforce status + not dismissed). */
-type RelevanceView = "all" | "recommended" | "unreviewed";
+type RelevanceView = "all" | "recommended" | "medium" | "low" | "unreviewed";
 
 /** In «Anbefalt»: only leads with numeric ai_score ≥ this (unevaluated rows excluded). */
-const MIN_RECOMMENDED_SCORE = 40;
+const MIN_RECOMMENDED_SCORE = 70;
+const MEDIUM_SCORE_MIN = 40;
 
 type LeadSource = "linkedin" | "careerjet" | "nav";
 
