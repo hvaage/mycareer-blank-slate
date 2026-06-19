@@ -34,8 +34,10 @@ export function careerjetJobbsoekUrl(opts: {
 }
 
 /**
- * Card / list URL: never surface jobviewtrack as the primary link when a public jobbsøk URL
- * can be built from title+company+location. Preserves raw separately via callers.
+ * Card / list URL: prefer the raw Careerjet URL (incl. jobviewtrack.com — that is
+ * Careerjet's official tracker which redirects to the actual ad). Only fall back
+ * to a stable jobbsoek search URL when no usable raw/display URL exists, since
+ * very long titles produce 404 on careerjet.no/jobbsoek.
  */
 export function effectiveCareerjetCardUrl(opts: {
   raw_url: string | null | undefined;
@@ -46,12 +48,12 @@ export function effectiveCareerjetCardUrl(opts: {
 }): string {
   const raw = (opts.raw_url ?? "").trim();
   const disp = (opts.display_url ?? "").trim();
-  if (isJobviewtrackUrl(raw) || isJobviewtrackUrl(disp)) {
-    return careerjetJobbsoekUrl(opts);
-  }
-  if (disp.startsWith("http")) return disp;
+  // Prefer raw (working ad link, including jobviewtrack redirects)
   if (raw.startsWith("http")) return raw;
-  return careerjetJobbsoekUrl(opts);
+  // Then stored display_url, unless it's a broken jobbsoek search URL
+  if (disp.startsWith("http") && !disp.includes("careerjet.no/jobbsoek")) return disp;
+  // Last resort: build a short company-based search URL
+  return careerjetJobbsoekUrl({ title: null, company: opts.company, location: opts.location });
 }
 
 /** Prefer a stable Careerjet search link when the API only gives a brittle redirect URL. */
@@ -62,9 +64,9 @@ export function preferredCareerjetBrowseUrl(opts: {
   location: string | null | undefined;
 }): string | null {
   const { sourceUrl, title, company, location } = opts;
-  if (isJobviewtrackUrl(sourceUrl ?? undefined)) {
-    return careerjetJobbsoekUrl({ title, company, location });
-  }
   if (sourceUrl && sourceUrl.startsWith("http")) return sourceUrl;
+  if (isJobviewtrackUrl(sourceUrl ?? undefined)) {
+    return careerjetJobbsoekUrl({ title: null, company, location });
+  }
   return null;
 }
