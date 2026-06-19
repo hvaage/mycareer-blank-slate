@@ -255,6 +255,7 @@ Deno.serve(async (req: Request) => {
         fetched = rows.length;
 
         const newCanonicalIds: string[] = [];
+        const touchedCanonicalIds: string[] = [];
 
         for (const row of rows) {
           try {
