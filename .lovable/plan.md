@@ -1,192 +1,179 @@
-# M5.6 — NAV inn i felles jobb-trakt (final v5)
+# M5.7 — Careerjet inn i felles jobbtrakt (rev 3, godkjent for bygg)
 
-Innarbeider de 2 siste drifts-presiseringene på toppen av v4. Hovedinvarianter uendret:
-- NAV-rader slettes ALDRI.
-- ACTIVE nav_detail kan oppdateres; INACTIVE rører aldri nav_detail.
-- Cursor flyttes kun forbi rader som er varig prosessert.
-- **NYTT v5**: cursor leses kun fra ferdige run-er; overlappende sync-runs blokkeres.
+Mål: Careerjet leverer inn i samme pipeline som NAV (`source_postings` → `canonical_opportunities` → `user_opportunities` med `card_source='careerjet'`) uten å slette historikk, uten regresjon på NAV, og uten å fjerne dagens brukertrigget Careerjet-flyt før ny cron har vært stabil i ≥7 dager.
 
-## Forutsetninger i `norwegian-career-intelligence` (manuelt, uendret fra v4)
-- `nav-feed/index.ts`: aldri DELETE ved INACTIVE — bevar `raw_payload.nav_detail`.
-- RPC `public.list_nav_opportunities_since(p_since timestamptz, p_after_external_id text, p_limit int)` SECURITY DEFINER, GRANT kun service_role. Returnerer ACTIVE+INACTIVE med `changed_at = greatest(updated_at, date_modified, nav_event_modified_at, imported_at)`, sortert `(changed_at asc, external_id asc)`.
+## Bekreftet schema (verifisert via psql)
 
-## Secrets
-`NAV_SOURCE_SUPABASE_URL`, `NAV_SOURCE_SERVICE_ROLE_KEY`, `SYNC_NAV_SECRET` (+ Vault `sync_nav_secret`), valgfritt `NAV_SYNC_AI_MODEL`. `LOVABLE_API_KEY` finnes.
+- `opportunity_source_links`: kolonner `link_role text NOT NULL` med CHECK `IN ('primary','variant')`, partial unique `idx_opportunity_source_one_primary ON (canonical_opportunity_id) WHERE link_role='primary'`, og unique `(canonical_opportunity_id, source_posting_id)`. **Bruk `link_role`**, ikke `is_primary`. Ikke ny kolonne.
+- `user_opportunities`: unique `(user_id, canonical_opportunity_id)` finnes. **Conflict-target = `(user_id, canonical_opportunity_id)`**. Ingen ny unique nødvendig.
 
-## App-migrasjon `M56_nav_canonical_feed` (idempotent)
+## Prinsipper
 
-### Schema (uendret fra v4)
-```sql
-ALTER TABLE public.source_postings
-  ADD COLUMN IF NOT EXISTS posting_status text NOT NULL DEFAULT 'active',
-  ADD COLUMN IF NOT EXISTS expired_at timestamptz,
-  ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
+- Additivt. Ingen DELETE av `job_leads`, `user_job_listing_status`, `job_listings`, `lead_dedupe_keys`, `applications`, AI-scoring eller `raw_payload`.
+- Idempotent. Reruns må aldri lage duplikater eller miste data.
+- `posting_status` er sannhet for "expired" — `expired_at` er metadata.
+- Gammel `fetch-careerjet-listings` + "Last inn flere"-knapp beholdes parallelt i ≥7 dager etter cron-aktivering.
+- NAV-pipelinen røres minimalt.
 
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname='source_postings_posting_status_chk'
-      AND conrelid='public.source_postings'::regclass
-  ) THEN
-    ALTER TABLE public.source_postings
-      ADD CONSTRAINT source_postings_posting_status_chk
-      CHECK (posting_status IN ('active','expired','removed')) NOT VALID;
-    ALTER TABLE public.source_postings VALIDATE CONSTRAINT source_postings_posting_status_chk;
-  END IF;
-END $$;
+## Fase 1 — Stabil Careerjet-ID
 
-ALTER TABLE public.canonical_opportunities ADD COLUMN IF NOT EXISTS live_until timestamptz;
-ALTER TABLE public.user_opportunities ADD COLUMN IF NOT EXISTS card_source text;
-```
+I `sync-careerjet-opportunities` (kopiert helper, ikke importert fra gammel funksjon):
 
-### `nav_sync_runs` med run-state og lock-felt
-```sql
-CREATE TABLE IF NOT EXISTS public.nav_sync_runs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  started_at timestamptz NOT NULL DEFAULT now(),
-  finished_at timestamptz,                                -- NULL = pågående
-  fetched int NOT NULL DEFAULT 0,
-  upserted int NOT NULL DEFAULT 0,
-  expired int NOT NULL DEFAULT 0,
-  reactivated int NOT NULL DEFAULT 0,
-  matched_user_opps int NOT NULL DEFAULT 0,
-  scored int NOT NULL DEFAULT 0,
-  error_summary text,
-  meta jsonb NOT NULL DEFAULT '{}'::jsonb                 -- {cursor_changed_at, cursor_external_id, model, errors, dataIssues, systemErrors, aiErrors, prev_run_id}
-);
+1. Hvis Careerjet returnerer `jobkey`/`id`: `source_external_id = "cj_id_" + jobkey`.
+2. Ellers hvis `url` finnes: normaliser (lowercase, strip `http(s)://`, `?...`, `#...`, trailing `/`, ledende `www.`) → sha256 → `"cj_url_" + hex.slice(0,16)`.
+3. Ellers fallback: `"cj_fp_" + sha256(lower(company)|lower(title)|lower(location)|published_at).slice(0,16)`. Logges som warning i `meta.dataIssues` + prefix-teller.
 
--- Indeks for raskt oppslag av "siste ferdige" og "pågående".
-CREATE INDEX IF NOT EXISTS nav_sync_runs_finished_idx
-  ON public.nav_sync_runs (finished_at DESC NULLS LAST);
-CREATE INDEX IF NOT EXISTS nav_sync_runs_unfinished_idx
-  ON public.nav_sync_runs (started_at DESC) WHERE finished_at IS NULL;
+Tom URL kollapser aldri til samme hash. Counter per prefix logges per run.
 
-GRANT SELECT ON public.nav_sync_runs TO authenticated;
-GRANT ALL ON public.nav_sync_runs TO service_role;
-ALTER TABLE public.nav_sync_runs ENABLE ROW LEVEL SECURITY;
+## Fase 2 — raw_payload merge-helper (eksplisitt, testet)
 
-DROP POLICY IF EXISTS nav_sync_runs_admin_read ON public.nav_sync_runs;
-DO $$
-DECLARE has_role_ok boolean;
-BEGIN
-  SELECT EXISTS (
-    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-    WHERE n.nspname='public' AND p.proname='has_role'
-  ) AND EXISTS (
-    SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
-    WHERE n.nspname='public' AND t.typname='app_role'
-  ) INTO has_role_ok;
-  IF has_role_ok THEN
-    EXECUTE $p$CREATE POLICY nav_sync_runs_admin_read ON public.nav_sync_runs
-              FOR SELECT TO authenticated
-              USING (public.has_role(auth.uid(),'admin'::public.app_role))$p$;
-  ELSE
-    RAISE NOTICE 'has_role/app_role missing; nav_sync_runs has no authenticated SELECT policy';
-  END IF;
-END $$;
-```
+Ny TS-helper `mergeCareerjetPayload(existing: any, incoming: any, lifecycleEvent?: object): any` i edge-funksjonen, med invarianter:
 
-### RPC `list_user_job_opportunities` (uendret fra v4)
-SECURITY DEFINER, GRANT EXECUTE TO authenticated. Tre union-grener (canonical NAV+Careerjet, legacy Careerjet, LinkedIn). `p_source IN ('nav','careerjet')` filtrerer canonical via `EXISTS` på linked source_postings.source, ikke kun display-source. Returnerer `source text`, `sources text[]`, `is_expired boolean`. Karens: `live_until IS NULL` eller `> now()` → synlig; etter `live_until` skjult unntatt `p_status='all-history'`. `NOTIFY pgrst, 'reload schema'` etter create.
+- **Rik bevares**: for hvert top-level felt i `existing` — hvis `incoming` har null/undefined/""/[], behold `existing` verdi.
+- **Hull fylles**: hvis `existing[k]` er null/undefined og `incoming[k]` har verdi → bruk `incoming[k]`.
+- **Verdier overskrives bare når begge er ikke-tomme OG `incoming` ser rikere ut** (strenger: lengre; objekter: flere keys; arrays: lengre). Ellers behold `existing`.
+- **`careerjet_lifecycle_events` er append-only**: alltid `existing.events ++ (lifecycleEvent ? [lifecycleEvent] : [])`. Aldri trunkert.
+- **`previous_*` ikke berørt** av `incoming` — kun lifecycle-helper kan skrive `previous_expired_at` ved reactivation.
+- **null `existing`** → returner `{...incoming, careerjet_lifecycle_events: lifecycleEvent ? [lifecycleEvent] : []}`.
 
-`list_user_careerjet_leads` uendret (cover-letters.tsx).
+Helperen kjøres i edge function før upsert (ikke i SQL) for å holde logikken eksplisitt, lesbar og testbar.
 
-## Edge Function `supabase/functions/sync-nav-opportunities/index.ts`
+### Innebygd selvtest (dry-run)
+Edge function eksponerer `?selftest=1` (admin-only via secret) som kjører fire enhetstester in-memory og returnerer ok/fail per case:
+1. existing rik + incoming sparse → existing rike felter bevart.
+2. existing sparse + incoming rik → felter beriket.
+3. existing med 2 lifecycle_events + ny event → 3 events, kronologisk.
+4. existing = null + incoming rik → returnerer incoming + tom events-array.
 
-`supabase/config.toml`:
-```toml
-[functions.sync-nav-opportunities]
-verify_jwt = false
-```
+Selvtesten kjøres i Fase 8 før cron aktiveres og logges i `careerjet_sync_runs.meta.selftest`.
 
-**Auth:** krever `x-sync-nav-secret`. Lokal `timingSafeEqualStr` (samme mønster som `regnskap-sync/index.ts`). 401 ved feil. Aldri logg secret.
+## Fase 3 — Sync-adapter
 
-### Pipeline med strikt run-state-disiplin
+Ny edge function `sync-careerjet-opportunities` (`verify_jwt=false`, konstant-tids `x-sync-careerjet-secret`, 401 ved feil, `already_running` ved overlapp — samme mønster som NAV).
 
-**Steg 0 — Concurrency-guard (P2 nytt):**
-```ts
-// Sjekk for unfinished run nyere enn 60 min (stale-timeout).
-const { data: inflight } = await admin
-  .from('nav_sync_runs')
-  .select('id, started_at')
-  .is('finished_at', null)
-  .gte('started_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
-  .order('started_at', { ascending: false })
-  .limit(1)
-  .maybeSingle();
+Per Careerjet-treff:
+- Beregn `source_external_id` (Fase 1).
+- Hent eksisterende `source_postings`-rad → kjør `mergeCareerjetPayload` → upsert `(source='careerjet', source_external_id)` med `raw_payload`, `posting_status='active'`, `last_seen_at=now()`.
+- **Reaktivering** (eksisterende `posting_status='expired'`): sett `posting_status='active'`, `expired_at=NULL`, `reactivated_at=now()`, append lifecycle-event `{event:'reactivated', at:now(), previous_expired_at}`. Bump `rows_reactivated`.
+- Upsert `canonical_opportunities` (fingerprint på normalisert employer/title/location).
+- Upsert `opportunity_source_links` med `link_role`-regel (Fase 4).
 
-if (inflight) {
-  return json({ ok: true, status: 'already_running', inflight_run_id: inflight.id, started_at: inflight.started_at }, 200);
-}
-// Stale runs (>60 min) ignoreres stille; markeres ikke aborted her.
-```
+`careerjet_sync_runs`: id, started_at, finished_at, status (`running`/`success`/`partial`/`failed`/`already_running`), cursor_term, cursor_page, rows_fetched/upserted/expired/reactivated/failed, terms_covered, api_errors jsonb, meta jsonb (selftest, dataIssues, prefix-counts), error_summary text.
 
-Eldre unfinished runs (>60 min) regnes som stale og blokkerer ikke. De forblir med `finished_at=NULL` og `error_summary` settes ikke av denne runen (de telles ikke som "siste vellykkede").
+`partial` = tidsbudsjett uten API-feil. `failed` = timeout/rate-limit/5xx/system. Concurrency-guard identisk med NAV.
 
-**Steg 1 — Les cursor FØR ny rad opprettes (P1 nytt):**
-```ts
-const { data: lastDone } = await admin
-  .from('nav_sync_runs')
-  .select('id, meta')
-  .not('finished_at', 'is', null)
-  .is('error_summary', null)
-  .order('finished_at', { ascending: false })
-  .limit(1)
-  .maybeSingle();
+## Fase 4 — `opportunity_source_links` (link_role)
 
-const cursorChangedAt = lastDone?.meta?.cursor_changed_at ?? new Date(Date.now() - 7*24*3600*1000).toISOString();
-const cursorExternalId = lastDone?.meta?.cursor_external_id ?? '';
-const prevRunId = lastDone?.id ?? null;
-```
-Filter `finished_at IS NOT NULL AND error_summary IS NULL` garanterer at en in-progress rad aldri leses som siste vellykkede.
+Helper-RPC `link_canonical_to_source(p_canonical uuid, p_posting uuid, p_merge_reason text)`:
+- Hvis `(canonical, posting)` finnes → return id (idempotent).
+- Hvis canonical mangler primary (`NOT EXISTS WHERE link_role='primary'`) → INSERT med `link_role='primary'`.
+- Ellers → INSERT med `link_role='variant'`.
+- Respekterer `idx_opportunity_source_one_primary` og `opportunity_source_links_unique`. Aldri brutt.
 
-**Steg 2 — Opprett `nav_sync_runs`-rad** (`started_at=now()`, `finished_at=NULL`, `meta={cursor_changed_at, cursor_external_id, model, prev_run_id}`). Lagre `runId` for finally-oppdatering.
+Brukes både fra backfill og live sync.
 
-**Steg 3 — Hent NAV** via `list_nav_opportunities_since(cursorChangedAt, cursorExternalId, batchLimit)`. Maks 4000/run.
+## Fase 5 — Search terms (hybrid)
 
-**Steg 4 — Per rad, to feilklasser:**
-- **Non-retryable datakvalitetsfeil** (mangler title/employer/external_id): logg i `meta.dataIssues[]`, cursor passerer raden.
-- **Systemfeil** (DB/RPC/fingerprint/canonical/source_postings upsert): logg i `meta.systemErrors[]`, **stopp prosessering**. Cursor i meta forblir på siste varig prosesserte rad (eller forrige cursor hvis ingen rad ble fullført). `error_summary='system_error: ...'`. Neste run retryer fra samme punkt.
-- **AI-feil** per-rad: `meta.aiErrors[]`, ikke-blokkerende, cursor uberørt.
+Tabell `careerjet_search_terms` (id, term, locale, location, active, priority, last_run_at, source ∈ {`user_keyword`,`user_location`,`curated`}). Per run: union av parsede `profiles.job_search_keywords` + `preferred_locations` (samme parser som NAV) + kuratert fallback (migrasjon-seed). Round-robin via `last_run_at ASC NULLS FIRST`, start 20 termer × 3 sider per run, tidsbudsjett <130 s.
 
-**Steg 5 — Finally:** UPDATE `nav_sync_runs` SET `finished_at=now()`, tellere, `meta` (med endelig cursor), `error_summary` (NULL ved suksess, satt ved systemfeil).
+## Fase 6 — Careerjet API (cron-vennlig)
 
-### raw_payload merge (uendret fra v4)
-ACTIVE: ny `nav_detail` vinner; forrige bevares i `previous_nav_detail`. INACTIVE: bevar eksisterende `nav_detail`, legg kun til `nav_inactive_event` + `last_nav_status='INACTIVE'`.
+Gammel funksjon sender sluttbrukerens `user_ip`/`user_agent`. Cron har ingen sluttbruker. Krav før cron aktiveres:
+- Avklar med affid-eier at konstant `user_agent = "karrierenmin.no careerjet-sync/1.0 (+https://karrierenmin.no)"` og dokumentert server-IP er OK.
+- Logg API-status + rate-limit headers per kall i `api_errors`.
 
-### Upsert-logikk (uendret fra v4)
-- **ACTIVE:** upsert source_posting (merget payload, `posting_status='active'`, `expired_at=NULL`, `last_seen_at=now()`). Reaktivering bumper `reactivated`. Upsert canonical_opportunities, opportunity_source_links. `live_until=NULL`.
-- **INACTIVE:** UPDATE source_posting → `posting_status='expired'`, `expired_at=COALESCE(expired_at, now())`. Per canonical: hvis alle linked source_postings er expired/removed → `live_until = max(expired_at) + 7 days`.
-- **Aldri DELETE.** `safeUrl` fallback `'https://arbeidsplassen.nav.no/stillinger/stilling/' + external_id`.
+Hvis ikke avklart → edge function deployes og testes manuelt, men cron forblir **disabled**.
 
-### Per-user matching og AI (uendret fra v4)
-Kun ACTIVE canonical. Match via `profiles.job_search_keywords` + `preferred_locations`. INSERT user_opportunities ON CONFLICT DO NOTHING med `card_source='nav'`. AI ≤20 nye uten `ai_scored_at`, modell fra `NAV_SYNC_AI_MODEL` (default `google/gemini-2.5-flash`), per-row try/catch.
+## Fase 7 — Stale-håndtering
 
-## Cron-migrasjon (separat, uendret fra v4)
-Unschedule `nav-sync-30min`, re-schedule via `net.http_post` med `x-sync-nav-secret` fra Vault. Cron-frekvens 30 min er fortsatt OK fordi concurrency-guarden returnerer `already_running` ved overlapp.
+`mark_stale_careerjet_postings(p_days int default 7)`: setter `posting_status='expired'`, `expired_at=now()` for `source='careerjet'`, `posting_status='active'`, `last_seen_at < now() - p_days`. Append lifecycle-event `{event:'expired_by_stale', at, days}`. Returnerer antall expired.
 
-## UI — `src/routes/_authenticated/job-leads.tsx` (uendret fra v4)
-Bytt til `list_user_job_opportunities`. NAV: dismiss/save/apply oppdaterer `user_opportunities.status`; **ALDRI DELETE**. Careerjet/LinkedIn-flyt urørt. Apply disabled når `is_expired`.
+**Kjøres kun etter `status='success'`** og tom `api_errors`. Aldri etter `partial`/`failed`. Dokumentert i admin-view.
 
-## Verifisering
+`canonical_opportunities.live_until = max(expired_at) + 7 days` settes når alle linkede source_postings har `posting_status IN ('expired','removed')`. Filtre bruker `posting_status`, ikke null-sjekk på `expired_at`.
 
-1. Build grønn.
-2. POST uten `x-sync-nav-secret` → 401, ingen secret i logg.
-3. Cron 1: ny ferdig run-rad med `finished_at` satt, `error_summary IS NULL`.
-4. Cron 2 samme data: 0 nye, cursor avansert; leser cursor fra cron-1 (ikke fra in-progress).
-5. **Concurrency (P2):** start sync-1, før den fullføres trigge sync-2 manuelt → sync-2 returnerer `{status:'already_running', inflight_run_id}`, ingen ny rad opprettet, ingen NAV-fetch.
-6. **Stale lock:** simuler `started_at = now()-90min`, `finished_at=NULL` → ny run starter normalt.
-7. **Cursor-isolasjon (P1):** mens sync-1 kjører, sjekk at sync-1s nye rad ikke ble brukt som "siste vellykkede" — bekreft ved at `meta.prev_run_id` peker på forrige fullførte run.
-8. ACTIVE oppdatering rikere nav_detail: nytt nav_detail lagret, forrige i `previous_nav_detail`.
-9. INACTIVE: `posting_status='expired'`, `live_until=expired_at+7d`, `raw_payload.nav_detail` uendret, `nav_inactive_event` lagt til.
-10. Reaktivering: `posting_status='active'`, `expired_at=NULL`, `live_until=NULL`, `reactivated≥1`.
-11. RPC `('new','nav')` returnerer canonical med NAV source_posting selv om `primary_source='careerjet'`.
-12. Karens: `is_expired=true` 7d; skjult etter `live_until` uten `all-history`.
-13. UI promote/dismiss NAV → `applications` opprettet / `status='applied'|'dismissed'`, rad finnes fortsatt.
-14. Simulert DB-feil midt i batch → `error_summary='system_error:...'`, cursor uendret, neste run retryer; den feilede runen brukes ikke som siste vellykkede.
-15. Datakvalitetsfeil: logget i `meta.dataIssues`, cursor passerer.
-16. AI-feil per rad: `meta.aiErrors[]`, run grønn.
-17. `list_user_careerjet_leads` uendret.
+### Term coverage (sanity)
+Admin viser: aktive terms, kjørt siste 24t/7d, eldste `last_run_at`. Warning hvis eldste > 7d.
 
-## Out of scope
-`fetch-careerjet-listings`, `search_employers`, `regnskap-sync`, mail, ny scraping, NAV-kall fra frontend, sletting av historiske rader, endringer i `cover-letters.tsx`.
+## Fase 8 — Backfill (ikke-destruktiv, berikende)
+
+`scripts/backfill-careerjet-to-canonical.mjs` (`--dry-run`):
+1. Iterer `job_listings WHERE source='careerjet'` og `user_job_listing_status` + join.
+2. Beregn `source_external_id` med samme helper.
+3. Upsert `source_postings` med `mergeCareerjetPayload(existing, legacyPayload)` — IKKE `DO NOTHING`. Bevarer rik payload, fyller hull, beriker `card_*` via COALESCE.
+4. Upsert `canonical_opportunities` via fingerprint.
+5. `link_canonical_to_source(...)` (Fase 4).
+6. For hver tilknyttet `user_job_listing_status`: upsert `user_opportunities` `ON CONFLICT (user_id, canonical_opportunity_id) DO UPDATE` med COALESCE — bevarer nyere status/AI, kopierer `legacy_listing_*`, setter `card_source='careerjet'`.
+
+Ingen DELETE. `prune_stale_leads` kalles ikke.
+
+## Fase 9 — Matching, RPC, frontend
+
+- Matching i ny sync: mirror NAV-pattern, INSERT `user_opportunities` `ON CONFLICT (user_id, canonical_opportunity_id) DO NOTHING`, `card_source='careerjet'`.
+- `list_user_job_opportunities`: Careerjet plukkes opp via canonical-grenen (filter via linked `source_postings.source='careerjet'`). Legg til `raw_payload`-fallback-projeksjon for url/salary/company/date. Bekreft `status::text`-cast i alle union-grener. Legacy-grenen beholdes for stragglers.
+- Frontend `/job-leads`: bekreft badge + lenker, behold "Last inn flere"-knapp.
+
+## Fase 10 — Promote/dismiss
+
+NAV-mønster, begge kilder. Promote → `applications` + `user_opportunities.status='applied'` (+ speil til `user_job_listing_status` UPDATE-only). Dismiss → `user_opportunities.status='dismissed'`. INGEN sletting. `prune_stale_leads` urørt (teknisk gjeld).
+
+## Fase 11 — Admin
+
+Ny `/admin/sync` med tabs **NAV** | **Careerjet**. `/admin/nav-sync` → redirect `/admin/sync?tab=nav` (alias bevares). Read-only.
+
+Careerjet-tab: 50 siste runs (duration, status-badges OK/SLOW>130s/FAILED/PARTIAL/STUCK/ALREADY_RUNNING), fetched/upserted/expired/reactivated/failed, `api_errors`-sammendrag, duplikater på `(source, source_external_id)`, missing `raw_payload` for active, prefix-counts (cj_id_/cj_url_/cj_fp_), term coverage, selftest-status.
+
+Admin-RPCs (SECURITY DEFINER, alle `has_role(...,'admin')`):
+`get_careerjet_sync_cron_info`, `careerjet_sync_vault_has_secret`, `careerjet_sync_duplicate_external_ids`, `careerjet_sync_distinct_external_count`, `careerjet_sync_count_missing_raw_payload`, `careerjet_sync_last_seen_stats`, `careerjet_sync_term_coverage`, `careerjet_sync_external_id_prefix_counts`.
+
+## Fase 12 — Secrets og cron
+
+Eksisterende: `CAREERJET_AFFID`. Nye: `SYNC_CAREERJET_SECRET` (add_secret) + Vault `sync_careerjet_secret`. Cron `careerjet-sync-60min` (60-min, `net.http_post` med header fra Vault) **opprettes DISABLED** ved migrasjon. Aktiveres manuelt etter Fase 13.
+
+## Fase 13 — Verifisering før cron aktiveres
+
+Kjør 3 manuelle syncs + 1 selftest, rapporter:
+- run id, duration, status, cursor før/etter
+- fetched/upserted/expired/reactivated/failed
+- `source_postings` count + prefix-fordeling
+- duplicate count på `(source='careerjet', source_external_id)` (forventet 0)
+- raw_payload non-null for active (forventet 100 %)
+- selftest-resultater (4/4 pass)
+- `user_opportunities` med `card_source='careerjet'`
+- Testbruker får Careerjet-rad i `list_user_job_opportunities('all','careerjet')`
+- Promote/dismiss sletter ingen underliggende data
+- NAV-pipelinen fortsatt grønn
+- Backfill dry-run + live, diff
+- Careerjet API cron-bruk avklart
+
+Først når ALT er grønt → cron aktiveres manuelt.
+
+## Fase 14 — Pensjonering (etter ≥7d stabil)
+
+Vurder: skjule "Last inn flere", deaktivere `fetch-careerjet-listings` (ikke slette), migrere `prune_stale_leads` til tombstone.
+
+## Tekniske detaljer
+
+Migrasjoner (separate):
+- `careerjet_sync_runs` + GRANTs + RLS admin-read
+- `careerjet_search_terms` + GRANTs + RLS admin + curated seed
+- Verifiser `source_postings.last_seen_at`, legg til `reactivated_at` ved behov
+- RPC `mark_stale_careerjet_postings(p_days int)`
+- RPC `link_canonical_to_source(...)`
+- Admin-RPCs (Fase 11)
+- Oppdatert `list_user_job_opportunities` (raw_payload-projeksjon, status::text overalt)
+- Cron `careerjet-sync-60min` DISABLED
+
+Edge function `sync-careerjet-opportunities`: selvstendig, kopierte helpers (hash, keyword-parser, `mergeCareerjetPayload` + selftest). `verify_jwt=false`.
+
+Scripts: `scripts/backfill-careerjet-to-canonical.mjs` med `--dry-run`.
+
+## Avgrensninger
+
+Ingen syntetisk testdata mot Careerjet-API. Ingen aggressiv NAV-refactor. LinkedIn → M5.8. Ingen sletting av historikk.
+
+## Åpne spørsmål (kan besvares under bygg)
+
+1. Per-run budsjett: 20 termer × 3 sider trygt < 130 s? Justeres etter første 3 runs.
+2. Kuraterte fallback-termer: migrasjon-seed (default) eller edge-konstant?
+3. Careerjet API cron-bruk OK med affid-avtalen?
