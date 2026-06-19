@@ -577,6 +577,7 @@ function JobLeadsPage() {
             <SelectItem value="all">Alle kilder</SelectItem>
             <SelectItem value="linkedin">LinkedIn</SelectItem>
             <SelectItem value="careerjet">Careerjet</SelectItem>
+            <SelectItem value="nav">NAV</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
@@ -589,20 +590,26 @@ function JobLeadsPage() {
           </SelectContent>
         </Select>
         <Select value={relevanceView} onValueChange={(v: any) => setRelevanceView(v)}>
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue placeholder="Relevans" />
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Match-score" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle relevanser</SelectItem>
-            <SelectItem value="unreviewed">Uvurderte</SelectItem>
+            <SelectItem value="all">Alle match-scorer</SelectItem>
             <SelectItem value="recommended">Anbefalt (≥{MIN_RECOMMENDED_SCORE})</SelectItem>
+            <SelectItem value="medium">Middels ({MEDIUM_SCORE_MIN}–{MIN_RECOMMENDED_SCORE - 1})</SelectItem>
+            <SelectItem value="low">Lav (&lt;{MEDIUM_SCORE_MIN})</SelectItem>
+            <SelectItem value="unreviewed">Uvurderte</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-          <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
+        <Select value={timeFilter} onValueChange={(v: any) => setTimeFilter(v)}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Tidsavgrensning" />
+          </SelectTrigger>
           <SelectContent>
-            <SelectItem value="relevance">Relevans</SelectItem>
-            <SelectItem value="newest">Nyeste</SelectItem>
+            <SelectItem value="all">Alle tider</SelectItem>
+            <SelectItem value="2d">Siste 2 dager</SelectItem>
+            <SelectItem value="1w">Siste uke</SelectItem>
+            <SelectItem value="1m">Siste måned</SelectItem>
           </SelectContent>
         </Select>
       </div>
