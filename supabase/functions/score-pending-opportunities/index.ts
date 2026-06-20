@@ -309,10 +309,18 @@ Deno.serve(async (req: Request) => {
   }
 
   const selectedSet = new Set(selected_ids);
+  const seen = new Set<string>();
+  const failedIds: { id: string; error: string }[] = [];
   for (const r of aiResults) {
     const id = typeof r?.id === "string" ? r.id : null;
-    if (!id || !selectedSet.has(id)) continue;
-    const score = Math.max(0, Math.min(100, Number(r.score) || 0));
+    if (!id || !selectedSet.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    const raw = (r as any)?.score;
+    if (typeof raw !== "number" || !Number.isFinite(raw)) {
+      failedIds.push({ id, error: "invalid_score" });
+      continue;
+    }
+    const score = Math.max(0, Math.min(100, raw));
     const reasoning = String(r.reasoning ?? "").slice(0, 1000);
     const highlights = String(r.match_highlights ?? "").slice(0, 1000);
     const concerns = String(r.concerns ?? "").slice(0, 1000);
@@ -328,10 +336,13 @@ Deno.serve(async (req: Request) => {
       })
       .eq("id", id)
       .eq("user_id", userId);
-    if (updErr) { failed++; continue; }
+    if (updErr) { failedIds.push({ id, error: "update_failed" }); continue; }
     scored++;
   }
-  failed += selected_ids.length - scored;
+  for (const id of selected_ids) {
+    if (!seen.has(id)) failedIds.push({ id, error: "missing_in_response" });
+  }
+  failed = failedIds.length;
 
   return json({
     selected: selected_ids.length,
