@@ -230,6 +230,8 @@ function JobLeadsPage() {
         display_url: string | null;
         raw_url: string | null;
         identity_fingerprint: string | null;
+        work_extent: string | null;
+        engagement_type: string | null;
       }>;
       // LinkedIn håndteres av egen query — filtrer bort her.
       return rows.filter((r) => r.source !== "linkedin");
@@ -309,6 +311,8 @@ function JobLeadsPage() {
         listingId: row.listing_id,
         canonicalOpportunityId: row.canonical_opportunity_id,
         isExpired: row.is_expired === true,
+        work_extent: row.work_extent ?? null,
+        engagement_type: row.engagement_type ?? null,
         ai_reasoning: row.ai_reasoning ?? null,
         ai_match_highlights: row.ai_match_highlights ?? null,
         ai_concerns: row.ai_concerns ?? null,
@@ -350,6 +354,16 @@ function JobLeadsPage() {
         ? afterRelevance
         : afterRelevance.filter((x) => x.source === sourceFilter);
 
+    const extentMatched =
+      extentFilter === "all"
+        ? sourceMatched
+        : sourceMatched.filter((x) => x.work_extent === extentFilter);
+
+    const engagementMatched =
+      engagementFilter === "all"
+        ? extentMatched
+        : extentMatched.filter((x) => x.engagement_type === engagementFilter);
+
     const cutoffMs = (() => {
       const now = Date.now();
       switch (timeFilter) {
@@ -360,8 +374,8 @@ function JobLeadsPage() {
       }
     })();
     const filtered = cutoffMs == null
-      ? sourceMatched
-      : sourceMatched.filter((lead) => {
+      ? engagementMatched
+      : engagementMatched.filter((lead) => {
           if (!lead.posted_at) return false;
           const t = new Date(lead.posted_at).getTime();
           return Number.isFinite(t) && t >= cutoffMs;
@@ -379,7 +393,25 @@ function JobLeadsPage() {
     });
 
   return filtered;
-  }, [linkedinLeads, cjLeads, sourceFilter, timeFilter, statusFilter, relevanceView]);
+  }, [linkedinLeads, cjLeads, sourceFilter, timeFilter, statusFilter, relevanceView, extentFilter, engagementFilter]);
+
+  const handleScorePending = async () => {
+    setScoring(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("score-pending-opportunities", {
+        body: { source: sourceFilter === "linkedin" ? "all" : sourceFilter, limit: 20 },
+      });
+      if (error) { toast.error("Score-kall feilet"); return; }
+      const sel = Number(data?.selected ?? 0);
+      const sc = Number(data?.scored ?? 0);
+      const fl = Number(data?.failed ?? 0);
+      if (sel === 0) toast.info("Ingen uvurderte annonser å score");
+      else toast.success(`Vurderte ${sc} av ${sel}${fl ? ` (${fl} feilet)` : ""}`);
+      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
+    } finally {
+      setScoring(false);
+    }
+  };
 
   const handleFetch = async () => {
     setFetching(true);
