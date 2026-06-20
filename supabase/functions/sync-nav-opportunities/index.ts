@@ -508,21 +508,31 @@ Deno.serve(async (req: Request) => {
               spUpsert.expired_at = null;
               if (wasInactive) spUpsert.reactivated_at = nowIso;
             } else {
-              const candidateMs = merged.sourceEventAt ? Date.parse(merged.sourceEventAt) : NaN;
-              const nowMs = Date.parse(nowIso);
-              const expiredIso = Number.isFinite(candidateMs)
-                ? new Date(Math.min(candidateMs, nowMs)).toISOString()
-                : nowIso;
-              // Preserve a correct historical expired_at when already set and earlier than candidate.
               const existingExpired = (existingSp as any)?.expired_at as string | null | undefined;
-              if (!existingExpired) {
-                spUpsert.expired_at = expiredIso;
+              const observedTransition = merged.hadPriorActiveOrDetail;
+              if (merged.reliable) {
+                // Real upstream event time → set expired_at = min(sourceEventAt, now)
+                const candidateMs = Date.parse(merged.sourceEventAt ?? "");
+                const nowMs = Date.parse(nowIso);
+                const expiredIso = Number.isFinite(candidateMs)
+                  ? new Date(Math.min(candidateMs, nowMs)).toISOString()
+                  : nowIso;
+                if (!existingExpired) {
+                  spUpsert.expired_at = expiredIso;
+                } else {
+                  const existingMs = Date.parse(existingExpired);
+                  spUpsert.expired_at =
+                    Number.isFinite(existingMs) && existingMs < Date.parse(expiredIso)
+                      ? existingExpired
+                      : expiredIso;
+                }
+              } else if (observedTransition) {
+                // We observed ACTIVE→INACTIVE in this run → observation time is acceptable.
+                spUpsert.expired_at = existingExpired ?? nowIso;
               } else {
-                const existingMs = Date.parse(existingExpired);
-                spUpsert.expired_at =
-                  Number.isFinite(existingMs) && existingMs < Date.parse(expiredIso)
-                    ? existingExpired
-                    : expiredIso;
+                // First-time INACTIVE without reliable upstream time and no prior ACTIVE.
+                // Do NOT fabricate a historical expired_at. Preserve existing value if any.
+                spUpsert.expired_at = existingExpired ?? null;
               }
             }
 
