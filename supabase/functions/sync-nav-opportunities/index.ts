@@ -603,13 +603,22 @@ Deno.serve(async (req: Request) => {
                   return sp && (sp.posting_status === "expired" || sp.posting_status === "removed");
                 });
               if (allExpired) {
-                const maxExpired = all
-                  .map((l) => (l as any).source_postings?.expired_at)
-                  .filter(Boolean)
-                  .sort()
-                  .pop();
-                const base = maxExpired ? new Date(maxExpired) : new Date();
-                const liveUntil = new Date(base.getTime() + 7 * 24 * 3600 * 1000).toISOString();
+                // grace_eligible = true only when we had a reliable upstream event time
+                // OR observed the ACTIVE→INACTIVE transition ourselves. First-time INACTIVE
+                // historicals fall out of the active funnel immediately (live_until = now()).
+                const graceEligible = merged.reliable || merged.hadPriorActiveOrDetail;
+                let liveUntil: string;
+                if (graceEligible) {
+                  const maxExpired = all
+                    .map((l) => (l as any).source_postings?.expired_at)
+                    .filter(Boolean)
+                    .sort()
+                    .pop();
+                  const baseDt = maxExpired ? new Date(maxExpired) : new Date();
+                  liveUntil = new Date(baseDt.getTime() + 7 * 24 * 3600 * 1000).toISOString();
+                } else {
+                  liveUntil = new Date().toISOString();
+                }
                 await admin
                   .from("canonical_opportunities")
                   .update({ live_until: liveUntil, updated_at: new Date().toISOString() })
