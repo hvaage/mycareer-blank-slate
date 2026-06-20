@@ -2955,7 +2955,9 @@ export type Database = {
           onboarding_started_at: string | null
           onboarding_step: number | null
           phone: string | null
+          preferred_engagement_types: string[]
           preferred_locations: string[] | null
+          preferred_work_extents: string[]
           salary_currency: string | null
           salary_expectation_max: number | null
           salary_expectation_min: number | null
@@ -3012,7 +3014,9 @@ export type Database = {
           onboarding_started_at?: string | null
           onboarding_step?: number | null
           phone?: string | null
+          preferred_engagement_types?: string[]
           preferred_locations?: string[] | null
+          preferred_work_extents?: string[]
           salary_currency?: string | null
           salary_expectation_max?: number | null
           salary_expectation_min?: number | null
@@ -3069,7 +3073,9 @@ export type Database = {
           onboarding_started_at?: string | null
           onboarding_step?: number | null
           phone?: string | null
+          preferred_engagement_types?: string[]
           preferred_locations?: string[] | null
+          preferred_work_extents?: string[]
           salary_currency?: string | null
           salary_expectation_max?: number | null
           salary_expectation_min?: number | null
@@ -3219,6 +3225,7 @@ export type Database = {
           created_at: string
           description_excerpt: string | null
           display_url: string
+          engagement_type: string | null
           expired_at: string | null
           id: string
           identity_fingerprint: string
@@ -3234,12 +3241,14 @@ export type Database = {
           source_external_id: string
           title: string | null
           updated_at: string
+          work_extent: string | null
         }
         Insert: {
           company?: string | null
           created_at?: string
           description_excerpt?: string | null
           display_url: string
+          engagement_type?: string | null
           expired_at?: string | null
           id?: string
           identity_fingerprint: string
@@ -3255,12 +3264,14 @@ export type Database = {
           source_external_id: string
           title?: string | null
           updated_at?: string
+          work_extent?: string | null
         }
         Update: {
           company?: string | null
           created_at?: string
           description_excerpt?: string | null
           display_url?: string
+          engagement_type?: string | null
           expired_at?: string | null
           id?: string
           identity_fingerprint?: string
@@ -3276,6 +3287,7 @@ export type Database = {
           source_external_id?: string
           title?: string | null
           updated_at?: string
+          work_extent?: string | null
         }
         Relationships: [
           {
@@ -4472,6 +4484,7 @@ export type Database = {
           canonical_opportunity_id: string
           display_url: string
           employer: string
+          engagement_type: string
           identity_fingerprint: string
           is_expired: boolean
           linkedin_lead_id: string
@@ -4498,6 +4511,7 @@ export type Database = {
           status: string
           title: string
           user_opportunity_id: string
+          work_extent: string
           work_type: string
         }[]
       }
