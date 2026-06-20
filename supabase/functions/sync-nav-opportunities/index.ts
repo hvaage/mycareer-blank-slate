@@ -113,9 +113,10 @@ function normalizeEngagementType(navDetail: any): string | null {
   if (typeof raw !== "string") return null;
   const v = raw.trim().toLowerCase();
   if (v === "fast" || v === "faste stillinger") return "permanent";
-  if (v === "vikariat" || v === "engasjement" || v === "sesong") return "temporary";
-  if (v === "prosjekt" || v === "prosjektstilling") return "project";
+  if (v === "vikariat" || v === "midlertidig" || v === "engasjement" || v === "sesong") return "temporary";
+  if (v === "prosjekt" || v === "prosjektstilling" || v === "oppdrag") return "project";
   if (v === "interim") return "interim";
+  // 'annet'/'ukjent'/other → null
   return null;
 }
 
