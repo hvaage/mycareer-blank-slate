@@ -82,7 +82,7 @@ function navDisplayUrl(externalId: string | null, navDetail: any, rawPayload: an
   ];
   for (const c of candidates) {
     if (typeof c === "string" && UUID_RE.test(c)) {
-      return `https://arbeidsplassen.nav.no/stillinger?source=feed&id=${c}`;
+      return `https://arbeidsplassen.nav.no/stillinger/stilling/${c}`;
     }
   }
   return null;
@@ -338,7 +338,9 @@ Deno.serve(async (req: Request) => {
             // Build public arbeidsplassen URL — never the feed-API URL (which 401s).
             const safeUrl =
               navDisplayUrl(row.external_id, row.nav_detail, mergedPayload) ??
-              `https://arbeidsplassen.nav.no/stillinger?source=feed&id=${row.external_id}`;
+              (row.external_id && UUID_RE.test(row.external_id)
+                ? `https://arbeidsplassen.nav.no/stillinger/stilling/${row.external_id}`
+                : null);
 
             // Normalized work_extent / engagement_type.
             // INACTIVE: NEVER null out previously-stored values; preserve them.
