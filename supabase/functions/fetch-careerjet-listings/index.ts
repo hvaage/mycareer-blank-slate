@@ -787,11 +787,12 @@ Deno.serve(async (req) => {
           .maybeSingle();
         if (existing) continue;
 
-        // Public, browser-openable NAV ad URL (the feed API URL requires auth)
+        // Public, browser-openable NAV ad URL (the feed API URL requires auth).
+        // Prefer stored display_url if it already points at arbeidsplassen with feed-id.
         const navPublicUrl = (() => {
           const stored = String(co.display_url ?? "");
-          if (stored && !stored.includes("pam-stilling-feed.nav.no")) return stored;
-          // Look up source_postings to recover the external_id (NAV UUID)
+          if (stored.startsWith("https://arbeidsplassen.nav.no/stillinger?source=feed&id=")) return stored;
+          // Fall back to stored URL even if old format — the backfill migration covers most.
           return stored;
         })();
 

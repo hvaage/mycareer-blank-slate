@@ -260,8 +260,76 @@ function AboutMePage() {
                   placeholder="kontor, hybrid, remote"
                 />
               </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs mb-2 block">Stillingsomfang</Label>
+                  <div className="flex flex-wrap gap-4 pt-1">
+                    {[
+                      { code: "full_time", label: "Heltid" },
+                      { code: "part_time", label: "Deltid" },
+                    ].map((opt) => {
+                      const arr: string[] = Array.isArray(p.preferred_work_extents) ? p.preferred_work_extents : [];
+                      const checked = arr.includes(opt.code);
+                      return (
+                        <label key={opt.code} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={async (v) => {
+                              const next = v
+                                ? Array.from(new Set([...arr, opt.code]))
+                                : arr.filter((c) => c !== opt.code);
+                              const { error } = await (supabase.from("profiles") as any)
+                                .update({ preferred_work_extents: next })
+                                .eq("id", user.id);
+                              if (error) toast.error(error.message);
+                              qc.invalidateQueries({ queryKey: ["profile", user.id] });
+                            }}
+                          />
+                          {opt.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Tom = ingen preferanse.</p>
+                </div>
+                <div>
+                  <Label className="text-xs mb-2 block">Ansettelsesforhold</Label>
+                  <div className="flex flex-wrap gap-4 pt-1">
+                    {[
+                      { code: "permanent", label: "Fast" },
+                      { code: "temporary", label: "Vikariat" },
+                      { code: "project", label: "Prosjekt" },
+                      { code: "interim", label: "Interim" },
+                    ].map((opt) => {
+                      const arr: string[] = Array.isArray(p.preferred_engagement_types) ? p.preferred_engagement_types : [];
+                      const checked = arr.includes(opt.code);
+                      return (
+                        <label key={opt.code} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={async (v) => {
+                              const next = v
+                                ? Array.from(new Set([...arr, opt.code]))
+                                : arr.filter((c) => c !== opt.code);
+                              const { error } = await (supabase.from("profiles") as any)
+                                .update({ preferred_engagement_types: next })
+                                .eq("id", user.id);
+                              if (error) toast.error(error.message);
+                              qc.invalidateQueries({ queryKey: ["profile", user.id] });
+                            }}
+                          />
+                          {opt.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">Tom = ingen preferanse.</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
+
 
           <Card>
             <CardHeader>

@@ -37,6 +37,8 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
 type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
+type ExtentFilter = "all" | "full_time" | "part_time";
+type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim";
 /** Client-side slice on top of status (RPC / job_leads still enforce status + not dismissed). */
 type RelevanceView = "all" | "recommended" | "medium" | "low" | "unreviewed";
 
@@ -70,6 +72,10 @@ type Lead = {
   canonicalOpportunityId?: string | null;
   /** True when canonical opportunity is past live cutoff (NAV expired karens). */
   isExpired?: boolean;
+  /** Normalized 'full_time' | 'part_time' | null. */
+  work_extent?: string | null;
+  /** Normalized 'permanent' | 'temporary' | 'project' | 'interim' | null. */
+  engagement_type?: string | null;
   // linkedin extras
   ai_reasoning?: string | null;
   ai_match_highlights?: string | null;
@@ -144,7 +150,10 @@ function JobLeadsPage() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [relevanceView, setRelevanceView] = useState<RelevanceView>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [extentFilter, setExtentFilter] = useState<ExtentFilter>("all");
+  const [engagementFilter, setEngagementFilter] = useState<EngagementFilter>("all");
   const [fetching, setFetching] = useState(false);
+  const [scoring, setScoring] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ["profile-jobprefs", user?.id],
@@ -221,6 +230,8 @@ function JobLeadsPage() {
         display_url: string | null;
         raw_url: string | null;
         identity_fingerprint: string | null;
+        work_extent: string | null;
+        engagement_type: string | null;
       }>;
       // LinkedIn håndteres av egen query — filtrer bort her.
       return rows.filter((r) => r.source !== "linkedin");
@@ -300,6 +311,8 @@ function JobLeadsPage() {
         listingId: row.listing_id,
         canonicalOpportunityId: row.canonical_opportunity_id,
         isExpired: row.is_expired === true,
+        work_extent: row.work_extent ?? null,
+        engagement_type: row.engagement_type ?? null,
         ai_reasoning: row.ai_reasoning ?? null,
         ai_match_highlights: row.ai_match_highlights ?? null,
         ai_concerns: row.ai_concerns ?? null,
@@ -341,6 +354,16 @@ function JobLeadsPage() {
         ? afterRelevance
         : afterRelevance.filter((x) => x.source === sourceFilter);
 
+    const extentMatched =
+      extentFilter === "all"
+        ? sourceMatched
+        : sourceMatched.filter((x) => x.work_extent === extentFilter);
+
+    const engagementMatched =
+      engagementFilter === "all"
+        ? extentMatched
+        : extentMatched.filter((x) => x.engagement_type === engagementFilter);
+
     const cutoffMs = (() => {
       const now = Date.now();
       switch (timeFilter) {
@@ -351,8 +374,8 @@ function JobLeadsPage() {
       }
     })();
     const filtered = cutoffMs == null
-      ? sourceMatched
-      : sourceMatched.filter((lead) => {
+      ? engagementMatched
+      : engagementMatched.filter((lead) => {
           if (!lead.posted_at) return false;
           const t = new Date(lead.posted_at).getTime();
           return Number.isFinite(t) && t >= cutoffMs;
@@ -370,7 +393,25 @@ function JobLeadsPage() {
     });
 
   return filtered;
-  }, [linkedinLeads, cjLeads, sourceFilter, timeFilter, statusFilter, relevanceView]);
+  }, [linkedinLeads, cjLeads, sourceFilter, timeFilter, statusFilter, relevanceView, extentFilter, engagementFilter]);
+
+  const handleScorePending = async () => {
+    setScoring(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("score-pending-opportunities", {
+        body: { source: sourceFilter === "linkedin" ? "all" : sourceFilter, limit: 20 },
+      });
+      if (error) { toast.error("Score-kall feilet"); return; }
+      const sel = Number(data?.selected ?? 0);
+      const sc = Number(data?.scored ?? 0);
+      const fl = Number(data?.failed ?? 0);
+      if (sel === 0) toast.info("Ingen uvurderte annonser å score");
+      else toast.success(`Vurderte ${sc} av ${sel}${fl ? ` (${fl} feilet)` : ""}`);
+      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
+    } finally {
+      setScoring(false);
+    }
+  };
 
   const handleFetch = async () => {
     setFetching(true);
@@ -564,10 +605,16 @@ function JobLeadsPage() {
               : "LinkedIn-leads kommer fra e-post-synk · Careerjet hentes manuelt"}
           </p>
         </div>
-        <Button onClick={handleFetch} disabled={fetching || !hasPrefs} className="shrink-0">
-          <RefreshCw className={`h-4 w-4 mr-2 ${fetching ? "animate-spin" : ""}`} />
-          {fetching ? "Henter…" : "Hent fra Careerjet + NAV"}
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button onClick={handleScorePending} disabled={scoring} variant="outline">
+            <Sparkles className={`h-4 w-4 mr-2 ${scoring ? "animate-spin" : ""}`} />
+            {scoring ? "Vurderer…" : "Vurder uvurderte"}
+          </Button>
+          <Button onClick={handleFetch} disabled={fetching || !hasPrefs}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${fetching ? "animate-spin" : ""}`} />
+            {fetching ? "Henter…" : "Hent fra Careerjet + NAV"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
@@ -610,6 +657,24 @@ function JobLeadsPage() {
             <SelectItem value="2d">Siste 2 dager</SelectItem>
             <SelectItem value="1w">Siste uke</SelectItem>
             <SelectItem value="1m">Siste måned</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={extentFilter} onValueChange={(v: any) => setExtentFilter(v)}>
+          <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Stillingsomfang" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle omfang</SelectItem>
+            <SelectItem value="full_time">Heltid</SelectItem>
+            <SelectItem value="part_time">Deltid</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={engagementFilter} onValueChange={(v: any) => setEngagementFilter(v)}>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Ansettelse" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle ansettelser</SelectItem>
+            <SelectItem value="permanent">Fast</SelectItem>
+            <SelectItem value="temporary">Vikariat</SelectItem>
+            <SelectItem value="project">Prosjekt</SelectItem>
+            <SelectItem value="interim">Interim</SelectItem>
           </SelectContent>
         </Select>
       </div>
