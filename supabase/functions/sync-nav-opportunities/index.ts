@@ -68,6 +68,54 @@ type NavRow = {
   description_excerpt?: string | null;
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Build the public NAV display URL — never the feed-API URL (which 401s). */
+function navDisplayUrl(externalId: string | null, navDetail: any, rawPayload: any): string | null {
+  const candidates = [
+    navDetail && typeof navDetail === "object" ? (navDetail as any).uuid : null,
+    rawPayload && typeof rawPayload === "object" && (rawPayload as any).nav_detail
+      ? (rawPayload as any).nav_detail.uuid : null,
+    rawPayload && typeof rawPayload === "object" && (rawPayload as any)._feed_entry
+      ? (rawPayload as any)._feed_entry.uuid : null,
+    externalId && UUID_RE.test(externalId) ? externalId : null,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && UUID_RE.test(c)) {
+      return `https://arbeidsplassen.nav.no/stillinger?source=feed&id=${c}`;
+    }
+  }
+  return null;
+}
+
+/** Normalize NAV extent → 'full_time' | 'part_time' | null. */
+function normalizeWorkExtent(navDetail: any): string | null {
+  if (!navDetail || typeof navDetail !== "object") return null;
+  const ad = (navDetail as any).ad_content ?? null;
+  const j = (navDetail as any).json ?? null;
+  const raw = (ad && ad.extent) ?? (j && j.extent) ?? null;
+  if (typeof raw !== "string") return null;
+  const v = raw.trim().toLowerCase();
+  if (v === "heltid") return "full_time";
+  if (v === "deltid") return "part_time";
+  return null;
+}
+
+/** Normalize NAV engagementtype → 'permanent' | 'temporary' | 'project' | 'interim' | null. */
+function normalizeEngagementType(navDetail: any): string | null {
+  if (!navDetail || typeof navDetail !== "object") return null;
+  const ad = (navDetail as any).ad_content ?? null;
+  const j = (navDetail as any).json ?? null;
+  const raw = (ad && ad.engagementtype) ?? (j && j.engagementtype) ?? null;
+  if (typeof raw !== "string") return null;
+  const v = raw.trim().toLowerCase();
+  if (v === "fast" || v === "faste stillinger") return "permanent";
+  if (v === "vikariat" || v === "engasjement" || v === "sesong") return "temporary";
+  if (v === "prosjekt" || v === "prosjektstilling") return "project";
+  if (v === "interim") return "interim";
+  return null;
+}
+
 function mergeNavPayload(existing: any, incoming: NavRow): Record<string, unknown> {
   const base: Record<string, unknown> = { ...(existing && typeof existing === "object" ? existing : {}) };
   if (incoming.status === "ACTIVE") {
@@ -266,10 +314,6 @@ Deno.serve(async (req: Request) => {
               continue;
             }
 
-            // Always use the public arbeidsplassen URL — row.url is the NAV feed
-            // API endpoint which requires auth and returns 401 in the browser.
-            const safeUrl = `https://arbeidsplassen.nav.no/stillinger/stilling/${row.external_id}`;
-
             // Get DB-canonical fingerprint
             const { data: fpData, error: fpErr } = await admin.rpc("opportunity_fingerprint", {
               p_company: row.employer,
@@ -282,7 +326,7 @@ Deno.serve(async (req: Request) => {
             // Fetch existing source_posting
             const { data: existingSp } = await admin
               .from("source_postings")
-              .select("id, raw_payload, posting_status")
+              .select("id, raw_payload, posting_status, work_extent, engagement_type")
               .eq("source", "nav")
               .eq("source_external_id", row.external_id)
               .maybeSingle();
@@ -290,6 +334,22 @@ Deno.serve(async (req: Request) => {
             const mergedPayload = mergeNavPayload(existingSp?.raw_payload ?? null, row);
             const wasInactive = existingSp?.posting_status === "expired" || existingSp?.posting_status === "removed";
             const isActive = row.status === "ACTIVE";
+
+            // Build public arbeidsplassen URL — never the feed-API URL (which 401s).
+            const safeUrl =
+              navDisplayUrl(row.external_id, row.nav_detail, mergedPayload) ??
+              `https://arbeidsplassen.nav.no/stillinger?source=feed&id=${row.external_id}`;
+
+            // Normalized work_extent / engagement_type.
+            // INACTIVE: NEVER null out previously-stored values; preserve them.
+            const newExtent = normalizeWorkExtent(row.nav_detail);
+            const newEngage = normalizeEngagementType(row.nav_detail);
+            const finalExtent = isActive
+              ? (newExtent ?? existingSp?.work_extent ?? null)
+              : (existingSp?.work_extent ?? newExtent ?? null);
+            const finalEngage = isActive
+              ? (newEngage ?? existingSp?.engagement_type ?? null)
+              : (existingSp?.engagement_type ?? newEngage ?? null);
 
             const spUpsert: any = {
               source: "nav",
@@ -306,6 +366,8 @@ Deno.serve(async (req: Request) => {
               last_seen_at: new Date().toISOString(),
               posting_status: isActive ? "active" : "expired",
               expired_at: isActive ? null : (existingSp ? undefined : new Date().toISOString()),
+              work_extent: finalExtent,
+              engagement_type: finalEngage,
               updated_at: new Date().toISOString(),
             };
             if (!isActive && !existingSp) spUpsert.expired_at = new Date().toISOString();
