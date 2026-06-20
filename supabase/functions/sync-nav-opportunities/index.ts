@@ -120,47 +120,108 @@ function normalizeEngagementType(navDetail: any): string | null {
   return null;
 }
 
-/** Select the most authoritative NAV upstream event timestamp for an INACTIVE event.
- *  Priority (per M5.8 lifecycle spec):
- *   1) incoming nav_event_modified_at
- *   2) incoming date_modified
- *   3) original NAV _feed_entry.sistEndret (preserved on the row)
- *   4) existing stored source_event_at on previous nav_inactive_event
- *   5) existing stored last_nav_changed_at
- *   6) now() as last-resort fallback
- *  We deliberately do NOT use incoming.changed_at / updated_at / last_seen_at as the first choice —
- *  those can reflect mirror import time, not upstream event time. */
-function pickInactiveSourceEventAt(existing: any, incoming: NavRow): { iso: string; chosen_from: string } {
+/** Reliable upstream NAV event-time sources (chosen_from labels). last_nav_changed_at /
+ *  observation/import time are explicitly NOT reliable. */
+const RELIABLE_CHOSEN_FROM = new Set([
+  "incoming.nav_event_modified_at",
+  "incoming.date_modified",
+  "nav_detail._feed_entry.sistEndret",
+  "nav_detail.sistEndret",
+  "nav_detail.ad_content.updated",
+  "nav_detail.json.updated",
+]);
+
+/** Pick the most authoritative NAV upstream event timestamp for an INACTIVE event.
+ *  Returns reliable=true iff the chosen source is a real upstream event (not observation/import time).
+ *  Priority (reliable only):
+ *   1) incoming.nav_event_modified_at
+ *   2) incoming.date_modified
+ *   3) incoming.raw_payload/_feed_entry.sistEndret (preserved on row)
+ *   4) nav_detail.sistEndret
+ *   5) nav_detail.ad_content.updated
+ *   6) nav_detail.json.updated
+ *   7) previous nav_inactive_event.source_event_at ONLY if its chosen_from is in RELIABLE_CHOSEN_FROM
+ *  Fallbacks (unreliable):
+ *   8) now() with reliable=false
+ *  We deliberately do NOT use incoming.changed_at / updated_at / last_seen_at / last_nav_changed_at —
+ *  those reflect mirror import/observation time, not an upstream event. */
+function pickInactiveSourceEventAt(
+  existing: any,
+  incoming: NavRow,
+): { iso: string; chosen_from: string; reliable: boolean } {
   const fromIncomingNavEvent = incoming.nav_event_modified_at ?? null;
-  if (fromIncomingNavEvent) return { iso: fromIncomingNavEvent, chosen_from: "incoming.nav_event_modified_at" };
+  if (fromIncomingNavEvent) {
+    return { iso: fromIncomingNavEvent, chosen_from: "incoming.nav_event_modified_at", reliable: true };
+  }
   const fromIncomingDateMod = incoming.date_modified ?? null;
-  if (fromIncomingDateMod) return { iso: fromIncomingDateMod, chosen_from: "incoming.date_modified" };
-  const detail = (existing && typeof existing === "object" && (existing as any).nav_detail) || incoming.nav_detail || null;
+  if (fromIncomingDateMod) {
+    return { iso: fromIncomingDateMod, chosen_from: "incoming.date_modified", reliable: true };
+  }
+  const detail =
+    (existing && typeof existing === "object" && (existing as any).nav_detail) ||
+    incoming.nav_detail ||
+    null;
   const feedSistEndret =
     detail && typeof detail === "object"
-      ? ((detail as any)?._feed_entry?.sistEndret ?? (detail as any)?.sistEndret ?? null)
+      ? (detail as any)?._feed_entry?.sistEndret ?? null
       : null;
   if (typeof feedSistEndret === "string" && feedSistEndret) {
-    return { iso: feedSistEndret, chosen_from: "nav_detail._feed_entry.sistEndret" };
+    return { iso: feedSistEndret, chosen_from: "nav_detail._feed_entry.sistEndret", reliable: true };
   }
-  const existingEvent = existing && typeof existing === "object" ? (existing as any).nav_inactive_event : null;
+  const detailSistEndret =
+    detail && typeof detail === "object" ? (detail as any)?.sistEndret ?? null : null;
+  if (typeof detailSistEndret === "string" && detailSistEndret) {
+    return { iso: detailSistEndret, chosen_from: "nav_detail.sistEndret", reliable: true };
+  }
+  const adUpdated =
+    detail && typeof detail === "object" ? (detail as any)?.ad_content?.updated ?? null : null;
+  if (typeof adUpdated === "string" && adUpdated) {
+    return { iso: adUpdated, chosen_from: "nav_detail.ad_content.updated", reliable: true };
+  }
+  const jsonUpdated =
+    detail && typeof detail === "object" ? (detail as any)?.json?.updated ?? null : null;
+  if (typeof jsonUpdated === "string" && jsonUpdated) {
+    return { iso: jsonUpdated, chosen_from: "nav_detail.json.updated", reliable: true };
+  }
+  const existingEvent =
+    existing && typeof existing === "object" ? (existing as any).nav_inactive_event : null;
   const existingSourceEventAt =
-    existingEvent && typeof existingEvent === "object" ? (existingEvent as any).source_event_at : null;
-  if (typeof existingSourceEventAt === "string" && existingSourceEventAt) {
-    return { iso: existingSourceEventAt, chosen_from: "existing.nav_inactive_event.source_event_at" };
+    existingEvent && typeof existingEvent === "object"
+      ? (existingEvent as any).source_event_at
+      : null;
+  const existingChosenFrom =
+    existingEvent && typeof existingEvent === "object"
+      ? (existingEvent as any).source_event_at_chosen_from
+      : null;
+  if (
+    typeof existingSourceEventAt === "string" &&
+    existingSourceEventAt &&
+    typeof existingChosenFrom === "string" &&
+    RELIABLE_CHOSEN_FROM.has(existingChosenFrom)
+  ) {
+    return {
+      iso: existingSourceEventAt,
+      chosen_from: `existing.nav_inactive_event(${existingChosenFrom})`,
+      reliable: true,
+    };
   }
-  const existingLastChanged = existing && typeof existing === "object" ? (existing as any).last_nav_changed_at : null;
-  if (typeof existingLastChanged === "string" && existingLastChanged) {
-    return { iso: existingLastChanged, chosen_from: "existing.last_nav_changed_at" };
-  }
-  return { iso: new Date().toISOString(), chosen_from: "now_fallback" };
+  return { iso: new Date().toISOString(), chosen_from: "now_fallback", reliable: false };
 }
 
 function mergeNavPayload(
   existing: any,
   incoming: NavRow,
-): { payload: Record<string, unknown>; sourceEventAt: string | null } {
+): {
+  payload: Record<string, unknown>;
+  sourceEventAt: string | null;
+  reliable: boolean;
+  hadPriorActiveOrDetail: boolean;
+} {
   const base: Record<string, unknown> = { ...(existing && typeof existing === "object" ? existing : {}) };
+  const hadPriorActiveOrDetail =
+    !!(base.nav_detail) ||
+    (typeof (base as any).last_nav_status === "string" &&
+      (base as any).last_nav_status === "ACTIVE");
   if (incoming.status === "ACTIVE") {
     const incomingDetail = incoming.nav_detail ?? null;
     if (incomingDetail) {
@@ -171,20 +232,32 @@ function mergeNavPayload(
     }
     base.last_nav_status = "ACTIVE";
     base.last_nav_changed_at = incoming.changed_at;
-    return { payload: base, sourceEventAt: null };
+    return { payload: base, sourceEventAt: null, reliable: true, hadPriorActiveOrDetail };
   }
   // INACTIVE: preserve existing nav_detail; never overwrite.
   if (!base.nav_detail && incoming.nav_detail) base.nav_detail = incoming.nav_detail;
-  const { iso: sourceEventAt, chosen_from } = pickInactiveSourceEventAt(existing, incoming);
+  const picked = pickInactiveSourceEventAt(existing, incoming);
+  // grace_eligible: we only give a 7-day grace window when either (a) we have a reliable
+  // upstream event timestamp, or (b) we observed the ACTIVE→INACTIVE transition ourselves
+  // (prior ACTIVE / nav_detail). First-time INACTIVE with no reliable timestamp and no prior
+  // ACTIVE/nav_detail is a historical record and gets NO grace.
+  const graceEligible = picked.reliable || hadPriorActiveOrDetail;
   base.nav_inactive_event = {
     at: incoming.changed_at,
-    source_event_at: sourceEventAt,
-    source_event_at_chosen_from: chosen_from,
+    source_event_at: picked.iso,
+    source_event_at_chosen_from: picked.chosen_from,
+    source_event_at_reliable: picked.reliable,
+    grace_eligible: graceEligible,
     external_id: incoming.external_id,
   };
   base.last_nav_status = "INACTIVE";
-  base.last_nav_changed_at = sourceEventAt;
-  return { payload: base, sourceEventAt };
+  base.last_nav_changed_at = picked.iso;
+  return {
+    payload: base,
+    sourceEventAt: picked.iso,
+    reliable: picked.reliable,
+    hadPriorActiveOrDetail,
+  };
 }
 
 
