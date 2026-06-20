@@ -350,12 +350,16 @@ function JobLeadsPage() {
     const extentMatched =
       extentFilter === "all"
         ? sourceMatched
-        : sourceMatched.filter((x) => x.work_extent === extentFilter);
+        : extentFilter === "unspecified"
+          ? sourceMatched.filter((x) => x.work_extent == null)
+          : sourceMatched.filter((x) => x.work_extent === extentFilter);
 
     const engagementMatched =
       engagementFilter === "all"
         ? extentMatched
-        : extentMatched.filter((x) => x.engagement_type === engagementFilter);
+        : engagementFilter === "unspecified"
+          ? extentMatched.filter((x) => x.engagement_type == null)
+          : extentMatched.filter((x) => x.engagement_type === engagementFilter);
 
     const cutoffMs = (() => {
       const now = Date.now();
