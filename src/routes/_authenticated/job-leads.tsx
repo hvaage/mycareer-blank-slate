@@ -37,8 +37,8 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
 type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
-type ExtentFilter = "all" | "full_time" | "part_time";
-type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim";
+type ExtentFilter = "all" | "full_time" | "part_time" | "unspecified";
+type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim" | "unspecified";
 /** Client-side slice on top of status (RPC / job_leads still enforce status + not dismissed). */
 type RelevanceView = "relevant" | "high" | "unreviewed" | "all";
 
