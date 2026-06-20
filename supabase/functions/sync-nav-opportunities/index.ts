@@ -64,9 +64,12 @@ type NavRow = {
   url: string | null;
   published_at: string | null;
   changed_at: string;
+  nav_event_modified_at: string | null;
+  date_modified: string | null;
   nav_detail: Record<string, unknown> | null;
   description_excerpt?: string | null;
 };
+
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -116,7 +119,46 @@ function normalizeEngagementType(navDetail: any): string | null {
   return null;
 }
 
-function mergeNavPayload(existing: any, incoming: NavRow): Record<string, unknown> {
+/** Select the most authoritative NAV upstream event timestamp for an INACTIVE event.
+ *  Priority (per M5.8 lifecycle spec):
+ *   1) incoming nav_event_modified_at
+ *   2) incoming date_modified
+ *   3) original NAV _feed_entry.sistEndret (preserved on the row)
+ *   4) existing stored source_event_at on previous nav_inactive_event
+ *   5) existing stored last_nav_changed_at
+ *   6) now() as last-resort fallback
+ *  We deliberately do NOT use incoming.changed_at / updated_at / last_seen_at as the first choice —
+ *  those can reflect mirror import time, not upstream event time. */
+function pickInactiveSourceEventAt(existing: any, incoming: NavRow): { iso: string; chosen_from: string } {
+  const fromIncomingNavEvent = incoming.nav_event_modified_at ?? null;
+  if (fromIncomingNavEvent) return { iso: fromIncomingNavEvent, chosen_from: "incoming.nav_event_modified_at" };
+  const fromIncomingDateMod = incoming.date_modified ?? null;
+  if (fromIncomingDateMod) return { iso: fromIncomingDateMod, chosen_from: "incoming.date_modified" };
+  const detail = (existing && typeof existing === "object" && (existing as any).nav_detail) || incoming.nav_detail || null;
+  const feedSistEndret =
+    detail && typeof detail === "object"
+      ? ((detail as any)?._feed_entry?.sistEndret ?? (detail as any)?.sistEndret ?? null)
+      : null;
+  if (typeof feedSistEndret === "string" && feedSistEndret) {
+    return { iso: feedSistEndret, chosen_from: "nav_detail._feed_entry.sistEndret" };
+  }
+  const existingEvent = existing && typeof existing === "object" ? (existing as any).nav_inactive_event : null;
+  const existingSourceEventAt =
+    existingEvent && typeof existingEvent === "object" ? (existingEvent as any).source_event_at : null;
+  if (typeof existingSourceEventAt === "string" && existingSourceEventAt) {
+    return { iso: existingSourceEventAt, chosen_from: "existing.nav_inactive_event.source_event_at" };
+  }
+  const existingLastChanged = existing && typeof existing === "object" ? (existing as any).last_nav_changed_at : null;
+  if (typeof existingLastChanged === "string" && existingLastChanged) {
+    return { iso: existingLastChanged, chosen_from: "existing.last_nav_changed_at" };
+  }
+  return { iso: new Date().toISOString(), chosen_from: "now_fallback" };
+}
+
+function mergeNavPayload(
+  existing: any,
+  incoming: NavRow,
+): { payload: Record<string, unknown>; sourceEventAt: string | null } {
   const base: Record<string, unknown> = { ...(existing && typeof existing === "object" ? existing : {}) };
   if (incoming.status === "ACTIVE") {
     const incomingDetail = incoming.nav_detail ?? null;
@@ -128,18 +170,22 @@ function mergeNavPayload(existing: any, incoming: NavRow): Record<string, unknow
     }
     base.last_nav_status = "ACTIVE";
     base.last_nav_changed_at = incoming.changed_at;
-  } else {
-    // INACTIVE: bevar eksisterende nav_detail; ikke overskriv.
-    if (!base.nav_detail && incoming.nav_detail) base.nav_detail = incoming.nav_detail;
-    base.nav_inactive_event = {
-      at: incoming.changed_at,
-      external_id: incoming.external_id,
-    };
-    base.last_nav_status = "INACTIVE";
-    base.last_nav_changed_at = incoming.changed_at;
+    return { payload: base, sourceEventAt: null };
   }
-  return base;
+  // INACTIVE: preserve existing nav_detail; never overwrite.
+  if (!base.nav_detail && incoming.nav_detail) base.nav_detail = incoming.nav_detail;
+  const { iso: sourceEventAt, chosen_from } = pickInactiveSourceEventAt(existing, incoming);
+  base.nav_inactive_event = {
+    at: incoming.changed_at,
+    source_event_at: sourceEventAt,
+    source_event_at_chosen_from: chosen_from,
+    external_id: incoming.external_id,
+  };
+  base.last_nav_status = "INACTIVE";
+  base.last_nav_changed_at = sourceEventAt;
+  return { payload: base, sourceEventAt };
 }
+
 
 async function callAi(prompt: string): Promise<{ score: number; reasoning: string } | null> {
   if (!LOVABLE_API_KEY) return null;
@@ -285,8 +331,11 @@ Deno.serve(async (req: Request) => {
             (rp && typeof (rp as any).nav_detail === "object" && (rp as any).nav_detail) ||
             (r && typeof r.nav_detail === "object" && r.nav_detail) ||
             null;
+          const navEventMod = r.nav_event_modified_at ?? null;
+          const dateMod = r.date_modified ?? null;
+          // changed_at is used ONLY as cursor progress timestamp (mirror-side ordering).
           const changedAt =
-            r.changed_at ?? r.nav_event_modified_at ?? r.date_modified ?? r.updated_at ?? null;
+            r.changed_at ?? navEventMod ?? dateMod ?? r.updated_at ?? null;
           return {
             external_id: r.external_id,
             status: r.status,
@@ -296,10 +345,13 @@ Deno.serve(async (req: Request) => {
             url: r.url ?? null,
             published_at: r.published_at ?? null,
             changed_at: changedAt,
+            nav_event_modified_at: navEventMod,
+            date_modified: dateMod,
             nav_detail: navDetail,
             description_excerpt: r.description_excerpt ?? null,
           } as NavRow;
         });
+
         fetched = rows.length;
 
         const newCanonicalIds: string[] = [];
@@ -331,7 +383,8 @@ Deno.serve(async (req: Request) => {
               .eq("source_external_id", row.external_id)
               .maybeSingle();
 
-            const mergedPayload = mergeNavPayload(existingSp?.raw_payload ?? null, row);
+            const merged = mergeNavPayload(existingSp?.raw_payload ?? null, row);
+            const mergedPayload = merged.payload;
             const wasInactive = existingSp?.posting_status === "expired" || existingSp?.posting_status === "removed";
             const isActive = row.status === "ACTIVE";
 
@@ -353,6 +406,12 @@ Deno.serve(async (req: Request) => {
               ? (newEngage ?? existingSp?.engagement_type ?? null)
               : (existingSp?.engagement_type ?? newEngage ?? null);
 
+            // Lifecycle invariants:
+            //  ACTIVE       → posting_status='active', expired_at=NULL (clears on reactivation), reactivated_at set.
+            //  INACTIVE     → posting_status='expired',
+            //                 expired_at = LEAST(sourceEventAt, now()),
+            //                 last_seen_at = now() (mirror sync time, not upstream event time).
+            const nowIso = new Date().toISOString();
             const spUpsert: any = {
               source: "nav",
               source_external_id: row.external_id,
@@ -365,17 +424,34 @@ Deno.serve(async (req: Request) => {
               raw_payload: mergedPayload,
               identity_fingerprint: fp,
               published_at: row.published_at,
-              last_seen_at: new Date().toISOString(),
+              last_seen_at: nowIso,
               posting_status: isActive ? "active" : "expired",
-              expired_at: isActive ? null : (existingSp ? undefined : new Date().toISOString()),
               work_extent: finalExtent,
               engagement_type: finalEngage,
-              updated_at: new Date().toISOString(),
+              updated_at: nowIso,
             };
-            if (!isActive && !existingSp) spUpsert.expired_at = new Date().toISOString();
-            if (!isActive && existingSp && (existingSp as any).expired_at == null) {
-              spUpsert.expired_at = new Date().toISOString();
+            if (isActive) {
+              spUpsert.expired_at = null;
+              if (wasInactive) spUpsert.reactivated_at = nowIso;
+            } else {
+              const candidateMs = merged.sourceEventAt ? Date.parse(merged.sourceEventAt) : NaN;
+              const nowMs = Date.parse(nowIso);
+              const expiredIso = Number.isFinite(candidateMs)
+                ? new Date(Math.min(candidateMs, nowMs)).toISOString()
+                : nowIso;
+              // Preserve a correct historical expired_at when already set and earlier than candidate.
+              const existingExpired = (existingSp as any)?.expired_at as string | null | undefined;
+              if (!existingExpired) {
+                spUpsert.expired_at = expiredIso;
+              } else {
+                const existingMs = Date.parse(existingExpired);
+                spUpsert.expired_at =
+                  Number.isFinite(existingMs) && existingMs < Date.parse(expiredIso)
+                    ? existingExpired
+                    : expiredIso;
+              }
             }
+
 
             const { data: spUp, error: spErr } = await admin
               .from("source_postings")
