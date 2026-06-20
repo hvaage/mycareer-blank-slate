@@ -82,7 +82,7 @@ function navDisplayUrl(externalId: string | null, navDetail: any, rawPayload: an
   ];
   for (const c of candidates) {
     if (typeof c === "string" && UUID_RE.test(c)) {
-      return `https://arbeidsplassen.nav.no/stillinger?source=feed&id=${c}`;
+      return `https://arbeidsplassen.nav.no/stillinger/stilling/${c}`;
     }
   }
   return null;
