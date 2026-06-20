@@ -661,6 +661,7 @@ function JobLeadsPage() {
             <SelectItem value="all">Alle omfang</SelectItem>
             <SelectItem value="full_time">Heltid</SelectItem>
             <SelectItem value="part_time">Deltid</SelectItem>
+            <SelectItem value="unspecified">Uspesifisert</SelectItem>
           </SelectContent>
         </Select>
         <Select value={engagementFilter} onValueChange={(v: any) => setEngagementFilter(v)}>
@@ -671,6 +672,7 @@ function JobLeadsPage() {
             <SelectItem value="temporary">Vikariat</SelectItem>
             <SelectItem value="project">Prosjekt</SelectItem>
             <SelectItem value="interim">Interim</SelectItem>
+            <SelectItem value="unspecified">Uspesifisert</SelectItem>
           </SelectContent>
         </Select>
       </div>
