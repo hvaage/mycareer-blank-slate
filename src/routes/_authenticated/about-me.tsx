@@ -327,6 +327,9 @@ function AboutMePage() {
                   <p className="text-xs text-muted-foreground mt-1">Tom = ingen preferanse.</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
 
           <Card>
             <CardHeader>
