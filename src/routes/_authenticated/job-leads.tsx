@@ -37,6 +37,8 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
 type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
+type ExtentFilter = "all" | "full_time" | "part_time";
+type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim";
 /** Client-side slice on top of status (RPC / job_leads still enforce status + not dismissed). */
 type RelevanceView = "all" | "recommended" | "medium" | "low" | "unreviewed";
 
@@ -70,6 +72,10 @@ type Lead = {
   canonicalOpportunityId?: string | null;
   /** True when canonical opportunity is past live cutoff (NAV expired karens). */
   isExpired?: boolean;
+  /** Normalized 'full_time' | 'part_time' | null. */
+  work_extent?: string | null;
+  /** Normalized 'permanent' | 'temporary' | 'project' | 'interim' | null. */
+  engagement_type?: string | null;
   // linkedin extras
   ai_reasoning?: string | null;
   ai_match_highlights?: string | null;
@@ -144,7 +150,10 @@ function JobLeadsPage() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [relevanceView, setRelevanceView] = useState<RelevanceView>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [extentFilter, setExtentFilter] = useState<ExtentFilter>("all");
+  const [engagementFilter, setEngagementFilter] = useState<EngagementFilter>("all");
   const [fetching, setFetching] = useState(false);
+  const [scoring, setScoring] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ["profile-jobprefs", user?.id],
