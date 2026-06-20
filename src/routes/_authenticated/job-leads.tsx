@@ -605,10 +605,16 @@ function JobLeadsPage() {
               : "LinkedIn-leads kommer fra e-post-synk · Careerjet hentes manuelt"}
           </p>
         </div>
-        <Button onClick={handleFetch} disabled={fetching || !hasPrefs} className="shrink-0">
-          <RefreshCw className={`h-4 w-4 mr-2 ${fetching ? "animate-spin" : ""}`} />
-          {fetching ? "Henter…" : "Hent fra Careerjet + NAV"}
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button onClick={handleScorePending} disabled={scoring} variant="outline">
+            <Sparkles className={`h-4 w-4 mr-2 ${scoring ? "animate-spin" : ""}`} />
+            {scoring ? "Vurderer…" : "Vurder uvurderte"}
+          </Button>
+          <Button onClick={handleFetch} disabled={fetching || !hasPrefs}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${fetching ? "animate-spin" : ""}`} />
+            {fetching ? "Henter…" : "Hent fra Careerjet + NAV"}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
@@ -651,6 +657,24 @@ function JobLeadsPage() {
             <SelectItem value="2d">Siste 2 dager</SelectItem>
             <SelectItem value="1w">Siste uke</SelectItem>
             <SelectItem value="1m">Siste måned</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={extentFilter} onValueChange={(v: any) => setExtentFilter(v)}>
+          <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Stillingsomfang" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle omfang</SelectItem>
+            <SelectItem value="full_time">Heltid</SelectItem>
+            <SelectItem value="part_time">Deltid</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={engagementFilter} onValueChange={(v: any) => setEngagementFilter(v)}>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Ansettelse" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle ansettelser</SelectItem>
+            <SelectItem value="permanent">Fast</SelectItem>
+            <SelectItem value="temporary">Vikariat</SelectItem>
+            <SelectItem value="project">Prosjekt</SelectItem>
+            <SelectItem value="interim">Interim</SelectItem>
           </SelectContent>
         </Select>
       </div>
