@@ -40,11 +40,12 @@ type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
 type ExtentFilter = "all" | "full_time" | "part_time";
 type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim";
 /** Client-side slice on top of status (RPC / job_leads still enforce status + not dismissed). */
-type RelevanceView = "all" | "recommended" | "medium" | "low" | "unreviewed";
+type RelevanceView = "relevant" | "high" | "unreviewed" | "all";
 
-/** In «Anbefalt»: only leads with numeric ai_score ≥ this (unevaluated rows excluded). */
-const MIN_RECOMMENDED_SCORE = 70;
-const MEDIUM_SCORE_MIN = 40;
+/** «Høy match»: ai_scored_at set and ai_score ≥ this. */
+const HIGH_MATCH_MIN = 70;
+/** «Relevante»: ai_scored_at set and ai_score ≥ this. Default visning. */
+const RELEVANT_MIN = 40;
 
 type LeadSource = "linkedin" | "careerjet" | "nav";
 
@@ -148,7 +149,7 @@ function JobLeadsPage() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("new");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
-  const [relevanceView, setRelevanceView] = useState<RelevanceView>("all");
+  const [relevanceView, setRelevanceView] = useState<RelevanceView>("relevant");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [extentFilter, setExtentFilter] = useState<ExtentFilter>("all");
   const [engagementFilter, setEngagementFilter] = useState<EngagementFilter>("all");
@@ -320,34 +321,26 @@ function JobLeadsPage() {
     }
 
     let afterRelevance = out;
-    if (relevanceView === "recommended") {
+    if (relevanceView === "relevant") {
       afterRelevance = out.filter(
         (lead) =>
           lead.aiEvaluated &&
           typeof lead.score === "number" &&
           !Number.isNaN(lead.score) &&
-          lead.score >= MIN_RECOMMENDED_SCORE,
+          lead.score >= RELEVANT_MIN,
       );
-    } else if (relevanceView === "medium") {
+    } else if (relevanceView === "high") {
       afterRelevance = out.filter(
         (lead) =>
           lead.aiEvaluated &&
           typeof lead.score === "number" &&
           !Number.isNaN(lead.score) &&
-          lead.score >= MEDIUM_SCORE_MIN &&
-          lead.score < MIN_RECOMMENDED_SCORE,
-      );
-    } else if (relevanceView === "low") {
-      afterRelevance = out.filter(
-        (lead) =>
-          lead.aiEvaluated &&
-          typeof lead.score === "number" &&
-          !Number.isNaN(lead.score) &&
-          lead.score < MEDIUM_SCORE_MIN,
+          lead.score >= HIGH_MATCH_MIN,
       );
     } else if (relevanceView === "unreviewed") {
       afterRelevance = out.filter((lead) => !lead.aiEvaluated);
     }
+    // "all" → vis alle, inkludert lav score og uvurderte
 
     const sourceMatched =
       sourceFilter === "all"
@@ -641,11 +634,10 @@ function JobLeadsPage() {
             <SelectValue placeholder="Match-score" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Alle match-scorer</SelectItem>
-            <SelectItem value="recommended">Anbefalt (≥{MIN_RECOMMENDED_SCORE})</SelectItem>
-            <SelectItem value="medium">Middels ({MEDIUM_SCORE_MIN}–{MIN_RECOMMENDED_SCORE - 1})</SelectItem>
-            <SelectItem value="low">Lav (&lt;{MEDIUM_SCORE_MIN})</SelectItem>
+            <SelectItem value="relevant">Relevante (≥{RELEVANT_MIN})</SelectItem>
+            <SelectItem value="high">Høy match (≥{HIGH_MATCH_MIN})</SelectItem>
             <SelectItem value="unreviewed">Uvurderte</SelectItem>
+            <SelectItem value="all">Alle, også lav score</SelectItem>
           </SelectContent>
         </Select>
         <Select value={timeFilter} onValueChange={(v: any) => setTimeFilter(v)}>
