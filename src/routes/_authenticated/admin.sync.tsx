@@ -238,9 +238,10 @@ function NavTab() {
               ) : <Muted>Ikke registrert</Muted>}
             </Card>
             <Card label="Vault secret">
-              <Badge active={data.vault.has_sync_nav_secret}>
-                sync_nav_secret {data.vault.has_sync_nav_secret ? "FUNNET" : "MANGLER"}
-              </Badge>
+              <VaultBadge status={data.vault.status} />
+              {data.vault.status === "check_error" && data.vault.error && (
+                <div className="mt-1 text-[10px] text-muted-foreground break-all">{data.vault.error}</div>
+              )}
             </Card>
             <Card label="Target inventory">
               {inv ? (
