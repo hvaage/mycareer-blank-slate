@@ -115,7 +115,7 @@ export type NavSyncStatus = {
   now: string;
   runs: NavSyncRunRow[];
   cron: { jobname: string; schedule: string | null; active: boolean | null } | null;
-  vault: { has_sync_nav_secret: boolean };
+  vault: { status: "present" | "missing" | "check_error"; error?: string };
   duplicates: {
     source_postings_nav: number;
     distinct_external_ids: number;
