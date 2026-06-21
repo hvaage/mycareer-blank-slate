@@ -177,12 +177,28 @@ function NavTab() {
               ) : <Muted>—</Muted>}
             </Card>
             <Card label="Detail-retry">
-              {dr ? (
-                <>
-                  <Big alert={dr.pending > 0}>{dr.pending}</Big>
-                  <Muted>{dr.abandoned} abandoned</Muted>
-                </>
-              ) : <Muted>—</Muted>}
+              {(() => {
+                const pending = dr?.pending ?? 0;
+                const abandoned = dr?.abandoned ?? 0;
+                const reconcileRunning = rc?.status === "running";
+                let tone: "green" | "yellow" | "red" = "green";
+                let label = "Ferdig";
+                if (abandoned > 0) { tone = "red"; label = `${abandoned} abandoned`; }
+                else if (pending > 0 && reconcileRunning) { tone = "yellow"; label = "Pågår"; }
+                else if (pending > 0) { tone = "yellow"; label = "Tømmer kø"; }
+                return (
+                  <>
+                    <div className="flex items-baseline gap-3">
+                      <Big alert={false}>{pending}</Big>
+                      <span className="text-xs text-muted-foreground">pending</span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <ToneBadge tone={abandoned > 0 ? "red" : "green"}>{abandoned} abandoned</ToneBadge>
+                      <ToneBadge tone={tone}>{label}</ToneBadge>
+                    </div>
+                  </>
+                );
+              })()}
             </Card>
           </Grid>
 
