@@ -2533,6 +2533,33 @@ export type Database = {
         }
         Relationships: []
       }
+      nav_target_writer_leases: {
+        Row: {
+          acquired_at: string
+          expires_at: string
+          heartbeat_at: string
+          lease_name: string
+          mode: string
+          run_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          expires_at: string
+          heartbeat_at?: string
+          lease_name: string
+          mode: string
+          run_id: string
+        }
+        Update: {
+          acquired_at?: string
+          expires_at?: string
+          heartbeat_at?: string
+          lease_name?: string
+          mode?: string
+          run_id?: string
+        }
+        Relationships: []
+      }
       next_steps: {
         Row: {
           application_id: string
@@ -4473,6 +4500,14 @@ export type Database = {
           schedule: string
         }[]
       }
+      get_nav_repair_cron_info: {
+        Args: never
+        Returns: {
+          active: boolean
+          jobname: string
+          schedule: string
+        }[]
+      }
       get_nav_sync_cron_info: {
         Args: never
         Returns: {
@@ -4656,6 +4691,41 @@ export type Database = {
         }[]
       }
       nav_sync_vault_has_secret: { Args: never; Returns: boolean }
+      nav_target_lease_claim: {
+        Args: {
+          p_lease_name: string
+          p_mode: string
+          p_run_id: string
+          p_ttl_seconds?: number
+        }
+        Returns: {
+          claimed: boolean
+          current_mode: string
+          current_run_id: string
+          expires_at: string
+        }[]
+      }
+      nav_target_lease_heartbeat: {
+        Args: { p_lease_name: string; p_run_id: string; p_ttl_seconds?: number }
+        Returns: boolean
+      }
+      nav_target_lease_release: {
+        Args: { p_lease_name: string; p_run_id: string }
+        Returns: boolean
+      }
+      nav_target_lease_status: {
+        Args: never
+        Returns: {
+          acquired_at: string
+          expires_at: string
+          heartbeat_at: string
+          is_stale: boolean
+          lease_name: string
+          mode: string
+          run_id: string
+        }[]
+      }
+      nav_target_repair_tick: { Args: never; Returns: Json }
       normalize_lead_key: {
         Args: {
           p_company: string
