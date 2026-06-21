@@ -405,7 +405,7 @@ async function processRow(
       engagement_type: finalEngage,
       source_event_version: row.source_event_version ?? existingSp?.source_event_version ?? null,
       source_payload_hash: row.source_payload_hash ?? existingSp?.source_payload_hash ?? null,
-      source_event_id: row.source_event_id ?? null,
+      source_event_id: row.source_event_id ?? (existingSp as any)?.source_event_id ?? null,
       updated_at: nowIso,
     };
 
