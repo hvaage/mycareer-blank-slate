@@ -16,6 +16,7 @@ import {
   FileSignature,
   UserRound,
   Plug,
+  RefreshCw,
 } from "lucide-react";
 
 import {
