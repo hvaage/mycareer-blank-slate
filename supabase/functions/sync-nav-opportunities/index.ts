@@ -545,12 +545,27 @@ async function runMatching(
   if (ids.length === 0) return { matched_user_opps, scored, aiErrors };
 
   const nowIso = new Date().toISOString();
-  // Only ACTIVE or within grace: live_until IS NULL OR live_until > now()
+  // Visibility predicate: EXISTS active linked source_posting OR live_until > now().
+  // NOTE: live_until IS NULL alone is NOT visibility.
+  const { data: futureCanon } = await admin
+    .from("canonical_opportunities")
+    .select("id")
+    .in("id", ids)
+    .gt("live_until", nowIso);
+  const { data: linkRows } = await admin
+    .from("opportunity_source_links")
+    .select("canonical_opportunity_id, source_postings!inner(posting_status)")
+    .in("canonical_opportunity_id", ids)
+    .eq("source_postings.posting_status", "active");
+  const eligibleIds = new Set<string>([
+    ...((futureCanon ?? []).map((c: any) => c.id as string)),
+    ...((linkRows ?? []).map((r: any) => r.canonical_opportunity_id as string)),
+  ]);
+  if (eligibleIds.size === 0) return { matched_user_opps, scored, aiErrors };
   const { data: activeCanon } = await admin
     .from("canonical_opportunities")
     .select("id, identity_fingerprint, display_title, display_company, display_location, display_url, live_until")
-    .in("id", ids)
-    .or(`live_until.is.null,live_until.gt.${nowIso}`);
+    .in("id", Array.from(eligibleIds));
 
   const { data: profiles } = await admin
     .from("profiles")
