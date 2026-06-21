@@ -573,8 +573,8 @@ function Card({ label, children }: { label: string; children: React.ReactNode })
     </div>
   );
 }
-function Muted({ children }: { children: React.ReactNode }) {
-  return <div className="text-xs text-muted-foreground">{children}</div>;
+function Muted({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={`text-xs text-muted-foreground ${className ?? ""}`}>{children}</div>;
 }
 function Big({ children, alert }: { children: React.ReactNode; alert?: boolean }) {
   return <div className={`text-2xl font-semibold ${alert ? "text-destructive" : ""}`}>{children}</div>;
