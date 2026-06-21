@@ -341,7 +341,7 @@ async function processRow(
     // Fetch existing
     const { data: existingSp } = await admin
       .from("source_postings")
-      .select("id, raw_payload, posting_status, work_extent, engagement_type, source_event_version, source_payload_hash, expired_at")
+      .select("id, raw_payload, posting_status, work_extent, engagement_type, source_event_version, source_payload_hash, source_event_id, expired_at")
       .eq("source", "nav")
       .eq("source_external_id", row.external_id)
       .maybeSingle();
@@ -405,7 +405,7 @@ async function processRow(
       engagement_type: finalEngage,
       source_event_version: row.source_event_version ?? existingSp?.source_event_version ?? null,
       source_payload_hash: row.source_payload_hash ?? existingSp?.source_payload_hash ?? null,
-      source_event_id: row.source_event_id ?? null,
+      source_event_id: row.source_event_id ?? (existingSp as any)?.source_event_id ?? null,
       updated_at: nowIso,
     };
 
