@@ -4,7 +4,12 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
-import { getNavSyncStatus, type NavSyncRunRow } from "@/lib/nav-sync.functions";
+import {
+  getNavSyncStatus,
+  triggerNavSync,
+  type NavSyncRunRow,
+  type TriggerNavSyncResult,
+} from "@/lib/nav-sync.functions";
 import {
   getCareerjetSyncStatus,
   triggerCareerjetSync,
