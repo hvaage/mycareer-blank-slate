@@ -4691,6 +4691,7 @@ export type Database = {
         }[]
       }
       nav_sync_vault_has_secret: { Args: never; Returns: boolean }
+      nav_sync_vault_secret_status: { Args: never; Returns: string }
       nav_target_lease_claim: {
         Args: {
           p_lease_name: string
