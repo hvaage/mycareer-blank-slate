@@ -305,11 +305,21 @@ export const getNavSyncStatus = createServerFn({ method: "GET" })
       }
     } catch { /* noop */ }
 
-    let vault = { has_sync_nav_secret: false };
+    let vault: NavSyncStatus["vault"] = { status: "check_error", error: "not_checked" };
     try {
-      const { data: vaultRes } = await supabaseAdmin.rpc("nav_sync_vault_has_secret");
-      vault.has_sync_nav_secret = Boolean(vaultRes);
-    } catch { /* noop */ }
+      const { data: vaultRes, error: vaultErr } = await supabaseAdmin.rpc("nav_sync_vault_secret_status");
+      if (vaultErr) {
+        vault = { status: "check_error", error: vaultErr.message };
+      } else if (vaultRes === "present") {
+        vault = { status: "present" };
+      } else if (vaultRes === "missing") {
+        vault = { status: "missing" };
+      } else {
+        vault = { status: "check_error", error: `unexpected_value:${String(vaultRes)}` };
+      }
+    } catch (e: any) {
+      vault = { status: "check_error", error: String(e?.message ?? e) };
+    }
 
     const { data: dupRows } = await supabaseAdmin.rpc("nav_sync_duplicate_external_ids");
     const duplicate_external_ids = Array.isArray(dupRows)
