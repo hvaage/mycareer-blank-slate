@@ -61,6 +61,33 @@ function timingSafeEqualStr(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// --- Global target writer lease helpers ---
+async function claimLease(admin: any, runId: string, mode: string)
+  : Promise<{ ok: boolean; owner_run_id?: string; owner_mode?: string; expires_at?: string }> {
+  const { data, error } = await admin.rpc("nav_target_lease_claim", {
+    p_lease_name: LEASE_NAME, p_run_id: runId, p_mode: mode, p_ttl_seconds: LEASE_TTL_SECONDS,
+  });
+  if (error) return { ok: false };
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return { ok: false };
+  return {
+    ok: Boolean(row.claimed),
+    owner_run_id: row.current_run_id ?? undefined,
+    owner_mode: row.current_mode ?? undefined,
+    expires_at: row.expires_at ?? undefined,
+  };
+}
+async function heartbeatLease(admin: any, runId: string): Promise<void> {
+  try { await admin.rpc("nav_target_lease_heartbeat", {
+    p_lease_name: LEASE_NAME, p_run_id: runId, p_ttl_seconds: LEASE_TTL_SECONDS,
+  }); } catch { /* noop */ }
+}
+async function releaseLease(admin: any, runId: string): Promise<void> {
+  try { await admin.rpc("nav_target_lease_release", {
+    p_lease_name: LEASE_NAME, p_run_id: runId,
+  }); } catch { /* noop */ }
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type UpstreamRow = {
