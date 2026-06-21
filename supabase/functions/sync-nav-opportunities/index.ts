@@ -341,7 +341,7 @@ async function processRow(
     // Fetch existing
     const { data: existingSp } = await admin
       .from("source_postings")
-      .select("id, raw_payload, posting_status, work_extent, engagement_type, source_event_version, source_payload_hash, expired_at")
+      .select("id, raw_payload, posting_status, work_extent, engagement_type, source_event_version, source_payload_hash, source_event_id, expired_at")
       .eq("source", "nav")
       .eq("source_external_id", row.external_id)
       .maybeSingle();
