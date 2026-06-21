@@ -146,6 +146,8 @@ export type NavSyncStatus = {
     target_active: number | null;
     diff: number | null;
   };
+  lease: NavTargetLease;
+  repair_cron: NavRepairCron;
 };
 export type NavTargetLease = {
   lease_name: string;
