@@ -2428,6 +2428,69 @@ export type Database = {
           },
         ]
       }
+      nav_repair_runs: {
+        Row: {
+          batches_processed: number
+          created_at: string
+          cursor_after_external_id: string
+          finished_at: string | null
+          id: string
+          ids_found: number
+          ids_missing: number
+          ids_requested: number
+          last_error: string | null
+          meta: Json
+          rows_failed: number
+          rows_merged: number
+          rows_noop: number
+          rows_stale_ignored: number
+          started_at: string
+          status: string
+          total_target_rows: number | null
+          updated_at: string
+        }
+        Insert: {
+          batches_processed?: number
+          created_at?: string
+          cursor_after_external_id?: string
+          finished_at?: string | null
+          id?: string
+          ids_found?: number
+          ids_missing?: number
+          ids_requested?: number
+          last_error?: string | null
+          meta?: Json
+          rows_failed?: number
+          rows_merged?: number
+          rows_noop?: number
+          rows_stale_ignored?: number
+          started_at?: string
+          status?: string
+          total_target_rows?: number | null
+          updated_at?: string
+        }
+        Update: {
+          batches_processed?: number
+          created_at?: string
+          cursor_after_external_id?: string
+          finished_at?: string | null
+          id?: string
+          ids_found?: number
+          ids_missing?: number
+          ids_requested?: number
+          last_error?: string | null
+          meta?: Json
+          rows_failed?: number
+          rows_merged?: number
+          rows_noop?: number
+          rows_stale_ignored?: number
+          started_at?: string
+          status?: string
+          total_target_rows?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nav_sync_runs: {
         Row: {
           error_summary: string | null
@@ -3238,7 +3301,10 @@ export type Database = {
           raw_url: string
           reactivated_at: string | null
           source: string
+          source_event_id: string | null
+          source_event_version: string | null
           source_external_id: string
+          source_payload_hash: string | null
           title: string | null
           updated_at: string
           work_extent: string | null
@@ -3261,7 +3327,10 @@ export type Database = {
           raw_url: string
           reactivated_at?: string | null
           source: string
+          source_event_id?: string | null
+          source_event_version?: string | null
           source_external_id: string
+          source_payload_hash?: string | null
           title?: string | null
           updated_at?: string
           work_extent?: string | null
@@ -3284,7 +3353,10 @@ export type Database = {
           raw_url?: string
           reactivated_at?: string | null
           source?: string
+          source_event_id?: string | null
+          source_event_version?: string | null
           source_external_id?: string
+          source_payload_hash?: string | null
           title?: string | null
           updated_at?: string
           work_extent?: string | null
@@ -4535,6 +4607,52 @@ export type Database = {
         Returns: {
           count: number
           external_id: string
+        }[]
+      }
+      nav_sync_repair_progress: {
+        Args: never
+        Returns: {
+          active_run_batches: number
+          active_run_cursor_after: string
+          active_run_id: string
+          active_run_ids_found: number
+          active_run_ids_missing: number
+          active_run_ids_requested: number
+          active_run_rows_failed: number
+          active_run_rows_merged: number
+          active_run_rows_noop: number
+          active_run_rows_stale: number
+          active_run_started_at: string
+          active_run_status: string
+          last_completed_finished_at: string
+          last_completed_id: string
+          last_completed_status: string
+        }[]
+      }
+      nav_sync_target_cursor: {
+        Args: never
+        Returns: {
+          last_successful_finished_at: string
+          last_successful_run_id: string
+          latest_cursor_changed_at: string
+          latest_cursor_external_id: string
+        }[]
+      }
+      nav_sync_target_inventory: {
+        Args: never
+        Returns: {
+          active: number
+          active_missing_detail: number
+          active_with_detail: number
+          active_with_engagement: number
+          active_with_event_version: number
+          active_with_extent: number
+          duplicate_external_ids: number
+          inactive: number
+          max_last_seen_at: string
+          max_source_event_version: string
+          rows_with_event_version: number
+          total: number
         }[]
       }
       nav_sync_vault_has_secret: { Args: never; Returns: boolean }
