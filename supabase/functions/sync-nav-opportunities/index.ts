@@ -956,8 +956,9 @@ Deno.serve(async (req: Request) => {
   const dataIssues: any[] = [];
   const systemErrors: any[] = [];
   const aiErrors: any[] = [];
-  const finalMeta: any = { mode, model: AI_MODEL, prev_run_id: prevRunId };
+  const finalMeta: any = { mode, model: AI_MODEL, prev_run_id: prevRunId, lease_run_id: probeId };
 
+  const hbTimer = setInterval(() => { heartbeatLease(admin, probeId); }, 60_000);
   try {
     if (mode === "cursor") {
       const res = await runCursorMode(admin, navClient, meta0);
@@ -974,7 +975,8 @@ Deno.serve(async (req: Request) => {
         aiErrors.push(...m.aiErrors);
       }
     } else {
-      const res = await runRepairMode(admin, navClient, { repair_batch_size, max_batches, repair_run_id });
+      const res = await runRepairMode(admin, navClient, { repair_batch_size, max_batches, repair_run_id },
+        () => heartbeatLease(admin, probeId));
       errorSummary = res.errorSummary ?? null;
       fetched = res.requested ?? 0;
       upserted = res.merged ?? 0;
@@ -990,7 +992,6 @@ Deno.serve(async (req: Request) => {
       finalMeta.stale = res.stale;
       finalMeta.failed = res.failed;
       if (Array.isArray(res.dataIssues)) dataIssues.push(...res.dataIssues);
-      // Repair mode: do NOT score historical rows (matching only on touched ACTIVE+grace, gated already).
       if (!errorSummary && res.touchedCanonicalIds?.length) {
         const m = await runMatching(admin, res.touchedCanonicalIds);
         matched_user_opps = m.matched_user_opps; scored = m.scored;
@@ -1000,7 +1001,11 @@ Deno.serve(async (req: Request) => {
   } catch (e: any) {
     errorSummary = `system_error: ${String(e?.message ?? e)}`;
     systemErrors.push({ error: String(e?.message ?? e) });
+  } finally {
+    clearInterval(hbTimer);
+    await releaseLease(admin, probeId);
   }
+
 
   finalMeta.dataIssues = dataIssues.slice(0, 200);
   finalMeta.systemErrors = systemErrors.slice(0, 50);
