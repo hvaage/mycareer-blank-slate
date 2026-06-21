@@ -558,7 +558,7 @@ function Badge({ active, children }: { active: boolean; children: React.ReactNod
     }`}>{children}</span>
   );
 }
-function StatusPill({ tone, children }: { tone: "green" | "yellow" | "red" | "muted"; children: React.ReactNode }) {
+function ToneBadge({ tone, children }: { tone: "green" | "yellow" | "red" | "muted"; children: React.ReactNode }) {
   const cls =
     tone === "green" ? "bg-emerald-500/15 text-emerald-700"
     : tone === "yellow" ? "bg-amber-500/15 text-amber-700"
@@ -567,9 +567,9 @@ function StatusPill({ tone, children }: { tone: "green" | "yellow" | "red" | "mu
   return <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${cls}`}>{children}</span>;
 }
 function VaultBadge({ status }: { status: "present" | "missing" | "check_error" }) {
-  if (status === "present") return <StatusPill tone="green">sync_nav_secret TILSTEDE</StatusPill>;
-  if (status === "missing") return <StatusPill tone="red">sync_nav_secret MANGLER</StatusPill>;
-  return <StatusPill tone="yellow">Kunne ikke verifisere</StatusPill>;
+  if (status === "present") return <ToneBadge tone="green">sync_nav_secret TILSTEDE</ToneBadge>;
+  if (status === "missing") return <ToneBadge tone="red">sync_nav_secret MANGLER</ToneBadge>;
+  return <ToneBadge tone="yellow">Kunne ikke verifisere</ToneBadge>;
 }
 function ErrorBox({ msg }: { msg: string }) {
   if (msg.includes("Forbidden")) {
