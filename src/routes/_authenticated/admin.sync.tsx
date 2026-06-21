@@ -177,12 +177,28 @@ function NavTab() {
               ) : <Muted>—</Muted>}
             </Card>
             <Card label="Detail-retry">
-              {dr ? (
-                <>
-                  <Big alert={dr.pending > 0}>{dr.pending}</Big>
-                  <Muted>{dr.abandoned} abandoned</Muted>
-                </>
-              ) : <Muted>—</Muted>}
+              {(() => {
+                const pending = dr?.pending ?? 0;
+                const abandoned = dr?.abandoned ?? 0;
+                const reconcileRunning = rc?.status === "running";
+                let tone: "green" | "yellow" | "red" = "green";
+                let label = "Ferdig";
+                if (abandoned > 0) { tone = "red"; label = `${abandoned} abandoned`; }
+                else if (pending > 0 && reconcileRunning) { tone = "yellow"; label = "Pågår"; }
+                else if (pending > 0) { tone = "yellow"; label = "Tømmer kø"; }
+                return (
+                  <>
+                    <div className="flex items-baseline gap-3">
+                      <Big alert={false}>{pending}</Big>
+                      <span className="text-xs text-muted-foreground">pending</span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <ToneBadge tone={abandoned > 0 ? "red" : "green"}>{abandoned} abandoned</ToneBadge>
+                      <ToneBadge tone={tone}>{label}</ToneBadge>
+                    </div>
+                  </>
+                );
+              })()}
             </Card>
           </Grid>
 
@@ -238,9 +254,10 @@ function NavTab() {
               ) : <Muted>Ikke registrert</Muted>}
             </Card>
             <Card label="Vault secret">
-              <Badge active={data.vault.has_sync_nav_secret}>
-                sync_nav_secret {data.vault.has_sync_nav_secret ? "FUNNET" : "MANGLER"}
-              </Badge>
+              <VaultBadge status={data.vault.status} />
+              {data.vault.status === "check_error" && data.vault.error && (
+                <div className="mt-1 text-[10px] text-muted-foreground break-all">{data.vault.error}</div>
+              )}
             </Card>
             <Card label="Target inventory">
               {inv ? (
@@ -556,6 +573,19 @@ function Badge({ active, children }: { active: boolean; children: React.ReactNod
       active ? "bg-emerald-500/15 text-emerald-700" : "bg-destructive/15 text-destructive"
     }`}>{children}</span>
   );
+}
+function ToneBadge({ tone, children }: { tone: "green" | "yellow" | "red" | "muted"; children: React.ReactNode }) {
+  const cls =
+    tone === "green" ? "bg-emerald-500/15 text-emerald-700"
+    : tone === "yellow" ? "bg-amber-500/15 text-amber-700"
+    : tone === "red" ? "bg-destructive/15 text-destructive"
+    : "bg-muted text-muted-foreground";
+  return <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${cls}`}>{children}</span>;
+}
+function VaultBadge({ status }: { status: "present" | "missing" | "check_error" }) {
+  if (status === "present") return <ToneBadge tone="green">sync_nav_secret TILSTEDE</ToneBadge>;
+  if (status === "missing") return <ToneBadge tone="red">sync_nav_secret MANGLER</ToneBadge>;
+  return <ToneBadge tone="yellow">Kunne ikke verifisere</ToneBadge>;
 }
 function ErrorBox({ msg }: { msg: string }) {
   if (msg.includes("Forbidden")) {

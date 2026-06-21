@@ -16,6 +16,7 @@ import {
   FileSignature,
   UserRound,
   Plug,
+  RefreshCw,
 } from "lucide-react";
 
 import {
@@ -65,6 +66,7 @@ const upcomingNav: NavItem[] = [
 
 const adminNav: NavItem[] = [
   { title: "Admin", to: "/admin", icon: Shield },
+  { title: "Sync", to: "/admin/sync", icon: RefreshCw },
 ];
 
 export function AppSidebar() {
