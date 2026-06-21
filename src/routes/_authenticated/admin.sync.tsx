@@ -6,9 +6,7 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import {
   getNavSyncStatus,
-  triggerNavSync,
   type NavSyncRunRow,
-  type TriggerNavSyncResult,
 } from "@/lib/nav-sync.functions";
 import {
   getCareerjetSyncStatus,
