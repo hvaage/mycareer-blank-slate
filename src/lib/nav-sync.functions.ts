@@ -147,6 +147,22 @@ export type NavSyncStatus = {
     diff: number | null;
   };
 };
+export type NavTargetLease = {
+  lease_name: string;
+  run_id: string;
+  mode: string;
+  acquired_at: string;
+  heartbeat_at: string;
+  expires_at: string;
+  is_stale: boolean;
+} | null;
+
+export type NavRepairCron = {
+  jobname: string;
+  schedule: string | null;
+  active: boolean;
+} | null;
+
 
 // --- Upstream proxy ---------------------------------------------------------
 
