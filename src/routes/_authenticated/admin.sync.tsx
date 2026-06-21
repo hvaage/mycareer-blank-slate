@@ -570,6 +570,7 @@ function VaultBadge({ status }: { status: "present" | "missing" | "check_error" 
   if (status === "present") return <StatusPill tone="green">sync_nav_secret TILSTEDE</StatusPill>;
   if (status === "missing") return <StatusPill tone="red">sync_nav_secret MANGLER</StatusPill>;
   return <StatusPill tone="yellow">Kunne ikke verifisere</StatusPill>;
+}
 function ErrorBox({ msg }: { msg: string }) {
   if (msg.includes("Forbidden")) {
     return (
