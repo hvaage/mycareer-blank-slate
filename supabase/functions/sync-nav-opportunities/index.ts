@@ -855,6 +855,8 @@ async function runRepairMode(
       rows_stale_ignored: (repairRun.rows_stale_ignored ?? 0) + totalStale,
       rows_failed: (repairRun.rows_failed ?? 0) + totalFailed,
     }).eq("id", repairRun.id);
+    await heartbeat();
+
 
     // Stop early if upstream returned fewer than we asked for AND no missing items left (rare boundary)
     if (ids.length < opts.repair_batch_size) {
