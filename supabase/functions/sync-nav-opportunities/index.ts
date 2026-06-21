@@ -32,6 +32,8 @@ const REPAIR_BATCH_MAX = 500;       // upstream RPC hard limit
 const REPAIR_BATCHES_MAX = 10;
 const STALE_LOCK_MINUTES = 60;
 const AI_MAX_PER_RUN = 20;
+const LEASE_NAME = "nav_target_writer";
+const LEASE_TTL_SECONDS = 180;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,6 +59,33 @@ function timingSafeEqualStr(a: string, b: string): boolean {
     diff |= (i < ab.length ? ab[i] : 0) ^ (i < bb.length ? bb[i] : 0);
   }
   return diff === 0;
+}
+
+// --- Global target writer lease helpers ---
+async function claimLease(admin: any, runId: string, mode: string)
+  : Promise<{ ok: boolean; owner_run_id?: string; owner_mode?: string; expires_at?: string }> {
+  const { data, error } = await admin.rpc("nav_target_lease_claim", {
+    p_lease_name: LEASE_NAME, p_run_id: runId, p_mode: mode, p_ttl_seconds: LEASE_TTL_SECONDS,
+  });
+  if (error) return { ok: false };
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return { ok: false };
+  return {
+    ok: Boolean(row.claimed),
+    owner_run_id: row.current_run_id ?? undefined,
+    owner_mode: row.current_mode ?? undefined,
+    expires_at: row.expires_at ?? undefined,
+  };
+}
+async function heartbeatLease(admin: any, runId: string): Promise<void> {
+  try { await admin.rpc("nav_target_lease_heartbeat", {
+    p_lease_name: LEASE_NAME, p_run_id: runId, p_ttl_seconds: LEASE_TTL_SECONDS,
+  }); } catch { /* noop */ }
+}
+async function releaseLease(admin: any, runId: string): Promise<void> {
+  try { await admin.rpc("nav_target_lease_release", {
+    p_lease_name: LEASE_NAME, p_run_id: runId,
+  }); } catch { /* noop */ }
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -545,12 +574,27 @@ async function runMatching(
   if (ids.length === 0) return { matched_user_opps, scored, aiErrors };
 
   const nowIso = new Date().toISOString();
-  // Only ACTIVE or within grace: live_until IS NULL OR live_until > now()
+  // Visibility predicate: EXISTS active linked source_posting OR live_until > now().
+  // NOTE: live_until IS NULL alone is NOT visibility.
+  const { data: futureCanon } = await admin
+    .from("canonical_opportunities")
+    .select("id")
+    .in("id", ids)
+    .gt("live_until", nowIso);
+  const { data: linkRows } = await admin
+    .from("opportunity_source_links")
+    .select("canonical_opportunity_id, source_postings!inner(posting_status)")
+    .in("canonical_opportunity_id", ids)
+    .eq("source_postings.posting_status", "active");
+  const eligibleIds = new Set<string>([
+    ...((futureCanon ?? []).map((c: any) => c.id as string)),
+    ...((linkRows ?? []).map((r: any) => r.canonical_opportunity_id as string)),
+  ]);
+  if (eligibleIds.size === 0) return { matched_user_opps, scored, aiErrors };
   const { data: activeCanon } = await admin
     .from("canonical_opportunities")
     .select("id, identity_fingerprint, display_title, display_company, display_location, display_url, live_until")
-    .in("id", ids)
-    .or(`live_until.is.null,live_until.gt.${nowIso}`);
+    .in("id", Array.from(eligibleIds));
 
   const { data: profiles } = await admin
     .from("profiles")
@@ -685,6 +729,7 @@ async function runCursorMode(admin: any, navClient: any, prevMeta: any): Promise
 async function runRepairMode(
   admin: any, navClient: any,
   opts: { repair_batch_size: number; max_batches: number; repair_run_id: string | null },
+  heartbeat: () => Promise<void> = async () => {},
 ): Promise<any> {
   // Open or resume run
   let repairRun: any;
@@ -810,6 +855,8 @@ async function runRepairMode(
       rows_stale_ignored: (repairRun.rows_stale_ignored ?? 0) + totalStale,
       rows_failed: (repairRun.rows_failed ?? 0) + totalFailed,
     }).eq("id", repairRun.id);
+    await heartbeat();
+
 
     // Stop early if upstream returned fewer than we asked for AND no missing items left (rare boundary)
     if (ids.length < opts.repair_batch_size) {
@@ -856,23 +903,21 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // Concurrency guard scoped per-mode (cursor vs repair_by_ids).
-  const staleCutoff = new Date(Date.now() - STALE_LOCK_MINUTES * 60_000).toISOString();
-  const { data: inflightAll } = await admin
-    .from("nav_sync_runs")
-    .select("id, started_at, meta")
-    .is("finished_at", null)
-    .gte("started_at", staleCutoff)
-    .order("started_at", { ascending: false })
-    .limit(10);
-  const sameModeInflight = (inflightAll ?? []).find((r: any) =>
-    String(r?.meta?.mode ?? "cursor") === mode);
-  if (sameModeInflight) {
+  // Global target writer lease — single serializer across cursor + repair_by_ids.
+  // We claim BEFORE inserting a run row so already_running paths leave no side effects.
+  const probeId = crypto.randomUUID();
+  const probe = await claimLease(admin, probeId, mode);
+  if (!probe.ok) {
     return json({
       ok: true, status: "already_running", mode,
-      inflight_run_id: sameModeInflight.id, started_at: sameModeInflight.started_at,
+      lease: {
+        owner_run_id: probe.owner_run_id ?? null,
+        owner_mode: probe.owner_mode ?? null,
+        expires_at: probe.expires_at ?? null,
+      },
     });
   }
+
 
   // Last successful cursor-mode run is the source of cursor tuple.
   const { data: lastDone } = await admin
@@ -914,8 +959,9 @@ Deno.serve(async (req: Request) => {
   const dataIssues: any[] = [];
   const systemErrors: any[] = [];
   const aiErrors: any[] = [];
-  const finalMeta: any = { mode, model: AI_MODEL, prev_run_id: prevRunId };
+  const finalMeta: any = { mode, model: AI_MODEL, prev_run_id: prevRunId, lease_run_id: probeId };
 
+  const hbTimer = setInterval(() => { heartbeatLease(admin, probeId); }, 60_000);
   try {
     if (mode === "cursor") {
       const res = await runCursorMode(admin, navClient, meta0);
@@ -932,7 +978,8 @@ Deno.serve(async (req: Request) => {
         aiErrors.push(...m.aiErrors);
       }
     } else {
-      const res = await runRepairMode(admin, navClient, { repair_batch_size, max_batches, repair_run_id });
+      const res = await runRepairMode(admin, navClient, { repair_batch_size, max_batches, repair_run_id },
+        () => heartbeatLease(admin, probeId));
       errorSummary = res.errorSummary ?? null;
       fetched = res.requested ?? 0;
       upserted = res.merged ?? 0;
@@ -948,7 +995,6 @@ Deno.serve(async (req: Request) => {
       finalMeta.stale = res.stale;
       finalMeta.failed = res.failed;
       if (Array.isArray(res.dataIssues)) dataIssues.push(...res.dataIssues);
-      // Repair mode: do NOT score historical rows (matching only on touched ACTIVE+grace, gated already).
       if (!errorSummary && res.touchedCanonicalIds?.length) {
         const m = await runMatching(admin, res.touchedCanonicalIds);
         matched_user_opps = m.matched_user_opps; scored = m.scored;
@@ -958,7 +1004,11 @@ Deno.serve(async (req: Request) => {
   } catch (e: any) {
     errorSummary = `system_error: ${String(e?.message ?? e)}`;
     systemErrors.push({ error: String(e?.message ?? e) });
+  } finally {
+    clearInterval(hbTimer);
+    await releaseLease(admin, probeId);
   }
+
 
   finalMeta.dataIssues = dataIssues.slice(0, 200);
   finalMeta.systemErrors = systemErrors.slice(0, 50);

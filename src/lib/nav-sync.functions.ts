@@ -146,7 +146,25 @@ export type NavSyncStatus = {
     target_active: number | null;
     diff: number | null;
   };
+  lease: NavTargetLease;
+  repair_cron: NavRepairCron;
 };
+export type NavTargetLease = {
+  lease_name: string;
+  run_id: string;
+  mode: string;
+  acquired_at: string;
+  heartbeat_at: string;
+  expires_at: string;
+  is_stale: boolean;
+} | null;
+
+export type NavRepairCron = {
+  jobname: string;
+  schedule: string | null;
+  active: boolean;
+} | null;
+
 
 // --- Upstream proxy ---------------------------------------------------------
 
@@ -224,39 +242,12 @@ function sanitizeUpstreamHealth(raw: any): NavUpstreamHealth {
   };
 }
 
-// --- Trigger from admin UI --------------------------------------------------
+// --- Trigger removed -------------------------------------------------------
+// /admin/sync is fully read-only. Repair runs are driven automatically by
+// pg_cron job nav-target-repair-3min (SECURITY DEFINER dispatcher), and
+// cursor-sync continues via nav-sync-30min. No client-callable mutation.
 
-export type TriggerNavSyncResult = {
-  ok: boolean;
-  http_status: number;
-  duration_ms: number;
-  body: string;
-};
 
-export const triggerNavSync = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { mode?: "cursor" | "repair_by_ids"; repair_batch_size?: number; max_batches?: number; repair_run_id?: string }) => input ?? {})
-  .handler(async ({ data, context }): Promise<TriggerNavSyncResult> => {
-    const { userId } = context as { userId: string };
-    await assertAdmin(userId);
-    const url = process.env.SUPABASE_URL;
-    const secret = process.env.SYNC_NAV_SECRET;
-    if (!url || !secret) throw new Error("missing SUPABASE_URL or SYNC_NAV_SECRET");
-    const t0 = Date.now();
-    const body = {
-      mode: data?.mode ?? "cursor",
-      ...(data?.repair_batch_size ? { repair_batch_size: data.repair_batch_size } : {}),
-      ...(data?.max_batches ? { max_batches: data.max_batches } : {}),
-      ...(data?.repair_run_id ? { repair_run_id: data.repair_run_id } : {}),
-    };
-    const r = await fetch(`${url}/functions/v1/sync-nav-opportunities`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-sync-nav-secret": secret },
-      body: JSON.stringify(body),
-    });
-    const text = await r.text();
-    return { ok: r.ok, http_status: r.status, duration_ms: Date.now() - t0, body: text.slice(0, 2000) };
-  });
 
 // --- Main status server fn --------------------------------------------------
 
@@ -448,6 +439,34 @@ export const getNavSyncStatus = createServerFn({ method: "GET" })
     const diff = (upstream_active != null && target_active != null)
       ? (target_active - upstream_active) : null;
 
+    // Global target writer lease + temporary repair-cron status
+    let lease: NavTargetLease = null;
+    try {
+      const { data: lr } = await supabaseAdmin.rpc("nav_target_lease_status");
+      if (Array.isArray(lr) && lr.length) {
+        const l = lr[0] as any;
+        lease = {
+          lease_name: String(l.lease_name),
+          run_id: String(l.run_id),
+          mode: String(l.mode),
+          acquired_at: l.acquired_at,
+          heartbeat_at: l.heartbeat_at,
+          expires_at: l.expires_at,
+          is_stale: Boolean(l.is_stale),
+        };
+      }
+    } catch { /* noop */ }
+
+    let repair_cron: NavRepairCron = null;
+    try {
+      const { data: rc } = await supabaseAdmin.rpc("get_nav_repair_cron_info");
+      if (Array.isArray(rc) && rc.length) {
+        const c = rc[0] as any;
+        repair_cron = { jobname: String(c.jobname), schedule: c.schedule ?? null, active: Boolean(c.active) };
+      }
+    } catch { /* noop */ }
+
+
     return {
       now: nowIso,
       runs: enrichedRuns,
@@ -473,5 +492,7 @@ export const getNavSyncStatus = createServerFn({ method: "GET" })
       upstream_cron,
       repair,
       active_diff: { upstream_active, target_active, diff },
+      lease,
+      repair_cron,
     };
   });
