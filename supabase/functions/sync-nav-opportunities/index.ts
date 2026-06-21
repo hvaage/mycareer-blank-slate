@@ -729,6 +729,7 @@ async function runCursorMode(admin: any, navClient: any, prevMeta: any): Promise
 async function runRepairMode(
   admin: any, navClient: any,
   opts: { repair_batch_size: number; max_batches: number; repair_run_id: string | null },
+  heartbeat: () => Promise<void> = async () => {},
 ): Promise<any> {
   // Open or resume run
   let repairRun: any;
