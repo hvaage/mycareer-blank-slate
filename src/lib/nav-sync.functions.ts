@@ -439,6 +439,34 @@ export const getNavSyncStatus = createServerFn({ method: "GET" })
     const diff = (upstream_active != null && target_active != null)
       ? (target_active - upstream_active) : null;
 
+    // Global target writer lease + temporary repair-cron status
+    let lease: NavTargetLease = null;
+    try {
+      const { data: lr } = await supabaseAdmin.rpc("nav_target_lease_status");
+      if (Array.isArray(lr) && lr.length) {
+        const l = lr[0] as any;
+        lease = {
+          lease_name: String(l.lease_name),
+          run_id: String(l.run_id),
+          mode: String(l.mode),
+          acquired_at: l.acquired_at,
+          heartbeat_at: l.heartbeat_at,
+          expires_at: l.expires_at,
+          is_stale: Boolean(l.is_stale),
+        };
+      }
+    } catch { /* noop */ }
+
+    let repair_cron: NavRepairCron = null;
+    try {
+      const { data: rc } = await supabaseAdmin.rpc("get_nav_repair_cron_info");
+      if (Array.isArray(rc) && rc.length) {
+        const c = rc[0] as any;
+        repair_cron = { jobname: String(c.jobname), schedule: c.schedule ?? null, active: Boolean(c.active) };
+      }
+    } catch { /* noop */ }
+
+
     return {
       now: nowIso,
       runs: enrichedRuns,
