@@ -82,38 +82,12 @@ function AdminSync() {
 
 function NavTab() {
   const fetchStatus = useServerFn(getNavSyncStatus);
-  const triggerSync = useServerFn(triggerNavSync);
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-nav-sync-status"],
     queryFn: () => fetchStatus(),
     refetchInterval: 60_000,
   });
   const errMessage = error ? (error as Error).message : null;
-
-  const [lastTrigger, setLastTrigger] = useState<
-    | { kind: "ok"; result: TriggerNavSyncResult; mode: string }
-    | { kind: "err"; message: string }
-    | null
-  >(null);
-
-  const cursorMut = useMutation({
-    mutationFn: () => triggerSync({ data: { mode: "cursor" } }),
-    onSuccess: (result) => {
-      setLastTrigger({ kind: "ok", result, mode: "cursor" });
-      refetch();
-    },
-    onError: (err: unknown) =>
-      setLastTrigger({ kind: "err", message: err instanceof Error ? err.message : String(err) }),
-  });
-  const repairMut = useMutation({
-    mutationFn: () => triggerSync({ data: { mode: "repair_by_ids", repair_batch_size: 200, max_batches: 5 } }),
-    onSuccess: (result) => {
-      setLastTrigger({ kind: "ok", result, mode: "repair_by_ids" });
-      refetch();
-    },
-    onError: (err: unknown) =>
-      setLastTrigger({ kind: "err", message: err instanceof Error ? err.message : String(err) }),
-  });
 
   const inv = data?.target_inventory ?? null;
   const up = data?.upstream_health;
@@ -123,46 +97,45 @@ function NavTab() {
   const dr = up?.detail_retry ?? { pending: 0, abandoned: 0 };
   const repair = data?.repair;
   const ad = data?.active_diff;
+  const lease = data?.lease ?? null;
+  const repairCron = data?.repair_cron ?? null;
 
   return (
     <div className="mt-6">
       <div className="flex justify-end gap-2">
         <button
-          onClick={() => cursorMut.mutate()}
-          disabled={cursorMut.isPending || repairMut.isPending}
-          className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {cursorMut.isPending ? "Cursor kjøres…" : "Kjør cursor-sync"}
-        </button>
-        <button
-          onClick={() => repairMut.mutate()}
-          disabled={cursorMut.isPending || repairMut.isPending}
-          className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-accent disabled:opacity-50"
-          title="Kjører 5 batcher à 200 ID-er av by-ID-reparasjonen."
-        >
-          {repairMut.isPending ? "Repair kjøres…" : "Kjør by-ID repair (5×200)"}
-        </button>
-        <button
-          onClick={() => { setLastTrigger(null); refetch(); }}
+          onClick={() => refetch()}
           disabled={isFetching}
           className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-accent disabled:opacity-50"
         >
           {isFetching ? "Oppdaterer…" : "Oppdater"}
         </button>
       </div>
-      {lastTrigger && (
-        <div
-          className={`mt-3 rounded-md border p-3 text-xs font-mono whitespace-pre-wrap break-all ${
-            lastTrigger.kind === "ok" && lastTrigger.result.ok
-              ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-800"
-              : "border-destructive/40 bg-destructive/5 text-destructive"
-          }`}
-        >
-          {lastTrigger.kind === "ok"
-            ? `${lastTrigger.mode} · HTTP ${lastTrigger.result.http_status} · ${lastTrigger.result.duration_ms} ms\n${lastTrigger.result.body}`
-            : `Feil: ${lastTrigger.message}`}
-        </div>
-      )}
+      <p className="mt-2 text-xs text-muted-foreground">
+        Read-only. Repair drives automatisk via pg_cron <code>nav-target-repair-3min</code> (2×100 ID-er per kjøring,
+        avplanlegges automatisk når aktiv repair-run er fullført). Cursor-sync drives av <code>nav-sync-30min</code>.
+      </p>
+      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <Card label="Global target writer-lease">
+          {lease ? (
+            <ul className="text-xs space-y-1">
+              <li>navn: <b>{lease.lease_name}</b> · mode: <b>{lease.mode}</b></li>
+              <li className="font-mono break-all">run: {lease.run_id}</li>
+              <li>acquired: {fmt(lease.acquired_at)} · heartbeat: {fmt(lease.heartbeat_at)}</li>
+              <li>utløp: {fmt(lease.expires_at)} {lease.is_stale ? <span className="text-destructive">(stale)</span> : null}</li>
+            </ul>
+          ) : <Muted>ingen aktiv lease</Muted>}
+        </Card>
+        <Card label="Repair-cron (midlertidig)">
+          {repairCron ? (
+            <ul className="text-xs space-y-1">
+              <li>job: <b>{repairCron.jobname}</b></li>
+              <li>schedule: <code>{repairCron.schedule ?? "—"}</code></li>
+              <li>active: <b>{repairCron.active ? "ja" : "nei"}</b></li>
+            </ul>
+          ) : <Muted>ikke planlagt (avplanlegges når repair er ferdig)</Muted>}
+        </Card>
+      </div>
       {isLoading && <p className="mt-6 text-muted-foreground">Laster…</p>}
       {errMessage && <ErrorBox msg={errMessage} />}
       {data && (
