@@ -32,6 +32,8 @@ const REPAIR_BATCH_MAX = 500;       // upstream RPC hard limit
 const REPAIR_BATCHES_MAX = 10;
 const STALE_LOCK_MINUTES = 60;
 const AI_MAX_PER_RUN = 20;
+const LEASE_NAME = "nav_target_writer";
+const LEASE_TTL_SECONDS = 180;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
