@@ -492,5 +492,7 @@ export const getNavSyncStatus = createServerFn({ method: "GET" })
       upstream_cron,
       repair,
       active_diff: { upstream_active, target_active, diff },
+      lease,
+      repair_cron,
     };
   });
