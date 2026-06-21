@@ -84,6 +84,7 @@ function AdminSync() {
 
 function NavTab() {
   const fetchStatus = useServerFn(getNavSyncStatus);
+  const triggerSync = useServerFn(triggerNavSync);
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["admin-nav-sync-status"],
     queryFn: () => fetchStatus(),
@@ -91,23 +92,171 @@ function NavTab() {
   });
   const errMessage = error ? (error as Error).message : null;
 
+  const [lastTrigger, setLastTrigger] = useState<
+    | { kind: "ok"; result: TriggerNavSyncResult; mode: string }
+    | { kind: "err"; message: string }
+    | null
+  >(null);
+
+  const cursorMut = useMutation({
+    mutationFn: () => triggerSync({ data: { mode: "cursor" } }),
+    onSuccess: (result) => {
+      setLastTrigger({ kind: "ok", result, mode: "cursor" });
+      refetch();
+    },
+    onError: (err: unknown) =>
+      setLastTrigger({ kind: "err", message: err instanceof Error ? err.message : String(err) }),
+  });
+  const repairMut = useMutation({
+    mutationFn: () => triggerSync({ data: { mode: "repair_by_ids", repair_batch_size: 200, max_batches: 5 } }),
+    onSuccess: (result) => {
+      setLastTrigger({ kind: "ok", result, mode: "repair_by_ids" });
+      refetch();
+    },
+    onError: (err: unknown) =>
+      setLastTrigger({ kind: "err", message: err instanceof Error ? err.message : String(err) }),
+  });
+
+  const inv = data?.target_inventory ?? null;
+  const up = data?.upstream_health;
+  const upInv = up?.inventory ?? null;
+  const ss = up?.steady_state ?? null;
+  const rc = up?.reconcile ?? null;
+  const dr = up?.detail_retry ?? { pending: 0, abandoned: 0 };
+  const repair = data?.repair;
+  const ad = data?.active_diff;
+
   return (
     <div className="mt-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
         <button
-          onClick={() => refetch()}
+          onClick={() => cursorMut.mutate()}
+          disabled={cursorMut.isPending || repairMut.isPending}
+          className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          {cursorMut.isPending ? "Cursor kjøres…" : "Kjør cursor-sync"}
+        </button>
+        <button
+          onClick={() => repairMut.mutate()}
+          disabled={cursorMut.isPending || repairMut.isPending}
+          className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-accent disabled:opacity-50"
+          title="Kjører 5 batcher à 200 ID-er av by-ID-reparasjonen."
+        >
+          {repairMut.isPending ? "Repair kjøres…" : "Kjør by-ID repair (5×200)"}
+        </button>
+        <button
+          onClick={() => { setLastTrigger(null); refetch(); }}
           disabled={isFetching}
           className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-accent disabled:opacity-50"
         >
           {isFetching ? "Oppdaterer…" : "Oppdater"}
         </button>
       </div>
+      {lastTrigger && (
+        <div
+          className={`mt-3 rounded-md border p-3 text-xs font-mono whitespace-pre-wrap break-all ${
+            lastTrigger.kind === "ok" && lastTrigger.result.ok
+              ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-800"
+              : "border-destructive/40 bg-destructive/5 text-destructive"
+          }`}
+        >
+          {lastTrigger.kind === "ok"
+            ? `${lastTrigger.mode} · HTTP ${lastTrigger.result.http_status} · ${lastTrigger.result.duration_ms} ms\n${lastTrigger.result.body}`
+            : `Feil: ${lastTrigger.message}`}
+        </div>
+      )}
       {isLoading && <p className="mt-6 text-muted-foreground">Laster…</p>}
       {errMessage && <ErrorBox msg={errMessage} />}
       {data && (
         <>
+          <h2 className="mt-6 text-sm font-semibold text-foreground">Upstream (NAV-kilde)</h2>
           <Grid>
-            <Card label="Cron">
+            <Card label="Upstream cron">
+              {up?.fetched_ok ? (
+                data.upstream_cron.jobs.length ? (
+                  <ul className="text-xs font-mono space-y-1 mt-1">
+                    {data.upstream_cron.jobs.map((j) => (
+                      <li key={j.jobname}>
+                        <Badge active={j.active}>{j.active ? "ON" : "OFF"}</Badge>{" "}
+                        <span>{j.jobname}</span>{" "}
+                        <span className="text-muted-foreground">{j.schedule}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <Muted>Ingen cron-jobber rapportert</Muted>
+              ) : <Muted>health unavailable</Muted>}
+            </Card>
+            <Card label="Upstream inventory">
+              {upInv ? (
+                <>
+                  <Big>{upInv.total.toLocaleString("no-NO")}</Big>
+                  <Muted>{upInv.active.toLocaleString("no-NO")} ACTIVE · {upInv.inactive.toLocaleString("no-NO")} INACTIVE</Muted>
+                  <Muted>detail: {upInv.active_with_detail.toLocaleString("no-NO")} / mangler {upInv.active_missing_detail.toLocaleString("no-NO")}</Muted>
+                </>
+              ) : <Muted>—</Muted>}
+            </Card>
+            <Card label="Source event lag">
+              {upInv?.source_event_lag_seconds != null ? (
+                <>
+                  <Big alert={upInv.source_event_lag_seconds > 3600}>
+                    {Math.round(upInv.source_event_lag_seconds / 60)} min
+                  </Big>
+                  <Muted className="font-mono">latest: {fmt(upInv.latest_source_event_at)}</Muted>
+                </>
+              ) : <Muted>—</Muted>}
+            </Card>
+            <Card label="Detail-retry">
+              {dr ? (
+                <>
+                  <Big alert={dr.pending > 0}>{dr.pending}</Big>
+                  <Muted>{dr.abandoned} abandoned</Muted>
+                </>
+              ) : <Muted>—</Muted>}
+            </Card>
+          </Grid>
+
+          <Grid>
+            <Card label="Steady cursor">
+              {ss ? (
+                <>
+                  <div className="text-xs font-mono break-all">{ss.feed_url ?? "—"}</div>
+                  <Muted>ETag: {ss.has_etag ? "✓" : "—"} · pages {ss.pages_fetched ?? "—"}</Muted>
+                  <Muted className="font-mono">heartbeat: {fmt(ss.heartbeat_at)}</Muted>
+                  {ss.error && <div className="mt-1 text-destructive">{ss.error}</div>}
+                </>
+              ) : <Muted>—</Muted>}
+            </Card>
+            <Card label="Reconcile-run">
+              {rc ? (
+                <>
+                  <div className="text-xs font-mono break-all">{rc.run_id ?? "—"}</div>
+                  <Muted>status: {rc.status ?? "—"} · pages {rc.pages_fetched ?? "—"} · events {rc.events_processed?.toLocaleString("no-NO") ?? "—"}</Muted>
+                  <Muted className="font-mono">{rc.current_feed_url ?? "—"}</Muted>
+                  <Muted>tail reached: {rc.tail_reached == null ? "—" : (rc.tail_reached ? "ja" : "nei")} · started {fmt(rc.started_at)}</Muted>
+                </>
+              ) : <Muted>—</Muted>}
+            </Card>
+            <Card label="Upstream/target ACTIVE">
+              {ad ? (
+                <>
+                  <div className="text-xs">upstream: <b>{ad.upstream_active?.toLocaleString("no-NO") ?? "—"}</b></div>
+                  <div className="text-xs">target: <b>{ad.target_active?.toLocaleString("no-NO") ?? "—"}</b></div>
+                  <Big alert={ad.diff != null && Math.abs(ad.diff) > 100}>
+                    {ad.diff != null ? (ad.diff > 0 ? `+${ad.diff}` : `${ad.diff}`) : "—"}
+                  </Big>
+                  <Muted>diff (target − upstream)</Muted>
+                </>
+              ) : <Muted>—</Muted>}
+            </Card>
+            <Card label="Upstream duplikater (external_id)">
+              <Big alert={(upInv?.duplicate_external_ids ?? 0) > 0}>{upInv?.duplicate_external_ids ?? 0}</Big>
+              <Muted>active_expired: {upInv?.active_expired ?? "—"} · uten expiry: {upInv?.active_without_expiry ?? "—"}</Muted>
+            </Card>
+          </Grid>
+
+          <h2 className="mt-8 text-sm font-semibold text-foreground">Target (karrierenmin.no)</h2>
+          <Grid>
+            <Card label="Target cron">
               {data.cron ? (
                 <>
                   <div className="font-mono text-sm">{data.cron.schedule ?? "?"}</div>
@@ -122,17 +271,111 @@ function NavTab() {
                 sync_nav_secret {data.vault.has_sync_nav_secret ? "FUNNET" : "MANGLER"}
               </Badge>
             </Card>
-            <Card label="NAV source_postings">
-              <Big>{data.duplicates.source_postings_nav}</Big>
-              <Muted>{data.duplicates.distinct_external_ids} distinkte external_id</Muted>
+            <Card label="Target inventory">
+              {inv ? (
+                <>
+                  <Big>{inv.total.toLocaleString("no-NO")}</Big>
+                  <Muted>{inv.active.toLocaleString("no-NO")} active · {inv.inactive.toLocaleString("no-NO")} expired</Muted>
+                  <Muted>extent: {inv.active_with_extent.toLocaleString("no-NO")} · engagement: {inv.active_with_engagement.toLocaleString("no-NO")}</Muted>
+                </>
+              ) : <Muted>—</Muted>}
             </Card>
-            <Card label="Duplikater (external_id)">
+            <Card label="Target metadata-dekning">
+              {inv ? (
+                <>
+                  <Big alert={inv.rows_with_event_version < inv.total}>
+                    {inv.rows_with_event_version.toLocaleString("no-NO")}
+                  </Big>
+                  <Muted>av {inv.total.toLocaleString("no-NO")} har source_event_version</Muted>
+                  <Muted>{((inv.rows_with_event_version / Math.max(inv.total, 1)) * 100).toFixed(1)}%</Muted>
+                </>
+              ) : <Muted>—</Muted>}
+            </Card>
+          </Grid>
+
+          <Grid>
+            <Card label="Target ACTIVE detail-dekning">
+              {inv ? (
+                <>
+                  <Big alert={inv.active_missing_detail > 0}>{inv.active_missing_detail}</Big>
+                  <Muted>av {inv.active} ACTIVE mangler nav_detail</Muted>
+                </>
+              ) : <Muted>—</Muted>}
+            </Card>
+            <Card label="Target duplikater (external_id)">
               <Big alert={data.duplicates.duplicate_external_ids.length > 0}>
                 {data.duplicates.duplicate_external_ids.length}
               </Big>
               <Muted>unike id-er med &gt;1 rad</Muted>
             </Card>
+            <Card label="Cursor (target)">
+              <div className="text-xs font-mono break-all">
+                {data.cursor_progress.latest_run_cursor_changed_at ?? "—"}
+              </div>
+              <Muted className="font-mono">id: {data.cursor_progress.latest_run_cursor_external_id ?? "—"}</Muted>
+              <Muted>siste OK cursor-run: {fmt(data.cursor_progress.last_successful_cursor_finished_at)}</Muted>
+            </Card>
+            <Card label="user_opportunities (NAV)">
+              <Big>{data.quality.user_opportunities_nav}</Big>
+              <Muted>card_source = 'nav'</Muted>
+            </Card>
           </Grid>
+
+          <h2 className="mt-8 text-sm font-semibold text-foreground">By-ID-reparasjon</h2>
+          <Grid>
+            <Card label="Aktiv repair-run">
+              {repair?.active ? (
+                <>
+                  <div className="text-xs font-mono break-all">{repair.active.id}</div>
+                  <Muted>start: {fmt(repair.active.started_at)} · status {repair.active.status}</Muted>
+                  <Muted className="font-mono">cursor: {repair.active.cursor_after_external_id || "—"}</Muted>
+                </>
+              ) : <Muted>Ingen aktiv</Muted>}
+            </Card>
+            <Card label="Repair tellere">
+              {repair?.active ? (
+                <ul className="text-xs space-y-0.5">
+                  <li>req: <b>{repair.active.ids_requested}</b> · found: <b>{repair.active.ids_found}</b> · missing: <b>{repair.active.ids_missing}</b></li>
+                  <li>merged: <b>{repair.active.rows_merged}</b> · noop: <b>{repair.active.rows_noop}</b></li>
+                  <li>stale: <b>{repair.active.rows_stale}</b> · failed: <b className={repair.active.rows_failed > 0 ? "text-destructive" : ""}>{repair.active.rows_failed}</b></li>
+                  <li>batches: <b>{repair.active.batches}</b></li>
+                </ul>
+              ) : <Muted>—</Muted>}
+            </Card>
+            <Card label="Forrige repair">
+              {repair?.last_completed ? (
+                <>
+                  <div className="text-xs font-mono break-all">{repair.last_completed.id}</div>
+                  <Muted>{repair.last_completed.status} · {fmt(repair.last_completed.finished_at)}</Muted>
+                </>
+              ) : <Muted>—</Muted>}
+            </Card>
+            <Card label="Health-RPC">
+              <Badge active={up?.fetched_ok ?? false}>
+                {up?.fetched_ok ? "Upstream OK" : "FEIL"}
+              </Badge>
+              {!up?.fetched_ok && up?.error && (
+                <div className="mt-1 text-xs text-destructive break-all">{up.error}</div>
+              )}
+            </Card>
+          </Grid>
+
+          {data.duplicates.duplicate_external_ids.length > 0 && (
+            <section className="mt-6 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+              <h3 className="text-sm font-semibold text-destructive">
+                Duplikate target external_id
+              </h3>
+              <ul className="mt-2 text-xs font-mono space-y-1 max-h-40 overflow-auto">
+                {data.duplicates.duplicate_external_ids.map((d) => (
+                  <li key={d.external_id}>
+                    <span className="text-muted-foreground">{d.count}×</span> {d.external_id}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <h2 className="mt-8 text-sm font-semibold text-foreground">Run history</h2>
           <RunsTable rows={data.runs.map(navRunToRow)} cols={navCols} />
         </>
       )}
