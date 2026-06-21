@@ -696,16 +696,28 @@ async function runRepairMode(
     }
     repairRun = data;
   } else {
-    const { count: total } = await admin
-      .from("source_postings").select("id", { count: "exact", head: true }).eq("source", "nav");
-    const { data, error } = await admin.from("nav_repair_runs").insert({
-      status: "running",
-      cursor_after_external_id: "",
-      total_target_rows: total ?? 0,
-      meta: { batch_size: opts.repair_batch_size },
-    }).select("*").single();
-    if (error) return { errorSummary: `system_error: repair run insert: ${error.message}` };
-    repairRun = data;
+    // Auto-resume the latest 'running' run, otherwise open a new one.
+    const { data: existing } = await admin
+      .from("nav_repair_runs")
+      .select("*")
+      .eq("status", "running")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      repairRun = existing;
+    } else {
+      const { count: total } = await admin
+        .from("source_postings").select("id", { count: "exact", head: true }).eq("source", "nav");
+      const { data, error } = await admin.from("nav_repair_runs").insert({
+        status: "running",
+        cursor_after_external_id: "",
+        total_target_rows: total ?? 0,
+        meta: { batch_size: opts.repair_batch_size },
+      }).select("*").single();
+      if (error) return { errorSummary: `system_error: repair run insert: ${error.message}` };
+      repairRun = data;
+    }
   }
 
   let cursorAfter: string = repairRun.cursor_after_external_id ?? "";
