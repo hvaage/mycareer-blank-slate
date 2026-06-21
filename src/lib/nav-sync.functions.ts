@@ -242,39 +242,12 @@ function sanitizeUpstreamHealth(raw: any): NavUpstreamHealth {
   };
 }
 
-// --- Trigger from admin UI --------------------------------------------------
+// --- Trigger removed -------------------------------------------------------
+// /admin/sync is fully read-only. Repair runs are driven automatically by
+// pg_cron job nav-target-repair-3min (SECURITY DEFINER dispatcher), and
+// cursor-sync continues via nav-sync-30min. No client-callable mutation.
 
-export type TriggerNavSyncResult = {
-  ok: boolean;
-  http_status: number;
-  duration_ms: number;
-  body: string;
-};
 
-export const triggerNavSync = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { mode?: "cursor" | "repair_by_ids"; repair_batch_size?: number; max_batches?: number; repair_run_id?: string }) => input ?? {})
-  .handler(async ({ data, context }): Promise<TriggerNavSyncResult> => {
-    const { userId } = context as { userId: string };
-    await assertAdmin(userId);
-    const url = process.env.SUPABASE_URL;
-    const secret = process.env.SYNC_NAV_SECRET;
-    if (!url || !secret) throw new Error("missing SUPABASE_URL or SYNC_NAV_SECRET");
-    const t0 = Date.now();
-    const body = {
-      mode: data?.mode ?? "cursor",
-      ...(data?.repair_batch_size ? { repair_batch_size: data.repair_batch_size } : {}),
-      ...(data?.max_batches ? { max_batches: data.max_batches } : {}),
-      ...(data?.repair_run_id ? { repair_run_id: data.repair_run_id } : {}),
-    };
-    const r = await fetch(`${url}/functions/v1/sync-nav-opportunities`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-sync-nav-secret": secret },
-      body: JSON.stringify(body),
-    });
-    const text = await r.text();
-    return { ok: r.ok, http_status: r.status, duration_ms: Date.now() - t0, body: text.slice(0, 2000) };
-  });
 
 // --- Main status server fn --------------------------------------------------
 
