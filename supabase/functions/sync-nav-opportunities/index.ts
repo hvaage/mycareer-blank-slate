@@ -900,23 +900,21 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // Concurrency guard scoped per-mode (cursor vs repair_by_ids).
-  const staleCutoff = new Date(Date.now() - STALE_LOCK_MINUTES * 60_000).toISOString();
-  const { data: inflightAll } = await admin
-    .from("nav_sync_runs")
-    .select("id, started_at, meta")
-    .is("finished_at", null)
-    .gte("started_at", staleCutoff)
-    .order("started_at", { ascending: false })
-    .limit(10);
-  const sameModeInflight = (inflightAll ?? []).find((r: any) =>
-    String(r?.meta?.mode ?? "cursor") === mode);
-  if (sameModeInflight) {
+  // Global target writer lease — single serializer across cursor + repair_by_ids.
+  // We claim BEFORE inserting a run row so already_running paths leave no side effects.
+  const probeId = crypto.randomUUID();
+  const probe = await claimLease(admin, probeId, mode);
+  if (!probe.ok) {
     return json({
       ok: true, status: "already_running", mode,
-      inflight_run_id: sameModeInflight.id, started_at: sameModeInflight.started_at,
+      lease: {
+        owner_run_id: probe.owner_run_id ?? null,
+        owner_mode: probe.owner_mode ?? null,
+        expires_at: probe.expires_at ?? null,
+      },
     });
   }
+
 
   // Last successful cursor-mode run is the source of cursor tuple.
   const { data: lastDone } = await admin
