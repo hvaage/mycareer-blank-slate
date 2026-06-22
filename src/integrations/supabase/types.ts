@@ -4932,6 +4932,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _careerjet_canonical_recompute_live_until: {
+        Args: { p_canonical: string }
+        Returns: Json
+      }
       _careerjet_is_visible: {
         Args: { p_identity_role: string; p_superseded_by: string }
         Returns: boolean
@@ -4959,6 +4963,10 @@ export type Database = {
       careerjet_canonical_has_visible: {
         Args: { p_canonical: string }
         Returns: boolean
+      }
+      careerjet_canonicalize_thread: {
+        Args: { p_fencing_token: number; p_run_id: string; p_thread_id: string }
+        Returns: Json
       }
       careerjet_identity_repair_progress: {
         Args: never
