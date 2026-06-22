@@ -345,6 +345,27 @@ async function syncCanonicalCareerjetRow(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  // ============================================================
+  // A1/A5 Careerjet identity resolver rollout — write-path disabled.
+  // This function previously wrote to source_postings, canonical_opportunities,
+  // opportunity_source_links and user_opportunities per user fetch. During the
+  // identity resolver rollout the only sanctioned Careerjet writer is the
+  // fenced sync edge function calling careerjet_resolve_listing.
+  // Existing leads remain readable via list_user_job_opportunities.
+  // To re-enable: remove this guard once first_sight rows have an idempotent
+  // canonical + visible-keeper link path through a fenced DB RPC.
+  // ============================================================
+  return new Response(
+    JSON.stringify({
+      disabled: true,
+      reason: "careerjet_resolver_rollout",
+      ok: false,
+      message: "Careerjet-henting er midlertidig pauset under identity-resolverutrullingen.",
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+
+
   const serviceClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
