@@ -30,11 +30,17 @@ export type CareerjetRunRow = {
   cursor_term: string | null;
   cursor_page: number | null;
   meta: any;
+  // S6: replay-runs stay visible in the run history but must NOT be treated
+  // as "latest Careerjet sync" by the admin status card.
+  is_replay: boolean;
+  source_run_id: string | null;
 };
 
 export type CareerjetSyncStatus = {
   now: string;
   runs: CareerjetRunRow[];
+  /** S6: most recent run where meta->>'mode' IS DISTINCT FROM 'replay'. */
+  latest_non_replay_run: CareerjetRunRow | null;
   cron: { jobname: string; schedule: string | null; active: boolean | null } | null;
   vault: { has_sync_careerjet_secret: boolean };
   duplicates: {
@@ -83,6 +89,8 @@ export const getCareerjetSyncStatus = createServerFn({ method: "GET" })
       const start = r.started_at ? new Date(r.started_at).getTime() : null;
       const end = r.finished_at ? new Date(r.finished_at).getTime() : null;
       const apiErrors = Array.isArray(r.api_errors) ? r.api_errors : [];
+      const metaMode = typeof r.meta?.mode === "string" ? r.meta.mode : null;
+      const sourceRunId = typeof r.meta?.source_run_id === "string" ? r.meta.source_run_id : null;
       return {
         id: r.id,
         started_at: r.started_at,
@@ -100,8 +108,13 @@ export const getCareerjetSyncStatus = createServerFn({ method: "GET" })
         cursor_term: r.cursor_term ?? null,
         cursor_page: r.cursor_page ?? null,
         meta: r.meta ?? {},
+        is_replay: metaMode === "replay",
+        source_run_id: sourceRunId,
       };
     });
+
+    // S6: "latest Careerjet sync" must exclude replay-runs.
+    const latest_non_replay_run = enriched.find((r) => !r.is_replay) ?? null;
 
     let cron: CareerjetSyncStatus["cron"] = null;
     try {

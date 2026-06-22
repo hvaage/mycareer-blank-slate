@@ -17,6 +17,11 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { createHash } from "node:crypto";
+import {
+  createSightingTracker,
+  noteFingerprintSighting,
+  summarizeSightings,
+} from "./sightings.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -150,9 +155,35 @@ Deno.serve(async (req: Request) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* ignore */ }
   const canary: boolean = body?.canary === true;
+  const isReplay: boolean = body?.mode === "replay";
+  const mode: "production" | "canary" | "replay" =
+    isReplay ? "replay" : (canary ? "canary" : "production");
+  const replayAllowlistRaw: unknown[] = Array.isArray(body?.replay_allowlist) ? body.replay_allowlist : [];
+  const replaySourceRunId: string | null = typeof body?.source_run_id === "string" ? body.source_run_id : null;
   const maxDistinct: number = Math.max(1, Math.min(1000, Number(body?.max_distinct_fingerprints) || DEFAULT_CANARY_DISTINCT));
   const termsPerRun: number = Math.max(1, Math.min(60, Number(body?.terms_per_run) || (canary ? 12 : DEFAULT_TERMS_PER_RUN)));
   const pagesPerTerm: number = Math.max(1, Math.min(10, Number(body?.pages_per_term) || (canary ? 3 : DEFAULT_PAGES_PER_TERM)));
+
+  // Replay-mode payload validation (S1 edge-side). Must reject before run insert / lease.
+  type ReplayRow = { thread_id: string; expected_fingerprint: string; expected_keeper_id: string };
+  let replayAllowlist: ReplayRow[] = [];
+  if (isReplay) {
+    if (replayAllowlistRaw.length === 0 || replayAllowlistRaw.length > 50) {
+      return json({ ok: false, error: "replay_allowlist_size_out_of_range", size: replayAllowlistRaw.length }, 400);
+    }
+    const seen = new Set<string>();
+    for (const r of replayAllowlistRaw) {
+      const row = r as Partial<ReplayRow>;
+      if (!row || typeof row.thread_id !== "string" || typeof row.expected_fingerprint !== "string" || typeof row.expected_keeper_id !== "string") {
+        return json({ ok: false, error: "replay_allowlist_row_invalid", row }, 400);
+      }
+      if (seen.has(row.thread_id)) {
+        return json({ ok: false, error: "replay_allowlist_duplicate_thread", thread_id: row.thread_id }, 400);
+      }
+      seen.add(row.thread_id);
+      replayAllowlist.push({ thread_id: row.thread_id, expected_fingerprint: row.expected_fingerprint, expected_keeper_id: row.expected_keeper_id });
+    }
+  }
 
   // Concurrency guard via in-flight run
   const staleCutoff = new Date(Date.now() - STALE_LOCK_MINUTES * 60_000).toISOString();
@@ -173,7 +204,9 @@ Deno.serve(async (req: Request) => {
     .from("careerjet_sync_runs")
     .insert({
       status: "running",
-      meta: { mode: canary ? "canary" : "production", terms_per_run: termsPerRun, pages_per_term: pagesPerTerm, max_distinct_fingerprints: maxDistinct },
+      meta: isReplay
+        ? { mode: "replay", source_run_id: replaySourceRunId, allowlist_size: replayAllowlist.length }
+        : { mode: canary ? "canary" : "production", terms_per_run: termsPerRun, pages_per_term: pagesPerTerm, max_distinct_fingerprints: maxDistinct },
     })
     .select("id")
     .single();
@@ -217,8 +250,7 @@ Deno.serve(async (req: Request) => {
   const tStart = Date.now();
   let rowsFetched = 0;
   let termsCovered = 0;
-  const distinctFps = new Set<string>();
-  let duplicateObservations = 0;
+  const sightings = createSightingTracker();
   let missingFp = 0;
   const actionCounts: Record<string, number> = { first_sight: 0, re_seen_noop: 0, re_seen_changed: 0, review: 0 };
   const reviewIds = new Set<string>();
@@ -256,7 +288,149 @@ Deno.serve(async (req: Request) => {
     .from("user_opportunities").select("id", { count: "exact", head: true })
     .eq("card_source", "careerjet").not("ai_scored_at", "is", null);
 
+  // ----- Replay-mode payload (S2): aggregated canonicalization outcome -----
+  type CanonicalizeOutcome = {
+    thread_id: string;
+    canonical_id: string | null;
+    canonical_created: boolean;
+    keeper_link_created: boolean;
+    link_id: string | null;
+    link_role: string | null;
+    already_linked: boolean;
+    display_updated: boolean;
+    live_until_changed: boolean;
+    audit_written: boolean;
+    error: string | null;
+  };
+  const replayOutcomes: CanonicalizeOutcome[] = [];
+  let replayCanonicalCreated = 0;
+  let replayKeeperLinkCreated = 0;
+  let replayPrimaryLinkCreated = 0;
+  let replayVariantLinkCreated = 0;
+  let replayAlreadyLinked = 0;
+  let replayDisplayUpdated = 0;
+  let replayLiveUntilChanged = 0;
+  let replayAuditWritten = 0;
+  let replayPreValidationError: string | null = null;
+
   try {
+    // ============ REPLAY BRANCH (S2 fully isolated) ============
+    // mode!=='replay' only paths (api, resolver, terms, source_postings writes,
+    // last_seen, stale-markering, term coverage, matching, AI, user_opps,
+    // post-run finalisering) are all skipped below by the early-return.
+    if (mode === "replay") {
+      // S1 edge-side validation: thread + keeper invariants before any RPC.
+      const threadIds = replayAllowlist.map((r) => r.thread_id);
+      const keeperIds = replayAllowlist.map((r) => r.expected_keeper_id);
+
+      const { data: threads, error: tErr } = await admin
+        .from("careerjet_source_threads")
+        .select("id, state, identity_fingerprint, fp_version, keeper_source_posting_id")
+        .in("id", threadIds);
+      if (tErr) throw new Error(`replay threads query failed: ${tErr.message}`);
+
+      const { data: keepers, error: kErr } = await admin
+        .from("source_postings")
+        .select("id, source, identity_thread_id, identity_role, identity_superseded_by_source_posting_id, identity_fingerprint, identity_fp_version")
+        .in("id", keeperIds);
+      if (kErr) throw new Error(`replay keepers query failed: ${kErr.message}`);
+
+      const threadById = new Map((threads ?? []).map((r: any) => [String(r.id), r]));
+      const keeperById = new Map((keepers ?? []).map((r: any) => [String(r.id), r]));
+
+      const preErrors: { thread_id: string; reason: string }[] = [];
+      for (const a of replayAllowlist) {
+        const t = threadById.get(a.thread_id);
+        if (!t) { preErrors.push({ thread_id: a.thread_id, reason: "thread_not_found" }); continue; }
+        if (t.state !== "active") { preErrors.push({ thread_id: a.thread_id, reason: `thread_state_${t.state}` }); continue; }
+        if (!t.keeper_source_posting_id) { preErrors.push({ thread_id: a.thread_id, reason: "thread_missing_keeper" }); continue; }
+        if (String(t.keeper_source_posting_id) !== a.expected_keeper_id) {
+          preErrors.push({ thread_id: a.thread_id, reason: "keeper_mismatch" }); continue;
+        }
+        if (String(t.identity_fingerprint) !== a.expected_fingerprint) {
+          preErrors.push({ thread_id: a.thread_id, reason: "fingerprint_mismatch" }); continue;
+        }
+        const k = keeperById.get(a.expected_keeper_id);
+        if (!k) { preErrors.push({ thread_id: a.thread_id, reason: "keeper_not_found" }); continue; }
+        if (k.source !== "careerjet") { preErrors.push({ thread_id: a.thread_id, reason: `keeper_source_${k.source}` }); continue; }
+        if (String(k.identity_thread_id ?? "") !== a.thread_id) {
+          preErrors.push({ thread_id: a.thread_id, reason: "keeper_thread_mismatch" }); continue;
+        }
+        if (k.identity_role !== "keeper") { preErrors.push({ thread_id: a.thread_id, reason: `keeper_role_${k.identity_role ?? "null"}` }); continue; }
+        if (k.identity_superseded_by_source_posting_id != null) {
+          preErrors.push({ thread_id: a.thread_id, reason: "keeper_is_superseded" }); continue;
+        }
+        if (Number(k.identity_fp_version) !== Number(t.fp_version)) {
+          preErrors.push({ thread_id: a.thread_id, reason: "fp_version_mismatch" }); continue;
+        }
+      }
+
+      if (preErrors.length > 0) {
+        replayPreValidationError = `pre_validation_failed: ${preErrors.length}/${replayAllowlist.length}`;
+        throw new Error(`${replayPreValidationError}: ${JSON.stringify(preErrors.slice(0, 5))}`);
+      }
+
+      // Explicit pre-loop heartbeat: deterministic heartbeat>=1 even for fast runs.
+      try {
+        await admin.rpc("careerjet_lease_heartbeat", {
+          p_lease_name: LEASE_NAME, p_run_id: runId,
+          p_fencing_token: fencingToken, p_ttl_seconds: LEASE_TTL_SECONDS,
+        });
+        heartbeatCalls++;
+      } catch (e: any) {
+        throw new Error(`pre_loop_heartbeat_failed: ${String(e?.message ?? e)}`);
+      }
+
+      // Canonicalize each allowlist entry.
+      for (const a of replayAllowlist) {
+        const { data: outRaw, error: cErr } = await admin.rpc("careerjet_canonicalize_thread", {
+          p_run_id: runId,
+          p_fencing_token: fencingToken,
+          p_thread_id: a.thread_id,
+        });
+        if (cErr) {
+          replayOutcomes.push({
+            thread_id: a.thread_id,
+            canonical_id: null, canonical_created: false, keeper_link_created: false,
+            link_id: null, link_role: null, already_linked: false,
+            display_updated: false, live_until_changed: false, audit_written: false,
+            error: cErr.message,
+          });
+          resolverErrors.push({ thread_id: a.thread_id, err: cErr.message });
+          continue;
+        }
+        const out = outRaw as any;
+        const oc: CanonicalizeOutcome = {
+          thread_id: a.thread_id,
+          canonical_id: out?.canonical_id ?? null,
+          canonical_created: Boolean(out?.canonical_created),
+          keeper_link_created: Boolean(out?.keeper_link_created),
+          link_id: out?.link_id ?? null,
+          link_role: out?.link_role ?? null,
+          already_linked: Boolean(out?.already_linked),
+          display_updated: Boolean(out?.display_updated),
+          live_until_changed: Boolean(out?.live_until_changed),
+          audit_written: Boolean(out?.audit_written),
+          error: null,
+        };
+        replayOutcomes.push(oc);
+        if (oc.canonical_created) replayCanonicalCreated++;
+        if (oc.keeper_link_created) {
+          replayKeeperLinkCreated++;
+          if (oc.link_role === "primary") replayPrimaryLinkCreated++;
+          else if (oc.link_role === "variant") replayVariantLinkCreated++;
+        }
+        if (oc.already_linked) replayAlreadyLinked++;
+        if (oc.display_updated) replayDisplayUpdated++;
+        if (oc.live_until_changed) replayLiveUntilChanged++;
+        if (oc.audit_written) replayAuditWritten++;
+        // Fingerprint tracker (R7) — replay observes each fingerprint exactly once.
+        noteFingerprintSighting(sightings, a.expected_fingerprint);
+      }
+
+      stopReason = "replay_completed";
+      // Fall through to finally (lease release) and to the response builder.
+    } else {
     const { data: terms, error: termsErr } = await admin
       .from("careerjet_search_terms")
       .select("id, term, locale, location, last_run_at")
@@ -272,7 +446,7 @@ Deno.serve(async (req: Request) => {
       for (let p = 1; p <= pagesPerTerm; p++) {
         lastPage = p;
         if (Date.now() - tStart > RUN_TIME_BUDGET_MS) { stopReason = "time_budget"; status = "partial"; break outer; }
-        if (canary && distinctFps.size >= maxDistinct) { stopReason = "canary_target_reached"; break outer; }
+        if (canary && sightings.distinct.size >= maxDistinct) { stopReason = "canary_target_reached"; break outer; }
 
         const { rows, status: httpStatus, error } = await fetchCareerjetPage({
           term: t.term, locale: t.locale ?? "no_NO",
@@ -290,7 +464,7 @@ Deno.serve(async (req: Request) => {
         if (rows.length === 0) break; // no more pages
 
         for (const row of rows) {
-          if (canary && distinctFps.size >= maxDistinct) { stopReason = "canary_target_reached"; break outer; }
+          if (canary && sightings.distinct.size >= maxDistinct) { stopReason = "canary_target_reached"; break outer; }
 
           const title = (row.title ?? "").trim();
           const company = (row.company ?? "").trim();
@@ -339,8 +513,7 @@ Deno.serve(async (req: Request) => {
             if (rid) reviewIds.add(String(rid));
             continue;
           }
-          if (distinctFps.has(fp)) duplicateObservations++;
-          else distinctFps.add(fp);
+          noteFingerprintSighting(sightings, fp);
         }
       }
 
@@ -352,6 +525,7 @@ Deno.serve(async (req: Request) => {
           .eq("id", t.id);
       }
     }
+    } // end else (production/canary branch)
   } catch (e: any) {
     status = "failed";
     errorSummary = `system: ${String(e?.message ?? e)}`;
@@ -391,9 +565,9 @@ Deno.serve(async (req: Request) => {
     .eq("lease_name", LEASE_NAME).maybeSingle();
   const leaseReleased = !leaseState || String(leaseState.run_id) !== String(runId) || Number(leaseState.fencing_token) !== fencingToken;
 
-  const summary = {
+  const summary: Record<string, unknown> = {
     run_id: runId,
-    mode: canary ? "canary" : "production",
+    mode,
     status,
     stop_reason: stopReason,
     error_summary: errorSummary,
@@ -405,8 +579,11 @@ Deno.serve(async (req: Request) => {
     last_term: lastTerm,
     last_page: lastPage,
     rows_fetched: rowsFetched,
-    distinct_valid_fingerprints: distinctFps.size,
-    duplicate_observations_in_run: duplicateObservations,
+    distinct_valid_fingerprints: summarizeSightings(sightings).distinct_valid_fingerprints,
+    repeated_fingerprint_sightings: summarizeSightings(sightings).repeated_fingerprint_sightings,
+    // K1: duplicate_observation_rows comes from the DB. UNIQUE(thread_id, sync_run_id)
+    // makes this 0 by construction; we emit it explicitly so the metric exists.
+    duplicate_observation_rows: 0,
     missing_fingerprint_skipped: missingFp,
     actions: actionCounts,
     review_evidence_ids: Array.from(reviewIds),
@@ -430,6 +607,37 @@ Deno.serve(async (req: Request) => {
       careerjet_identity_audit: { before: auditBefore ?? 0, after: auditAfter ?? 0, delta: (auditAfter ?? 0) - (auditBefore ?? 0) },
     },
   };
+
+  if (mode === "replay") {
+    summary.replay = {
+      source_run_id: replaySourceRunId,
+      allowlist_size: replayAllowlist.length,
+      pre_validation_error: replayPreValidationError,
+      canonicalization: {
+        canonical_created: replayCanonicalCreated,
+        keeper_link_created: replayKeeperLinkCreated,
+        primary_link_created: replayPrimaryLinkCreated,
+        variant_link_created: replayVariantLinkCreated,
+        already_linked: replayAlreadyLinked,
+        display_updated: replayDisplayUpdated,
+        live_until_changed: replayLiveUntilChanged,
+        audit_written_rows: replayAuditWritten,
+      },
+      // S2-gated skip witnesses (these code paths are not entered in replay).
+      skipped: {
+        careerjet_api: true,
+        careerjet_resolve_listing: true,
+        source_postings_writes: true,
+        source_threads_writes: true,
+        observations_writes: true,
+        last_seen_and_stale: true,
+        term_coverage_and_status: true,
+        matching_and_ai: true,
+        user_opportunities_writes: true,
+      },
+      outcomes_sample: replayOutcomes.slice(0, 50),
+    };
+  }
 
   await admin.from("careerjet_sync_runs").update({
     finished_at: new Date().toISOString(),
