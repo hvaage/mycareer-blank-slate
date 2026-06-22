@@ -204,6 +204,7 @@ export const getCareerjetSyncStatus = createServerFn({ method: "GET" })
     return {
       now: new Date().toISOString(),
       runs: enriched,
+      latest_non_replay_run,
       cron,
       vault,
       duplicates: {
