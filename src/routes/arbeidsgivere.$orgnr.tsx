@@ -81,6 +81,16 @@ function DetailPage() {
       <div className="mb-4">
         <Link
           to="/arbeidsgivere"
+          search={{
+            q: "",
+            kommuneQuery: "",
+            bransjeQuery: "",
+            fylke: "",
+            kommune: "",
+            nace: "",
+            type: "",
+            page: 1,
+          }}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" /> Tilbake til arbeidsgiversøk
