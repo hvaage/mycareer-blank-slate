@@ -256,6 +256,17 @@ Deno.serve(async (req: Request) => {
   const reviewIds = new Set<string>();
   const apiErrors: any[] = [];
   const resolverErrors: any[] = [];
+  // Rev. 5 §3: any canonicalize-failure inside the resolver RPC marks the
+  // run as having system errors and blocks stale-expiry for this run.
+  let canonicalizeSystemErrors = 0;
+  // Rev. 5 §4: production canonicalize metrics (nested in resolver result).
+  let prodCanonicalCreated = 0;
+  let prodKeeperLinkCreated = 0;
+  let prodPrimaryLinkCreated = 0;
+  let prodVariantLinkCreated = 0;
+  let prodAlreadyLinked = 0;
+  let prodDisplayUpdated = 0;
+  let prodLiveUntilChanged = 0;
   let heartbeatCalls = 0; // counted via interval
   let lastTerm: string | null = null;
   let lastPage: number | null = null;
@@ -503,7 +514,10 @@ Deno.serve(async (req: Request) => {
           });
 
           if (rErr) {
-            resolverErrors.push({ fp, err: rErr.message });
+            const msg = String(rErr.message ?? "");
+            const isCanon = /canonicaliz|lease_lost|thread_|keeper_|canonical_|link_/.test(msg);
+            if (isCanon) canonicalizeSystemErrors++;
+            resolverErrors.push({ fp, err: msg, kind: isCanon ? "system_error" : "resolver_error" });
             continue;
           }
           const action = String((rRes as any)?.action ?? "unknown");
@@ -512,6 +526,19 @@ Deno.serve(async (req: Request) => {
             const rid = (rRes as any)?.review_id;
             if (rid) reviewIds.add(String(rid));
             continue;
+          }
+          // Rev. 5 §4: aggregate nested canonicalization result from prod resolver.
+          const c = (rRes as any)?.canonicalization;
+          if (c && typeof c === "object") {
+            if (c.canonical_created) prodCanonicalCreated++;
+            if (c.keeper_link_created) {
+              prodKeeperLinkCreated++;
+              if (c.link_role === "primary") prodPrimaryLinkCreated++;
+              else if (c.link_role === "variant") prodVariantLinkCreated++;
+            }
+            if (c.already_linked) prodAlreadyLinked++;
+            if (c.display_updated) prodDisplayUpdated++;
+            if (c.live_until_changed) prodLiveUntilChanged++;
           }
           noteFingerprintSighting(sightings, fp);
         }
@@ -590,6 +617,21 @@ Deno.serve(async (req: Request) => {
     api_errors_count: apiErrors.length,
     resolver_errors_count: resolverErrors.length,
     resolver_errors_sample: resolverErrors.slice(0, 5),
+    // Rev. 5 §3: when any canonicalize-failure occurred this run, stale-expiry
+    // must NOT be run. This function never calls mark_stale_careerjet_postings,
+    // but we publish the gate so the contract is visible to operators / future cron.
+    canonicalize_system_errors: canonicalizeSystemErrors,
+    stale_expiry_blocked: canonicalizeSystemErrors > 0,
+    // Rev. 5 §4: production canonicalize metrics (nested resolver result).
+    canonicalize: {
+      canonical_created: prodCanonicalCreated,
+      keeper_link_created: prodKeeperLinkCreated,
+      primary_link_created: prodPrimaryLinkCreated,
+      variant_link_created: prodVariantLinkCreated,
+      already_linked: prodAlreadyLinked,
+      display_updated: prodDisplayUpdated,
+      live_until_changed: prodLiveUntilChanged,
+    },
     lease: { name: LEASE_NAME, fencing_token: fencingToken, ttl_seconds: LEASE_TTL_SECONDS, released: leaseReleased, heartbeat_calls: heartbeatCalls },
     audit_rows_inserted: (auditAfter ?? 0) - (auditBefore ?? 0),
     invariants: {
