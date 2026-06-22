@@ -256,6 +256,17 @@ Deno.serve(async (req: Request) => {
   const reviewIds = new Set<string>();
   const apiErrors: any[] = [];
   const resolverErrors: any[] = [];
+  // Rev. 5 §3: any canonicalize-failure inside the resolver RPC marks the
+  // run as having system errors and blocks stale-expiry for this run.
+  let canonicalizeSystemErrors = 0;
+  // Rev. 5 §4: production canonicalize metrics (nested in resolver result).
+  let prodCanonicalCreated = 0;
+  let prodKeeperLinkCreated = 0;
+  let prodPrimaryLinkCreated = 0;
+  let prodVariantLinkCreated = 0;
+  let prodAlreadyLinked = 0;
+  let prodDisplayUpdated = 0;
+  let prodLiveUntilChanged = 0;
   let heartbeatCalls = 0; // counted via interval
   let lastTerm: string | null = null;
   let lastPage: number | null = null;
