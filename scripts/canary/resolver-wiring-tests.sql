@@ -67,8 +67,8 @@ BEGIN
   INSERT INTO public.careerjet_sync_runs (id, status, meta)
   VALUES (v_run_id, 'running', jsonb_build_object('mode','resolver_wiring_test'));
 
-  SELECT (public.careerjet_lease_claim('careerjet_global', v_run_id, 600))::bigint
-    INTO v_token;
+  SELECT fencing_token INTO v_token
+    FROM public.careerjet_lease_claim('careerjet_global', v_run_id, 600);
   PERFORM pg_temp.must('lease_claimed', v_token IS NOT NULL AND v_token > 0);
 
   v_post_in := jsonb_build_object(
