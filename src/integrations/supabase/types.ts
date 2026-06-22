@@ -529,6 +529,302 @@ export type Database = {
         }
         Relationships: []
       }
+      careerjet_identity_audit: {
+        Row: {
+          action: string
+          after_jsonb: Json | null
+          before_jsonb: Json | null
+          created_at: string
+          fencing_token: number | null
+          id: string
+          repair_run_id: string | null
+          run_id: string | null
+          source_posting_id: string | null
+          thread_id: string | null
+        }
+        Insert: {
+          action: string
+          after_jsonb?: Json | null
+          before_jsonb?: Json | null
+          created_at?: string
+          fencing_token?: number | null
+          id?: string
+          repair_run_id?: string | null
+          run_id?: string | null
+          source_posting_id?: string | null
+          thread_id?: string | null
+        }
+        Update: {
+          action?: string
+          after_jsonb?: Json | null
+          before_jsonb?: Json | null
+          created_at?: string
+          fencing_token?: number | null
+          id?: string
+          repair_run_id?: string | null
+          run_id?: string | null
+          source_posting_id?: string | null
+          thread_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "careerjet_identity_audit_repair_run_id_fkey"
+            columns: ["repair_run_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_identity_repair_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "careerjet_identity_audit_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "careerjet_identity_audit_source_posting_id_fkey"
+            columns: ["source_posting_id"]
+            isOneToOne: false
+            referencedRelation: "source_postings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "careerjet_identity_audit_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_source_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      careerjet_identity_repair_runs: {
+        Row: {
+          cursor_after_fingerprint: string | null
+          finished_at: string | null
+          id: string
+          ids_adopted: number
+          ids_failed: number
+          ids_requested: number
+          ids_reviewed: number
+          ids_superseded: number
+          ids_unprocessed: number
+          meta: Json
+          started_at: string
+          status: string
+          total_fingerprints: number
+        }
+        Insert: {
+          cursor_after_fingerprint?: string | null
+          finished_at?: string | null
+          id?: string
+          ids_adopted?: number
+          ids_failed?: number
+          ids_requested?: number
+          ids_reviewed?: number
+          ids_superseded?: number
+          ids_unprocessed?: number
+          meta?: Json
+          started_at?: string
+          status?: string
+          total_fingerprints?: number
+        }
+        Update: {
+          cursor_after_fingerprint?: string | null
+          finished_at?: string | null
+          id?: string
+          ids_adopted?: number
+          ids_failed?: number
+          ids_requested?: number
+          ids_reviewed?: number
+          ids_superseded?: number
+          ids_unprocessed?: number
+          meta?: Json
+          started_at?: string
+          status?: string
+          total_fingerprints?: number
+        }
+        Relationships: []
+      }
+      careerjet_identity_review: {
+        Row: {
+          evidence: Json
+          identity_fingerprint: string | null
+          opened_at: string
+          reason: string
+          resolved_at: string | null
+          review_id: string
+          status: string
+          thread_id: string | null
+        }
+        Insert: {
+          evidence?: Json
+          identity_fingerprint?: string | null
+          opened_at?: string
+          reason: string
+          resolved_at?: string | null
+          review_id?: string
+          status?: string
+          thread_id?: string | null
+        }
+        Update: {
+          evidence?: Json
+          identity_fingerprint?: string | null
+          opened_at?: string
+          reason?: string
+          resolved_at?: string | null
+          review_id?: string
+          status?: string
+          thread_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "careerjet_identity_review_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_source_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      careerjet_identity_review_candidates: {
+        Row: {
+          added_at: string
+          review_id: string
+          source_posting_id: string
+        }
+        Insert: {
+          added_at?: string
+          review_id: string
+          source_posting_id: string
+        }
+        Update: {
+          added_at?: string
+          review_id?: string
+          source_posting_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "careerjet_identity_review_candidates_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_identity_review"
+            referencedColumns: ["review_id"]
+          },
+          {
+            foreignKeyName: "careerjet_identity_review_candidates_source_posting_id_fkey"
+            columns: ["source_posting_id"]
+            isOneToOne: false
+            referencedRelation: "source_postings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      careerjet_identity_review_observations: {
+        Row: {
+          id: string
+          idempotency_key: string
+          observed_at: string
+          raw_payload: Json | null
+          raw_url: string | null
+          review_id: string
+          sync_run_id: string | null
+        }
+        Insert: {
+          id?: string
+          idempotency_key: string
+          observed_at?: string
+          raw_payload?: Json | null
+          raw_url?: string | null
+          review_id: string
+          sync_run_id?: string | null
+        }
+        Update: {
+          id?: string
+          idempotency_key?: string
+          observed_at?: string
+          raw_payload?: Json | null
+          raw_url?: string | null
+          review_id?: string
+          sync_run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "careerjet_identity_review_observations_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_identity_review"
+            referencedColumns: ["review_id"]
+          },
+          {
+            foreignKeyName: "careerjet_identity_review_observations_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      careerjet_observation_aliases: {
+        Row: {
+          first_seen_at: string
+          observation_id: string
+          raw_url_hash: string
+          raw_url_norm: string
+          raw_url_sample: string
+        }
+        Insert: {
+          first_seen_at?: string
+          observation_id: string
+          raw_url_hash: string
+          raw_url_norm: string
+          raw_url_sample: string
+        }
+        Update: {
+          first_seen_at?: string
+          observation_id?: string
+          raw_url_hash?: string
+          raw_url_norm?: string
+          raw_url_sample?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "careerjet_observation_aliases_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_source_observations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      careerjet_observation_terms: {
+        Row: {
+          cursor_term: string
+          first_seen_at: string
+          observation_id: string
+          rank_in_term: number | null
+        }
+        Insert: {
+          cursor_term: string
+          first_seen_at?: string
+          observation_id: string
+          rank_in_term?: number | null
+        }
+        Update: {
+          cursor_term?: string
+          first_seen_at?: string
+          observation_id?: string
+          rank_in_term?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "careerjet_observation_terms_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_source_observations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       careerjet_search_terms: {
         Row: {
           active: boolean
@@ -567,6 +863,130 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      careerjet_source_observations: {
+        Row: {
+          alias_count: number
+          classification: string
+          id: string
+          observed_at: string
+          stable_content_hash: string | null
+          sync_run_id: string
+          term_count: number
+          thread_id: string
+          was_changed: boolean
+        }
+        Insert: {
+          alias_count?: number
+          classification: string
+          id?: string
+          observed_at?: string
+          stable_content_hash?: string | null
+          sync_run_id: string
+          term_count?: number
+          thread_id: string
+          was_changed: boolean
+        }
+        Update: {
+          alias_count?: number
+          classification?: string
+          id?: string
+          observed_at?: string
+          stable_content_hash?: string | null
+          sync_run_id?: string
+          term_count?: number
+          thread_id?: string
+          was_changed?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "careerjet_source_observations_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "careerjet_source_observations_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_source_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      careerjet_source_threads: {
+        Row: {
+          created_at: string
+          first_seen_run_id: string | null
+          fp_version: number
+          generation: number
+          id: string
+          identity_fingerprint: string
+          keeper_source_posting_id: string
+          last_seen_at: string | null
+          last_seen_run_id: string | null
+          stable_content_hash: string | null
+          stable_content_hash_version: number
+          state: string
+          thread_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          first_seen_run_id?: string | null
+          fp_version?: number
+          generation?: number
+          id?: string
+          identity_fingerprint: string
+          keeper_source_posting_id: string
+          last_seen_at?: string | null
+          last_seen_run_id?: string | null
+          stable_content_hash?: string | null
+          stable_content_hash_version?: number
+          state?: string
+          thread_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          first_seen_run_id?: string | null
+          fp_version?: number
+          generation?: number
+          id?: string
+          identity_fingerprint?: string
+          keeper_source_posting_id?: string
+          last_seen_at?: string | null
+          last_seen_run_id?: string | null
+          stable_content_hash?: string | null
+          stable_content_hash_version?: number
+          state?: string
+          thread_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "careerjet_threads_first_run_fk"
+            columns: ["first_seen_run_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "careerjet_threads_keeper_fk"
+            columns: ["keeper_source_posting_id"]
+            isOneToOne: false
+            referencedRelation: "source_postings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "careerjet_threads_last_run_fk"
+            columns: ["last_seen_run_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_sync_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       careerjet_sync_runs: {
         Row: {
@@ -619,6 +1039,33 @@ export type Database = {
           started_at?: string
           status?: string
           terms_covered?: number
+        }
+        Relationships: []
+      }
+      careerjet_writer_leases: {
+        Row: {
+          acquired_at: string
+          expires_at: string
+          fencing_token: number
+          heartbeat_at: string
+          lease_name: string
+          run_id: string
+        }
+        Insert: {
+          acquired_at: string
+          expires_at: string
+          fencing_token: number
+          heartbeat_at: string
+          lease_name: string
+          run_id: string
+        }
+        Update: {
+          acquired_at?: string
+          expires_at?: string
+          fencing_token?: number
+          heartbeat_at?: string
+          lease_name?: string
+          run_id?: string
         }
         Relationships: []
       }
@@ -3319,6 +3766,11 @@ export type Database = {
           expired_at: string | null
           id: string
           identity_fingerprint: string
+          identity_fp_version: number | null
+          identity_resolved_at: string | null
+          identity_role: string | null
+          identity_superseded_by_source_posting_id: string | null
+          identity_thread_id: string | null
           last_seen_at: string | null
           listing_id: string | null
           location: string | null
@@ -3345,6 +3797,11 @@ export type Database = {
           expired_at?: string | null
           id?: string
           identity_fingerprint: string
+          identity_fp_version?: number | null
+          identity_resolved_at?: string | null
+          identity_role?: string | null
+          identity_superseded_by_source_posting_id?: string | null
+          identity_thread_id?: string | null
           last_seen_at?: string | null
           listing_id?: string | null
           location?: string | null
@@ -3371,6 +3828,11 @@ export type Database = {
           expired_at?: string | null
           id?: string
           identity_fingerprint?: string
+          identity_fp_version?: number | null
+          identity_resolved_at?: string | null
+          identity_role?: string | null
+          identity_superseded_by_source_posting_id?: string | null
+          identity_thread_id?: string | null
           last_seen_at?: string | null
           listing_id?: string | null
           location?: string | null
@@ -3389,6 +3851,20 @@ export type Database = {
           work_extent?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "source_postings_identity_superseded_fk"
+            columns: ["identity_superseded_by_source_posting_id"]
+            isOneToOne: false
+            referencedRelation: "source_postings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_postings_identity_thread_fk"
+            columns: ["identity_thread_id"]
+            isOneToOne: false
+            referencedRelation: "careerjet_source_threads"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "source_postings_listing_id_fkey"
             columns: ["listing_id"]
@@ -4448,6 +4924,101 @@ export type Database = {
       }
     }
     Functions: {
+      _careerjet_assert_lease: {
+        Args: {
+          p_fencing_token: number
+          p_lease_name: string
+          p_run_id: string
+        }
+        Returns: undefined
+      }
+      _careerjet_norm_text: { Args: { p: string }; Returns: string }
+      _careerjet_stable_hash_v1: {
+        Args: {
+          p_company: string
+          p_description: string
+          p_employment: Json
+          p_location: string
+          p_site: string
+          p_title: string
+        }
+        Returns: string
+      }
+      _careerjet_thread_key: {
+        Args: {
+          p_fingerprint: string
+          p_fp_version: number
+          p_generation: number
+        }
+        Returns: string
+      }
+      careerjet_identity_repair_progress: {
+        Args: never
+        Returns: {
+          cursor_after_fingerprint: string
+          ids_adopted: number
+          ids_failed: number
+          ids_requested: number
+          ids_reviewed: number
+          ids_superseded: number
+          ids_unprocessed: number
+          run_id: string
+          started_at: string
+          status: string
+          total_fingerprints: number
+        }[]
+      }
+      careerjet_identity_status: {
+        Args: never
+        Returns: {
+          review_open: number
+          source_postings_keeper: number
+          source_postings_superseded: number
+          source_postings_unresolved: number
+          threads_active: number
+          threads_review: number
+          threads_stale: number
+        }[]
+      }
+      careerjet_lease_claim: {
+        Args: { p_lease_name: string; p_run_id: string; p_ttl_seconds?: number }
+        Returns: {
+          expires_at: string
+          fencing_token: number
+          granted: boolean
+          reason: string
+          run_id: string
+        }[]
+      }
+      careerjet_lease_heartbeat: {
+        Args: {
+          p_fencing_token: number
+          p_lease_name: string
+          p_run_id: string
+          p_ttl_seconds?: number
+        }
+        Returns: boolean
+      }
+      careerjet_lease_release: {
+        Args: {
+          p_fencing_token: number
+          p_lease_name: string
+          p_run_id: string
+        }
+        Returns: boolean
+      }
+      careerjet_resolve_listing: {
+        Args: {
+          p_fencing_token: number
+          p_fp_version: number
+          p_identity_fingerprint: string
+          p_observation_aliases?: Json
+          p_observation_terms?: Json
+          p_run_id: string
+          p_source_posting_in: Json
+        }
+        Returns: Json
+      }
       careerjet_sync_count_missing_raw_payload: { Args: never; Returns: number }
       careerjet_sync_distinct_external_count: { Args: never; Returns: number }
       careerjet_sync_duplicate_external_ids: {
