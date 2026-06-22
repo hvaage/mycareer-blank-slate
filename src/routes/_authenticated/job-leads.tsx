@@ -418,6 +418,13 @@ function JobLeadsPage() {
         toast.error("Henting feilet");
         return;
       }
+      if ((data as any)?.disabled) {
+        toast.info(
+          (data as any)?.message ??
+            "Careerjet-henting er midlertidig pauset under identity-resolverutrullingen.",
+        );
+        return;
+      }
       if (!data?.ok) {
         toast.warning(data?.message ?? "Ingen treff");
         return;
@@ -445,6 +452,7 @@ function JobLeadsPage() {
       setFetching(false);
     }
   };
+
 
   const tombstoneDedupe = async (lead: Lead, status: "dismissed" | "promoted") => {
     if (!user) return;
