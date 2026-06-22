@@ -29,9 +29,6 @@ function AuthenticatedLayout() {
             <SidebarTrigger />
             <span className="text-sm font-semibold">Karrierenmin</span>
           </header>
-          <header className="hidden md:flex h-12 items-center gap-2 border-b px-2">
-            <SidebarTrigger />
-          </header>
           <main className="flex-1 min-w-0">
             <Outlet />
           </main>
