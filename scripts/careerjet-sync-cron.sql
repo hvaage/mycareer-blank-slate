@@ -1,40 +1,39 @@
--- careerjet-sync cron schedule — RUNBOOK / REFERENCE (M5.7).
+-- careerjet-sync cron schedule — RUNBOOK / REFERENCE.
 --
--- Live schedule:
---   Aktivert i Supabase pg_cron som jobben 'careerjet-sync-60min'
---   (7 * * * * UTC). Cron-secret hentes fra vault.decrypted_secrets
---   ('sync_careerjet_secret') ved hvert kall; samme verdi ligger som
---   Lovable Backend Secret SYNC_CAREERJET_SECRET (brukes av edge-funksjonen
---   for konstant-tids sammenligning av x-sync-careerjet-secret-headeren).
+-- Live schedule (M5.8 yield-revisjon):
+--   Aktivert i Supabase pg_cron som jobben 'careerjet-sync-6h'
+--   (7 0,6,12,18 * * * UTC, dvs. fire ganger per døgn).
+--   Cron-secret hentes fra vault.decrypted_secrets ('sync_careerjet_secret')
+--   ved hvert kall; samme verdi ligger som Lovable Backend Secret
+--   SYNC_CAREERJET_SECRET (brukes av edge-funksjonen for konstant-tids
+--   sammenligning av x-sync-careerjet-secret-headeren).
 --
--- VIKTIG: Faktisk secret-verdi skal ALDRI committes. Vault-secret opprettes
--- som engangs-operasjon via Lovable insert-tool (eller manuelt i Supabase
--- SQL editor) med samme verdi som Lovable Backend Secret.
+-- Bakgrunn for reduksjonen fra 'careerjet-sync-60min' (7 * * * *):
+--   Yield-analyse 2026-06-22 viste at Careerjet rullerer
+--   source_external_id/raw_url per fetch (jobviewtrack-token), slik at
+--   alle 58 617+ rader var unike på external_id mens canonical
+--   identity_fingerprint bare ga 1 302 distinkte annonser og 0 re-seen.
+--   Inntil stabil identitet er på plass (DEL B), reduserer vi
+--   skrivetrykket ved å kjøre 4 ganger per døgn i stedet for 24.
 --
--- Engangs-oppretting av Vault-secret (ikke commit verdien):
--- SELECT vault.create_secret(
---   '<SETT_INN_SECRET_I_VAULT_MANUELT>',
---   'sync_careerjet_secret',
---   'Shared secret for careerjet sync cron'
--- );
+-- VIKTIG: Faktisk secret-verdi skal ALDRI committes. Vault-secret
+-- opprettes som engangs-operasjon manuelt; rotasjon gjøres ved å slette
+-- og opprette på nytt med samme verdi som backend-secret.
 --
--- Rotasjon (slett først, så opprett på nytt med ny verdi):
--- DELETE FROM vault.secrets WHERE name = 'sync_careerjet_secret';
--- SELECT vault.create_secret('<NY_VERDI>', 'sync_careerjet_secret',
---                            'Shared secret for careerjet sync cron');
--- Husk å oppdatere Lovable Backend Secret SYNC_CAREERJET_SECRET til samme verdi.
-
 -- Manuell (re)schedule — kjør kun ved behov:
 -- DO $$
 -- BEGIN
 --   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'careerjet-sync-60min') THEN
 --     PERFORM cron.unschedule('careerjet-sync-60min');
 --   END IF;
+--   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'careerjet-sync-6h') THEN
+--     PERFORM cron.unschedule('careerjet-sync-6h');
+--   END IF;
 -- END $$;
 --
 -- SELECT cron.schedule(
---   'careerjet-sync-60min',
---   '7 * * * *',
+--   'careerjet-sync-6h',
+--   '7 0,6,12,18 * * *',
 --   $$
 --   SELECT net.http_post(
 --     url := 'https://miwzhbludgwvskmsfqnq.supabase.co/functions/v1/sync-careerjet-opportunities',
@@ -49,13 +48,13 @@
 --   ) AS request_id;
 --   $$
 -- );
-
+--
 -- Avregistrering ved behov:
--- SELECT cron.unschedule('careerjet-sync-60min');
-
+-- SELECT cron.unschedule('careerjet-sync-6h');
+--
 -- Inspisere leveranser:
 -- SELECT * FROM cron.job_run_details
---   WHERE jobid = (SELECT jobid FROM cron.job WHERE jobname = 'careerjet-sync-60min')
+--   WHERE jobid = (SELECT jobid FROM cron.job WHERE jobname = 'careerjet-sync-6h')
 --   ORDER BY start_time DESC LIMIT 20;
 --
 -- Merknad: pg_net's net.http_post i dette prosjektet støtter
