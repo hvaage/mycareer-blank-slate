@@ -515,9 +515,16 @@ Deno.serve(async (req: Request) => {
 
           if (rErr) {
             const msg = String(rErr.message ?? "");
-            const isCanon = /canonicaliz|lease_lost|thread_|keeper_|canonical_|link_/.test(msg);
-            if (isCanon) canonicalizeSystemErrors++;
-            resolverErrors.push({ fp, err: msg, kind: isCanon ? "system_error" : "resolver_error" });
+            canonicalizeSystemErrors++;
+            resolverErrors.push({ fp, err: msg, kind: "system_error" });
+            if (/lease_lost/i.test(msg)) {
+              status = "failed";
+              errorSummary = `resolver lease_lost: ${msg}`;
+              stopReason = "lease_lost";
+              break outer;
+            }
+            if (status === "success") status = "partial";
+            errorSummary ??= `resolver system_error: ${msg}`;
             continue;
           }
           const action = String((rRes as any)?.action ?? "unknown");
@@ -529,17 +536,23 @@ Deno.serve(async (req: Request) => {
           }
           // Rev. 5 §4: aggregate nested canonicalization result from prod resolver.
           const c = (rRes as any)?.canonicalization;
-          if (c && typeof c === "object") {
-            if (c.canonical_created) prodCanonicalCreated++;
-            if (c.keeper_link_created) {
-              prodKeeperLinkCreated++;
-              if (c.link_role === "primary") prodPrimaryLinkCreated++;
-              else if (c.link_role === "variant") prodVariantLinkCreated++;
-            }
-            if (c.already_linked) prodAlreadyLinked++;
-            if (c.display_updated) prodDisplayUpdated++;
-            if (c.live_until_changed) prodLiveUntilChanged++;
+          if (!c || typeof c !== "object") {
+            const msg = `resolver response missing canonicalization for action=${action}`;
+            canonicalizeSystemErrors++;
+            resolverErrors.push({ fp, err: msg, kind: "system_error" });
+            if (status === "success") status = "partial";
+            errorSummary ??= msg;
+            continue;
           }
+          if (c.canonical_created) prodCanonicalCreated++;
+          if (c.keeper_link_created) {
+            prodKeeperLinkCreated++;
+            if (c.link_role === "primary") prodPrimaryLinkCreated++;
+            else if (c.link_role === "variant") prodVariantLinkCreated++;
+          }
+          if (c.already_linked) prodAlreadyLinked++;
+          if (c.display_updated) prodDisplayUpdated++;
+          if (c.live_until_changed) prodLiveUntilChanged++;
           noteFingerprintSighting(sightings, fp);
         }
       }

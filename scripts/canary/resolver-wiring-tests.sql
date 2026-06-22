@@ -43,7 +43,7 @@ DECLARE
   v_co0 int; v_co1 int; v_co2 int; v_co3 int;
   v_lnk0 int; v_lnk1 int; v_lnk2 int; v_lnk3 int;
   v_aud0 int; v_aud1 int; v_aud2 int; v_aud3 int;
-  v_aud_canon0 int; v_aud_canon3 int;
+  v_aud_canon0 int; v_aud_canon2 int; v_aud_canon3 int;
 
   -- T4 (review)
   v_t4_aud_before int; v_t4_aud_after int;
@@ -58,6 +58,8 @@ DECLARE
   v_t5_th_before int; v_t5_th_after int;
   v_t5_sp_before int; v_t5_sp_after int;
   v_t5_obs_before int; v_t5_obs_after int;
+  v_t5_alias_before int; v_t5_alias_after int;
+  v_t5_term_before int; v_t5_term_after int;
   v_t5_co_before int; v_t5_co_after int;
   v_t5_lnk_before int; v_t5_lnk_after int;
   v_t5_aud_before int; v_t5_aud_after int;
@@ -156,6 +158,8 @@ BEGIN
   PERFORM pg_temp.must_eq('T2 source_posting delta=0', v_sp2 - v_sp1, 0);
   PERFORM pg_temp.must_eq('T2 canonical delta=0', v_co2 - v_co1, 0);
   PERFORM pg_temp.must_eq('T2 keeper-link delta=0', v_lnk2 - v_lnk1, 0);
+  SELECT count(*) INTO v_aud_canon2 FROM public.careerjet_identity_audit
+    WHERE run_id = v_run_id AND action = 'canonicalize';
 
   -- ===== T3: re_seen_noop (identical to T2 payload) =====
   v_post_in_noop := v_post_in_changed;
@@ -189,6 +193,7 @@ BEGIN
   PERFORM pg_temp.must_eq('T3 source_posting delta=0', v_sp3 - v_sp2, 0);
   PERFORM pg_temp.must_eq('T3 canonical delta=0', v_co3 - v_co2, 0);
   PERFORM pg_temp.must_eq('T3 keeper-link delta=0', v_lnk3 - v_lnk2, 0);
+  PERFORM pg_temp.must_eq('T3 canonicalize-audit delta=0', v_aud_canon3 - v_aud_canon2, 0);
 
   SELECT updated_at INTO v_canon_updated_b FROM public.canonical_opportunities WHERE id = v_canonical_id;
   PERFORM pg_temp.must_eq('T3 canonical.updated_at stable', v_canon_updated_b, v_canon_updated_a);
@@ -230,7 +235,7 @@ BEGIN
 
   -- ===== T5: invariant failure inside canonicalize rolls back whole RPC =====
   -- Build a synthetic inconsistent thread/keeper fixture: thread points at a
-  -- keeper whose identity_role is 'variant' (not 'keeper'). resolver_listing
+  -- keeper whose identity_role is 'superseded' (not 'keeper'). resolver_listing
   -- will reach canonicalize with a valid lease, and canonicalize raises
   -- 'keeper_role_not_keeper'. The whole resolver RPC must roll back: no
   -- thread/keeper observation rows for the synthetic fingerprint may persist.
@@ -271,6 +276,12 @@ BEGIN
   SELECT count(*) INTO v_t5_th_before  FROM public.careerjet_source_threads WHERE identity_fingerprint = v_t5_fp;
   SELECT count(*) INTO v_t5_sp_before  FROM public.source_postings WHERE identity_fingerprint = v_t5_fp;
   SELECT count(*) INTO v_t5_obs_before FROM public.careerjet_source_observations WHERE sync_run_id = v_run_id;
+  SELECT count(*) INTO v_t5_alias_before FROM public.careerjet_observation_aliases coa
+    JOIN public.careerjet_source_observations o ON o.id = coa.observation_id
+    WHERE o.thread_id = v_t5_thread_id AND o.sync_run_id = v_run_id;
+  SELECT count(*) INTO v_t5_term_before FROM public.careerjet_observation_terms cot
+    JOIN public.careerjet_source_observations o ON o.id = cot.observation_id
+    WHERE o.thread_id = v_t5_thread_id AND o.sync_run_id = v_run_id;
   SELECT count(*) INTO v_t5_co_before  FROM public.canonical_opportunities WHERE identity_fingerprint = v_t5_fp;
   SELECT count(*) INTO v_t5_lnk_before FROM public.opportunity_source_links osl
     JOIN public.canonical_opportunities co ON co.id = osl.canonical_opportunity_id
@@ -283,7 +294,13 @@ BEGIN
       v_post_in || jsonb_build_object(
         'raw_url','https://example.test/rev5/t5b',
         'raw_url_hash', encode(extensions.digest('rev5-t5b','sha256'),'hex')),
-      '[]'::jsonb, '[]'::jsonb);
+      jsonb_build_array(jsonb_build_object(
+        'raw_url_hash', encode(extensions.digest('rev5-t5b','sha256'),'hex'),
+        'raw_url_norm', 'example.test/rev5/t5b',
+        'raw_url_sample', 'https://example.test/rev5/t5b')),
+      jsonb_build_array(jsonb_build_object(
+        'cursor_term', 'rev5-t5-term',
+        'rank_in_term', 1)));
     PERFORM pg_temp.must('T5 expected canonicalize error not raised', false);
   EXCEPTION WHEN SQLSTATE 'P0001' THEN
     v_t5_caught := SQLERRM;
@@ -294,6 +311,12 @@ BEGIN
   SELECT count(*) INTO v_t5_th_after  FROM public.careerjet_source_threads WHERE identity_fingerprint = v_t5_fp;
   SELECT count(*) INTO v_t5_sp_after  FROM public.source_postings WHERE identity_fingerprint = v_t5_fp;
   SELECT count(*) INTO v_t5_obs_after FROM public.careerjet_source_observations WHERE sync_run_id = v_run_id;
+  SELECT count(*) INTO v_t5_alias_after FROM public.careerjet_observation_aliases coa
+    JOIN public.careerjet_source_observations o ON o.id = coa.observation_id
+    WHERE o.thread_id = v_t5_thread_id AND o.sync_run_id = v_run_id;
+  SELECT count(*) INTO v_t5_term_after FROM public.careerjet_observation_terms cot
+    JOIN public.careerjet_source_observations o ON o.id = cot.observation_id
+    WHERE o.thread_id = v_t5_thread_id AND o.sync_run_id = v_run_id;
   SELECT count(*) INTO v_t5_co_after  FROM public.canonical_opportunities WHERE identity_fingerprint = v_t5_fp;
   SELECT count(*) INTO v_t5_lnk_after FROM public.opportunity_source_links osl
     JOIN public.canonical_opportunities co ON co.id = osl.canonical_opportunity_id
@@ -305,6 +328,8 @@ BEGIN
   PERFORM pg_temp.must_eq('T5 thread delta=0',         v_t5_th_after  - v_t5_th_before,  0);
   PERFORM pg_temp.must_eq('T5 source_posting delta=0', v_t5_sp_after  - v_t5_sp_before,  0);
   PERFORM pg_temp.must_eq('T5 observation delta=0',    v_t5_obs_after - v_t5_obs_before, 0);
+  PERFORM pg_temp.must_eq('T5 alias delta=0',          v_t5_alias_after - v_t5_alias_before, 0);
+  PERFORM pg_temp.must_eq('T5 term delta=0',           v_t5_term_after - v_t5_term_before, 0);
   PERFORM pg_temp.must_eq('T5 canonical delta=0',      v_t5_co_after  - v_t5_co_before,  0);
   PERFORM pg_temp.must_eq('T5 link delta=0',           v_t5_lnk_after - v_t5_lnk_before, 0);
   PERFORM pg_temp.must_eq('T5 audit delta=0',          v_t5_aud_after - v_t5_aud_before, 0);
