@@ -617,6 +617,21 @@ Deno.serve(async (req: Request) => {
     api_errors_count: apiErrors.length,
     resolver_errors_count: resolverErrors.length,
     resolver_errors_sample: resolverErrors.slice(0, 5),
+    // Rev. 5 §3: when any canonicalize-failure occurred this run, stale-expiry
+    // must NOT be run. This function never calls mark_stale_careerjet_postings,
+    // but we publish the gate so the contract is visible to operators / future cron.
+    canonicalize_system_errors: canonicalizeSystemErrors,
+    stale_expiry_blocked: canonicalizeSystemErrors > 0,
+    // Rev. 5 §4: production canonicalize metrics (nested resolver result).
+    canonicalize: {
+      canonical_created: prodCanonicalCreated,
+      keeper_link_created: prodKeeperLinkCreated,
+      primary_link_created: prodPrimaryLinkCreated,
+      variant_link_created: prodVariantLinkCreated,
+      already_linked: prodAlreadyLinked,
+      display_updated: prodDisplayUpdated,
+      live_until_changed: prodLiveUntilChanged,
+    },
     lease: { name: LEASE_NAME, fencing_token: fencingToken, ttl_seconds: LEASE_TTL_SECONDS, released: leaseReleased, heartbeat_calls: heartbeatCalls },
     audit_rows_inserted: (auditAfter ?? 0) - (auditBefore ?? 0),
     invariants: {
