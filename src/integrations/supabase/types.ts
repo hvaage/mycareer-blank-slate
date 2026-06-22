@@ -4956,6 +4956,10 @@ export type Database = {
         }
         Returns: string
       }
+      careerjet_canonical_has_visible: {
+        Args: { p_canonical: string }
+        Returns: boolean
+      }
       careerjet_identity_repair_progress: {
         Args: never
         Returns: {
