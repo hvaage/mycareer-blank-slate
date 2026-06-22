@@ -4932,6 +4932,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _careerjet_is_visible: {
+        Args: { p_identity_role: string; p_superseded_by: string }
+        Returns: boolean
+      }
       _careerjet_norm_text: { Args: { p: string }; Returns: string }
       _careerjet_stable_hash_v1: {
         Args: {
