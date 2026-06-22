@@ -236,7 +236,20 @@ BEGIN
   -- thread/keeper observation rows for the synthetic fingerprint may persist.
   v_t5_fp := encode(extensions.digest('rev5-t5-'||v_run_id::text,'sha256'),'hex');
 
-  -- Pre-create the inconsistent fixture OUTSIDE the resolver call.
+  -- Insert thread first (keeper FK is DEFERRABLE INITIALLY DEFERRED),
+  -- then the posting which references the thread.
+  SET CONSTRAINTS ALL DEFERRED;
+  INSERT INTO public.careerjet_source_threads (
+    id, identity_fingerprint, fp_version, generation, thread_key,
+    keeper_source_posting_id, stable_content_hash, stable_content_hash_version,
+    first_seen_run_id, last_seen_run_id, last_seen_at, state
+  ) VALUES (
+    v_t5_thread_id, v_t5_fp, v_fp_version, 1,
+    public._careerjet_thread_key(v_fp_version, v_t5_fp, 1),
+    v_t5_keeper_id,
+    public._careerjet_stable_hash_v1('Rev5 T5 Title','Rev5 T5 AS','Oslo','Rev5 T5 description','example.test','{}'::jsonb),
+    1, v_run_id, v_run_id, now(), 'active'
+  );
   INSERT INTO public.source_postings (
     id, source, source_external_id, raw_url, display_url,
     title, company, location, description_excerpt, raw_payload,
@@ -249,20 +262,10 @@ BEGIN
     'Rev5 T5 Title','Rev5 T5 AS','Oslo','Rev5 T5 description',
     jsonb_build_object('site','example.test','employment','{}'::jsonb),
     v_t5_fp, v_t5_thread_id, 'active', now(),
-    'superseded', -- <-- inconsistency: role is not 'keeper'
+    'superseded', -- inconsistency: role <> 'keeper' (constraint allows)
     v_fp_version, now()
   );
-  INSERT INTO public.careerjet_source_threads (
-    id, identity_fingerprint, fp_version, generation, thread_key,
-    keeper_source_posting_id, stable_content_hash, stable_content_hash_version,
-    first_seen_run_id, last_seen_run_id, last_seen_at, state
-  ) VALUES (
-    v_t5_thread_id, v_t5_fp, v_fp_version, 1,
-    public._careerjet_thread_key(v_fp_version, v_t5_fp, 1),
-    v_t5_keeper_id,
-    public._careerjet_stable_hash_v1('Rev5 T5 Title','Rev5 T5 AS','Oslo','Rev5 T5 description','example.test','{}'::jsonb),
-    1, v_run_id, v_run_id, now(), 'active'
-  );
+  SET CONSTRAINTS ALL IMMEDIATE;
 
   -- Scoped baseline for T5 (after fixture is in place, before resolver call).
   SELECT count(*) INTO v_t5_th_before  FROM public.careerjet_source_threads WHERE identity_fingerprint = v_t5_fp;
