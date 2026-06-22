@@ -249,7 +249,7 @@ BEGIN
     'Rev5 T5 Title','Rev5 T5 AS','Oslo','Rev5 T5 description',
     jsonb_build_object('site','example.test','employment','{}'::jsonb),
     v_t5_fp, v_t5_thread_id, 'active', now(),
-    'variant', -- <-- inconsistency: role is not 'keeper'
+    'superseded', -- <-- inconsistency: role is not 'keeper'
     v_fp_version, now()
   );
   INSERT INTO public.careerjet_source_threads (
