@@ -514,7 +514,10 @@ Deno.serve(async (req: Request) => {
           });
 
           if (rErr) {
-            resolverErrors.push({ fp, err: rErr.message });
+            const msg = String(rErr.message ?? "");
+            const isCanon = /canonicaliz|lease_lost|thread_|keeper_|canonical_|link_/.test(msg);
+            if (isCanon) canonicalizeSystemErrors++;
+            resolverErrors.push({ fp, err: msg, kind: isCanon ? "system_error" : "resolver_error" });
             continue;
           }
           const action = String((rRes as any)?.action ?? "unknown");
@@ -523,6 +526,19 @@ Deno.serve(async (req: Request) => {
             const rid = (rRes as any)?.review_id;
             if (rid) reviewIds.add(String(rid));
             continue;
+          }
+          // Rev. 5 §4: aggregate nested canonicalization result from prod resolver.
+          const c = (rRes as any)?.canonicalization;
+          if (c && typeof c === "object") {
+            if (c.canonical_created) prodCanonicalCreated++;
+            if (c.keeper_link_created) {
+              prodKeeperLinkCreated++;
+              if (c.link_role === "primary") prodPrimaryLinkCreated++;
+              else if (c.link_role === "variant") prodVariantLinkCreated++;
+            }
+            if (c.already_linked) prodAlreadyLinked++;
+            if (c.display_updated) prodDisplayUpdated++;
+            if (c.live_until_changed) prodLiveUntilChanged++;
           }
           noteFingerprintSighting(sightings, fp);
         }
