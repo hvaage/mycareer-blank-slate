@@ -21,7 +21,7 @@ type NavItem =
 const navItems: NavItem[] = [
   { label: "Hva", to: "/", hash: "hva" },
   { label: "Annerledes", to: "/", hash: "annerledes" },
-  { label: "Hvordan", to: "/", hash: "hvordan" },
+  
   { label: "Markedsinnsikt", to: "/markedsinnsikt" },
   { label: "Arbeidsgivere", to: "/arbeidsgivere" },
   { label: "Kom i gang", to: "/signup" },
