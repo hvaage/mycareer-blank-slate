@@ -214,6 +214,57 @@ export function normalizeEmployerAnalysisV2(
   };
 }
 
+export function enforceEvidenceReferences(
+  analysis: EmployerAnalysisV2,
+  validSourceIds: Iterable<number>,
+): EmployerAnalysisV2 {
+  const valid = new Set(validSourceIds);
+  const dimensions = analysis.dimensions.map((dimension) => {
+    const ids = dimension.source_ids.filter((id) => valid.has(id));
+    const sufficientlySourced = dimension.score !== null && ids.length >= 2;
+    return {
+      ...dimension,
+      score: sufficientlySourced ? dimension.score : null,
+      evidence_status: sufficientlySourced
+        ? dimension.evidence_status
+        : "insufficient_evidence" as const,
+      source_ids: ids,
+    };
+  });
+  const employerScores = dimensions
+    .map((dimension) => dimension.score)
+    .filter((score): score is number => score !== null);
+
+  const signals: EmployerAnalysisV2["ai_maturity"]["signals"] = {};
+  const aiScores: number[] = [];
+  for (const [key, signal] of Object.entries(analysis.ai_maturity.signals)) {
+    const ids = signal.source_ids.filter((id) => valid.has(id));
+    const score = signal.score !== null && ids.length >= 1 ? signal.score : null;
+    if (score !== null) aiScores.push(score);
+    signals[key] = { ...signal, score, source_ids: ids };
+  }
+
+  return {
+    ...analysis,
+    overall: {
+      ...analysis.overall,
+      score: employerScores.length
+        ? Math.round((employerScores.reduce((sum, score) => sum + score, 0) / employerScores.length) * 10) / 10
+        : null,
+      scored_dimensions: employerScores.length,
+    },
+    dimensions,
+    ai_maturity: {
+      ...analysis.ai_maturity,
+      score: analysis.ai_maturity.applicable && aiScores.length
+        ? Math.round((aiScores.reduce((sum, score) => sum + score, 0) / aiScores.length) * 10) / 10
+        : null,
+      signals,
+      source_ids: analysis.ai_maturity.source_ids.filter((id) => valid.has(id)),
+    },
+  };
+}
+
 export function buildRegisterContextText(value: unknown): string {
   if (!value || typeof value !== "object") return "Ingen lokal registerkontekst tilgjengelig.";
   const serialized = JSON.stringify(value, null, 2);

@@ -1,165 +1,140 @@
-# Lovable-instruksjon: Arbeidsgiveranalyse v2 i innlogget flate
+# Lovable-instruksjon: Felles arbeidsgiveranalyse, vekting og modell-QC
 
 ## Implementeringsport
 
-Start ikke frontendarbeidet for denne leveransen før Codex-backend er deployet og
-akseptansetesten `scripts/canary/employer-analysis-register-v2-tests.sql` er
-grønn.
+Kun frontend. Start ikke før Codex-backend er deployet og disse portene er
+grønne:
 
-Lovable eier kun frontend. Ikke endre `supabase/`, migrasjoner, SQL, RPC-er,
-Edge Functions, secrets, cron, auth-backend eller genererte Supabase-typer.
+1. `20260623113000_employer_analysis_shared_weighting.sql` er applied.
+2. `analyze-company` er deployet med `index.ts`, `analysis-v2.ts` og
+   `research-v1.ts`, fortsatt `verify_jwt=true`.
+3. `scripts/canary/employer-analysis-shared-weighting-tests.sql` er PASS og
+   avsluttet med `ROLLBACK`.
+4. Minst én kontrollert produksjonsanalyse har skrevet
+   `companies.employer_analysis_v2.schema_version=2` og en vellykket rad i
+   `employer_analysis_model_runs`.
+
+Lovable skal ikke endre `supabase/**`, SQL, RPC-er, Edge Functions, secrets,
+cron, RLS eller genererte Supabase-typer i denne leveransen.
+
+## Låst hovedregel
+
+`companies.employer_analysis_v2` er eneste canonical arbeidsgiveranalyse.
+Offentlig og innlogget flate skal vise samme:
+
+- råscore på de åtte arbeidsgiverdimensjonene
+- råscore på de fem AI-områdene
+- begrunnelser, evidensstatus og kilder
+- register- og regnskapsgrunnlag
+- adminvektede totalscorer
+
+Innlogget flate viser i tillegg personlige totalscorer beregnet fra brukerens
+egne vekter. Personlig vekting skal aldri endre canonical analyse eller råscore.
 
 ## Backendkontrakt
 
-`companies` har fått disse additive feltene:
-
-- `organisasjonsnummer: text | null`
-- `employer_analysis_v2: jsonb | null`
-- `employer_analysis_version: number | null`
-- `employer_analysis_rated_at: string | null`
-- `employer_analysis_source_updated_at: string | null`
-- `financials: jsonb | null`, med `source_kind='brreg_local_mirror'` når lokalt
-  regnskapsgrunnlag er brukt
-
-`employer_analysis_v2` har denne formen:
+Hent visningsmodellen med:
 
 ```ts
-type EmployerAnalysisV2 = {
-  schema_version: 2
-  overall: {
-    score: number | null
-    scored_dimensions: number
-    total_dimensions: 8
+const { data, error } = await supabase.rpc('get_employer_analysis_view', {
+  p_organisasjonsnummer: orgnr,
+})
+```
+
+Samme RPC brukes anonymt og innlogget. Ikke bygg to datakilder.
+
+Responsens hovedform:
+
+```ts
+type EmployerAnalysisView = {
+  schema_version: 1
+  organisasjonsnummer: string
+  company: {
+    id?: string
+    name?: string
+    domain?: string
+    industry?: string
+    analysis_version?: number
+    analysis_rated_at?: string
+    analysis_source_updated_at?: string
   }
-  executive_summary: string
-  key_findings: string[]
-  dimensions: Array<{
-    key:
-      | 'culture'
-      | 'leadership'
-      | 'work_environment'
-      | 'career_development'
-      | 'financial_stability'
-      | 'mission'
-      | 'talent_attraction_retention'
-      | 'diversity_inclusion'
-    label: string
-    score: number | null
-    evidence_status: 'sourced' | 'inferred' | 'insufficient_evidence'
-    rationale: string
-    what_it_means: string
-    source_ids: number[]
-  }>
-  ai_maturity: {
-    applicable: boolean
-    applicability_note: string | null
-    score: number | null
-    narrative: string
-    signals: Record<
-      | 'strategy_and_leadership'
-      | 'capability_and_deployment'
-      | 'workforce'
-      | 'governance'
-      | 'market_and_product',
-      {
-        label: string
-        score: number | null
-        rationale: string
-        source_ids: number[]
-      }
-    >
-    key_evidence: string[]
-    source_ids: number[]
+  register: EmployerRegisterContext | null
+  financials: EmployerFinancials | null
+  analysis: EmployerAnalysisV2 | null
+  weighting: {
+    admin_profile: {
+      version: number
+      employer_weights: Record<EmployerDimensionKey, number>
+      ai_weights: Record<AiDimensionKey, number>
+    }
+    public: {
+      employer: WeightedScore
+      ai: WeightedScore
+    }
+    personal: null | {
+      is_customized: boolean
+      employer_weights: Record<EmployerDimensionKey, number>
+      ai_weights: Record<AiDimensionKey, number>
+      employer: WeightedScore
+      ai: WeightedScore
+    }
   }
-  sources: Array<{
-    id: number
-    url: string
-    category:
-      | 'official_company'
-      | 'official_register'
-      | 'annual_report'
-      | 'news_media'
-      | 'regulator'
-      | 'employee_reviews'
-      | 'salary_benchmark'
-      | 'other'
-  }>
-  register_provenance: {
-    source: 'brreg_local_mirror'
-    organisasjonsnummer: string
-    source_updated_at: string | null
-    financial_years: number[]
-  } | null
+}
+
+type WeightedScore = {
+  score: number | null
+  scored_dimensions: number
+  total_dimensions: number
+  weight_coverage_percent: number
 }
 ```
 
-De seks gamle `ai_*_score`-feltene oppdateres fortsatt av backend for
-kompatibilitet. Ny frontend skal bruke `employer_analysis_v2` når
-`schema_version === 2`, og falle tilbake til dagens seksdimensjonsvisning bare
-for historiske rader uten v2-data.
+`analysis` inneholder de avtalte åtte dimensjonene, fem AI-signalene, nøytrale
+kildekategorier og provenance. Bruk råscorene til radar/barer og de beregnede
+`weighting.*`-feltene til totalscore.
 
-## 1. Velg juridisk arbeidsgiver fra registerspeilet
-
-Dagens fritekstflyt oppretter en `companies`-rad bare fra navn. Det gjør at
-analysen mister koblingen til Brønnøysund og lokalt regnskap.
+## 1. Juridisk arbeidsgiver
 
 I `src/routes/_authenticated/employers/index.tsx`:
 
-1. Bevar listen over brukerens eksisterende arbeidsgivere.
-2. Når brukeren søker etter en ny arbeidsgiver, bruk eksisterende
-   `searchEmployersQuery`/`searchEmployers` fra
-   `src/lib/queries/employer-insight.ts`.
-3. Vis treff som juridiske enheter med navn, organisasjonsnummer, sted,
-   næringskode, ansatte og siste tilgjengelige omsetning.
-4. Brukeren skal velge en konkret juridisk enhet før norsk arbeidsgiveranalyse
-   startes. Ikke velg første navnetreff automatisk.
-5. Kall `analyze-company` med:
+1. Bevar brukerens eksisterende arbeidsgiverliste.
+2. Bruk eksisterende `searchEmployersQuery`/`searchEmployers` fra
+   `src/lib/queries/employer-insight.ts` ved ny norsk analyse.
+3. Vis navn, organisasjonsnummer, sted, næringskode, ansatte og siste omsetning.
+4. Brukeren må velge juridisk enhet. Ikke velg første navnetreff automatisk.
+5. Kall `analyze-company` med `organisasjonsnummer`, `name` og innlogget
+   `user_id`.
+6. Utenlandske selskaper kan fortsatt bruke en tydelig separat navn/domene-flyt.
 
-```ts
-{
-  organisasjonsnummer: row.organisasjonsnummer,
-  name: row.navn,
-  user_id: uid
-}
-```
+## 2. Samme offentlige og innloggede analyse
 
-6. Naviger til returnert `company_id` som i dagens flyt.
-7. For utenlandske selskaper uten norsk organisasjonsnummer kan eksisterende
-   navne-/domeneflyt beholdes som en tydelig separat handling.
+Disse sidene skal bruke `get_employer_analysis_view`:
 
-På detaljsiden skal ny analyse sende både `company_id` og selskapets
-`organisasjonsnummer` når dette finnes.
+- offentlig: `/arbeidsgivere/$orgnr`
+- innlogget: `/employers/$companyId`, etter at orgnr er lest fra `company`
 
-## 2. Register og regnskap først
+Trekk analysevisningen ut i delte presentasjonskomponenter under
+`src/components/employers/`. Ikke kopier analyse-/vektlogikk mellom rutene.
 
-På `/_authenticated/employers/$companyId`:
+På `/selskapsanalyse` skal søk/CTA til en eksisterende norsk virksomhet føre
+til `/arbeidsgivere/$orgnr`. `employer_reports` og
+`/selskapsanalyse/analysedatabase` er et historisk rapportarkiv, ikke canonical
+datakilde. Merk arkivet som historiske rapporter; ikke bland arkivscore inn i
+den nye analysen.
 
-- Dersom selskapet har organisasjonsnummer, hent eksisterende
-  `employerDetailQuery(organisasjonsnummer)` fra
-  `src/lib/queries/employer-insight.ts`.
-- Gjenbruk `RegisterPanel` for Enhetsregisteret og siste regnskapsår.
-- Vis i tillegg 2-3 års regnskapstrend fra `company.financials.history` når den
-  finnes: driftsinntekter, driftsresultat, årsresultat og egenkapitalandel.
-- Bruk kompakt tabell eller linje-/stolpediagram med tydelig år og valuta.
-- Vis datakilde som `Lokalt speil av Brønnøysundregistrene`, aldri som Proff
-  eller en annen aggregator.
-- Ikke gjør nye direkte kall mot `reg.*`.
+## 3. Register og finans
 
-## 3. Grafisk visning av 8 arbeidsgiverdimensjoner
+- Vis Enhetsregister-data og inntil tre regnskapsår fra `register`.
+- Dersom `financials.source_kind='brreg_local_mirror'`, vis
+  `Lokalt speil av Brønnøysundregistrene`.
+- Dersom `financials.source_kind='official_web_fallback'`, vis
+  `Offisiell årsrapport eller investorinformasjon` og rapporteringsperiode.
+- Ikke presenter web-fallback som Brønnøysunddata.
+- Ikke kall `reg.*` direkte fra frontend.
 
-Gjenbruk eller trekk ut dagens
-`src/components/selskapsanalyse/DimensionsRadar.tsx`. Ingen ny chart-pakke.
+## 4. Åtte arbeidsgiverdimensjoner
 
-Vis:
-
-- samlet score og `N av 8 dimensjoner`
-- radar med alle åtte dimensjoner i fast rekkefølge
-- to-kolonners scoreoversikt med horisontal scoreindikator
-- detalj per dimensjon: score, evidensstatus, begrunnelse og `Hva dette betyr`
-- `Ikke nok data` for `score=null`; null skal ikke tegnes som en reell
-  nullscore eller tolkes negativt
-
-Rekkefølge:
+Gjenbruk `DimensionsRadar`. Vis fast rekkefølge:
 
 1. Kultur og verdier
 2. Ledelseskvalitet
@@ -170,20 +145,15 @@ Rekkefølge:
 7. Rekruttering og retensjon
 8. Mangfold og inkludering
 
-## 4. Grafisk visning av fem AI-områder
+Vis råscore per dimensjon, evidensstatus, begrunnelse, `Hva dette betyr` og
+kildereferanser. `score=null` vises som `Ikke nok data` og tegnes ikke som 0.
 
-Ikke map de gamle seks selskapsscorene inn i AI-panelet. Bruk de dedikerte
-signalene i `employer_analysis_v2.ai_maturity.signals`.
+Øverst vises `weighting.public.employer.score` som
+`Samlet arbeidsgiverscore (administrativ vekting)` med dekningsgrad.
 
-Vis:
+## 5. Fem AI-områder
 
-- samlet AI-modenhetsscore
-- fem stabile horisontale scorebarer eller et eget fem-akset diagram
-- score og begrunnelse for hvert område
-- samlet narrativ og sentrale evidenspunkter
-- `Ikke vurdert - lav bransjerelevans` når `applicable=false`
-
-Områdene er:
+Bruk bare `analysis.ai_maturity.signals`:
 
 1. Strategi og lederskap
 2. Kapabilitet og distribusjon
@@ -191,70 +161,91 @@ Områdene er:
 4. Styring og ansvarlig bruk
 5. Marked og produkt
 
-## 5. Nøytral kildepresentasjon
+Vis råscore og begrunnelse per område grafisk. Vis
+`weighting.public.ai.score` som samlet administrativt vektet AI-score. Ikke map
+de gamle seks selskapsscorene inn i AI-panelet.
 
-Ikke vis navnene på ansattvurderings-, omdømme- eller
-lønnssammenligningsplattformer i sammendrag, kort, tabeller eller
-lenketekster.
+## 6. Personlig vekting
 
-Vis kildene med nøytrale kategorier:
+Kun innlogget side:
 
-- Selskapets egne kilder
-- Offentlige registre
-- Årsrapport og finansiell rapportering
-- Redaksjonelle kilder
-- Myndighets- og regulatorkilder
-- Uavhengige ansattvurderinger
-- Lønnssammenligningskilder
-- Andre eksterne kilder
+- Vis offentlig/adminvektet score og personlig score side om side, tydelig
+  navngitt.
+- Et eget panel lar brukeren justere vekter 0-10 for alle 8+5 områder.
+- Bruk slider eller stepper med tallverdi; vekting er ikke en råscore.
+- Lagre med `set_my_employer_analysis_weights(p_employer_weights,p_ai_weights)`.
+- Nullstill med `reset_my_employer_analysis_weights()`.
+- Hent RPC-en på nytt etter lagring/nullstilling.
+- Når `is_customized=false`, vis at personlig score foreløpig bruker
+  standardvektingen.
 
-Kildelenker kan beholdes for sporbarhet, men lenketeksten skal være `Kilde 1`,
-`Kilde 2` osv. Ikke skriv rå URL eller domenenavn som synlig tekst.
+## 7. Adminvekting
 
-## 6. Terminologi og status
+Ny frontendflate `/admin/employer-analysis`, admin-gated med eksisterende
+rollemønster:
 
-Endre brukerrettet tekst fra `AI-vurdering (selskap)` til
-`Arbeidsgiveranalyse`.
+- Hent aktiv profil med `get_employer_analysis_weight_config()`.
+- Vis versjon og alle 8+5 vekter.
+- Lag en ny versjon med
+  `set_employer_analysis_weight_profile(p_employer_weights,p_ai_weights,p_note)`.
+- Ingen redigering av historisk profil; lagring oppretter ny aktiv versjon.
+- Forklar i kort brukerrettet tekst at adminvektingen styrer offentlig totalscore,
+  men ikke råscorene.
 
-Beskriv analysen som:
+## 8. Modellbenchmark for admin
 
-`Register- og regnskapsdata fra lokalt Brønnøysundspeil, supplert med aktuell webresearch og uavhengige kilder.`
+På samme adminside, egen fane `Modelltest`:
 
-Fremdriftstekster skal ikke navngi modellleverandør eller eksterne
-vurderingsplattformer.
+- Vis `employer_analysis_model_runs` for `run_mode='benchmark'`.
+- Grupper på `benchmark_group_id` og vis modell, kilder, dekningsgrad, varighet,
+  tokenbruk, estimert kostnad og om kostnadsestimatet er komplett.
+- Vis analysene side om side uten modellnavn i selve vurderingspanelet før admin
+  åpner metadata, slik at kvalitetsvurderingen blir mindre påvirket.
+- Lagre adminreview med `review_employer_analysis_model_run(...)` for:
+  faktanøyaktighet, kildekvalitet, scope-presisjon, finansiell kvalitet og
+  analysekvalitet, alle 1-5.
+- Hent gruppesammendrag med `get_employer_analysis_benchmark_report(group_id)`.
+- Frontend skal ikke kunne gjøre benchmarkmodell til produksjonsstandard.
 
-Bevar kandidatmatch, manuell brukervurdering og brukersnitt som separate
-seksjoner. Ikke bland personlige kandidatdata inn i selskapets felles analyse.
+Selve benchmarkkjøringene startes operasjonelt etter egen Codex-instruksjon;
+ikke legg modellvalg eller secrets i klienten.
+
+## 9. Nøytral kildepresentasjon
+
+Ikke vis navn på ansattvurderings-, omdømme- eller
+lønnssammenligningsplattformer i synlig tekst eller lenketekst.
+
+Vis `Kilde 1`, `Kilde 2` osv. med nøytral kategori. URL kan ligge i `href` for
+sporbarhet. Bevar kategoriene `Årsrapport` og `Investorinformasjon`.
 
 ## Tillatte frontendfiler
 
-- `src/routes/_authenticated/employers/index.tsx`
-- `src/routes/_authenticated/employers/$companyId.tsx`
-- `src/components/employers/*`
-- eventuelt en ren frontendtype/helper under `src/lib/`
+- `src/routes/_authenticated/employers/**`
+- `src/routes/arbeidsgivere.$orgnr.tsx`
+- relevante presentasjonsdeler i `src/routes/selskapsanalyse*`
+- `src/routes/_authenticated/admin.employer-analysis.tsx`
+- `src/components/employers/**`
+- `src/components/selskapsanalyse/DimensionsRadar.tsx`
+- rene frontendtyper/query-wrappere under `src/lib/`
+- adminmenylenke til den nye, eksisterende ruten
 
-Ikke endre:
+Ikke endre `supabase/**`, auth-backend, navigasjonsarkitekturen, cron, secrets
+eller genererte Supabase-typer manuelt.
 
-- `supabase/**`
-- `src/integrations/supabase/types.ts` manuelt
-- auth, RLS, RPC-er, Edge Functions, secrets eller cron
-- offentlige ruter eller sidepanelarbeidet i samme leveranse
+## Akseptanse
 
-## Akseptansekriterier
+1. Samme orgnr gir identisk canonical analyse offentlig og innlogget.
+2. Offentlig side viser adminvektet 8-score og 5-AI-score.
+3. Innlogget side viser de samme scorene samt personlig vekting.
+4. Endring av brukerens vekter endrer bare personlig totalscore.
+5. Endring av adminprofil oppretter ny versjon og endrer offentlig totalscore,
+   ikke råscore.
+6. Brønnøysund og offisiell web-fallback er tydelig adskilt.
+7. Alle 8+5 rådimensjoner vises; null vises ikke som 0.
+8. Ingen vurderingsplattform er navngitt i synlig analyse.
+9. Historiske rapporter merkes som historiske og blandes ikke inn i canonical
+   score.
+10. Typecheck/build og desktop/mobilkontroll er grønne.
 
-1. Norsk arbeidsgiveranalyse kan ikke startes fra et tvetydig fritekstnavn;
-   brukeren velger juridisk enhet med organisasjonsnummer.
-2. Request til `analyze-company` inneholder organisasjonsnummer.
-3. Register- og regnskapsdata vises før eller sammen med webanalysen.
-4. V2-resultat viser radar og alle åtte dimensjoner.
-5. Alle fem dedikerte AI-signaler vises grafisk.
-6. Ingen vurderingsplattform er navngitt i synlig analysetekst eller lenketekst.
-7. Historiske selskaper uten v2-data beholder dagens fallback.
-8. Kandidatmatch, manuell vurdering og brukersnitt fungerer uendret.
-9. Typecheck og produksjonsbuild er grønne.
-10. Desktop og mobil er kontrollert uten overlapp, avkuttet tekst eller
-    layoutskift når analysen lastes.
-
-Rapporter endrede filer, testet organisasjonsnummer, request-body,
-v2-rendering, fallback og resultat fra typecheck/build. Stopp etter frontend og
-rapport; ikke utfør backendarbeid.
+Stopp etter frontend og rapporter endrede filer, testet orgnr, RPC-responser,
+offentlig/innlogget likhet, admin-/brukervekting, fallback og buildresultat.

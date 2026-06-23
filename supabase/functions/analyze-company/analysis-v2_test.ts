@@ -1,4 +1,5 @@
 import {
+  enforceEvidenceReferences,
   financialsFromRegisterContext,
   neutralizeEvaluationPlatformNames,
   normalizeEmployerAnalysisV2,
@@ -65,4 +66,26 @@ Deno.test("builds deterministic financials from the register snapshot", () => {
   assert(financials?.source_kind === "brreg_local_mirror", "local mirror provenance");
   assert(financials?.revenue_latest === 100, "latest revenue copied");
   assert(financials?.fiscal_year === 2025, "latest year copied");
+});
+
+Deno.test("rejects invented and insufficient evidence references", () => {
+  const normalized = normalizeEmployerAnalysisV2({
+    dimensions: [
+      { key: "culture", score: 4, evidence_status: "sourced", source_ids: [1, 2, 999] },
+      { key: "leadership", score: 5, evidence_status: "sourced", source_ids: [1] },
+    ],
+    ai_maturity: {
+      applicable: true,
+      signals: {
+        strategy_and_leadership: { score: 4, source_ids: [2] },
+        workforce: { score: 5, source_ids: [999] },
+      },
+    },
+  });
+  const result = enforceEvidenceReferences(normalized, [1, 2]);
+  assert(result.dimensions[0].score === 4, "two valid sources preserve employer score");
+  assert(result.dimensions[0].source_ids.length === 2, "invented source removed");
+  assert(result.dimensions[1].score === null, "one source is insufficient for employer dimension");
+  assert(result.ai_maturity.signals.strategy_and_leadership.score === 4, "one valid source preserves AI signal");
+  assert(result.ai_maturity.signals.workforce.score === null, "invented-only AI source rejects score");
 });

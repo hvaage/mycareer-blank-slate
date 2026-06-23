@@ -3,9 +3,20 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   buildRegisterContextText,
   EMPLOYER_DIMENSIONS,
+  enforceEvidenceReferences,
   financialsFromRegisterContext,
   normalizeEmployerAnalysisV2,
 } from "./analysis-v2.ts";
+import {
+  estimateModelCostUsd,
+  extractXaiResponseText,
+  financialsFromResearchPack,
+  hasRegisterFinancials,
+  MODEL_PRICING_SNAPSHOT_DATE,
+  type ModelUsage,
+  normalizeEmployerResearchPack,
+  type EmployerResearchPack,
+} from "./research-v1.ts";
 
 /**
  * Supabase Edge exposes `EdgeRuntime.waitUntil` so the isolate can finish async work after the HTTP
@@ -30,21 +41,21 @@ const corsHeaders = {
 
 const COMPANY_CACHE_DAYS = 90;
 
-const COMPANY_SYSTEM_PROMPT = `You are a senior employer research analyst with web_search. Produce a thorough, evidence-based employer profile for job seekers.
+const COMPANY_SYSTEM_PROMPT = `You are a senior employer analyst. Produce a thorough, evidence-based employer profile for job seekers from the supplied structured research pack. Do not perform new web searches.
 
 SOURCE OF TRUTH:
-- The user message can contain a LOCAL_REGISTER_CONTEXT from Karrierenmin's own Bronnoysund mirror. Treat its legal-entity fields and financial figures as authoritative for that Norwegian organisation number.
-- Use web research to supplement culture, leadership, work environment, careers, mission, talent, diversity and AI maturity. Do not replace local financial facts with third-party aggregator figures.
+- The user message contains a LOCAL_REGISTER_CONTEXT from Karrierenmin's own Bronnoysund mirror and a pre-collected RESEARCH_PACK. Treat local legal-entity fields and financial figures as authoritative for that Norwegian organisation number.
+- Use only evidence in those two inputs. Do not invent sources or replace local financial facts with web figures.
 - Distinguish the selected Norwegian legal entity from its parent group whenever evidence concerns different scopes.
 
-RESEARCH DEPTH:
-- Call web_search several times across official company material, annual reports, reputable editorial coverage, regulators and independent employee/reputation evidence.
-- Aim for at least 12 distinct credible HTTPS sources when available, with several source categories.
-- A scored employer dimension requires at least two independent supporting sources. If evidence is insufficient, use score=null and evidence_status="insufficient_evidence". Never convert missing evidence into a low score.
+EVIDENCE RULES:
+- A scored employer dimension requires at least two independent supporting evidence items from the research pack. If evidence is insufficient, use score=null and evidence_status="insufficient_evidence".
+- Use source_ids from RESEARCH_PACK.evidence. Never invent a source id.
+- Never convert missing evidence into a low score.
 
 USER-FACING SOURCE LANGUAGE:
 - User-facing narratives must NEVER name employee-review, reputation-rating or salary-comparison platforms. Use neutral phrases such as "uavhengige ansattvurderinger", "eksterne vurderingskilder" and "lønnssammenligningskilder".
-- Exact source URLs belong only in the structured sources array for traceability. Do not include platform/domain names in executive_summary, key_findings, dimension rationales, what_it_means, AI narrative, AI signal rationales or key_evidence.
+- Exact source URLs remain in RESEARCH_PACK.evidence for traceability. Do not repeat platform/domain names in executive_summary, key_findings, dimension rationales, what_it_means, AI narrative, AI signal rationales or key_evidence.
 
 LANGUAGE AND SCOPE:
 - Write all narrative fields in Norwegian Bokmal.
@@ -84,17 +95,64 @@ Return ONLY JSON with this exact structure:
     },
     "key_evidence": ["<Norwegian evidence bullets>"],
     "source_ids": [<source ids>]
-  },
-  "sources": [
-    {
-      "id": <positive integer>,
-      "url": "<https URL>",
-      "category": "<official_company|official_register|annual_report|news_media|regulator|employee_reviews|salary_benchmark|other>"
-    }
-  ]
+  }
 }
 
 Return all eight employer dimensions exactly once and all five AI signals exactly once.`;
+
+const RESEARCH_SYSTEM_PROMPT = `You collect and structure employer evidence for a separate senior analysis model.
+
+Return ONLY JSON. Do not score the employer and do not make a final recommendation.
+
+RESEARCH REQUIREMENTS:
+- Use web_search repeatedly across official company/careers pages, annual reports, investor relations, regulators, reputable editorial media and independent employee evidence.
+- Prefer primary and official sources. Keep the selected legal entity distinct from its parent group.
+- Aim for at least 12 distinct credible HTTPS sources when available.
+- Each evidence item must contain a short factual excerpt and fact_keys indicating which employer or AI dimensions it can support.
+- Exact source URLs are required for traceability.
+- Do not include names, emails, phone numbers or other personal contact details.
+
+FINANCIAL FALLBACK:
+- The user message states whether the local Bronnoysund mirror already has financial history.
+- If local financial history exists, set financial_supplement.status="not_needed" and do not substitute web figures.
+- If local financial history is missing, search official annual reports first, then investor-relations presentations, then other first-party/regulator sources.
+- Use status="found" only when figures are tied to an explicit reporting period, currency and source_ids. Otherwise use "not_found".
+- Never use commercial company aggregators as the financial source.
+
+Return this exact shape:
+{
+  "company_scope": {
+    "legal_entity_name": "<name>",
+    "organisation_number": "<number or null>",
+    "scope_note": "<Norwegian scope/parent-group caveat>"
+  },
+  "summary": "<Norwegian evidence summary>",
+  "evidence": [
+    {
+      "id": 1,
+      "url": "https://...",
+      "category": "<official_company|official_register|annual_report|investor_relations|news_media|regulator|employee_reviews|salary_benchmark|other>",
+      "title": "<source title>",
+      "excerpt": "<short factual Norwegian excerpt>",
+      "published_at": "<date/year or null>",
+      "fact_keys": ["culture", "leadership", "ai_strategy_and_leadership"]
+    }
+  ],
+  "financial_supplement": {
+    "status": "<not_needed|found|not_found>",
+    "source_type": "<annual_report|investor_relations|official_company|regulator|other|null>",
+    "reporting_period": "<period or null>",
+    "currency": "<currency or null>",
+    "revenue": <number or null>,
+    "operating_result": <number or null>,
+    "annual_result": <number or null>,
+    "equity": <number or null>,
+    "debt": <number or null>,
+    "assets": <number or null>,
+    "narrative": "<Norwegian caveat>",
+    "source_ids": [1]
+  }
+}`;
 
 const CANDIDATE_FIT_SYSTEM_PROMPT = `Du er en senior jobbmatch-analytiker. Du får et ferdig selskapsnotat (kun generelle selskapsfakta) og en kandidatprofil. Ikke gjør nye nettsøk — bruk bare innholdet du får.
 
@@ -239,6 +297,7 @@ const SOURCE_CATEGORIES = new Set([
   "official_company",
   "official_register",
   "annual_report",
+  "investor_relations",
   "news_media",
   "regulator",
   "employee_reviews",
@@ -323,6 +382,14 @@ function normalizeOrganisationNumber(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const digits = input.replace(/\D/g, "");
   return /^\d{9}$/.test(digits) ? digits : null;
+}
+
+function normalizeUuid(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const value = input.trim().toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value)
+    ? value
+    : null;
 }
 
 async function loadEmployerRegisterContext(supabase: any, organisationNumber: string | null) {
@@ -463,7 +530,14 @@ function parseRetryAfterMs(res: Response, errBody: string): number | null {
   return null;
 }
 
-async function callAnthropic(apiKey: string, body: any): Promise<string> {
+type DetailedModelCall = {
+  text: string;
+  usage: ModelUsage;
+  durationMs: number;
+};
+
+async function callAnthropicDetailed(apiKey: string, body: any): Promise<DetailedModelCall> {
+  const started = Date.now();
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -482,11 +556,76 @@ async function callAnthropic(apiKey: string, body: any): Promise<string> {
     throw new Error(`Anthropic ${res.status}: ${raw}`);
   }
   const json = JSON.parse(raw);
-  return (json?.content ?? [])
+  const text = (json?.content ?? [])
     .filter((b: any) => b?.type === "text" && typeof b.text === "string")
     .map((b: any) => b.text)
     .join("\n")
     .trim();
+  return {
+    text,
+    usage: {
+      inputTokens: Number(json?.usage?.input_tokens) || 0,
+      outputTokens: Number(json?.usage?.output_tokens) || 0,
+      webSearchRequests: Number(json?.usage?.server_tool_use?.web_search_requests) || 0,
+    },
+    durationMs: Date.now() - started,
+  };
+}
+
+async function callAnthropic(apiKey: string, body: any): Promise<string> {
+  return (await callAnthropicDetailed(apiKey, body)).text;
+}
+
+function xaiWebSearchCount(json: any): number {
+  const usage = json?.server_side_tool_usage ?? json?.usage?.server_side_tool_usage ?? {};
+  const direct = usage?.web_search ?? usage?.web_search_requests ?? usage?.SERVER_SIDE_TOOL_WEB_SEARCH;
+  if (typeof direct === "number" && Number.isFinite(direct)) return Math.max(0, direct);
+  if (direct && typeof direct === "object") {
+    return Number(direct.count ?? direct.requests) || 0;
+  }
+  return 0;
+}
+
+async function callXaiResearch(
+  apiKey: string,
+  model: string,
+  userMessage: string,
+): Promise<DetailedModelCall> {
+  const started = Date.now();
+  const res = await fetch("https://api.x.ai/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      input: [{
+        role: "user",
+        content: `${RESEARCH_SYSTEM_PROMPT}\n\n${userMessage}`,
+      }],
+      tools: [{ type: "web_search" }],
+    }),
+  });
+  const raw = await res.text();
+  if (!res.ok) {
+    if (res.status === 429) {
+      throw new AnthropicRateLimitError(raw.slice(0, 2000), parseRetryAfterMs(res, raw));
+    }
+    throw new Error(`xAI ${res.status}: ${raw.slice(0, 2000)}`);
+  }
+  const json = JSON.parse(raw);
+  const text = extractXaiResponseText(json);
+  if (!text) throw new Error("xAI response did not contain output text");
+  return {
+    text,
+    usage: {
+      inputTokens: Number(json?.usage?.input_tokens) || 0,
+      outputTokens: Number(json?.usage?.output_tokens) || 0,
+      webSearchRequests: xaiWebSearchCount(json),
+    },
+    durationMs: Date.now() - started,
+  };
 }
 
 async function rateLimitEmployerJob(
@@ -625,6 +764,7 @@ function buildEmployerAnalysisMarkdown(row: any): string {
       official_company: "Selskapets egne kilder",
       official_register: "Offentlige registre",
       annual_report: "Årsrapport og finansiell rapportering",
+      investor_relations: "Investorinformasjon",
       news_media: "Redaksjonelle kilder",
       regulator: "Myndighets- og regulatorkilder",
       employee_reviews: "Uavhengige ansattvurderinger",
@@ -679,7 +819,9 @@ function buildEmployerAnalysisMarkdown(row: any): string {
       "",
       row.financials?.source_kind === "brreg_local_mirror"
         ? `Lokalt speil av Brønnøysundregistrene, siste regnskapsår ${row.financials?.fiscal_year ?? "ukjent"}.`
-        : "Ingen lokal registerkontekst var tilgjengelig for denne analysen.",
+        : row.financials?.source_kind === "official_web_fallback"
+        ? `Offisiell finansiell fallback fra ${row.financials?.source_type ?? "årsrapport eller investorinformasjon"}.`
+        : "Ingen finansiell informasjon var tilgjengelig for denne analysen.",
     ];
     const sources = Array.isArray(v2.sources) ? v2.sources : [];
     if (sources.length) {
@@ -792,6 +934,102 @@ async function syncEmployerArtifactDocument(
   }).eq("id", opts.jobId);
 }
 
+type ResearchProvider = "anthropic" | "xai";
+
+type AnalysisRunOptions = {
+  runMode?: "production" | "benchmark";
+  persist?: boolean;
+  researchProvider?: ResearchProvider;
+  researchModel?: string;
+  analysisModel?: string;
+  modelRunId?: string | null;
+  benchmarkGroupId?: string | null;
+};
+
+const ALLOWED_RESEARCH_MODELS: Record<ResearchProvider, Set<string>> = {
+  anthropic: new Set(["claude-haiku-4-5", "claude-haiku-4-5-20251001", "claude-sonnet-4-6"]),
+  xai: new Set(["grok-4.3"]),
+};
+
+function productionModelOptions(): Required<AnalysisRunOptions> {
+  const requestedProvider = Deno.env.get("EMPLOYER_RESEARCH_PROVIDER") ?? "anthropic";
+  const researchProvider: ResearchProvider = requestedProvider === "xai" ? "xai" : "anthropic";
+  const requestedResearchModel = Deno.env.get("EMPLOYER_RESEARCH_MODEL") ??
+    (researchProvider === "xai" ? "grok-4.3" : "claude-haiku-4-5");
+  const researchModel = ALLOWED_RESEARCH_MODELS[researchProvider].has(requestedResearchModel)
+    ? requestedResearchModel
+    : researchProvider === "xai" ? "grok-4.3" : "claude-haiku-4-5";
+  const requestedAnalysisModel = Deno.env.get("EMPLOYER_ANALYSIS_MODEL") ?? "claude-sonnet-4-6";
+  return {
+    runMode: "production",
+    persist: true,
+    researchProvider,
+    researchModel,
+    analysisModel: requestedAnalysisModel === "claude-sonnet-4-6"
+      ? requestedAnalysisModel
+      : "claude-sonnet-4-6",
+    modelRunId: null,
+    benchmarkGroupId: null,
+  };
+}
+
+function benchmarkModelOptions(provider: unknown, model: unknown): Required<AnalysisRunOptions> | null {
+  if (provider !== "anthropic" && provider !== "xai") return null;
+  if (typeof model !== "string" || !ALLOWED_RESEARCH_MODELS[provider].has(model)) return null;
+  return {
+    runMode: "benchmark",
+    persist: false,
+    researchProvider: provider,
+    researchModel: model,
+    analysisModel: "claude-sonnet-4-6",
+    modelRunId: null,
+    benchmarkGroupId: null,
+  };
+}
+
+async function runEmployerResearch(
+  anthropicApiKey: string,
+  company: any,
+  registerContext: any,
+  provider: ResearchProvider,
+  model: string,
+): Promise<{ pack: EmployerResearchPack; call: DetailedModelCall }> {
+  const registerFinancialsAvailable = hasRegisterFinancials(registerContext);
+  const userMessage = `Research employer: "${company.name}".
+
+Known domain hint: ${company.domain ?? "none"}
+Country / market hint: ${company.country ?? "unknown"}
+Organisation number: ${company.organisasjonsnummer ?? "none"}
+Local register has financial history: ${registerFinancialsAvailable ? "yes" : "no"}
+
+LOCAL_REGISTER_CONTEXT:
+${buildRegisterContextText(registerContext)}
+
+Collect the evidence pack and return only the required JSON.`;
+
+  let call: DetailedModelCall;
+  if (provider === "xai") {
+    const xaiKey = Deno.env.get("XAI_API_KEY");
+    if (!xaiKey) throw new Error("XAI_API_KEY is required for the xAI benchmark provider");
+    call = await callXaiResearch(xaiKey, model, userMessage);
+  } else {
+    call = await callAnthropicDetailed(anthropicApiKey, {
+      model,
+      max_tokens: 9000,
+      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      system: RESEARCH_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userMessage }],
+    });
+  }
+
+  const pack = normalizeEmployerResearchPack(parseJson(call.text), {
+    companyName: company.name,
+    organisationNumber: company.organisasjonsnummer ?? null,
+    registerHasFinancials: registerFinancialsAvailable,
+  });
+  return { pack, call };
+}
+
 async function runCompanyAnalysis(
   supabase: any,
   apiKey: string,
@@ -799,43 +1037,91 @@ async function runCompanyAnalysis(
   registerContext: any,
   user_id: string,
   jobId?: string | null,
+  options?: AnalysisRunOptions,
 ): Promise<any | null> {
+  const selected = { ...productionModelOptions(), ...options } as Required<AnalysisRunOptions>;
+  let modelRunId: string | null = selected.modelRunId;
   try {
+    if (!modelRunId) {
+      const { data: modelRun, error: modelRunError } = await supabase
+        .from("employer_analysis_model_runs")
+        .insert({
+          company_id: company.id,
+          requested_by: user_id,
+          benchmark_group_id: selected.benchmarkGroupId,
+          run_mode: selected.runMode,
+          status: "running",
+          research_provider: selected.researchProvider,
+          research_model: selected.researchModel,
+          analysis_provider: "anthropic",
+          analysis_model: selected.analysisModel,
+          pricing_snapshot_date: MODEL_PRICING_SNAPSHOT_DATE,
+        })
+        .select("id")
+        .single();
+      if (modelRunError || !modelRun?.id) {
+        throw new Error(`model_run_create_failed: ${modelRunError?.message ?? "missing id"}`);
+      }
+      modelRunId = modelRun.id as string;
+    }
+
     if (jobId) {
       await updateEmployerJob(supabase, jobId, {
         status: "processing",
-        current_step: "claude_company_web_research",
-        progress_percent: 20,
+        current_step: "employer_evidence_collection",
+        progress_percent: 15,
       });
     }
 
-    const countryHint = (company as { country?: string | null }).country ?? "unknown";
-    const userMessage = `Research employer: "${company.name}".
+    const research = await runEmployerResearch(
+      apiKey,
+      company,
+      registerContext,
+      selected.researchProvider,
+      selected.researchModel,
+    );
 
-Known domain hint: ${company.domain ?? "none"}
-Country / market hint: ${countryHint}
+    if (jobId) {
+      await updateEmployerJob(supabase, jobId, {
+        current_step: "employer_analysis_reasoning",
+        progress_percent: 42,
+      });
+    }
+
+    const analysisUserMessage = `Analyse employer: "${company.name}".
+
 Organisation number: ${(company as any).organisasjonsnummer ?? "none"}
 
-LOCAL_REGISTER_CONTEXT (authoritative for the selected Norwegian legal entity):
+LOCAL_REGISTER_CONTEXT:
 ${buildRegisterContextText(registerContext)}
 
-Before composing JSON: use web_search several times with varied queries (official careers/about, annual reports, news last 24 months, independent employee evidence where relevant, industry and regulators). Minimum 12 unique HTTPS URLs when credible material exists; diversify source categories.
+RESEARCH_PACK:
+${JSON.stringify(research.pack, null, 2)}
 
-Return only the JSON object specified in the system instructions.`;
-    const text = await callAnthropic(apiKey, {
-      model: "claude-sonnet-4-6",
+Use only these inputs. Return only the JSON object specified in the system instructions.`;
+    const analysisCall = await callAnthropicDetailed(apiKey, {
+      model: selected.analysisModel,
       max_tokens: 12000,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
       system: COMPANY_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
+      messages: [{ role: "user", content: analysisUserMessage }],
     });
-    const parsed = parseJson(text) as any;
-    const analysisSources = normalizeAnalysisSources(parsed.sources);
-    const analysisV2 = normalizeEmployerAnalysisV2(
-      parsed,
-      evaluationSourceBrandTokens(analysisSources),
+    const parsed = parseJson(analysisCall.text) as any;
+    const analysisSources = normalizeAnalysisSources(
+      research.pack.evidence.map((source) => ({
+        id: source.id,
+        url: source.url,
+        category: source.category,
+      })),
+    );
+    const analysisV2 = enforceEvidenceReferences(
+      normalizeEmployerAnalysisV2(
+        parsed,
+        evaluationSourceBrandTokens(analysisSources),
+      ),
+      analysisSources.map((source) => source.id),
     );
     const registerFinancials = financialsFromRegisterContext(registerContext);
+    const fallbackFinancials = registerFinancials ? null : financialsFromResearchPack(research.pack);
     const registerSourceUpdatedAt = sourceUpdatedAtFromContext(registerContext);
     const persistedAnalysisV2 = {
       ...analysisV2,
@@ -852,13 +1138,72 @@ Return only the JSON object specified in the system instructions.`;
             : [],
         }
         : null,
+      research_provenance: {
+        schema_version: research.pack.schema_version,
+        provider: selected.researchProvider,
+        model: selected.researchModel,
+        analysis_provider: "anthropic",
+        analysis_model: selected.analysisModel,
+        evidence_count: research.pack.evidence.length,
+        financial_fallback_status: research.pack.financial_supplement.status,
+        model_run_id: modelRunId,
+      },
     };
     const now = new Date().toISOString();
+
+    const researchCost = estimateModelCostUsd(
+      selected.researchModel,
+      research.call.usage,
+      { anthropicWebSearch: selected.researchProvider === "anthropic" },
+    );
+    const analysisCost = estimateModelCostUsd(selected.analysisModel, analysisCall.usage);
+    const estimatedCost = researchCost == null || analysisCost == null
+      ? null
+      : Math.round((researchCost + analysisCost) * 1_000_000) / 1_000_000;
+    const scoredAiDimensions = Object.values(analysisV2.ai_maturity.signals)
+      .filter((signal) => signal.score !== null).length;
+
+    const { error: modelRunFinishError } = await supabase
+      .from("employer_analysis_model_runs")
+      .update({
+        status: "success",
+        research_input_tokens: research.call.usage.inputTokens,
+        research_output_tokens: research.call.usage.outputTokens,
+        analysis_input_tokens: analysisCall.usage.inputTokens,
+        analysis_output_tokens: analysisCall.usage.outputTokens,
+        web_search_requests: research.call.usage.webSearchRequests,
+        research_duration_ms: research.call.durationMs,
+        analysis_duration_ms: analysisCall.durationMs,
+        estimated_cost_usd: estimatedCost,
+        cost_estimate_complete: selected.researchProvider === "anthropic" && estimatedCost !== null,
+        source_count: analysisSources.length,
+        scored_employer_dimensions: analysisV2.overall.scored_dimensions,
+        scored_ai_dimensions: scoredAiDimensions,
+        financial_fallback_used: !!fallbackFinancials,
+        result_snapshot: {
+          analysis: persistedAnalysisV2,
+          research_pack: research.pack,
+        },
+        finished_at: now,
+      })
+      .eq("id", modelRunId);
+    if (modelRunFinishError) {
+      throw new Error(`model_run_finish_failed: ${modelRunFinishError.message}`);
+    }
+
+    if (!selected.persist) {
+      return {
+        benchmark: true,
+        model_run_id: modelRunId,
+        employer_analysis_v2: persistedAnalysisV2,
+        financials: registerFinancials ?? fallbackFinancials,
+      };
+    }
 
     if (jobId) {
       await updateEmployerJob(supabase, jobId, {
         current_step: "parsing_and_validating",
-        progress_percent: 40,
+        progress_percent: 58,
       });
     }
 
@@ -885,13 +1230,17 @@ Return only the JSON object specified in the system instructions.`;
         ai_maturity_signals: Object.keys(analysisV2.ai_maturity.signals),
         register_context_used: !!registerContext,
         organisasjonsnummer: (company as any).organisasjonsnummer ?? null,
+        research_provider: selected.researchProvider,
+        research_model: selected.researchModel,
+        analysis_model: selected.analysisModel,
+        model_run_id: modelRunId,
       },
     ].slice(-20);
 
     if (jobId) {
       await updateEmployerJob(supabase, jobId, {
         current_step: "writing_company_row",
-        progress_percent: 58,
+        progress_percent: 66,
       });
     }
 
@@ -918,7 +1267,9 @@ Return only the JSON object specified in the system instructions.`;
       research_log: newLog,
       updated_at: now,
     };
-    if (registerFinancials) updatePayload.financials = registerFinancials;
+    if (registerFinancials ?? fallbackFinancials) {
+      updatePayload.financials = registerFinancials ?? fallbackFinancials;
+    }
 
     const { error: updErr } = await supabase
       .from("companies")
@@ -932,7 +1283,7 @@ Return only the JSON object specified in the system instructions.`;
     if (jobId) {
       await updateEmployerJob(supabase, jobId, {
         current_step: "company_scores_saved",
-        progress_percent: 72,
+        progress_percent: 74,
       });
     }
 
@@ -945,6 +1296,13 @@ Return only the JSON object specified in the system instructions.`;
     return refreshed;
   } catch (e) {
     console.error("runCompanyAnalysis error:", e);
+    if (modelRunId) {
+      await supabase.from("employer_analysis_model_runs").update({
+        status: "failed",
+        error_summary: ((e as Error)?.message ?? "unknown").slice(0, 4000),
+        finished_at: new Date().toISOString(),
+      }).eq("id", modelRunId);
+    }
     if (jobId) {
       if (isAnthropicRateLimitError(e)) {
         await rateLimitEmployerJob(supabase, jobId, {
@@ -955,7 +1313,9 @@ Return only the JSON object specified in the system instructions.`;
         await failEmployerJob(supabase, jobId, (e as Error)?.message ?? "unknown");
       }
     }
-    await markAnalysisFailed(supabase, company.id, user_id, (e as Error)?.message ?? "unknown");
+    if (selected.persist) {
+      await markAnalysisFailed(supabase, company.id, user_id, (e as Error)?.message ?? "unknown");
+    }
     return null;
   }
 }
@@ -1278,6 +1638,10 @@ Deno.serve(async (req) => {
       force,
       candidate_fit_only: bodyCandidateFitOnly,
       fit_only: bodyFitOnly,
+      benchmark: bodyBenchmark,
+      research_provider: bodyResearchProvider,
+      research_model: bodyResearchModel,
+      benchmark_group_id: bodyBenchmarkGroupId,
     } = body ?? {};
 
     const name =
@@ -1328,6 +1692,40 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, serviceKey);
+
+    const benchmarkRequested = bodyBenchmark === true || bodyBenchmark === "true";
+    let benchmarkOptions: Required<AnalysisRunOptions> | null = null;
+    if (benchmarkRequested) {
+      if (!bodyCompanyId || bodyOrganisationNumber != null) {
+        return jsonErr(
+          400,
+          "benchmark_company_id_required",
+          "Benchmark krever en eksisterende company_id og endrer ikke selskapskoblinger.",
+        );
+      }
+      const { data: isAdmin, error: adminError } = await supabase.rpc("has_role", {
+        _user_id: resolvedUserId,
+        _role: "admin",
+      });
+      if (adminError || isAdmin !== true) {
+        return jsonErr(403, "admin_required", "Kun administrator kan starte modellbenchmark.");
+      }
+      benchmarkOptions = benchmarkModelOptions(bodyResearchProvider, bodyResearchModel);
+      if (!benchmarkOptions) {
+        return jsonErr(
+          400,
+          "invalid_benchmark_model",
+          "Tillatte kombinasjoner er Anthropic Haiku 4.5/Sonnet 4.6 eller xAI Grok 4.3.",
+        );
+      }
+      if (benchmarkOptions.researchProvider === "xai" && !Deno.env.get("XAI_API_KEY")) {
+        return jsonErr(503, "xai_not_configured", "XAI_API_KEY er ikke konfigurert.");
+      }
+      if (bodyBenchmarkGroupId != null && !normalizeUuid(bodyBenchmarkGroupId)) {
+        return jsonErr(400, "invalid_benchmark_group_id", "benchmark_group_id må være en UUID.");
+      }
+      benchmarkOptions.benchmarkGroupId = normalizeUuid(bodyBenchmarkGroupId) ?? crypto.randomUUID();
+    }
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
@@ -1444,6 +1842,56 @@ Deno.serve(async (req) => {
     const companyOrganisationNumber = normalizeOrganisationNumber(company.organisasjonsnummer);
     if (!registerContext && companyOrganisationNumber) {
       registerContext = await loadEmployerRegisterContext(supabase, companyOrganisationNumber);
+    }
+
+    if (benchmarkOptions) {
+      const { data: modelRun, error: modelRunError } = await supabase
+        .from("employer_analysis_model_runs")
+        .insert({
+          company_id: company.id,
+          requested_by: resolvedUserId,
+          benchmark_group_id: benchmarkOptions.benchmarkGroupId,
+          run_mode: "benchmark",
+          status: "running",
+          research_provider: benchmarkOptions.researchProvider,
+          research_model: benchmarkOptions.researchModel,
+          analysis_provider: "anthropic",
+          analysis_model: benchmarkOptions.analysisModel,
+          pricing_snapshot_date: MODEL_PRICING_SNAPSHOT_DATE,
+        })
+        .select("id")
+        .single();
+      if (modelRunError || !modelRun?.id) {
+        return jsonErr(
+          500,
+          "benchmark_create_failed",
+          "Kunne ikke opprette benchmarkkjøringen.",
+        );
+      }
+      runAnalysisBackground(
+        runCompanyAnalysis(
+          supabase,
+          apiKey,
+          company,
+          registerContext,
+          resolvedUserId,
+          null,
+          { ...benchmarkOptions, modelRunId: modelRun.id },
+        ),
+      );
+      return new Response(JSON.stringify({
+        ok: true,
+        status: "benchmark_queued",
+        model_run_id: modelRun.id,
+        company_id: company.id,
+        research_provider: benchmarkOptions.researchProvider,
+        research_model: benchmarkOptions.researchModel,
+        analysis_model: benchmarkOptions.analysisModel,
+        benchmark_group_id: benchmarkOptions.benchmarkGroupId,
+      }), {
+        status: 202,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Ensure user_company_ratings row exists
