@@ -62,15 +62,14 @@ export function EmployerDimensionsRadarV2({
     .map((d, i) => ({ d, i }))
     .filter((v) => typeof v.d.score === "number" && !Number.isNaN(v.d.score!));
 
-  const polygonPoints =
-    scoredVertices.length >= 3
-      ? scoredVertices
-          .map((v) => {
-            const p = pointFor(v.i, v.d.score as number, total);
-            return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
-          })
-          .join(" ")
-      : null;
+  const polygonPoints = shouldDrawRadarPolygon(data)
+    ? scoredVertices
+        .map((v) => {
+          const p = pointFor(v.i, v.d.score as number, total);
+          return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+        })
+        .join(" ")
+    : null;
 
   return (
     <svg
