@@ -247,24 +247,29 @@ function EmployersPage() {
     }
   };
 
-  const trimmedSearch = search.trim();
-  const exactMatchExists = useMemo(
-    () =>
-      (employers ?? []).some(
-        (e) => e.name?.toLowerCase() === trimmedSearch.toLowerCase(),
-      ),
-    [employers, trimmedSearch],
-  );
-  const showCreateCTA =
-    trimmedSearch.length >= 2 && filtered.length === 0 && !exactMatchExists;
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const existingByOrgnr = useMemo(() => {
+    const m = new Map<string, ExistingEmployerMatch>();
+    (employers ?? []).forEach((e) => {
+      const orgnr = (e as { organisasjonsnummer?: string | null }).organisasjonsnummer;
+      if (orgnr && /^[0-9]{9}$/.test(orgnr)) {
+        m.set(orgnr, { id: e.id, name: e.name ?? "" });
+      }
+    });
+    return m;
+  }, [employers]);
 
   const analyzeNew = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async (row: EmployerSearchRow) => {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id;
       if (!uid) throw new Error("Ikke innlogget");
+      if (!row.organisasjonsnummer || !/^[0-9]{9}$/.test(row.organisasjonsnummer)) {
+        throw new Error("Ugyldig organisasjonsnummer");
+      }
       const { data, error } = await supabase.functions.invoke("analyze-company", {
-        body: { user_id: uid, name },
+        body: { user_id: uid, organisasjonsnummer: row.organisasjonsnummer },
       });
       if (error) throw new Error(await messageFromFunctionInvokeError(error, data));
       if ((data as any)?.error) {
@@ -281,6 +286,7 @@ function EmployersPage() {
         status?: string;
         candidate_fit?: string;
         ai_rated_at?: string | null;
+        already_running?: boolean;
       };
     },
     onSuccess: (res: any) => {
@@ -304,6 +310,7 @@ function EmployersPage() {
       }
       qc.invalidateQueries({ queryKey: ["employers"] });
       qc.invalidateQueries({ queryKey: ["employer-analysis-job", res.company_id] });
+      setDialogOpen(false);
       navigate({ to: "/employers/$companyId", params: { companyId: res.company_id } });
     },
     onError: (err: any) =>
