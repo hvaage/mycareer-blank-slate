@@ -710,7 +710,10 @@ function SupplementalBlock({
       </header>
       {insight.direction ? (
         <p className="text-xs text-muted-foreground">
-          Retning: <span className="font-medium text-foreground">{insight.direction}</span>
+          Retning:{" "}
+          <span className="font-medium text-foreground">
+            {DIRECTION_LABEL[insight.direction] ?? "Utilstrekkelig grunnlag"}
+          </span>
         </p>
       ) : null}
       {insight.narrative ? (
