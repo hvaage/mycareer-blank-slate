@@ -2,7 +2,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Building2, Loader2, Search, Sparkles, ArrowUp, ArrowDown, ArrowUpDown, Clock } from "lucide-react";
+import { Building2, Loader2, Search, Sparkles, ArrowUp, ArrowDown, ArrowUpDown, Clock, Plus } from "lucide-react";
+import {
+  EmployerAnalysisSearchDialog,
+  type ExistingEmployerMatch,
+} from "@/components/employers/EmployerAnalysisSearchDialog";
+import type { EmployerSearchRow } from "@/lib/queries/employer-insight";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
