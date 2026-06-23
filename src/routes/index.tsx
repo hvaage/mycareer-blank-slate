@@ -6,7 +6,7 @@ import { Hero } from "@/components/landing/Hero";
 import { What } from "@/components/landing/What";
 import { Different } from "@/components/landing/Different";
 import { Problem } from "@/components/landing/Problem";
-import { How } from "@/components/landing/How";
+
 import { UseCases } from "@/components/landing/UseCases";
 import { BeforeStart } from "@/components/landing/BeforeStart";
 import { CTA } from "@/components/landing/CTA";
