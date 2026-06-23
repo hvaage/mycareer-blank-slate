@@ -77,6 +77,15 @@ const EVIDENCE_LABEL: Record<string, string> = {
   sourced: "Kildebelagt",
   inferred: "Avledet",
   insufficient: "Utilstrekkelig grunnlag",
+  insufficient_evidence: "Utilstrekkelig grunnlag",
+};
+
+const DIRECTION_LABEL: Record<string, string> = {
+  improving: "Forbedring",
+  stable: "Stabil",
+  declining: "Fallende",
+  mixed: "Blandet",
+  insufficient_evidence: "Utilstrekkelig grunnlag",
 };
 
 const FINANCIAL_SOURCE_LABEL: Record<string, string> = {
@@ -136,25 +145,25 @@ function fmtPct(n: number | null | undefined): string {
 
 function orderedDimensions(dims: AnalysisDimension[]): AnalysisDimension[] {
   const byKey = new Map(dims.map((d) => [d.key, d]));
-  const ordered: AnalysisDimension[] = [];
-  for (const key of DIMENSION_ORDER) {
+  // K-låst inventar: returnér ALLTID nøyaktig de åtte dimensjonene i fast
+  // rekkefølge, og syntetiser placeholder for manglende. Ukjente nøkler i
+  // payload ignoreres slik at tekniske navn ikke kan lekke til UI.
+  return DIMENSION_ORDER.map((key) => {
     const d = byKey.get(key);
-    if (d) {
-      ordered.push({
-        ...d,
-        label: d.label || DIMENSION_LABEL_FALLBACK[key] || key,
-      });
-      byKey.delete(key);
+    const fallbackLabel = DIMENSION_LABEL_FALLBACK[key] ?? key;
+    if (!d) {
+      return {
+        key,
+        label: fallbackLabel,
+        score: null,
+        rationale: null,
+        what_it_means: null,
+        source_ids: null,
+        evidence_status: null,
+      } as AnalysisDimension;
     }
-  }
-  // unknown keys appended at the end with norsk fallback hvis mulig
-  for (const d of byKey.values()) {
-    ordered.push({
-      ...d,
-      label: d.label || DIMENSION_LABEL_FALLBACK[d.key] || d.key,
-    });
-  }
-  return ordered;
+    return { ...d, label: fallbackLabel };
+  });
 }
 
 function orderedAiSignals(
@@ -164,25 +173,23 @@ function orderedAiSignals(
       : never
     : never,
 ): Array<{ key: string; signal: AiSignal }> {
-  const out: Array<{ key: string; signal: AiSignal }> = [];
-  const map = signals as Record<string, AiSignal | undefined>;
-  for (const key of AI_SIGNAL_ORDER) {
+  const map = (signals ?? {}) as Record<string, AiSignal | undefined>;
+  return AI_SIGNAL_ORDER.map((key) => {
+    const fallbackLabel = AI_SIGNAL_LABEL_FALLBACK[key] ?? key;
     const s = map[key];
-    if (s) {
-      out.push({
+    if (!s) {
+      return {
         key,
-        signal: { ...s, label: s.label || AI_SIGNAL_LABEL_FALLBACK[key] || key },
-      });
+        signal: {
+          label: fallbackLabel,
+          score: null,
+          rationale: null,
+          source_ids: null,
+        },
+      };
     }
-  }
-  for (const [key, s] of Object.entries(map)) {
-    if (!s || AI_SIGNAL_ORDER.includes(key)) continue;
-    out.push({
-      key,
-      signal: { ...s, label: s.label || AI_SIGNAL_LABEL_FALLBACK[key] || key },
-    });
-  }
-  return out;
+    return { key, signal: { ...s, label: fallbackLabel } };
+  });
 }
 
 // ---- presentation primitives ----
