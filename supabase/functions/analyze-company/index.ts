@@ -1,5 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  buildRegisterContextText,
+  EMPLOYER_DIMENSIONS,
+  financialsFromRegisterContext,
+  normalizeEmployerAnalysisV2,
+} from "./analysis-v2.ts";
 
 /**
  * Supabase Edge exposes `EdgeRuntime.waitUntil` so the isolate can finish async work after the HTTP
@@ -24,50 +30,71 @@ const corsHeaders = {
 
 const COMPANY_CACHE_DAYS = 90;
 
-const COMPANY_SYSTEM_PROMPT = `You are a senior company research analyst with web_search. Produce a thorough, evidence-based employer profile suitable for job seekers. All factual claims about the company must be tied to sources you list.
+const COMPANY_SYSTEM_PROMPT = `You are a senior employer research analyst with web_search. Produce a thorough, evidence-based employer profile for job seekers.
 
-RESEARCH DEPTH (mandatory):
-- Call web_search multiple times with different queries (official site, news, LinkedIn company, reviews, industry/regulator, financials) before composing the final JSON.
-- Aim for at least 12 distinct, credible https URLs in "sources" (no duplicates). Prefer primary sources (company domain, investor relations, annual reports), then reputable news, then review/employer platforms where relevant.
-- For each dimension, synthesize several findings; do not rely on a single page.
+SOURCE OF TRUTH:
+- The user message can contain a LOCAL_REGISTER_CONTEXT from Karrierenmin's own Bronnoysund mirror. Treat its legal-entity fields and financial figures as authoritative for that Norwegian organisation number.
+- Use web research to supplement culture, leadership, work environment, careers, mission, talent, diversity and AI maturity. Do not replace local financial facts with third-party aggregator figures.
+- Distinguish the selected Norwegian legal entity from its parent group whenever evidence concerns different scopes.
 
-FINANCIAL STABILITY — NORWEGIAN COMPANIES (MANDATORY): For companies registered in Norway, including Norwegian subsidiaries of foreign groups (country=NO, .no domain, Norwegian org.nr., or clearly Norwegian name), you MUST consult proff.no. Search "site:proff.no <company name>" and/or visit https://www.proff.no/selskap/<navn>. Extract regnskapstall (revenue trend last 2-3 years, profit/EBITDA, equity ratio in %, any payment remarks/betalingsanmerkninger). Base ai_financial_stability_score on this evidence and populate the "financials" object below. Cite the exact proff.no URL in sources. Supplement with brreg.no when relevant. If proff.no truly has no record, set financials.source_url to null and explain in financials.notes.
+RESEARCH DEPTH:
+- Call web_search several times across official company material, annual reports, reputable editorial coverage, regulators and independent employee/reputation evidence.
+- Aim for at least 12 distinct credible HTTPS sources when available, with several source categories.
+- A scored employer dimension requires at least two independent supporting sources. If evidence is insufficient, use score=null and evidence_status="insufficient_evidence". Never convert missing evidence into a low score.
 
-LANGUAGE: Write ai_rating_notes and every ai_dimension_notes value in Norwegian (bokmål). Keep company-level content only — do NOT personalize for an individual candidate here (no "du" as job seeker; neutral third person about the employer).
+USER-FACING SOURCE LANGUAGE:
+- User-facing narratives must NEVER name employee-review, reputation-rating or salary-comparison platforms. Use neutral phrases such as "uavhengige ansattvurderinger", "eksterne vurderingskilder" and "lønnssammenligningskilder".
+- Exact source URLs belong only in the structured sources array for traceability. Do not include platform/domain names in executive_summary, key_findings, dimension rationales, what_it_means, AI narrative, AI signal rationales or key_evidence.
 
-Return ONLY a JSON object with this exact structure (no markdown fences, no other text):
+LANGUAGE AND SCOPE:
+- Write all narrative fields in Norwegian Bokmal.
+- Keep the company analysis neutral and company-level. Do not personalize it to an individual candidate.
+- Scores use 1.0-5.0 in 0.5 increments; 3.0 is neutral. Use null for insufficient evidence.
 
+Return ONLY JSON with this exact structure:
 {
-  "ai_culture_score": <number 1.0-5.0 in 0.5 increments>,
-  "ai_leadership_score": <number 1.0-5.0 in 0.5 increments>,
-  "ai_work_environment_score": <number 1.0-5.0 in 0.5 increments>,
-  "ai_career_development_score": <number 1.0-5.0 in 0.5 increments>,
-  "ai_financial_stability_score": <number 1.0-5.0 in 0.5 increments>,
-  "ai_mission_score": <number 1.0-5.0 in 0.5 increments>,
-  "ai_overall_score": <mean of the six scores above>,
-  "ai_rating_notes": "<Norwegian: 500-900 words max. Multi-paragraph executive summary: strategy, culture, risks, opportunities, hiring signals, controversies if evidenced, and what a candidate should verify. Use markdown headings (##) and bullet lists where helpful.>",
-  "ai_dimension_notes": {
-    "culture": "<Norwegian: 8-14 sentences. Evidence, trade-offs, what is uncertain.>",
-    "leadership": "<Norwegian: 8-14 sentences>",
-    "work_environment": "<Norwegian: 8-14 sentences>",
-    "career_development": "<Norwegian: 8-14 sentences>",
-    "financial_stability": "<Norwegian: 8-14 sentences; include proff.no figures when NO>",
-    "mission": "<Norwegian: 8-14 sentences>"
+  "overall": {
+    "score": <mean of scored employer dimensions or null>,
+    "scored_dimensions": <0-8>,
+    "total_dimensions": 8
   },
-  "financials": {
-    "fiscal_year": <year as number or null>,
-    "revenue_latest": "<f.eks. '125 MNOK' eller null>",
-    "revenue_trend": "<f.eks. 'voksende +12%/år' eller null>",
-    "profit_latest": "<f.eks. '8 MNOK' eller null>",
-    "equity_ratio": "<f.eks. '42%' eller null>",
-    "payment_remarks": "<'ingen' eller beskrivelse>",
-    "source_url": "<proff.no URL eller null>",
-    "notes": "<Norwegian: optional deeper commentary on financial health, max ~400 words>"
+  "executive_summary": "<Norwegian evidence-based summary, 400-700 words>",
+  "key_findings": ["<5-8 concise Norwegian findings>"],
+  "dimensions": [
+    {
+      "key": "<culture|leadership|work_environment|career_development|financial_stability|mission|talent_attraction_retention|diversity_inclusion>",
+      "score": <number or null>,
+      "evidence_status": "<sourced|inferred|insufficient_evidence>",
+      "rationale": "<Norwegian, evidence and uncertainty, no platform names>",
+      "what_it_means": "<Norwegian consequence for a prospective employee>",
+      "source_ids": [<source ids>]
+    }
+  ],
+  "ai_maturity": {
+    "applicable": <boolean>,
+    "applicability_note": "<Norwegian reason or null>",
+    "score": <mean of available signal scores or null>,
+    "narrative": "<Norwegian overall AI maturity assessment>",
+    "signals": {
+      "strategy_and_leadership": {"score": <number or null>, "rationale": "<Norwegian>", "source_ids": []},
+      "capability_and_deployment": {"score": <number or null>, "rationale": "<Norwegian>", "source_ids": []},
+      "workforce": {"score": <number or null>, "rationale": "<Norwegian>", "source_ids": []},
+      "governance": {"score": <number or null>, "rationale": "<Norwegian>", "source_ids": []},
+      "market_and_product": {"score": <number or null>, "rationale": "<Norwegian>", "source_ids": []}
+    },
+    "key_evidence": ["<Norwegian evidence bullets>"],
+    "source_ids": [<source ids>]
   },
-  "sources": ["<minimum 12 unique https URLs when possible; include diversity of domains>"]
+  "sources": [
+    {
+      "id": <positive integer>,
+      "url": "<https URL>",
+      "category": "<official_company|official_register|annual_report|news_media|regulator|employee_reviews|salary_benchmark|other>"
+    }
+  ]
 }
 
-Scale: 1.0 = significant concern or no evidence, 3.0 = average, 5.0 = strong and well-evidenced.`;
+Return all eight employer dimensions exactly once and all five AI signals exactly once.`;
 
 const CANDIDATE_FIT_SYSTEM_PROMPT = `Du er en senior jobbmatch-analytiker. Du får et ferdig selskapsnotat (kun generelle selskapsfakta) og en kandidatprofil. Ikke gjør nye nettsøk — bruk bare innholdet du får.
 
@@ -130,6 +157,9 @@ function buildProfileText(p: any): string {
 
 function buildCompanySnapshotText(snap: any): string {
   if (!snap) return "(no company data)";
+  const v2 = snap.employer_analysis_v2 ?? {};
+  const v2Dimensions = Array.isArray(v2.dimensions) ? v2.dimensions : [];
+  const aiMaturity = v2.ai_maturity ?? {};
   const dim = snap.ai_dimension_notes ?? {};
   const fin = snap.financials ?? {};
   const lines = [
@@ -154,6 +184,14 @@ function buildCompanySnapshotText(snap: any): string {
     fmt("Egenkapitalandel", fin.equity_ratio),
     fmt("Betalingsanmerkninger", fin.payment_remarks),
     fmt("Sammendrag", snap.ai_rating_notes),
+    v2Dimensions.length
+      ? `Arbeidsgiverdimensjoner v2:\n${v2Dimensions.map((item: any) =>
+        `${item.label ?? item.key}: ${item.score ?? "ikke vurdert"} — ${clampStr(item.rationale, 1200)}`
+      ).join("\n")}`
+      : null,
+    aiMaturity && typeof aiMaturity === "object"
+      ? fmt("AI-modenhet v2", clampStr(JSON.stringify(aiMaturity), 5000))
+      : null,
   ].filter(Boolean);
   return lines.length ? lines.join("\n") : "(company snapshot empty)";
 }
@@ -195,37 +233,67 @@ function parseJson(text: string): any {
   }
 }
 
-function normalizeSourceUrls(sources: unknown): string[] {
+type AnalysisSource = { id: number; url: string; category: string };
+
+const SOURCE_CATEGORIES = new Set([
+  "official_company",
+  "official_register",
+  "annual_report",
+  "news_media",
+  "regulator",
+  "employee_reviews",
+  "salary_benchmark",
+  "other",
+]);
+
+function normalizeAnalysisSources(sources: unknown): AnalysisSource[] {
   if (!Array.isArray(sources)) return [];
-  const out: string[] = [];
+  const out: AnalysisSource[] = [];
   const seen = new Set<string>();
-  for (const u of sources) {
-    if (typeof u !== "string") continue;
-    const t = u.trim();
+  const usedIds = new Set<number>();
+  for (const item of sources) {
+    const raw = typeof item === "string"
+      ? { url: item, category: "other" }
+      : item && typeof item === "object"
+        ? item as Record<string, unknown>
+        : null;
+    if (!raw || typeof raw.url !== "string") continue;
+    const t = raw.url.trim();
     if (!/^https?:\/\//i.test(t)) continue;
     const low = t.split("?")[0].split("#")[0].toLowerCase();
     if (seen.has(low)) continue;
     seen.add(low);
-    out.push(t);
+    const category = typeof raw.category === "string" && SOURCE_CATEGORIES.has(raw.category)
+      ? raw.category
+      : "other";
+    const requestedId = Number(raw.id);
+    let id = Number.isInteger(requestedId) && requestedId > 0 && !usedIds.has(requestedId)
+      ? requestedId
+      : out.length + 1;
+    while (usedIds.has(id)) id++;
+    usedIds.add(id);
+    out.push({ id, url: t, category });
   }
   return out.slice(0, 40);
 }
 
-function ensureAiOverallScore(parsed: Record<string, unknown>): void {
-  if (typeof parsed.ai_overall_score === "number" && !Number.isNaN(parsed.ai_overall_score)) return;
-  const keys = [
-    "ai_culture_score",
-    "ai_leadership_score",
-    "ai_work_environment_score",
-    "ai_career_development_score",
-    "ai_financial_stability_score",
-    "ai_mission_score",
-  ] as const;
-  const dims = keys.map((k) => parsed[k]).filter((x): x is number => typeof x === "number" && !Number.isNaN(x));
-  if (dims.length === 6) {
-    const mean = dims.reduce((a, b) => a + b, 0) / 6;
-    parsed.ai_overall_score = Math.round(mean * 10) / 10;
+function normalizeSourceUrls(sources: unknown): string[] {
+  return normalizeAnalysisSources(sources).map((source) => source.url);
+}
+
+function evaluationSourceBrandTokens(sources: AnalysisSource[]): string[] {
+  const tokens = new Set<string>();
+  for (const source of sources) {
+    if (source.category !== "employee_reviews" && source.category !== "salary_benchmark") continue;
+    try {
+      const parts = new URL(source.url).hostname.toLowerCase().replace(/^www\./, "").split(".");
+      const token = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+      if (token && /^[a-z0-9-]{3,40}$/.test(token)) tokens.add(token);
+    } catch {
+      // Invalid URLs were filtered by normalizeAnalysisSources.
+    }
   }
+  return Array.from(tokens);
 }
 
 function lastAnalyzeCompanySourcesFromRow(row: { research_log?: unknown }): string[] {
@@ -249,6 +317,58 @@ function extractDomain(input: string | null | undefined): string | null {
   } catch {
     return null;
   }
+}
+
+function normalizeOrganisationNumber(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const digits = input.replace(/\D/g, "");
+  return /^\d{9}$/.test(digits) ? digits : null;
+}
+
+async function loadEmployerRegisterContext(supabase: any, organisationNumber: string | null) {
+  if (!organisationNumber) return null;
+  const { data, error } = await supabase.rpc("get_employer_analysis_context", {
+    p_organisasjonsnummer: organisationNumber,
+  });
+  if (error) throw new Error(`register_context_failed: ${error.message}`);
+  return data && typeof data === "object" ? data : null;
+}
+
+function sourceUpdatedAtFromContext(context: any): string | null {
+  const value = context?.source_updated_at;
+  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) return null;
+  return value;
+}
+
+function companyPatchFromRegisterContext(context: any): Record<string, unknown> {
+  const entity = context?.entity && typeof context.entity === "object" ? context.entity : {};
+  const employeeCount = typeof entity.employee_count === "number" ? entity.employee_count : null;
+  const sizeEstimate = employeeCount == null
+    ? null
+    : employeeCount === 0
+      ? "0"
+      : employeeCount <= 4
+        ? "1-4"
+        : employeeCount <= 19
+          ? "5-19"
+          : employeeCount <= 99
+            ? "20-99"
+            : employeeCount <= 499
+              ? "100-499"
+              : "500+";
+  const website = typeof entity.website === "string" ? extractDomain(entity.website) : null;
+  return {
+    name: typeof entity.legal_name === "string" ? entity.legal_name : undefined,
+    domain: website ?? undefined,
+    country: "NO",
+    industry: typeof entity.industry_primary === "string" ? entity.industry_primary : undefined,
+    description: typeof entity.activity === "string" ? entity.activity : undefined,
+    size_estimate: sizeEstimate ?? undefined,
+    ownership_type: entity.is_public === true ? "public" : undefined,
+    brreg_matched_at: new Date().toISOString(),
+    brreg_match_source: "brreg_orgnr",
+    brreg_match_confidence: 1,
+  };
 }
 
 const RATE_LIMIT_USER_MESSAGE =
@@ -278,6 +398,9 @@ function clampStr(s: unknown, maxChars: number): string {
 /** Compact company context for candidate-fit only (scores + truncated notes; no research_log / sources). */
 function buildCandidateFitCompanyContext(snap: any): string {
   if (!snap) return "(no company data)";
+  const v2 = snap.employer_analysis_v2 ?? {};
+  const v2Dimensions = Array.isArray(v2.dimensions) ? v2.dimensions : [];
+  const aiMaturity = v2.ai_maturity ?? null;
   const dim = snap.ai_dimension_notes ?? {};
   const fin = snap.financials ?? {};
   const finLine = [
@@ -301,6 +424,14 @@ function buildCandidateFitCompanyContext(snap: any): string {
     fmt("Misjon (kort)", clampStr(dim.mission, 1400)),
     finLine ? `Økonomi (strukturert): ${finLine}` : null,
     fmt("Økonomi-notat (kort)", clampStr(fin.notes, 1200)),
+    v2Dimensions.length
+      ? `Arbeidsgiverdimensjoner (8):\n${v2Dimensions.map((item: any) =>
+        `${item.label ?? item.key}: ${item.score ?? "ikke vurdert"}; ${clampStr(item.rationale, 900)}`
+      ).join("\n")}`
+      : null,
+    aiMaturity
+      ? fmt("AI-modenhet (5 områder)", clampStr(JSON.stringify(aiMaturity), 4500))
+      : null,
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -488,6 +619,82 @@ async function getOrCreateEmployerJob(
 }
 
 function buildEmployerAnalysisMarkdown(row: any): string {
+  const v2 = row.employer_analysis_v2;
+  if (v2 && v2.schema_version === 2 && Array.isArray(v2.dimensions)) {
+    const sourceLabels: Record<string, string> = {
+      official_company: "Selskapets egne kilder",
+      official_register: "Offentlige registre",
+      annual_report: "Årsrapport og finansiell rapportering",
+      news_media: "Redaksjonelle kilder",
+      regulator: "Myndighets- og regulatorkilder",
+      employee_reviews: "Uavhengige ansattvurderinger",
+      salary_benchmark: "Lønnssammenligningskilder",
+      other: "Annen ekstern kilde",
+    };
+    const lines: string[] = [
+      `# Arbeidsgiveranalyse — ${row.name ?? "Selskap"}`,
+      "",
+      row.organisasjonsnummer ? `**Organisasjonsnummer:** ${row.organisasjonsnummer}` : null,
+      row.industry ? `**Bransje:** ${row.industry}` : null,
+      `**Samlet score:** ${v2.overall?.score ?? "—"} / 5 (${v2.overall?.scored_dimensions ?? 0} av 8 dimensjoner)`,
+      "",
+      "## Sammendrag",
+      "",
+      v2.executive_summary || "_Ingen sammendrag._",
+      "",
+      "## Hovedfunn",
+      "",
+      ...(Array.isArray(v2.key_findings) ? v2.key_findings.map((item: string) => `- ${item}`) : []),
+      "",
+      "## Arbeidsgiverdimensjoner",
+      "",
+      "| Dimensjon | Score | Evidens |",
+      "|---|---:|---|",
+      ...v2.dimensions.map((item: any) =>
+        `| ${item.label ?? item.key} | ${item.score ?? "Ikke nok data"} | ${item.evidence_status ?? "—"} |`
+      ),
+      "",
+      ...v2.dimensions.flatMap((item: any) => [
+        `### ${item.label ?? item.key}`,
+        "",
+        item.rationale || "_Ingen begrunnelse._",
+        item.what_it_means ? `\n**Hva dette betyr:** ${item.what_it_means}` : "",
+        "",
+      ]),
+      "## AI-modenhet",
+      "",
+      v2.ai_maturity?.applicable === false
+        ? v2.ai_maturity?.applicability_note ?? "Ikke vurdert for denne virksomheten."
+        : `**Samlet AI-score:** ${v2.ai_maturity?.score ?? "—"} / 5`,
+      "",
+      v2.ai_maturity?.narrative ?? "",
+      "",
+      "| AI-område | Score | Vurdering |",
+      "|---|---:|---|",
+      ...Object.values(v2.ai_maturity?.signals ?? {}).map((signal: any) =>
+        `| ${signal.label ?? "AI-signal"} | ${signal.score ?? "Ikke nok data"} | ${signal.rationale ?? ""} |`
+      ),
+      "",
+      "## Register- og regnskapsgrunnlag",
+      "",
+      row.financials?.source_kind === "brreg_local_mirror"
+        ? `Lokalt speil av Brønnøysundregistrene, siste regnskapsår ${row.financials?.fiscal_year ?? "ukjent"}.`
+        : "Ingen lokal registerkontekst var tilgjengelig for denne analysen.",
+    ];
+    const sources = Array.isArray(v2.sources) ? v2.sources : [];
+    if (sources.length) {
+      lines.push(
+        "",
+        "## Kilder",
+        "",
+        ...sources.map((source: any, index: number) =>
+          `- [Kilde ${index + 1}](${source.url}) — ${sourceLabels[source.category] ?? sourceLabels.other}`
+        ),
+      );
+    }
+    return lines.filter((item) => item != null).join("\n");
+  }
+
   const dim = row.ai_dimension_notes ?? {};
   const fin = row.financials ?? {};
   const lines: string[] = [
@@ -589,6 +796,7 @@ async function runCompanyAnalysis(
   supabase: any,
   apiKey: string,
   company: { id: string; name: string; domain: string | null; country?: string | null },
+  registerContext: any,
   user_id: string,
   jobId?: string | null,
 ): Promise<any | null> {
@@ -606,20 +814,45 @@ async function runCompanyAnalysis(
 
 Known domain hint: ${company.domain ?? "none"}
 Country / market hint: ${countryHint}
+Organisation number: ${(company as any).organisasjonsnummer ?? "none"}
 
-Before composing JSON: use web_search several times with varied queries (official careers/about, LinkedIn company, news last 24 months, employee reviews where relevant, industry/regulator, financial registry for locale). Minimum 12 unique https URLs in "sources" when credible material exists; diversify domains (not only the company homepage).
+LOCAL_REGISTER_CONTEXT (authoritative for the selected Norwegian legal entity):
+${buildRegisterContextText(registerContext)}
+
+Before composing JSON: use web_search several times with varied queries (official careers/about, annual reports, news last 24 months, independent employee evidence where relevant, industry and regulators). Minimum 12 unique HTTPS URLs when credible material exists; diversify source categories.
 
 Return only the JSON object specified in the system instructions.`;
     const text = await callAnthropic(apiKey, {
       model: "claude-sonnet-4-6",
-      max_tokens: 6656,
+      max_tokens: 12000,
       tools: [{ type: "web_search_20250305", name: "web_search" }],
       system: COMPANY_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
     });
     const parsed = parseJson(text) as any;
-    parsed.sources = normalizeSourceUrls(parsed.sources);
-    ensureAiOverallScore(parsed);
+    const analysisSources = normalizeAnalysisSources(parsed.sources);
+    const analysisV2 = normalizeEmployerAnalysisV2(
+      parsed,
+      evaluationSourceBrandTokens(analysisSources),
+    );
+    const registerFinancials = financialsFromRegisterContext(registerContext);
+    const registerSourceUpdatedAt = sourceUpdatedAtFromContext(registerContext);
+    const persistedAnalysisV2 = {
+      ...analysisV2,
+      sources: analysisSources,
+      register_provenance: registerContext
+        ? {
+          source: "brreg_local_mirror",
+          organisasjonsnummer: registerContext.organisasjonsnummer ?? (company as any).organisasjonsnummer ?? null,
+          source_updated_at: registerSourceUpdatedAt,
+          financial_years: Array.isArray(registerContext.financial_history)
+            ? registerContext.financial_history
+              .map((item: any) => item?.year)
+              .filter((year: unknown) => typeof year === "number")
+            : [],
+        }
+        : null,
+    };
     const now = new Date().toISOString();
 
     if (jobId) {
@@ -636,28 +869,22 @@ Return only the JSON object specified in the system instructions.`;
       .maybeSingle();
     const existingLog = Array.isArray(existing?.research_log) ? existing!.research_log : [];
 
-    const isNorwegian =
-      (company as any).country === "NO" ||
-      (company.domain ?? "").toLowerCase().endsWith(".no") ||
-      /\b(AS|ASA|ANS|DA|SA)\b/.test(company.name);
-    const sourcesArr: string[] = normalizeSourceUrls(parsed.sources);
-    const hasProff = sourcesArr.some((u) => /proff\.no/i.test(u)) ||
-      (parsed.financials?.source_url && /proff\.no/i.test(parsed.financials.source_url));
-    const proffMissing = isNorwegian && !hasProff;
+    const sourcesArr = analysisSources.map((source) => source.url);
 
     const newLog = [
       ...existingLog,
       {
         at: now,
         by: user_id,
-        status: proffMissing ? "partial" : "completed",
+        status: "completed",
         via: "analyze-company",
+        analysis_version: 2,
         sources: sourcesArr,
-        dimensions: [
-          "culture", "leadership", "work_environment",
-          "career_development", "financial_stability", "mission",
-        ],
-        ...(proffMissing ? { warning: "proff_missing" } : {}),
+        source_categories: Array.from(new Set(analysisSources.map((source) => source.category))),
+        dimensions: EMPLOYER_DIMENSIONS.map((dimension) => dimension.key),
+        ai_maturity_signals: Object.keys(analysisV2.ai_maturity.signals),
+        register_context_used: !!registerContext,
+        organisasjonsnummer: (company as any).organisasjonsnummer ?? null,
       },
     ].slice(-20);
 
@@ -668,23 +895,34 @@ Return only the JSON object specified in the system instructions.`;
       });
     }
 
+    const dimensionByKey = new Map(
+      analysisV2.dimensions.map((dimension) => [dimension.key, dimension]),
+    );
+    const updatePayload: Record<string, unknown> = {
+      ai_culture_score: dimensionByKey.get("culture")?.score ?? null,
+      ai_leadership_score: dimensionByKey.get("leadership")?.score ?? null,
+      ai_work_environment_score: dimensionByKey.get("work_environment")?.score ?? null,
+      ai_career_development_score: dimensionByKey.get("career_development")?.score ?? null,
+      ai_financial_stability_score: dimensionByKey.get("financial_stability")?.score ?? null,
+      ai_mission_score: dimensionByKey.get("mission")?.score ?? null,
+      ai_overall_score: analysisV2.overall.score,
+      ai_rating_notes: analysisV2.executive_summary,
+      ai_dimension_notes: Object.fromEntries(
+        analysisV2.dimensions.map((dimension) => [dimension.key, dimension.rationale]),
+      ),
+      ai_rated_at: now,
+      employer_analysis_v2: persistedAnalysisV2,
+      employer_analysis_version: 2,
+      employer_analysis_rated_at: now,
+      employer_analysis_source_updated_at: registerSourceUpdatedAt,
+      research_log: newLog,
+      updated_at: now,
+    };
+    if (registerFinancials) updatePayload.financials = registerFinancials;
+
     const { error: updErr } = await supabase
       .from("companies")
-      .update({
-        ai_culture_score: parsed.ai_culture_score,
-        ai_leadership_score: parsed.ai_leadership_score,
-        ai_work_environment_score: parsed.ai_work_environment_score,
-        ai_career_development_score: parsed.ai_career_development_score,
-        ai_financial_stability_score: parsed.ai_financial_stability_score,
-        ai_mission_score: parsed.ai_mission_score,
-        ai_overall_score: parsed.ai_overall_score,
-        ai_rating_notes: parsed.ai_rating_notes,
-        ai_dimension_notes: parsed.ai_dimension_notes ?? null,
-        financials: parsed.financials ?? null,
-        ai_rated_at: now,
-        research_log: newLog,
-        updated_at: now,
-      })
+      .update(updatePayload)
       .eq("id", company.id);
     if (updErr) {
       console.error("companies AI update failed (schema drift or RLS):", updErr);
@@ -897,6 +1135,7 @@ async function runEmployerAnalysisPipeline(
     jobId: string;
     userId: string;
     company: any;
+    registerContext: any;
     profile: any;
     companyFresh: boolean;
     userHasFit: boolean;
@@ -904,7 +1143,7 @@ async function runEmployerAnalysisPipeline(
     candidateFitOnly?: boolean;
   },
 ) {
-  const { jobId, userId, company, profile, companyFresh, candidateFitOnly } = ctx;
+  const { jobId, userId, company, registerContext, profile, companyFresh, candidateFitOnly } = ctx;
   try {
     await updateEmployerJob(supabase, jobId, {
       status: "processing",
@@ -917,7 +1156,14 @@ async function runEmployerAnalysisPipeline(
 
     if (runCompanySide) {
       await appendPendingResearchLog(supabase, company.id, userId);
-      const fresh = await runCompanyAnalysis(supabase, apiKey, company, userId, jobId);
+      const fresh = await runCompanyAnalysis(
+        supabase,
+        apiKey,
+        company,
+        registerContext,
+        userId,
+        jobId,
+      );
       if (!fresh) {
         return;
       }
@@ -1028,6 +1274,7 @@ Deno.serve(async (req) => {
       name: bodyName,
       company_name: bodyCompanyName,
       domain: rawDomain,
+      organisasjonsnummer: bodyOrganisationNumber,
       force,
       candidate_fit_only: bodyCandidateFitOnly,
       fit_only: bodyFitOnly,
@@ -1044,30 +1291,39 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    let resolvedUserId =
-      typeof bodyUserId === "string" && bodyUserId.trim() ? bodyUserId.trim() : "";
-
     const authHeader = req.headers.get("Authorization");
-    if (!resolvedUserId && authHeader) {
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const { data: authData, error: authErr } = await userClient.auth.getUser();
-      if (!authErr && authData?.user?.id) resolvedUserId = authData.user.id;
-    }
-
-    if (!resolvedUserId) {
+    if (!authHeader) {
       return jsonErr(
         401,
-        "user_id_required",
-        "Logg inn på nytt, eller send user_id i forespørselen.",
+        "authentication_required",
+        "Logg inn på nytt før du starter analysen.",
       );
     }
-    if (!bodyCompanyId && !name) {
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: authData, error: authErr } = await userClient.auth.getUser();
+    const resolvedUserId = authData?.user?.id ?? "";
+    if (authErr || !resolvedUserId) {
+      return jsonErr(401, "invalid_session", "Sesjonen er ugyldig. Logg inn på nytt.");
+    }
+    if (
+      typeof bodyUserId === "string" &&
+      bodyUserId.trim() &&
+      bodyUserId.trim() !== resolvedUserId
+    ) {
+      return jsonErr(403, "user_id_mismatch", "Forespørselen kan bare kjøres for innlogget bruker.");
+    }
+
+    const organisationNumber = normalizeOrganisationNumber(bodyOrganisationNumber);
+    if (bodyOrganisationNumber != null && !organisationNumber) {
+      return jsonErr(400, "invalid_organisasjonsnummer", "Organisasjonsnummer må ha ni sifre.");
+    }
+    if (!bodyCompanyId && !name && !organisationNumber) {
       return jsonErr(
         400,
         "company_required",
-        "Send company_id (UUID) eller name / company_name (selskapsnavn).",
+        "Send company_id, organisasjonsnummer eller selskapsnavn.",
       );
     }
 
@@ -1086,6 +1342,7 @@ Deno.serve(async (req) => {
     const COMPANY_SELECT = "*";
 
     let company: any = null;
+    let registerContext: any = null;
 
     if (bodyCompanyId) {
       const { data } = await supabase
@@ -1093,6 +1350,66 @@ Deno.serve(async (req) => {
       if (!data) {
         return jsonErr(404, "company_not_found", "Fant ikke selskapet.");
       }
+      company = data;
+      if (organisationNumber) {
+        const existingOrganisationNumber = normalizeOrganisationNumber(company.organisasjonsnummer);
+        if (existingOrganisationNumber && existingOrganisationNumber !== organisationNumber) {
+          return jsonErr(
+            409,
+            "company_organisasjonsnummer_conflict",
+            "Selskapet er allerede koblet til et annet organisasjonsnummer.",
+          );
+        }
+        if (!existingOrganisationNumber) {
+          const { data: conflicting } = await supabase
+            .from("companies")
+            .select("id")
+            .eq("organisasjonsnummer", organisationNumber)
+            .neq("id", company.id)
+            .maybeSingle();
+          if (conflicting?.id) {
+            return jsonErr(
+              409,
+              "organisasjonsnummer_already_linked",
+              "Organisasjonsnummeret er allerede koblet til en annen selskapsprofil.",
+              { existing_company_id: conflicting.id },
+            );
+          }
+          registerContext = await loadEmployerRegisterContext(supabase, organisationNumber);
+          if (!registerContext) {
+            return jsonErr(404, "employer_not_found", "Fant ikke organisasjonsnummeret i registerspeilet.");
+          }
+          const { data: linked, error: linkError } = await supabase
+            .from("companies")
+            .update({
+              organisasjonsnummer: organisationNumber,
+              ...companyPatchFromRegisterContext(registerContext),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", company.id)
+            .select(COMPANY_SELECT)
+            .single();
+          if (linkError) throw new Error(`company_register_link_failed: ${linkError.message}`);
+          company = linked;
+        }
+      }
+    } else if (organisationNumber) {
+      const { data: ensuredId, error: ensureError } = await supabase.rpc(
+        "ensure_company_for_employer",
+        { p_organisasjonsnummer: organisationNumber },
+      );
+      if (ensureError || !ensuredId) {
+        return jsonErr(
+          ensureError?.code === "P0002" ? 404 : 500,
+          "employer_resolve_failed",
+          ensureError?.code === "P0002"
+            ? "Fant ikke organisasjonsnummeret i registerspeilet."
+            : "Kunne ikke koble arbeidsgiveren til registerspeilet.",
+        );
+      }
+      const { data, error } = await supabase
+        .from("companies").select(COMPANY_SELECT).eq("id", ensuredId).maybeSingle();
+      if (error || !data) throw new Error(`ensured_company_missing: ${error?.message ?? ensuredId}`);
       company = data;
     } else {
       const cleanName = String(name).trim();
@@ -1124,6 +1441,11 @@ Deno.serve(async (req) => {
 
     if (!company) throw new Error("Failed to resolve company");
 
+    const companyOrganisationNumber = normalizeOrganisationNumber(company.organisasjonsnummer);
+    if (!registerContext && companyOrganisationNumber) {
+      registerContext = await loadEmployerRegisterContext(supabase, companyOrganisationNumber);
+    }
+
     // Ensure user_company_ratings row exists
     const { error: ratingUpsertErr } = await supabase
       .from("user_company_ratings")
@@ -1142,10 +1464,24 @@ Deno.serve(async (req) => {
     }
 
     // Determine if company analysis is fresh (cache window)
-    const ratedAt = company.ai_rated_at ? new Date(company.ai_rated_at).getTime() : 0;
+    const ratedAtValue = company.employer_analysis_rated_at ?? company.ai_rated_at;
+    const ratedAt = ratedAtValue ? new Date(ratedAtValue).getTime() : 0;
     const ageMs = Date.now() - ratedAt;
     const cacheMs = COMPANY_CACHE_DAYS * 24 * 60 * 60 * 1000;
-    const companyFresh = !!company.ai_rated_at && ageMs < cacheMs && !force;
+    const registerSourceUpdatedAt = sourceUpdatedAtFromContext(registerContext);
+    const analysisSourceUpdatedAt = typeof company.employer_analysis_source_updated_at === "string"
+      ? company.employer_analysis_source_updated_at
+      : null;
+    const registerHasAdvanced = !!registerSourceUpdatedAt && (
+      !analysisSourceUpdatedAt ||
+      new Date(registerSourceUpdatedAt).getTime() > new Date(analysisSourceUpdatedAt).getTime()
+    );
+    const companyFresh =
+      company.employer_analysis_version === 2 &&
+      !!company.employer_analysis_rated_at &&
+      ageMs < cacheMs &&
+      !registerHasAdvanced &&
+      !force;
 
     // Load profile (always — needed for candidate fit)
     const { data: profile } = await supabase
@@ -1167,9 +1503,9 @@ Deno.serve(async (req) => {
     /** Skip company web research when only personal match is missing (or client requests fit-only). */
     const effectiveCandidateFitOnly =
       candidateFitOnlyFromBody ||
-      (!!company.ai_rated_at && !userHasFit && !force);
+      (companyFresh && !userHasFit && !force);
 
-    if (effectiveCandidateFitOnly && !company.ai_rated_at) {
+    if (effectiveCandidateFitOnly && !company.employer_analysis_rated_at && !company.ai_rated_at) {
       return jsonErr(
         400,
         "company_ai_required",
@@ -1221,6 +1557,7 @@ Deno.serve(async (req) => {
               jobId: job.id,
               userId: resolvedUserId,
               company,
+              registerContext,
               profile,
               companyFresh,
               userHasFit,
@@ -1239,7 +1576,10 @@ Deno.serve(async (req) => {
         candidate_fit: candidateStatus,
         company_id: company.id,
         company_name: company.name,
-        ai_rated_at: company.ai_rated_at,
+        ai_rated_at: company.employer_analysis_rated_at ?? company.ai_rated_at,
+        analysis_version: company.employer_analysis_version ?? null,
+        organisasjonsnummer: company.organisasjonsnummer ?? null,
+        register_context_used: !!registerContext,
         job_id: jobId,
         already_running: already_running || false,
         rate_limited_wait: rate_limited_wait || false,
