@@ -223,7 +223,7 @@ function Section({
 
 function EvidenceBadge({ status }: { status: string | null | undefined }) {
   if (!status) return null;
-  const label = EVIDENCE_LABEL[status] ?? status;
+  const label = EVIDENCE_LABEL[status] ?? "Utilstrekkelig grunnlag";
   const tone =
     status === "sourced"
       ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/30"
