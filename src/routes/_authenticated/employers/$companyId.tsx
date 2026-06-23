@@ -194,7 +194,7 @@ function CompanyDetailPage() {
       const uid = u.user?.id;
       if (!uid) throw new Error("Ikke innlogget");
       const { data: result, error } = await supabase.functions.invoke("analyze-company", {
-        body: { company_id: companyId, user_id: uid },
+        body: { company_id: companyId, user_id: uid, force: true },
       });
       if (error) throw new Error(await messageFromFunctionInvokeError(error, result));
       if ((result as any)?.error) {
