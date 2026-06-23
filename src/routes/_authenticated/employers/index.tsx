@@ -387,12 +387,12 @@ function EmployersPage() {
             <Skeleton key={i} className="h-48" />
           ))}
         </div>
-      ) : filtered.length === 0 && !showCreateCTA ? (
+      ) : filtered.length === 0 ? (
         <EmptyState
           title="Ingen arbeidsgivere ennå"
-          description="Selskaper dukker opp her når du legger til en søknad eller vurderer et selskap."
+          description="Bruk «Finn ny arbeidsgiver» øverst for å søke i arbeidsgiverregisteret og starte en analyse."
         />
-      ) : filtered.length === 0 ? null : (
+      ) : (
         <Card>
           <div className="px-4 pt-3 pb-2 text-[11px] text-muted-foreground border-b bg-muted/20 leading-snug">
             <p>
