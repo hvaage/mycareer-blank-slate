@@ -81,7 +81,13 @@ function CompanyDetailPage() {
   const orgnr = (company as any)?.organisasjonsnummer ?? null;
 
   // K3 + K5: ubetinget hook med enabled-flagg.
-  const { data: envelope } = useQuery(employerAnalysisViewQuery(orgnr, userKey));
+  const {
+    data: envelope,
+    isPending: envelopePending,
+    isError: envelopeError,
+    error: envelopeErrorObj,
+    refetch: envelopeRefetch,
+  } = useQuery(employerAnalysisViewQuery(orgnr, userKey));
 
   // K5: hasAnalysis utledes utelukkende fra V2-envelope.
   const hasAnalysis =
@@ -353,7 +359,26 @@ function CompanyDetailPage() {
         </Button>
       </div>
 
-      {envelope ? (
+      {envelopeError ? (
+        <div className="space-y-4">
+          {jobStatusSlot}
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6">
+            <p className="text-sm font-medium text-foreground">
+              Kunne ikke hente arbeidsgiveranalysen
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {envelopeErrorObj instanceof Error
+                ? envelopeErrorObj.message
+                : "Ukjent feil"}
+            </p>
+            <div className="mt-3">
+              <Button size="sm" variant="outline" onClick={() => envelopeRefetch()}>
+                Prøv igjen
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : envelope ? (
         <EmployerAnalysisReportV2
           envelope={envelope}
           mode="authenticated"
@@ -374,9 +399,11 @@ function CompanyDetailPage() {
           </header>
           {jobStatusSlot}
           <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
-            {orgnr
-              ? "Henter arbeidsgiveranalyse…"
-              : "Mangler organisasjonsnummer på selskapet — kan ikke vise arbeidsgiveranalyse."}
+            {!orgnr
+              ? "Mangler organisasjonsnummer på selskapet — kan ikke vise arbeidsgiveranalyse."
+              : envelopePending
+                ? "Henter arbeidsgiveranalyse…"
+                : "Ingen arbeidsgiveranalyse tilgjengelig."}
           </div>
         </div>
       )}
