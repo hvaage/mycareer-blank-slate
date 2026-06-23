@@ -46,7 +46,7 @@ function Index() {
         <What />
         <Different />
         <Problem />
-        <How />
+        
         <UseCases />
         <BeforeStart />
         <CTA />
