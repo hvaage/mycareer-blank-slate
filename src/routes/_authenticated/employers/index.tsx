@@ -387,10 +387,28 @@ function EmployersPage() {
             <Skeleton key={i} className="h-48" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : employers.length === 0 ? (
         <EmptyState
           title="Ingen arbeidsgivere ennå"
           description="Bruk «Finn ny arbeidsgiver» øverst for å søke i arbeidsgiverregisteret og starte en analyse."
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title="Ingen treff i dine arbeidsgivere"
+          action={
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch("");
+                setIndustry("all");
+                setMinAi(0);
+                setMinMine(0);
+                setMinAgg(0);
+              }}
+            >
+              Nullstill filtre
+            </Button>
+          }
         />
       ) : (
         <Card>
