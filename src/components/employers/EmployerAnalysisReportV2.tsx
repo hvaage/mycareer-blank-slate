@@ -77,6 +77,15 @@ const EVIDENCE_LABEL: Record<string, string> = {
   sourced: "Kildebelagt",
   inferred: "Avledet",
   insufficient: "Utilstrekkelig grunnlag",
+  insufficient_evidence: "Utilstrekkelig grunnlag",
+};
+
+const DIRECTION_LABEL: Record<string, string> = {
+  improving: "Forbedring",
+  stable: "Stabil",
+  declining: "Fallende",
+  mixed: "Blandet",
+  insufficient_evidence: "Utilstrekkelig grunnlag",
 };
 
 const FINANCIAL_SOURCE_LABEL: Record<string, string> = {
@@ -136,25 +145,25 @@ function fmtPct(n: number | null | undefined): string {
 
 function orderedDimensions(dims: AnalysisDimension[]): AnalysisDimension[] {
   const byKey = new Map(dims.map((d) => [d.key, d]));
-  const ordered: AnalysisDimension[] = [];
-  for (const key of DIMENSION_ORDER) {
+  // K-låst inventar: returnér ALLTID nøyaktig de åtte dimensjonene i fast
+  // rekkefølge, og syntetiser placeholder for manglende. Ukjente nøkler i
+  // payload ignoreres slik at tekniske navn ikke kan lekke til UI.
+  return DIMENSION_ORDER.map((key) => {
     const d = byKey.get(key);
-    if (d) {
-      ordered.push({
-        ...d,
-        label: d.label || DIMENSION_LABEL_FALLBACK[key] || key,
-      });
-      byKey.delete(key);
+    const fallbackLabel = DIMENSION_LABEL_FALLBACK[key] ?? key;
+    if (!d) {
+      return {
+        key,
+        label: fallbackLabel,
+        score: null,
+        rationale: null,
+        what_it_means: null,
+        source_ids: null,
+        evidence_status: null,
+      } as AnalysisDimension;
     }
-  }
-  // unknown keys appended at the end with norsk fallback hvis mulig
-  for (const d of byKey.values()) {
-    ordered.push({
-      ...d,
-      label: d.label || DIMENSION_LABEL_FALLBACK[d.key] || d.key,
-    });
-  }
-  return ordered;
+    return { ...d, label: fallbackLabel };
+  });
 }
 
 function orderedAiSignals(
@@ -164,25 +173,23 @@ function orderedAiSignals(
       : never
     : never,
 ): Array<{ key: string; signal: AiSignal }> {
-  const out: Array<{ key: string; signal: AiSignal }> = [];
-  const map = signals as Record<string, AiSignal | undefined>;
-  for (const key of AI_SIGNAL_ORDER) {
+  const map = (signals ?? {}) as Record<string, AiSignal | undefined>;
+  return AI_SIGNAL_ORDER.map((key) => {
+    const fallbackLabel = AI_SIGNAL_LABEL_FALLBACK[key] ?? key;
     const s = map[key];
-    if (s) {
-      out.push({
+    if (!s) {
+      return {
         key,
-        signal: { ...s, label: s.label || AI_SIGNAL_LABEL_FALLBACK[key] || key },
-      });
+        signal: {
+          label: fallbackLabel,
+          score: null,
+          rationale: null,
+          source_ids: null,
+        },
+      };
     }
-  }
-  for (const [key, s] of Object.entries(map)) {
-    if (!s || AI_SIGNAL_ORDER.includes(key)) continue;
-    out.push({
-      key,
-      signal: { ...s, label: s.label || AI_SIGNAL_LABEL_FALLBACK[key] || key },
-    });
-  }
-  return out;
+    return { key, signal: { ...s, label: fallbackLabel } };
+  });
 }
 
 // ---- presentation primitives ----
@@ -216,7 +223,7 @@ function Section({
 
 function EvidenceBadge({ status }: { status: string | null | undefined }) {
   if (!status) return null;
-  const label = EVIDENCE_LABEL[status] ?? status;
+  const label = EVIDENCE_LABEL[status] ?? "Utilstrekkelig grunnlag";
   const tone =
     status === "sourced"
       ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 border-emerald-500/30"
@@ -349,6 +356,11 @@ export type EmployerAnalysisReportV2Props = {
   mode: "public" | "authenticated";
   jobStatusSlot?: ReactNode;
   candidateMatchSlot?: ReactNode;
+  /**
+   * Når false: dropper navn/orgnr/sted/bransje i ReportTop. Brukes på offentlig
+   * rute der route-headeren allerede viser dette. Default true.
+   */
+  showCompanyHeader?: boolean;
 };
 
 export function EmployerAnalysisReportV2({
@@ -356,6 +368,7 @@ export function EmployerAnalysisReportV2({
   mode,
   jobStatusSlot,
   candidateMatchSlot,
+  showCompanyHeader = true,
 }: EmployerAnalysisReportV2Props) {
   const { company, analysis, weighting, financials, register } = envelope;
 
@@ -371,15 +384,17 @@ export function EmployerAnalysisReportV2({
   if (!hasAnalysis || !analysis) {
     return (
       <div className="space-y-4">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">
-            {company.name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Organisasjonsnummer{" "}
-            <span className="tabular-nums">{envelope.organisasjonsnummer}</span>
-          </p>
-        </header>
+        {showCompanyHeader ? (
+          <header className="space-y-1">
+            <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">
+              {company.name}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Organisasjonsnummer{" "}
+              <span className="tabular-nums">{envelope.organisasjonsnummer}</span>
+            </p>
+          </header>
+        ) : null}
         {jobStatusSlot}
         <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
           <p className="text-sm font-medium text-foreground">
@@ -400,6 +415,7 @@ export function EmployerAnalysisReportV2({
         envelope={envelope}
         jobStatusSlot={jobStatusSlot}
         ratedAt={ratedAt}
+        showCompanyHeader={showCompanyHeader}
       />
 
       <KeyFindings analysis={analysis} />
@@ -441,15 +457,25 @@ function ReportTop({
   envelope,
   jobStatusSlot,
   ratedAt,
+  showCompanyHeader,
 }: {
   envelope: EmployerAnalysisViewEnvelope;
   jobStatusSlot?: ReactNode;
   ratedAt: string | null;
+  showCompanyHeader: boolean;
 }) {
   const { company, register } = envelope;
   const entity = register?.entity ?? null;
   const sted = [entity?.municipality, entity?.county].filter(Boolean).join(", ");
   const bransje = entity?.industry_primary ?? company.industry ?? null;
+  if (!showCompanyHeader) {
+    if (!jobStatusSlot) return null;
+    return (
+      <header className="space-y-3">
+        <div>{jobStatusSlot}</div>
+      </header>
+    );
+  }
   return (
     <header className="space-y-3">
       <div className="space-y-1">
@@ -684,7 +710,10 @@ function SupplementalBlock({
       </header>
       {insight.direction ? (
         <p className="text-xs text-muted-foreground">
-          Retning: <span className="font-medium text-foreground">{insight.direction}</span>
+          Retning:{" "}
+          <span className="font-medium text-foreground">
+            {DIRECTION_LABEL[insight.direction] ?? "Utilstrekkelig grunnlag"}
+          </span>
         </p>
       ) : null}
       {insight.narrative ? (
