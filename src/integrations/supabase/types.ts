@@ -2142,6 +2142,200 @@ export type Database = {
           },
         ]
       }
+      employer_analysis_model_run_reviews: {
+        Row: {
+          analysis_quality: number
+          created_at: string
+          factual_accuracy: number
+          financial_quality: number
+          notes: string | null
+          reviewer_id: string
+          run_id: string
+          scope_precision: number
+          source_quality: number
+          updated_at: string
+        }
+        Insert: {
+          analysis_quality: number
+          created_at?: string
+          factual_accuracy: number
+          financial_quality: number
+          notes?: string | null
+          reviewer_id: string
+          run_id: string
+          scope_precision: number
+          source_quality: number
+          updated_at?: string
+        }
+        Update: {
+          analysis_quality?: number
+          created_at?: string
+          factual_accuracy?: number
+          financial_quality?: number
+          notes?: string | null
+          reviewer_id?: string
+          run_id?: string
+          scope_precision?: number
+          source_quality?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_analysis_model_run_reviews_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "employer_analysis_model_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_analysis_model_runs: {
+        Row: {
+          analysis_duration_ms: number | null
+          analysis_input_tokens: number | null
+          analysis_model: string
+          analysis_output_tokens: number | null
+          analysis_provider: string
+          benchmark_group_id: string | null
+          company_id: string
+          cost_estimate_complete: boolean
+          created_at: string
+          error_summary: string | null
+          estimated_cost_usd: number | null
+          financial_fallback_used: boolean
+          finished_at: string | null
+          id: string
+          pricing_snapshot_date: string | null
+          requested_by: string | null
+          research_duration_ms: number | null
+          research_input_tokens: number | null
+          research_model: string
+          research_output_tokens: number | null
+          research_provider: string
+          result_snapshot: Json | null
+          run_mode: string
+          scored_ai_dimensions: number | null
+          scored_employer_dimensions: number | null
+          source_count: number | null
+          started_at: string
+          status: string
+          web_search_requests: number | null
+        }
+        Insert: {
+          analysis_duration_ms?: number | null
+          analysis_input_tokens?: number | null
+          analysis_model: string
+          analysis_output_tokens?: number | null
+          analysis_provider: string
+          benchmark_group_id?: string | null
+          company_id: string
+          cost_estimate_complete?: boolean
+          created_at?: string
+          error_summary?: string | null
+          estimated_cost_usd?: number | null
+          financial_fallback_used?: boolean
+          finished_at?: string | null
+          id?: string
+          pricing_snapshot_date?: string | null
+          requested_by?: string | null
+          research_duration_ms?: number | null
+          research_input_tokens?: number | null
+          research_model: string
+          research_output_tokens?: number | null
+          research_provider: string
+          result_snapshot?: Json | null
+          run_mode?: string
+          scored_ai_dimensions?: number | null
+          scored_employer_dimensions?: number | null
+          source_count?: number | null
+          started_at?: string
+          status?: string
+          web_search_requests?: number | null
+        }
+        Update: {
+          analysis_duration_ms?: number | null
+          analysis_input_tokens?: number | null
+          analysis_model?: string
+          analysis_output_tokens?: number | null
+          analysis_provider?: string
+          benchmark_group_id?: string | null
+          company_id?: string
+          cost_estimate_complete?: boolean
+          created_at?: string
+          error_summary?: string | null
+          estimated_cost_usd?: number | null
+          financial_fallback_used?: boolean
+          finished_at?: string | null
+          id?: string
+          pricing_snapshot_date?: string | null
+          requested_by?: string | null
+          research_duration_ms?: number | null
+          research_input_tokens?: number | null
+          research_model?: string
+          research_output_tokens?: number | null
+          research_provider?: string
+          result_snapshot?: Json | null
+          run_mode?: string
+          scored_ai_dimensions?: number | null
+          scored_employer_dimensions?: number | null
+          source_count?: number | null
+          started_at?: string
+          status?: string
+          web_search_requests?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_analysis_model_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employer_analysis_model_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "employer_search_v1"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      employer_analysis_weight_profiles: {
+        Row: {
+          ai_weights: Json
+          created_at: string
+          created_by: string | null
+          employer_weights: Json
+          id: string
+          is_active: boolean
+          note: string | null
+          profile_key: string
+          version: number
+        }
+        Insert: {
+          ai_weights: Json
+          created_at?: string
+          created_by?: string | null
+          employer_weights: Json
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          profile_key?: string
+          version: number
+        }
+        Update: {
+          ai_weights?: Json
+          created_at?: string
+          created_by?: string | null
+          employer_weights?: Json
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          profile_key?: string
+          version?: number
+        }
+        Relationships: []
+      }
       employer_reports: {
         Row: {
           analysis_date: string | null
@@ -4286,6 +4480,30 @@ export type Database = {
           },
         ]
       }
+      user_employer_analysis_weights: {
+        Row: {
+          ai_weights: Json
+          created_at: string
+          employer_weights: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_weights: Json
+          created_at?: string
+          employer_weights: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_weights?: Json
+          created_at?: string
+          employer_weights?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_evidence_atoms: {
         Row: {
           category: string
@@ -4972,6 +5190,22 @@ export type Database = {
         }
         Returns: string
       }
+      _employer_analysis_default_weights: {
+        Args: { p_group: string }
+        Returns: Json
+      }
+      _employer_analysis_expected_keys: {
+        Args: { p_group: string }
+        Returns: string[]
+      }
+      _employer_analysis_weighted_score: {
+        Args: { p_analysis: Json; p_group: string; p_weights: Json }
+        Returns: Json
+      }
+      _employer_analysis_weights_valid: {
+        Args: { p_group: string; p_weights: Json }
+        Returns: boolean
+      }
       careerjet_canonical_has_visible: {
         Args: { p_canonical: string }
         Returns: boolean
@@ -5103,10 +5337,19 @@ export type Database = {
           schedule: string
         }[]
       }
+      get_employer_analysis_benchmark_report: {
+        Args: { p_benchmark_group_id: string }
+        Returns: Json
+      }
       get_employer_analysis_context: {
         Args: { p_organisasjonsnummer: string }
         Returns: Json
       }
+      get_employer_analysis_view: {
+        Args: { p_organisasjonsnummer: string }
+        Returns: Json
+      }
+      get_employer_analysis_weight_config: { Args: never; Returns: Json }
       get_nav_repair_cron_info: {
         Args: never
         Returns: {
@@ -5375,6 +5618,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      reset_my_employer_analysis_weights: { Args: never; Returns: undefined }
+      review_employer_analysis_model_run: {
+        Args: {
+          p_analysis_quality: number
+          p_factual_accuracy: number
+          p_financial_quality: number
+          p_notes?: string
+          p_run_id: string
+          p_scope_precision: number
+          p_source_quality: number
+        }
+        Returns: Json
+      }
       search_employers: {
         Args: {
           p_arbeidsgiver_type?: string
@@ -5488,6 +5744,14 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      set_employer_analysis_weight_profile: {
+        Args: { p_ai_weights: Json; p_employer_weights: Json; p_note?: string }
+        Returns: Json
+      }
+      set_my_employer_analysis_weights: {
+        Args: { p_ai_weights: Json; p_employer_weights: Json }
+        Returns: Json
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
