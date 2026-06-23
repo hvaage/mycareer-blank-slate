@@ -1,22 +1,19 @@
 import { createFileRoute, useRouter, notFound, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { employerDetailQuery } from "@/lib/queries/employer-insight";
+import { employerAnalysisViewQuery } from "@/lib/queries/employer-analysis-view";
+import { useAuth } from "@/lib/auth-context";
 import { fylkesnavn } from "@/lib/employers/no-regions";
 import { TypeBadge, RiskBadges, DataQualityBadges } from "@/components/employers/Badges";
-import { OverviewPanel } from "@/components/employers/OverviewPanel";
 import { RegisterPanel } from "@/components/employers/RegisterPanel";
-import { EightDimensionsPanel } from "@/components/employers/EightDimensionsPanel";
-import { AiMaturityPanel } from "@/components/employers/AiMaturityPanel";
-
 import { EmployeeRatingsPanel } from "@/components/employers/EmployeeRatingsPanel";
 import { JobseekerProcessPanel } from "@/components/employers/JobseekerProcessPanel";
-import { SourcesPanel } from "@/components/employers/SourcesPanel";
+import { EmployerAnalysisReportV2 } from "@/components/employers/EmployerAnalysisReportV2";
 
 export const Route = createFileRoute("/arbeidsgivere/$orgnr")({
   loader: async ({ params, context }) => {
@@ -47,6 +44,9 @@ export const Route = createFileRoute("/arbeidsgivere/$orgnr")({
 function DetailPage() {
   const { orgnr } = Route.useParams();
   const { data: res } = useSuspenseQuery(employerDetailQuery(orgnr));
+  const { user } = useAuth();
+  const userKey = user?.id ?? "anon";
+  const { data: envelope } = useQuery(employerAnalysisViewQuery(orgnr, userKey));
 
   if (res.kind === "unavailable") {
     return (
@@ -96,6 +96,7 @@ function DetailPage() {
           <ArrowLeft className="h-4 w-4" /> Tilbake til arbeidsgiversøk
         </Link>
       </div>
+
       <header className="space-y-2">
         <div className="flex flex-wrap items-baseline gap-2">
           <h1 className="text-2xl font-semibold text-foreground">{d.navn}</h1>
@@ -124,40 +125,36 @@ function DetailPage() {
         </div>
       </header>
 
-      <Tabs defaultValue="oversikt" className="mt-6">
-        <div className="overflow-x-auto">
-          <TabsList className="inline-flex">
-            <TabsTrigger value="oversikt">Oversikt</TabsTrigger>
-            <TabsTrigger value="register">Register og regnskap</TabsTrigger>
-            <TabsTrigger value="dim8">8 dimensjoner</TabsTrigger>
-            <TabsTrigger value="ai_maturity">AI-kompetanse</TabsTrigger>
-            <TabsTrigger value="ansatte">Ansattes vurderinger</TabsTrigger>
-            <TabsTrigger value="sokere">Søkeres vurderinger</TabsTrigger>
-            <TabsTrigger value="kilder">Kilder og datakvalitet</TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="oversikt" className="mt-4">
-          <OverviewPanel d={d} />
-        </TabsContent>
-        <TabsContent value="register" className="mt-4">
+      <div className="mt-8">
+        {envelope ? (
+          <EmployerAnalysisReportV2 envelope={envelope} mode="public" />
+        ) : (
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+            Henter arbeidsgiveranalyse…
+          </div>
+        )}
+      </div>
+
+      <div className="mt-12 space-y-8">
+        <section>
+          <h2 className="text-xl font-display font-semibold tracking-tight text-foreground mb-3">
+            Register og regnskap
+          </h2>
           <RegisterPanel d={d} />
-        </TabsContent>
-        <TabsContent value="dim8" className="mt-4">
-          <EightDimensionsPanel orgnr={d.organisasjonsnummer} />
-        </TabsContent>
-        <TabsContent value="ai_maturity" className="mt-4">
-          <AiMaturityPanel d={d} />
-        </TabsContent>
-        <TabsContent value="ansatte" className="mt-4">
+        </section>
+        <section>
+          <h2 className="text-xl font-display font-semibold tracking-tight text-foreground mb-3">
+            Ansattes vurderinger
+          </h2>
           <EmployeeRatingsPanel d={d} orgnr={d.organisasjonsnummer} />
-        </TabsContent>
-        <TabsContent value="sokere" className="mt-4">
+        </section>
+        <section>
+          <h2 className="text-xl font-display font-semibold tracking-tight text-foreground mb-3">
+            Søkeres vurdering av jobbprosessen
+          </h2>
           <JobseekerProcessPanel d={d} orgnr={d.organisasjonsnummer} />
-        </TabsContent>
-        <TabsContent value="kilder" className="mt-4">
-          <SourcesPanel d={d} />
-        </TabsContent>
-      </Tabs>
+        </section>
+      </div>
     </Shell>
   );
 }
@@ -167,7 +164,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col bg-[var(--km-paper)]">
       <Header />
       <main className="flex-1">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6">{children}</div>
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 py-6">{children}</div>
       </main>
       <Footer />
     </div>
