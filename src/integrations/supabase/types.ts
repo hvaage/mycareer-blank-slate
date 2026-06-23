@@ -4404,6 +4404,7 @@ export type Database = {
           ai_candidate_fit_reasoning: string | null
           ai_candidate_fit_score: number | null
           ai_candidate_fit_updated_at: string | null
+          ai_candidate_scenario_notes: Json
           applied_here: boolean | null
           career_development_score: number | null
           company_id: string
@@ -4425,6 +4426,7 @@ export type Database = {
           ai_candidate_fit_reasoning?: string | null
           ai_candidate_fit_score?: number | null
           ai_candidate_fit_updated_at?: string | null
+          ai_candidate_scenario_notes?: Json
           applied_here?: boolean | null
           career_development_score?: number | null
           company_id: string
@@ -4446,6 +4448,7 @@ export type Database = {
           ai_candidate_fit_reasoning?: string | null
           ai_candidate_fit_score?: number | null
           ai_candidate_fit_updated_at?: string | null
+          ai_candidate_scenario_notes?: Json
           applied_here?: boolean | null
           career_development_score?: number | null
           company_id?: string
@@ -5198,6 +5201,10 @@ export type Database = {
         Args: { p_group: string }
         Returns: string[]
       }
+      _employer_analysis_public_projection: {
+        Args: { p_analysis: Json }
+        Returns: Json
+      }
       _employer_analysis_weighted_score: {
         Args: { p_analysis: Json; p_group: string; p_weights: Json }
         Returns: Json
@@ -5205,6 +5212,10 @@ export type Database = {
       _employer_analysis_weights_valid: {
         Args: { p_group: string; p_weights: Json }
         Returns: boolean
+      }
+      _refresh_company_analysis_atoms: {
+        Args: { p_company_id: string }
+        Returns: Json
       }
       careerjet_canonical_has_visible: {
         Args: { p_canonical: string }
