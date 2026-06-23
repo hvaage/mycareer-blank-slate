@@ -11,7 +11,12 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
-export type EvidenceStatus = "sourced" | "inferred" | "insufficient" | string;
+export type EvidenceStatus =
+  | "sourced"
+  | "inferred"
+  | "insufficient"
+  | "insufficient_evidence"
+  | string;
 
 export type EmployerAnalysisDimensionKey =
   | "culture"

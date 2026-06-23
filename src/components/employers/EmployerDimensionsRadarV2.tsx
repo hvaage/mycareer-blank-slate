@@ -6,9 +6,31 @@
  * - `score === null` tegnes ALDRI som 0 i polygonet. Akser uten score får
  *   etiketten "Ikke nok data" og inngår ikke som vertex i polygonet.
  * - Hvis færre enn 3 akser har score, tegnes ingen polygon i det hele tatt.
+ *
+ * Polygon-regel (K4-presisering): tegn fylt polygon KUN når alle åtte
+ * dimensjoner har gyldig (number, ikke-NaN) score. Ellers vises akser,
+ * ringer og tilgjengelige punkter, men ingen polygon — slik at en manglende
+ * akse aldri kan tolkes som «koblet over null».
  */
 
 export type RadarDim = { label: string; score: number | null };
+
+/**
+ * Eksportert ren hjelper for deterministisk testing.
+ * Returnerer true bare når listen har nøyaktig REQUIRED_DIMENSIONS akser
+ * og alle har en gyldig numerisk score.
+ */
+export const REQUIRED_DIMENSIONS = 8;
+
+export function shouldDrawRadarPolygon(
+  dimensions: ReadonlyArray<{ score: number | null | undefined }>,
+): boolean {
+  if (!Array.isArray(dimensions)) return false;
+  if (dimensions.length !== REQUIRED_DIMENSIONS) return false;
+  return dimensions.every(
+    (d) => typeof d.score === "number" && !Number.isNaN(d.score),
+  );
+}
 
 const MAX = 5;
 const SIZE = 500;
