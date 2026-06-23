@@ -356,6 +356,11 @@ export type EmployerAnalysisReportV2Props = {
   mode: "public" | "authenticated";
   jobStatusSlot?: ReactNode;
   candidateMatchSlot?: ReactNode;
+  /**
+   * Når false: dropper navn/orgnr/sted/bransje i ReportTop. Brukes på offentlig
+   * rute der route-headeren allerede viser dette. Default true.
+   */
+  showCompanyHeader?: boolean;
 };
 
 export function EmployerAnalysisReportV2({
@@ -363,6 +368,7 @@ export function EmployerAnalysisReportV2({
   mode,
   jobStatusSlot,
   candidateMatchSlot,
+  showCompanyHeader = true,
 }: EmployerAnalysisReportV2Props) {
   const { company, analysis, weighting, financials, register } = envelope;
 
@@ -378,15 +384,17 @@ export function EmployerAnalysisReportV2({
   if (!hasAnalysis || !analysis) {
     return (
       <div className="space-y-4">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">
-            {company.name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Organisasjonsnummer{" "}
-            <span className="tabular-nums">{envelope.organisasjonsnummer}</span>
-          </p>
-        </header>
+        {showCompanyHeader ? (
+          <header className="space-y-1">
+            <h1 className="text-2xl font-display font-bold tracking-tight text-foreground">
+              {company.name}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Organisasjonsnummer{" "}
+              <span className="tabular-nums">{envelope.organisasjonsnummer}</span>
+            </p>
+          </header>
+        ) : null}
         {jobStatusSlot}
         <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center">
           <p className="text-sm font-medium text-foreground">
@@ -407,6 +415,7 @@ export function EmployerAnalysisReportV2({
         envelope={envelope}
         jobStatusSlot={jobStatusSlot}
         ratedAt={ratedAt}
+        showCompanyHeader={showCompanyHeader}
       />
 
       <KeyFindings analysis={analysis} />
