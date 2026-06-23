@@ -2,7 +2,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Building2, Loader2, Search, Sparkles, ArrowUp, ArrowDown, ArrowUpDown, Clock, Plus } from "lucide-react";
+import { Building2, Loader2, Search, ArrowUp, ArrowDown, ArrowUpDown, Clock, Plus } from "lucide-react";
 import {
   EmployerAnalysisSearchDialog,
   type ExistingEmployerMatch,
