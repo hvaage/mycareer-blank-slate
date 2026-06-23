@@ -5201,6 +5201,10 @@ export type Database = {
         Args: { p_group: string }
         Returns: string[]
       }
+      _employer_analysis_filter_public_source_ids: {
+        Args: { p_valid_ids: number[]; p_value: Json }
+        Returns: Json
+      }
       _employer_analysis_public_projection: {
         Args: { p_analysis: Json }
         Returns: Json
