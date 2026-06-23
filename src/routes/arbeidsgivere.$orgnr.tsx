@@ -46,7 +46,13 @@ function DetailPage() {
   const { data: res } = useSuspenseQuery(employerDetailQuery(orgnr));
   const { user } = useAuth();
   const userKey = user?.id ?? "anon";
-  const { data: envelope } = useQuery(employerAnalysisViewQuery(orgnr, userKey));
+  const {
+    data: envelope,
+    isPending: envelopePending,
+    isError: envelopeError,
+    error: envelopeErrorObj,
+    refetch: envelopeRefetch,
+  } = useQuery(employerAnalysisViewQuery(orgnr, userKey));
 
   if (res.kind === "unavailable") {
     return (
