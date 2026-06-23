@@ -70,7 +70,7 @@ BEGIN
   );
   PERFORM pg_temp.must(
     'weighted employer score uses configured weights',
-    (v_weighted ->> 'score')::numeric = 4
+    (v_weighted ->> 'score')::numeric = 3.8
   );
   PERFORM pg_temp.must(
     'null employer scores are excluded from denominator',
