@@ -4,6 +4,7 @@ import {
   buildRegisterContextText,
   EMPLOYER_DIMENSIONS,
   enforceEvidenceReferences,
+  filterPublicEvidenceReferences,
   financialsFromRegisterContext,
   isEvaluationPlatformSource,
   normalizeCandidateScenarioNotes,
@@ -1187,11 +1188,15 @@ Use only these inputs. Return only the JSON object specified in the system instr
       ),
       analysisSources.map((source) => source.id),
     );
+    const publicAnalysisV2 = filterPublicEvidenceReferences(
+      analysisV2,
+      publicAnalysisSources.map((source) => source.id),
+    );
     const registerFinancials = financialsFromRegisterContext(registerContext);
     const fallbackFinancials = registerFinancials ? null : financialsFromResearchPack(research.pack);
     const registerSourceUpdatedAt = sourceUpdatedAtFromContext(registerContext);
     const persistedAnalysisV2 = {
-      ...analysisV2,
+      ...publicAnalysisV2,
       sources: publicAnalysisSources,
       register_provenance: registerContext
         ? {

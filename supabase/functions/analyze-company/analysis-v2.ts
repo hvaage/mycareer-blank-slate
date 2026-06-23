@@ -356,6 +356,63 @@ export function enforceEvidenceReferences(
   };
 }
 
+/**
+ * Remove references to internal-only evidence without changing the completed
+ * analysis scores. Hidden review/salary sources may inform the model, but must
+ * never leave dangling IDs in the persisted public analysis.
+ */
+export function filterPublicEvidenceReferences(
+  analysis: EmployerAnalysisV2,
+  publicSourceIds: Iterable<number>,
+): EmployerAnalysisV2 {
+  const visible = new Set(publicSourceIds);
+  const filterIds = (ids: number[]) => ids.filter((id) => visible.has(id));
+  const evidenceStatus = <T extends EvidenceInsight["evidence_status"]>(
+    status: T,
+    ids: number[],
+  ): T | "inferred" => (status === "sourced" && ids.length === 0 ? "inferred" : status);
+
+  const dimensions = analysis.dimensions.map((dimension) => {
+    const source_ids = filterIds(dimension.source_ids);
+    return {
+      ...dimension,
+      source_ids,
+      evidence_status: evidenceStatus(dimension.evidence_status, source_ids),
+    };
+  });
+
+  const signals: EmployerAnalysisV2["ai_maturity"]["signals"] = {};
+  for (const [key, signal] of Object.entries(analysis.ai_maturity.signals)) {
+    signals[key] = { ...signal, source_ids: filterIds(signal.source_ids) };
+  }
+
+  const filterInsight = <T extends EvidenceInsight>(insight: T): T => {
+    const source_ids = filterIds(insight.source_ids);
+    return {
+      ...insight,
+      source_ids,
+      evidence_status: evidenceStatus(insight.evidence_status, source_ids),
+    } as T;
+  };
+
+  return {
+    ...analysis,
+    dimensions,
+    ai_maturity: {
+      ...analysis.ai_maturity,
+      signals,
+      source_ids: filterIds(analysis.ai_maturity.source_ids),
+    },
+    supplemental_insights: {
+      esg_and_regulatory: filterInsight(analysis.supplemental_insights.esg_and_regulatory),
+      employee_sentiment_trend: filterInsight(
+        analysis.supplemental_insights.employee_sentiment_trend,
+      ),
+      compensation_signals: filterInsight(analysis.supplemental_insights.compensation_signals),
+    },
+  };
+}
+
 export function buildRegisterContextText(value: unknown): string {
   if (!value || typeof value !== "object") return "Ingen lokal registerkontekst tilgjengelig.";
   const serialized = JSON.stringify(value, null, 2);
