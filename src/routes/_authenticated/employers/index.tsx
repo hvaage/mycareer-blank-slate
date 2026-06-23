@@ -2,7 +2,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Building2, Loader2, Search, Sparkles, ArrowUp, ArrowDown, ArrowUpDown, Clock } from "lucide-react";
+import { Building2, Loader2, Search, ArrowUp, ArrowDown, ArrowUpDown, Clock, Plus } from "lucide-react";
+import {
+  EmployerAnalysisSearchDialog,
+  type ExistingEmployerMatch,
+} from "@/components/employers/EmployerAnalysisSearchDialog";
+import type { EmployerSearchRow } from "@/lib/queries/employer-insight";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -242,24 +247,29 @@ function EmployersPage() {
     }
   };
 
-  const trimmedSearch = search.trim();
-  const exactMatchExists = useMemo(
-    () =>
-      (employers ?? []).some(
-        (e) => e.name?.toLowerCase() === trimmedSearch.toLowerCase(),
-      ),
-    [employers, trimmedSearch],
-  );
-  const showCreateCTA =
-    trimmedSearch.length >= 2 && filtered.length === 0 && !exactMatchExists;
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const existingByOrgnr = useMemo(() => {
+    const m = new Map<string, ExistingEmployerMatch>();
+    (employers ?? []).forEach((e) => {
+      const orgnr = (e as { organisasjonsnummer?: string | null }).organisasjonsnummer;
+      if (orgnr && /^[0-9]{9}$/.test(orgnr)) {
+        m.set(orgnr, { id: e.id, name: e.name ?? "" });
+      }
+    });
+    return m;
+  }, [employers]);
 
   const analyzeNew = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async (row: EmployerSearchRow) => {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id;
       if (!uid) throw new Error("Ikke innlogget");
+      if (!row.organisasjonsnummer || !/^[0-9]{9}$/.test(row.organisasjonsnummer)) {
+        throw new Error("Ugyldig organisasjonsnummer");
+      }
       const { data, error } = await supabase.functions.invoke("analyze-company", {
-        body: { user_id: uid, name },
+        body: { user_id: uid, organisasjonsnummer: row.organisasjonsnummer },
       });
       if (error) throw new Error(await messageFromFunctionInvokeError(error, data));
       if ((data as any)?.error) {
@@ -276,6 +286,7 @@ function EmployersPage() {
         status?: string;
         candidate_fit?: string;
         ai_rated_at?: string | null;
+        already_running?: boolean;
       };
     },
     onSuccess: (res: any) => {
@@ -299,6 +310,7 @@ function EmployersPage() {
       }
       qc.invalidateQueries({ queryKey: ["employers"] });
       qc.invalidateQueries({ queryKey: ["employer-analysis-job", res.company_id] });
+      setDialogOpen(false);
       navigate({ to: "/employers/$companyId", params: { companyId: res.company_id } });
     },
     onError: (err: any) =>
@@ -307,14 +319,17 @@ function EmployersPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      <header className="flex items-center gap-3">
-        <Building2 className="h-6 w-6 text-primary shrink-0" />
-        <div className="min-w-0">
+      <header className="flex items-start gap-3 flex-wrap">
+        <Building2 className="h-6 w-6 text-primary shrink-0 mt-1" />
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight">Arbeidsgivere</h1>
           <p className="text-sm text-muted-foreground">
             Selskaper du har søkt på, vurdert eller fått AI-analyse av
           </p>
         </div>
+        <Button onClick={() => setDialogOpen(true)} className="shrink-0">
+          <Plus className="h-4 w-4" /> Finn ny arbeidsgiver
+        </Button>
       </header>
 
       <Card>
@@ -325,7 +340,8 @@ function EmployersPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Søk på navn eller domene"
+                placeholder="Filtrer mine arbeidsgivere"
+                aria-label="Filtrer mine arbeidsgivere"
                 className="pl-8"
               />
             </div>
@@ -352,38 +368,18 @@ function EmployersPage() {
         </CardContent>
       </Card>
 
-      {showCreateCTA && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="pt-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">
-                  Fant ingen treff på «{trimmedSearch}»
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Start en AI-analyse av selskapet — AI søker på nettet og rangerer
-                  kultur, ledelse, arbeidsmiljø, karriere, økonomi og formål.
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => analyzeNew.mutate(trimmedSearch)}
-              disabled={analyzeNew.isPending}
-            >
-              {analyzeNew.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Starter…
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" /> Analyser «{trimmedSearch}»
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      <EmployerAnalysisSearchDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        existingByOrgnr={existingByOrgnr}
+        isPending={analyzeNew.isPending}
+        onAnalyzeConfirmed={(row) => analyzeNew.mutateAsync(row).then(() => undefined)}
+        onOpenExisting={(companyId) => {
+          setDialogOpen(false);
+          navigate({ to: "/employers/$companyId", params: { companyId } });
+        }}
+      />
+
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -391,12 +387,12 @@ function EmployersPage() {
             <Skeleton key={i} className="h-48" />
           ))}
         </div>
-      ) : filtered.length === 0 && !showCreateCTA ? (
+      ) : filtered.length === 0 ? (
         <EmptyState
           title="Ingen arbeidsgivere ennå"
-          description="Selskaper dukker opp her når du legger til en søknad eller vurderer et selskap."
+          description="Bruk «Finn ny arbeidsgiver» øverst for å søke i arbeidsgiverregisteret og starte en analyse."
         />
-      ) : filtered.length === 0 ? null : (
+      ) : (
         <Card>
           <div className="px-4 pt-3 pb-2 text-[11px] text-muted-foreground border-b bg-muted/20 leading-snug">
             <p>
