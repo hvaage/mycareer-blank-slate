@@ -1,5 +1,6 @@
 import {
   enforceEvidenceReferences,
+  filterPublicEvidenceReferences,
   financialsFromRegisterContext,
   isEvaluationPlatformSource,
   neutralizeEvaluationPlatformNames,
@@ -144,5 +145,47 @@ Deno.test("rejects invented and insufficient evidence references", () => {
   assert(
     result.supplemental_insights.compensation_signals.evidence_status === "insufficient_evidence",
     "invented compensation source is rejected",
+  );
+});
+
+Deno.test("removes internal-only evidence references from public analysis", () => {
+  const normalized = enforceEvidenceReferences(
+    normalizeEmployerAnalysisV2({
+      dimensions: [{ key: "culture", score: 4, evidence_status: "sourced", source_ids: [1, 2] }],
+      ai_maturity: {
+        applicable: true,
+        source_ids: [2],
+        signals: {
+          workforce: { score: 4, source_ids: [2] },
+        },
+      },
+      supplemental_insights: {
+        esg_and_regulatory: { evidence_status: "sourced", source_ids: [1] },
+        employee_sentiment_trend: {
+          evidence_status: "sourced",
+          direction: "stable",
+          source_ids: [1, 2],
+        },
+        compensation_signals: { evidence_status: "sourced", source_ids: [2] },
+      },
+    }),
+    [1, 2],
+  );
+
+  const result = filterPublicEvidenceReferences(normalized, [1]);
+  assert(result.dimensions[0].score === 4, "public filtering preserves completed scores");
+  assert(
+    JSON.stringify(result.dimensions[0].source_ids) === "[1]",
+    "hidden dimension source removed",
+  );
+  assert(result.ai_maturity.signals.workforce.score === 4, "AI score is preserved");
+  assert(result.ai_maturity.signals.workforce.source_ids.length === 0, "hidden AI source removed");
+  assert(
+    result.supplemental_insights.compensation_signals.evidence_status === "inferred",
+    "sourced status is downgraded when every public reference is hidden",
+  );
+  assert(
+    result.supplemental_insights.employee_sentiment_trend.source_ids.length === 1,
+    "visible supplemental reference remains",
   );
 });
