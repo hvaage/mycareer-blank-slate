@@ -89,9 +89,12 @@ BEGIN
 
   SELECT count(*)::integer
     INTO v_expected_profiles
-  FROM jsonb_array_elements(coalesce(v_analysis -> 'dimensions', '[]'::jsonb)) item
+  FROM jsonb_array_elements(
+    CASE WHEN jsonb_typeof(v_analysis -> 'dimensions') = 'array'
+      THEN v_analysis -> 'dimensions' ELSE '[]'::jsonb END
+  ) item
   WHERE jsonb_typeof(item -> 'score') = 'number'
-    AND coalesce(item ->> 'evidence_status', 'insufficient_evidence') <> 'insufficient_evidence';
+    AND coalesce(item ->> 'evidence_status', '') IN ('sourced', 'inferred');
 
   v_result := public._refresh_company_analysis_atoms(v_company_id);
   PERFORM pg_temp.must(

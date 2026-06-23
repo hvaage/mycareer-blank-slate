@@ -36,7 +36,10 @@ AS $$
       '{sources}',
       coalesce((
         SELECT jsonb_agg(source_item.value ORDER BY source_item.ordinality)
-        FROM jsonb_array_elements(coalesce(p_analysis -> 'sources', '[]'::jsonb))
+        FROM jsonb_array_elements(
+          CASE WHEN jsonb_typeof(p_analysis -> 'sources') = 'array'
+            THEN p_analysis -> 'sources' ELSE '[]'::jsonb END
+        )
           WITH ORDINALITY AS source_item(value, ordinality)
         WHERE coalesce(source_item.value ->> 'category', 'other')
           NOT IN ('employee_reviews', 'salary_benchmark')
@@ -210,7 +213,10 @@ BEGIN
 
   FOR v_item IN
     SELECT value
-    FROM jsonb_array_elements(coalesce(v_analysis -> 'dimensions', '[]'::jsonb))
+    FROM jsonb_array_elements(
+      CASE WHEN jsonb_typeof(v_analysis -> 'dimensions') = 'array'
+        THEN v_analysis -> 'dimensions' ELSE '[]'::jsonb END
+    )
   LOOP
     v_key := v_item ->> 'key';
     v_status := coalesce(v_item ->> 'evidence_status', 'insufficient_evidence');
@@ -219,7 +225,7 @@ BEGIN
       'financial_stability', 'mission', 'talent_attraction_retention',
       'diversity_inclusion'
     ]::text[])) OR jsonb_typeof(v_item -> 'score') <> 'number'
-      OR v_status = 'insufficient_evidence' THEN
+      OR v_status NOT IN ('sourced', 'inferred') THEN
       CONTINUE;
     END IF;
 
@@ -278,7 +284,7 @@ BEGIN
     v_profile_upserted := v_profile_upserted + 1;
   END LOOP;
 
-  IF coalesce((v_analysis #>> '{ai_maturity,applicable}')::boolean, true)
+  IF coalesce(v_analysis #>> '{ai_maturity,applicable}', 'true') = 'true'
      AND jsonb_typeof(v_analysis #> '{ai_maturity,score}') = 'number' THEN
     v_signals := v_signals || jsonb_build_array(jsonb_build_object(
       'type', 'ai_initiative',
@@ -289,8 +295,8 @@ BEGIN
     ));
   END IF;
 
-  IF coalesce(v_analysis #>> '{supplemental_insights,esg_and_regulatory,evidence_status}', 'insufficient_evidence')
-     <> 'insufficient_evidence' THEN
+  IF coalesce(v_analysis #>> '{supplemental_insights,esg_and_regulatory,evidence_status}', '')
+     IN ('sourced', 'inferred') THEN
     v_signals := v_signals || jsonb_build_array(jsonb_build_object(
       'type', 'sustainability_push',
       'label', 'ESG og regulatorisk profil',
@@ -300,8 +306,8 @@ BEGIN
     ));
   END IF;
 
-  IF coalesce(v_analysis #>> '{supplemental_insights,employee_sentiment_trend,evidence_status}', 'insufficient_evidence')
-     <> 'insufficient_evidence' THEN
+  IF coalesce(v_analysis #>> '{supplemental_insights,employee_sentiment_trend,evidence_status}', '')
+     IN ('sourced', 'inferred') THEN
     v_signals := v_signals || jsonb_build_array(jsonb_build_object(
       'type', 'employee_sentiment',
       'label', 'Trend i ansattomtaler',
@@ -312,8 +318,8 @@ BEGIN
     ));
   END IF;
 
-  IF coalesce(v_analysis #>> '{supplemental_insights,compensation_signals,evidence_status}', 'insufficient_evidence')
-     <> 'insufficient_evidence' THEN
+  IF coalesce(v_analysis #>> '{supplemental_insights,compensation_signals,evidence_status}', '')
+     IN ('sourced', 'inferred') THEN
     v_signals := v_signals || jsonb_build_array(jsonb_build_object(
       'type', 'compensation_signal',
       'label', 'Lønnssignaler',
