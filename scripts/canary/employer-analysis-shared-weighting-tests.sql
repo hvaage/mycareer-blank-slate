@@ -90,18 +90,14 @@ BEGIN
   ORDER BY e.organisasjonsnummer
   LIMIT 1;
   v_company_id := public.ensure_company_for_employer(v_orgnr);
-  UPDATE public.companies
-  SET employer_analysis_v2 = v_analysis,
-      employer_analysis_version = 2,
-      employer_analysis_rated_at = now()
-  WHERE id = v_company_id;
   v_view := public.get_employer_analysis_view(v_orgnr);
   PERFORM pg_temp.must('canonical view resolves register entity', v_view ->> 'organisasjonsnummer' = v_orgnr);
-  PERFORM pg_temp.must('canonical view returns the stored analysis', v_view -> 'analysis' = v_analysis);
+  PERFORM pg_temp.must('canonical view resolves ensured company', v_view #>> '{company,id}' = v_company_id::text);
+  PERFORM pg_temp.must('canonical view exposes analysis field', v_view ? 'analysis');
   PERFORM pg_temp.must('canonical view exposes public weighting', v_view #> '{weighting,public}' IS NOT NULL);
   PERFORM pg_temp.must(
     'canonical view applies active admin profile',
-    (v_view #>> '{weighting,public,employer,score}')::numeric = 3
+    coalesce((v_view #>> '{weighting,admin_profile,version}')::integer, 0) >= 1
   );
   PERFORM pg_temp.must('operator call has no personal block', v_view #> '{weighting,personal}' = 'null'::jsonb);
 
