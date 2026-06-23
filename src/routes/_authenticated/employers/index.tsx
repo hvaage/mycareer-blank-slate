@@ -319,14 +319,17 @@ function EmployersPage() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      <header className="flex items-center gap-3">
-        <Building2 className="h-6 w-6 text-primary shrink-0" />
-        <div className="min-w-0">
+      <header className="flex items-start gap-3 flex-wrap">
+        <Building2 className="h-6 w-6 text-primary shrink-0 mt-1" />
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight">Arbeidsgivere</h1>
           <p className="text-sm text-muted-foreground">
             Selskaper du har søkt på, vurdert eller fått AI-analyse av
           </p>
         </div>
+        <Button onClick={() => setDialogOpen(true)} className="shrink-0">
+          <Plus className="h-4 w-4" /> Finn ny arbeidsgiver
+        </Button>
       </header>
 
       <Card>
@@ -337,7 +340,8 @@ function EmployersPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Søk på navn eller domene"
+                placeholder="Filtrer mine arbeidsgivere"
+                aria-label="Filtrer mine arbeidsgivere"
                 className="pl-8"
               />
             </div>
@@ -364,38 +368,18 @@ function EmployersPage() {
         </CardContent>
       </Card>
 
-      {showCreateCTA && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="pt-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">
-                  Fant ingen treff på «{trimmedSearch}»
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Start en AI-analyse av selskapet — AI søker på nettet og rangerer
-                  kultur, ledelse, arbeidsmiljø, karriere, økonomi og formål.
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={() => analyzeNew.mutate(trimmedSearch)}
-              disabled={analyzeNew.isPending}
-            >
-              {analyzeNew.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Starter…
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" /> Analyser «{trimmedSearch}»
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      <EmployerAnalysisSearchDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        existingByOrgnr={existingByOrgnr}
+        isPending={analyzeNew.isPending}
+        onAnalyzeConfirmed={(row) => analyzeNew.mutateAsync(row).then(() => undefined)}
+        onOpenExisting={(companyId) => {
+          setDialogOpen(false);
+          navigate({ to: "/employers/$companyId", params: { companyId } });
+        }}
+      />
+
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
