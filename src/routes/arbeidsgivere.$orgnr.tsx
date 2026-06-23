@@ -129,16 +129,45 @@ function DetailPage() {
           <RiskBadges flags={d.risiko_flags} />
           <DataQualityBadges flags={d.datakvalitet_flags} />
         </div>
+        {envelope?.company?.analysis_rated_at ? (
+          <p className="text-xs text-muted-foreground">
+            Analyse oppdatert{" "}
+            {new Date(envelope.company.analysis_rated_at).toLocaleDateString(
+              "nb-NO",
+              { day: "2-digit", month: "long", year: "numeric" },
+            )}
+          </p>
+        ) : null}
       </header>
 
       <div className="mt-8">
-        {envelope ? (
-          <EmployerAnalysisReportV2 envelope={envelope} mode="public" />
-        ) : (
+        {envelopeError ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6">
+            <p className="text-sm font-medium text-foreground">
+              Kunne ikke hente arbeidsgiveranalysen
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {envelopeErrorObj instanceof Error
+                ? envelopeErrorObj.message
+                : "Ukjent feil"}
+            </p>
+            <div className="mt-3">
+              <Button size="sm" variant="outline" onClick={() => envelopeRefetch()}>
+                Prøv igjen
+              </Button>
+            </div>
+          </div>
+        ) : envelope ? (
+          <EmployerAnalysisReportV2
+            envelope={envelope}
+            mode="public"
+            showCompanyHeader={false}
+          />
+        ) : envelopePending ? (
           <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
             Henter arbeidsgiveranalyse…
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="mt-12 space-y-8">
