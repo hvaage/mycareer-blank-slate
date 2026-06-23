@@ -29,13 +29,13 @@ function text(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value.trim() : fallback;
 }
 
-function stringArray(value: unknown): string[] {
+function stringArray(value: unknown, max = 30): string[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is string => typeof item === "string")
     .map((item) => item.trim())
     .filter(Boolean)
-    .slice(0, 30);
+    .slice(0, max);
 }
 
 function sourceIds(value: unknown): number[] {
@@ -44,6 +44,10 @@ function sourceIds(value: unknown): number[] {
     .map((item) => Number(item))
     .filter((item) => Number.isInteger(item) && item > 0)))
     .slice(0, 40);
+}
+
+export function normalizeCandidateScenarioNotes(value: unknown): string[] {
+  return stringArray(value, 5);
 }
 
 export function normalizeScore(value: unknown): number | null {
@@ -61,6 +65,24 @@ const NEUTRAL_SOURCE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\blevels\.?fyi\b/gi, "en ekstern lønnssammenligningskilde"],
   [/\bgreat place to work\b/gi, "en ekstern arbeidsplassvurdering"],
 ];
+
+const USER_HIDDEN_SOURCE_HOST =
+  /(^|\.)(glassdoor|jobbi|indeed|kununu|trustpilot|levels\.fyi|comparably|ambitionbox|greatplacetowork)(\.|$)/i;
+
+export type AnalysisSource = { id: number; url: string; category: string };
+
+export function isEvaluationPlatformSource(source: Pick<AnalysisSource, "url" | "category">): boolean {
+  if (source.category === "employee_reviews" || source.category === "salary_benchmark") return true;
+  try {
+    return USER_HIDDEN_SOURCE_HOST.test(new URL(source.url).hostname.toLowerCase());
+  } catch {
+    return true;
+  }
+}
+
+export function userFacingAnalysisSources<T extends AnalysisSource>(sources: T[]): T[] {
+  return sources.filter((source) => !isEvaluationPlatformSource(source));
+}
 
 /**
  * User-facing analysis text must describe evidence categories, not advertise
@@ -119,6 +141,21 @@ export type EmployerAnalysisV2 = {
     key_evidence: string[];
     source_ids: number[];
   };
+  supplemental_insights: {
+    esg_and_regulatory: EvidenceInsight;
+    employee_sentiment_trend: EvidenceInsight & {
+      direction: "improving" | "stable" | "declining" | "mixed" | "insufficient_evidence";
+    };
+    compensation_signals: EvidenceInsight;
+  };
+  overall_assessment: string;
+};
+
+export type EvidenceInsight = {
+  evidence_status: "sourced" | "inferred" | "insufficient_evidence";
+  narrative: string;
+  highlights: string[];
+  source_ids: number[];
 };
 
 export function normalizeEmployerAnalysisV2(
@@ -186,6 +223,27 @@ export function normalizeEmployerAnalysisV2(
       : rawAiScore
     : null;
 
+  const rawSupplemental = record(root.supplemental_insights);
+  const normalizeInsight = (value: unknown): EvidenceInsight => {
+    const raw = record(value);
+    const rawStatus = text(raw.evidence_status);
+    const evidenceStatus: EvidenceInsight["evidence_status"] =
+      rawStatus === "sourced" || rawStatus === "inferred"
+        ? rawStatus
+        : "insufficient_evidence";
+    return {
+      evidence_status: evidenceStatus,
+      narrative: neutralize(raw.narrative),
+      highlights: stringArray(raw.highlights, 8).map(neutralize),
+      source_ids: sourceIds(raw.source_ids),
+    };
+  };
+  const sentiment = normalizeInsight(rawSupplemental.employee_sentiment_trend);
+  const rawDirection = text(record(rawSupplemental.employee_sentiment_trend).direction);
+  const direction = ["improving", "stable", "declining", "mixed"].includes(rawDirection)
+    ? rawDirection as "improving" | "stable" | "declining" | "mixed"
+    : "insufficient_evidence" as const;
+
   return {
     schema_version: 2,
     overall: {
@@ -196,7 +254,7 @@ export function normalizeEmployerAnalysisV2(
     executive_summary: neutralize(
       root.executive_summary ?? root.ai_rating_notes,
     ),
-    key_findings: stringArray(root.key_findings)
+    key_findings: stringArray(root.key_findings, 6)
       .map(neutralize),
     dimensions,
     ai_maturity: {
@@ -211,6 +269,12 @@ export function normalizeEmployerAnalysisV2(
         .map(neutralize),
       source_ids: sourceIds(rawAi.source_ids),
     },
+    supplemental_insights: {
+      esg_and_regulatory: normalizeInsight(rawSupplemental.esg_and_regulatory),
+      employee_sentiment_trend: { ...sentiment, direction },
+      compensation_signals: normalizeInsight(rawSupplemental.compensation_signals),
+    },
+    overall_assessment: neutralize(root.overall_assessment ?? root.synthesis),
   };
 }
 
@@ -244,6 +308,19 @@ export function enforceEvidenceReferences(
     signals[key] = { ...signal, score, source_ids: ids };
   }
 
+  const enforceInsight = <T extends EvidenceInsight>(section: T, minimumSources: number): T => {
+    const ids = section.source_ids.filter((id) => valid.has(id));
+    const sufficientlySourced =
+      section.evidence_status !== "insufficient_evidence" && ids.length >= minimumSources;
+    return {
+      ...section,
+      evidence_status: sufficientlySourced
+        ? section.evidence_status
+        : "insufficient_evidence",
+      source_ids: ids,
+    };
+  };
+
   return {
     ...analysis,
     overall: {
@@ -261,6 +338,20 @@ export function enforceEvidenceReferences(
         : null,
       signals,
       source_ids: analysis.ai_maturity.source_ids.filter((id) => valid.has(id)),
+    },
+    supplemental_insights: {
+      esg_and_regulatory: enforceInsight(
+        analysis.supplemental_insights.esg_and_regulatory,
+        1,
+      ),
+      employee_sentiment_trend: enforceInsight(
+        analysis.supplemental_insights.employee_sentiment_trend,
+        2,
+      ),
+      compensation_signals: enforceInsight(
+        analysis.supplemental_insights.compensation_signals,
+        1,
+      ),
     },
   };
 }

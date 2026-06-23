@@ -5,7 +5,11 @@ import {
   EMPLOYER_DIMENSIONS,
   enforceEvidenceReferences,
   financialsFromRegisterContext,
+  isEvaluationPlatformSource,
+  normalizeCandidateScenarioNotes,
   normalizeEmployerAnalysisV2,
+  type AnalysisSource,
+  userFacingAnalysisSources,
 } from "./analysis-v2.ts";
 import {
   estimateModelCostUsd,
@@ -55,7 +59,8 @@ EVIDENCE RULES:
 
 USER-FACING SOURCE LANGUAGE:
 - User-facing narratives must NEVER name employee-review, reputation-rating or salary-comparison platforms. Use neutral phrases such as "uavhengige ansattvurderinger", "eksterne vurderingskilder" and "lønnssammenligningskilder".
-- Exact source URLs remain in RESEARCH_PACK.evidence for traceability. Do not repeat platform/domain names in executive_summary, key_findings, dimension rationales, what_it_means, AI narrative, AI signal rationales or key_evidence.
+- Do not quote, compare or repeat scores supplied by external review/rating platforms. They may only support KarrierenMin's independent assessment.
+- Exact source URLs remain in RESEARCH_PACK.evidence for internal traceability. Do not repeat platform/domain names in any user-facing narrative field.
 
 LANGUAGE AND SCOPE:
 - Write all narrative fields in Norwegian Bokmal.
@@ -69,8 +74,8 @@ Return ONLY JSON with this exact structure:
     "scored_dimensions": <0-8>,
     "total_dimensions": 8
   },
-  "executive_summary": "<Norwegian evidence-based summary, 400-700 words>",
-  "key_findings": ["<5-8 concise Norwegian findings>"],
+  "executive_summary": "<Norwegian evidence-based orientation, 120-200 words; do not repeat the detailed dimensions>",
+  "key_findings": ["<4-6 concise Norwegian main findings>"],
   "dimensions": [
     {
       "key": "<culture|leadership|work_environment|career_development|financial_stability|mission|talent_attraction_retention|diversity_inclusion>",
@@ -95,7 +100,29 @@ Return ONLY JSON with this exact structure:
     },
     "key_evidence": ["<Norwegian evidence bullets>"],
     "source_ids": [<source ids>]
-  }
+  },
+  "supplemental_insights": {
+    "esg_and_regulatory": {
+      "evidence_status": "<sourced|inferred|insufficient_evidence>",
+      "narrative": "<Norwegian ESG and regulatory assessment based on sustainability reporting when available>",
+      "highlights": ["<concise Norwegian findings>"],
+      "source_ids": []
+    },
+    "employee_sentiment_trend": {
+      "evidence_status": "<sourced|inferred|insufficient_evidence>",
+      "direction": "<improving|stable|declining|mixed|insufficient_evidence>",
+      "narrative": "<Norwegian trend assessment; never name or quote platform scores>",
+      "highlights": ["<concise Norwegian findings>"],
+      "source_ids": []
+    },
+    "compensation_signals": {
+      "evidence_status": "<sourced|inferred|insufficient_evidence>",
+      "narrative": "<Norwegian compensation signals; prefer company disclosures, then official statistics; no platform names>",
+      "highlights": ["<ranges or qualitative signals, never unsupported point estimates>"],
+      "source_ids": []
+    }
+  },
+  "overall_assessment": "<Norwegian general synthesis, 250-450 words; strengths, uncertainties and practical caveats, not candidate-specific>"
 }
 
 Return all eight employer dimensions exactly once and all five AI signals exactly once.`;
@@ -111,6 +138,11 @@ RESEARCH REQUIREMENTS:
 - Each evidence item must contain a short factual excerpt and fact_keys indicating which employer or AI dimensions it can support.
 - Exact source URLs are required for traceability.
 - Do not include names, emails, phone numbers or other personal contact details.
+- Collect explicit evidence for all eight employer dimensions and all five AI-maturity dimensions.
+- Also collect evidence for ESG/regulatory posture, employee-sentiment direction over time and compensation signals.
+- For ESG, prioritize sustainability/annual reporting, regulators and material independent reporting.
+- For employee sentiment, capture themes and direction rather than copying platform scores.
+- For compensation, prefer the company's own published ranges or collective frameworks, then official wage statistics. Use review/salary platforms only as secondary internal evidence.
 
 FINANCIAL FALLBACK:
 - The user message states whether the local Bronnoysund mirror already has financial history.
@@ -162,7 +194,8 @@ Returner KUN et JSON-objekt (ingen markdown fences, ingen tekst utenfor JSON). I
 
 {
   "ai_candidate_fit_score": <tall 1.0–5.0 i 0.5-steg>,
-  "fit_reasoning": "<Norwegian markdown, 12–22 setninger tilsvarende. Struktur: (1) Kort konklusjon (2) **Styrker** — punktliste eller avsnitt (3) **Gap / risiko** — hva bør kandidaten være obs på (4) **Anbefaling** — neste steg eller forbehold. Henvis til konkrete dimensjoner (kultur, økonomi, karriere, osv.) og kandidatens profil.>"
+  "fit_reasoning": "<Norwegian markdown, 12–22 setninger tilsvarende. Struktur: (1) Kort konklusjon (2) **Styrker** — punktliste eller avsnitt (3) **Gap / risiko** — hva bør kandidaten være obs på (4) **Anbefaling** — neste steg eller forbehold. Henvis til konkrete dimensjoner (kultur, økonomi, karriere, osv.) og kandidatens profil.>",
+  "scenario_notes": ["<3-5 short, actionable Norwegian notes tied to this candidate's background, goals or preferences>"]
 }
 
 Skala: 1.0 = dårlig match, 3.0 = nøytral, 5.0 = sterk match.`;
@@ -291,8 +324,6 @@ function parseJson(text: string): any {
   }
 }
 
-type AnalysisSource = { id: number; url: string; category: string };
-
 const SOURCE_CATEGORIES = new Set([
   "official_company",
   "official_register",
@@ -343,9 +374,10 @@ function normalizeSourceUrls(sources: unknown): string[] {
 function evaluationSourceBrandTokens(sources: AnalysisSource[]): string[] {
   const tokens = new Set<string>();
   for (const source of sources) {
-    if (source.category !== "employee_reviews" && source.category !== "salary_benchmark") continue;
     try {
-      const parts = new URL(source.url).hostname.toLowerCase().replace(/^www\./, "").split(".");
+      const hostname = new URL(source.url).hostname.toLowerCase().replace(/^www\./, "");
+      if (!isEvaluationPlatformSource(source)) continue;
+      const parts = hostname.split(".");
       const token = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
       if (token && /^[a-z0-9-]{3,40}$/.test(token)) tokens.add(token);
     } catch {
@@ -361,7 +393,8 @@ function lastAnalyzeCompanySourcesFromRow(row: { research_log?: unknown }): stri
   for (let i = log.length - 1; i >= 0; i--) {
     const e = log[i] as { via?: string; sources?: unknown } | null;
     if (e?.via === "analyze-company" && Array.isArray(e.sources)) {
-      const n = normalizeSourceUrls(e.sources);
+      const n = userFacingAnalysisSources(normalizeAnalysisSources(e.sources))
+        .map((source) => source.url);
       if (n.length) return n;
     }
   }
@@ -499,6 +532,10 @@ function buildCandidateFitCompanyContext(snap: any): string {
     aiMaturity
       ? fmt("AI-modenhet (5 områder)", clampStr(JSON.stringify(aiMaturity), 4500))
       : null,
+    v2.supplemental_insights
+      ? fmt("Tilleggsinnsikt", clampStr(JSON.stringify(v2.supplemental_insights), 4500))
+      : null,
+    fmt("Helhetsvurdering", clampStr(v2.overall_assessment, 3000)),
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -778,13 +815,10 @@ function buildEmployerAnalysisMarkdown(row: any): string {
       row.industry ? `**Bransje:** ${row.industry}` : null,
       `**Samlet score:** ${v2.overall?.score ?? "—"} / 5 (${v2.overall?.scored_dimensions ?? 0} av 8 dimensjoner)`,
       "",
-      "## Sammendrag",
-      "",
-      v2.executive_summary || "_Ingen sammendrag._",
-      "",
       "## Hovedfunn",
       "",
       ...(Array.isArray(v2.key_findings) ? v2.key_findings.map((item: string) => `- ${item}`) : []),
+      v2.executive_summary ? `\n${v2.executive_summary}` : "",
       "",
       "## Arbeidsgiverdimensjoner",
       "",
@@ -801,6 +835,30 @@ function buildEmployerAnalysisMarkdown(row: any): string {
         item.what_it_means ? `\n**Hva dette betyr:** ${item.what_it_means}` : "",
         "",
       ]),
+      "## ESG og regulatorisk profil",
+      "",
+      v2.supplemental_insights?.esg_and_regulatory?.narrative || "_Utilstrekkelig grunnlag._",
+      "",
+      ...(v2.supplemental_insights?.esg_and_regulatory?.highlights ?? []).map(
+        (item: string) => `- ${item}`,
+      ),
+      "",
+      "## Trend i ansattomtaler",
+      "",
+      v2.supplemental_insights?.employee_sentiment_trend?.narrative || "_Utilstrekkelig grunnlag._",
+      "",
+      ...(v2.supplemental_insights?.employee_sentiment_trend?.highlights ?? []).map(
+        (item: string) => `- ${item}`,
+      ),
+      "",
+      "## Lønnssignaler",
+      "",
+      v2.supplemental_insights?.compensation_signals?.narrative || "_Utilstrekkelig grunnlag._",
+      "",
+      ...(v2.supplemental_insights?.compensation_signals?.highlights ?? []).map(
+        (item: string) => `- ${item}`,
+      ),
+      "",
       "## AI-modenhet",
       "",
       v2.ai_maturity?.applicable === false
@@ -822,8 +880,16 @@ function buildEmployerAnalysisMarkdown(row: any): string {
         : row.financials?.source_kind === "official_web_fallback"
         ? `Offisiell finansiell fallback fra ${row.financials?.source_type ?? "årsrapport eller investorinformasjon"}.`
         : "Ingen finansiell informasjon var tilgjengelig for denne analysen.",
+      "",
+      "## Helhetsvurdering",
+      "",
+      v2.overall_assessment || "_Ingen helhetsvurdering._",
+      "",
+      "## Ansvarsfraskrivelse",
+      "",
+      "Denne analysen er basert på offentlig tilgjengelig informasjon og webbasert research på analysetidspunktet. Scoren gjenspeiler en evidensbasert vurdering, men erstatter ikke direkte due diligence, samtaler med nåværende og tidligere ansatte eller profesjonell karriereveiledning. KarrierenMin.no gir ingen garantier for nøyaktighet, fullstendighet eller fortsatt gyldighet. Bruk analysen som ett av flere underlag i din ansettelsesbeslutning.",
     ];
-    const sources = Array.isArray(v2.sources) ? v2.sources : [];
+    const sources = userFacingAnalysisSources(normalizeAnalysisSources(v2.sources));
     if (sources.length) {
       lines.push(
         "",
@@ -840,7 +906,7 @@ function buildEmployerAnalysisMarkdown(row: any): string {
   const dim = row.ai_dimension_notes ?? {};
   const fin = row.financials ?? {};
   const lines: string[] = [
-    `# AI-arbeidsgiveranalyse — ${row.name ?? "Selskap"}`,
+    `# Arbeidsgiveranalyse — ${row.name ?? "Selskap"}`,
     "",
     row.industry ? `**Bransje:** ${row.industry}` : null,
     row.domain ? `**Domene:** ${row.domain}` : null,
@@ -857,9 +923,9 @@ function buildEmployerAnalysisMarkdown(row: any): string {
     `| Misjon | ${row.ai_mission_score ?? "—"} |`,
     `| **Snitt** | **${row.ai_overall_score ?? "—"}** |`,
     "",
-    "## Sammendrag",
+    "## Hovedfunn",
     "",
-    row.ai_rating_notes ?? "_Ingen sammendrag._",
+    row.ai_rating_notes ?? "_Ingen hovedfunn._",
     "",
     "## Dimensjonsnotater",
     "",
@@ -1113,6 +1179,7 @@ Use only these inputs. Return only the JSON object specified in the system instr
         category: source.category,
       })),
     );
+    const publicAnalysisSources = userFacingAnalysisSources(analysisSources);
     const analysisV2 = enforceEvidenceReferences(
       normalizeEmployerAnalysisV2(
         parsed,
@@ -1125,7 +1192,7 @@ Use only these inputs. Return only the JSON object specified in the system instr
     const registerSourceUpdatedAt = sourceUpdatedAtFromContext(registerContext);
     const persistedAnalysisV2 = {
       ...analysisV2,
-      sources: analysisSources,
+      sources: publicAnalysisSources,
       register_provenance: registerContext
         ? {
           source: "brreg_local_mirror",
@@ -1214,7 +1281,7 @@ Use only these inputs. Return only the JSON object specified in the system instr
       .maybeSingle();
     const existingLog = Array.isArray(existing?.research_log) ? existing!.research_log : [];
 
-    const sourcesArr = analysisSources.map((source) => source.url);
+    const sourcesArr = publicAnalysisSources.map((source) => source.url);
 
     const newLog = [
       ...existingLog,
@@ -1225,7 +1292,7 @@ Use only these inputs. Return only the JSON object specified in the system instr
         via: "analyze-company",
         analysis_version: 2,
         sources: sourcesArr,
-        source_categories: Array.from(new Set(analysisSources.map((source) => source.category))),
+        source_categories: Array.from(new Set(publicAnalysisSources.map((source) => source.category))),
         dimensions: EMPLOYER_DIMENSIONS.map((dimension) => dimension.key),
         ai_maturity_signals: Object.keys(analysisV2.ai_maturity.signals),
         register_context_used: !!registerContext,
@@ -1361,6 +1428,7 @@ async function runCandidateFit(
           company_id,
           ai_candidate_fit_score: null,
           ai_candidate_fit_reasoning: reasoning,
+          ai_candidate_scenario_notes: [],
           ai_candidate_fit_updated_at: ts,
           updated_at: ts,
         },
@@ -1404,6 +1472,7 @@ async function runCandidateFit(
         : typeof parsed.ai_candidate_fit_reasoning === "string"
           ? parsed.ai_candidate_fit_reasoning
           : null;
+    const scenarioNotes = normalizeCandidateScenarioNotes(parsed.scenario_notes);
 
     const ts = now();
     if (score == null) {
@@ -1420,6 +1489,7 @@ async function runCandidateFit(
           company_id,
           ai_candidate_fit_score: null,
           ai_candidate_fit_reasoning: fallbackReason,
+          ai_candidate_scenario_notes: scenarioNotes,
           ai_candidate_fit_updated_at: ts,
           updated_at: ts,
         },
@@ -1444,6 +1514,7 @@ async function runCandidateFit(
         company_id,
         ai_candidate_fit_score: score,
         ai_candidate_fit_reasoning: reasoningRaw ?? null,
+        ai_candidate_scenario_notes: scenarioNotes,
         ai_candidate_fit_updated_at: ts,
         updated_at: ts,
       },
