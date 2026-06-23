@@ -457,15 +457,25 @@ function ReportTop({
   envelope,
   jobStatusSlot,
   ratedAt,
+  showCompanyHeader,
 }: {
   envelope: EmployerAnalysisViewEnvelope;
   jobStatusSlot?: ReactNode;
   ratedAt: string | null;
+  showCompanyHeader: boolean;
 }) {
   const { company, register } = envelope;
   const entity = register?.entity ?? null;
   const sted = [entity?.municipality, entity?.county].filter(Boolean).join(", ");
   const bransje = entity?.industry_primary ?? company.industry ?? null;
+  if (!showCompanyHeader) {
+    if (!jobStatusSlot) return null;
+    return (
+      <header className="space-y-3">
+        <div>{jobStatusSlot}</div>
+      </header>
+    );
+  }
   return (
     <header className="space-y-3">
       <div className="space-y-1">
