@@ -1150,6 +1150,10 @@ export type Database = {
           created_at: string
           description: string | null
           domain: string | null
+          employer_analysis_rated_at: string | null
+          employer_analysis_source_updated_at: string | null
+          employer_analysis_v2: Json | null
+          employer_analysis_version: number | null
           financials: Json | null
           id: string
           industry: string | null
@@ -1195,6 +1199,10 @@ export type Database = {
           created_at?: string
           description?: string | null
           domain?: string | null
+          employer_analysis_rated_at?: string | null
+          employer_analysis_source_updated_at?: string | null
+          employer_analysis_v2?: Json | null
+          employer_analysis_version?: number | null
           financials?: Json | null
           id?: string
           industry?: string | null
@@ -1240,6 +1248,10 @@ export type Database = {
           created_at?: string
           description?: string | null
           domain?: string | null
+          employer_analysis_rated_at?: string | null
+          employer_analysis_source_updated_at?: string | null
+          employer_analysis_v2?: Json | null
+          employer_analysis_version?: number | null
           financials?: Json | null
           id?: string
           industry?: string | null
@@ -5079,6 +5091,10 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      ensure_company_for_employer: {
+        Args: { p_organisasjonsnummer: string }
+        Returns: string
+      }
       get_careerjet_sync_cron_info: {
         Args: never
         Returns: {
@@ -5086,6 +5102,10 @@ export type Database = {
           jobname: string
           schedule: string
         }[]
+      }
+      get_employer_analysis_context: {
+        Args: { p_organisasjonsnummer: string }
+        Returns: Json
       }
       get_nav_repair_cron_info: {
         Args: never
