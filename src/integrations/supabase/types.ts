@@ -2772,6 +2772,104 @@ export type Database = {
         }
         Relationships: []
       }
+      job_match_evaluations: {
+        Row: {
+          canonical_opportunity_id: string | null
+          concerns: string | null
+          created_at: string
+          id: string
+          job_input_hash: string | null
+          listing_id: string | null
+          listing_status_id: string | null
+          match_highlights: string | null
+          model: string | null
+          previous_result: Json
+          profile_input_hash: string | null
+          reasoning: string | null
+          requirement_summary: Json
+          row_kind: string
+          score: number | null
+          score_version: string
+          screening_reasons: Json
+          screening_status: string
+          user_id: string
+          user_opportunity_id: string | null
+        }
+        Insert: {
+          canonical_opportunity_id?: string | null
+          concerns?: string | null
+          created_at?: string
+          id?: string
+          job_input_hash?: string | null
+          listing_id?: string | null
+          listing_status_id?: string | null
+          match_highlights?: string | null
+          model?: string | null
+          previous_result?: Json
+          profile_input_hash?: string | null
+          reasoning?: string | null
+          requirement_summary?: Json
+          row_kind: string
+          score?: number | null
+          score_version: string
+          screening_reasons?: Json
+          screening_status: string
+          user_id: string
+          user_opportunity_id?: string | null
+        }
+        Update: {
+          canonical_opportunity_id?: string | null
+          concerns?: string | null
+          created_at?: string
+          id?: string
+          job_input_hash?: string | null
+          listing_id?: string | null
+          listing_status_id?: string | null
+          match_highlights?: string | null
+          model?: string | null
+          previous_result?: Json
+          profile_input_hash?: string | null
+          reasoning?: string | null
+          requirement_summary?: Json
+          row_kind?: string
+          score?: number | null
+          score_version?: string
+          screening_reasons?: Json
+          screening_status?: string
+          user_id?: string
+          user_opportunity_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_match_evaluations_canonical_opportunity_id_fkey"
+            columns: ["canonical_opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_match_evaluations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "job_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_match_evaluations_listing_status_id_fkey"
+            columns: ["listing_status_id"]
+            isOneToOne: false
+            referencedRelation: "user_job_listing_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_match_evaluations_user_opportunity_id_fkey"
+            columns: ["user_opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "user_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_dedupe_keys: {
         Row: {
           created_at: string
@@ -3352,6 +3450,7 @@ export type Database = {
           created_at: string
           description: string | null
           dimension: string | null
+          evidence_excerpt: string | null
           id: string
           importance_score: number | null
           inferred: boolean
@@ -3360,7 +3459,9 @@ export type Database = {
           listing_id: string | null
           normalized_value: string | null
           opportunity_id: string | null
+          parser_version: string | null
           refreshed_at: string | null
+          requirement_level: string | null
           source: string
           source_field: string | null
           source_hash: string | null
@@ -3373,6 +3474,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           dimension?: string | null
+          evidence_excerpt?: string | null
           id?: string
           importance_score?: number | null
           inferred?: boolean
@@ -3381,7 +3483,9 @@ export type Database = {
           listing_id?: string | null
           normalized_value?: string | null
           opportunity_id?: string | null
+          parser_version?: string | null
           refreshed_at?: string | null
+          requirement_level?: string | null
           source?: string
           source_field?: string | null
           source_hash?: string | null
@@ -3394,6 +3498,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           dimension?: string | null
+          evidence_excerpt?: string | null
           id?: string
           importance_score?: number | null
           inferred?: boolean
@@ -3402,7 +3507,9 @@ export type Database = {
           listing_id?: string | null
           normalized_value?: string | null
           opportunity_id?: string | null
+          parser_version?: string | null
           refreshed_at?: string | null
+          requirement_level?: string | null
           source?: string
           source_field?: string | null
           source_hash?: string | null
@@ -4591,7 +4698,13 @@ export type Database = {
           created_at: string | null
           id: string
           listing_id: string
+          match_score_version: string | null
+          match_scored_model: string | null
           relevance_score: number | null
+          requirement_summary: Json
+          screening_evaluated_at: string | null
+          screening_reasons: Json
+          screening_status: string | null
           status: string
           updated_at: string | null
           user_id: string
@@ -4605,7 +4718,13 @@ export type Database = {
           created_at?: string | null
           id?: string
           listing_id: string
+          match_score_version?: string | null
+          match_scored_model?: string | null
           relevance_score?: number | null
+          requirement_summary?: Json
+          screening_evaluated_at?: string | null
+          screening_reasons?: Json
+          screening_status?: string | null
           status?: string
           updated_at?: string | null
           user_id: string
@@ -4619,7 +4738,13 @@ export type Database = {
           created_at?: string | null
           id?: string
           listing_id?: string
+          match_score_version?: string | null
+          match_scored_model?: string | null
           relevance_score?: number | null
+          requirement_summary?: Json
+          screening_evaluated_at?: string | null
+          screening_reasons?: Json
+          screening_status?: string | null
           status?: string
           updated_at?: string | null
           user_id?: string
@@ -4658,7 +4783,13 @@ export type Database = {
           identity_fingerprint: string
           legacy_listing_id: string | null
           legacy_listing_status_id: string | null
+          match_score_version: string | null
+          match_scored_model: string | null
           relevance_score: number | null
+          requirement_summary: Json
+          screening_evaluated_at: string | null
+          screening_reasons: Json
+          screening_status: string | null
           status: string
           updated_at: string
           user_id: string
@@ -4686,7 +4817,13 @@ export type Database = {
           identity_fingerprint: string
           legacy_listing_id?: string | null
           legacy_listing_status_id?: string | null
+          match_score_version?: string | null
+          match_scored_model?: string | null
           relevance_score?: number | null
+          requirement_summary?: Json
+          screening_evaluated_at?: string | null
+          screening_reasons?: Json
+          screening_status?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -4714,7 +4851,13 @@ export type Database = {
           identity_fingerprint?: string
           legacy_listing_id?: string | null
           legacy_listing_status_id?: string | null
+          match_score_version?: string | null
+          match_scored_model?: string | null
           relevance_score?: number | null
+          requirement_summary?: Json
+          screening_evaluated_at?: string | null
+          screening_reasons?: Json
+          screening_status?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -5613,6 +5756,19 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      record_job_match_evaluation: {
+        Args: {
+          p_job_input_hash: string
+          p_model: string
+          p_profile_input_hash: string
+          p_result: Json
+          p_row_id: string
+          p_row_kind: string
+          p_score_version: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       refresh_company_aggregate: {
         Args: { p_company_id: string }
