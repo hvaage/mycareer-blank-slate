@@ -13,10 +13,7 @@ $$;
 
 DO $tests$
 DECLARE
-  v_uo public.user_opportunities%ROWTYPE;
-  v_before_evaluations bigint;
-  v_after_evaluations bigint;
-  v_eval public.job_match_evaluations%ROWTYPE;
+  v_policy_count integer;
 BEGIN
   PERFORM pg_temp.must(
     'canonical screening columns exist',
@@ -73,71 +70,41 @@ BEGIN
     )
   );
 
-  SELECT * INTO v_uo
-  FROM public.user_opportunities
-  ORDER BY created_at
-  LIMIT 1
-  FOR UPDATE;
-  PERFORM pg_temp.must('canonical canary row exists', v_uo.id IS NOT NULL);
-
-  SELECT count(*) INTO v_before_evaluations
-  FROM public.job_match_evaluations
-  WHERE user_opportunity_id = v_uo.id;
-
-  PERFORM public.record_job_match_evaluation(
-    v_uo.user_id,
-    'canonical',
-    v_uo.id,
-    jsonb_build_object(
-      'screening_status', 'excluded',
-      'screening_reasons', jsonb_build_array(jsonb_build_object(
-        'code', 'canary_hard_filter',
-        'label', 'Canary',
-        'severity', 'hard_filter'
-      )),
-      'requirement_summary', jsonb_build_object('parser_version', 'canary'),
-      'score', 0,
-      'reasoning', 'Canary',
-      'match_highlights', '',
-      'concerns', 'Canary'
-    ),
-    'job_match_v2_canary',
-    'deterministic_canary',
-    'profile_hash_canary',
-    'job_hash_canary'
-  );
-
   PERFORM pg_temp.must(
-    'canonical result is replaced atomically',
+    'record RPC has fixed security metadata',
     EXISTS (
-      SELECT 1 FROM public.user_opportunities
-      WHERE id = v_uo.id AND user_id = v_uo.user_id
-        AND screening_status = 'excluded'
-        AND match_score_version = 'job_match_v2_canary'
-        AND ai_score = 0
+      SELECT 1
+      FROM pg_proc p
+      WHERE p.oid = 'public.record_job_match_evaluation(uuid,text,uuid,jsonb,text,text,text,text)'::regprocedure
+        AND p.prosecdef
+        AND p.provolatile = 'v'
+        AND p.proconfig @> ARRAY['search_path=public, pg_temp']::text[]
     )
   );
 
-  SELECT count(*) INTO v_after_evaluations
-  FROM public.job_match_evaluations
-  WHERE user_opportunity_id = v_uo.id;
+  SELECT count(*) INTO v_policy_count
+  FROM pg_policies
+  WHERE schemaname = 'public'
+    AND tablename = 'job_match_evaluations'
+    AND policyname = 'job_match_evaluations_select_own'
+    AND cmd = 'SELECT'
+    AND roles @> ARRAY['authenticated']::name[]
+    AND qual = '(user_id = auth.uid())';
   PERFORM pg_temp.must(
-    'one append-only history row is written',
-    v_after_evaluations = v_before_evaluations + 1
+    'evaluation history has own-row SELECT policy',
+    v_policy_count = 1
   );
 
-  SELECT * INTO v_eval
-  FROM public.job_match_evaluations
-  WHERE user_opportunity_id = v_uo.id
-  ORDER BY created_at DESC
-  LIMIT 1;
   PERFORM pg_temp.must(
-    'history preserves previous result',
-    v_eval.previous_result->'score' IS NOT DISTINCT FROM to_jsonb(v_uo.ai_score)
-    AND v_eval.previous_result->>'score_version' IS NOT DISTINCT FROM v_uo.match_score_version
+    'history table has RLS enabled',
+    EXISTS (
+      SELECT 1 FROM pg_class c
+      WHERE c.oid = 'public.job_match_evaluations'::regclass
+        AND c.relrowsecurity
+    )
   );
 
-  RAISE NOTICE 'Job Match V2 schema/RPC canary PASS';
+  RAISE NOTICE 'Job Match V2 read-only postflight PASS';
 END;
 $tests$;
 
