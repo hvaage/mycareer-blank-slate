@@ -494,7 +494,10 @@ Deno.serve(async (req: Request) => {
           const sourcePostingIn: Record<string, unknown> = {
             raw_url: rawUrl, display_url: displayUrl, raw_url_hash: rawUrlHash,
             title, company, location,
-            description_excerpt: row.description ? String(row.description).slice(0, 800) : null,
+            // Resolveren leser `description`; behold teksten slik at absolutte
+            // kvalifikasjonskrav kan kontrolleres mot annonsen.
+            description: row.description ? String(row.description) : null,
+            description_complete: !!(row.description && String(row.description).trim()),
             published_at: row.date ? new Date(row.date).toISOString() : null,
             site: row.site ?? null,
             employment: {},
