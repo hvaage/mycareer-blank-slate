@@ -1,12 +1,11 @@
 // @ts-nocheck
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Bookmark, X, Send, RefreshCw, ExternalLink, Sparkles,
   Mail, MapPin, Briefcase, Building2, Banknote, ChevronDown,
-  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,37 +22,48 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { fmtRelative, fmtDateTime } from "@/lib/format";
 import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/careerjet-links";
-import {
-  opportunityRequirementAtomsQuery,
-  refreshOpportunityAtomsMutation,
-} from "@/lib/queries/target-atoms";
-import { extractOpportunityRequirementAtoms, type JobListingExtractInput } from "@/lib/target-atom-extraction";
-import { opportunityRequirementLabelNb } from "@/lib/target-atoms";
 
 export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
 });
+
+/** Locked contract: only NAV/Careerjet rows with this version + non-null screening_status are V2-evaluated. */
+const MATCH_SCORE_VERSION = "job_match_v2_2026_06_24";
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
 type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
 type ExtentFilter = "all" | "full_time" | "part_time" | "unspecified";
 type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim" | "unspecified";
-/** Client-side slice on top of status (RPC / job_leads still enforce status + not dismissed). */
-type RelevanceView = "relevant" | "high" | "unreviewed" | "all";
+type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all";
 
-/** «Høy match»: ai_scored_at set and ai_score ≥ this. */
 const HIGH_MATCH_MIN = 70;
-/** «Relevante»: ai_scored_at set and ai_score ≥ this. Default visning. */
 const RELEVANT_MIN = 40;
 
 type LeadSource = "linkedin" | "careerjet" | "nav";
+type ScreeningStatus = "eligible" | "excluded" | "needs_review" | null;
+
+type ScreeningReason = {
+  code?: string | null;
+  label?: string | null;
+  detail?: string | null;
+};
+
+type RequirementItem = {
+  level?: "mandatory" | "preferred" | "context" | null;
+  label?: string | null;
+  met?: boolean | null;
+  matched_evidence_refs?: string[] | null;
+};
+
+type RequirementSummary = {
+  requirements?: RequirementItem[];
+} | null;
 
 type Lead = {
   id: string;
   rowKind: "linkedin" | "careerjet" | "nav";
-  rowId: string; // id used for status updates
-  /** Canonical user_opportunity vs legacy user_job_listing_status (Careerjet only) */
+  rowId: string;
   cjBackend?: "uo" | "legacy";
   source: LeadSource;
   title: string | null;
@@ -63,19 +73,15 @@ type Lead = {
   salary: string | null;
   posted_at: string | null;
   posted_text: string | null;
-  /** AI score when evaluated; null when not evaluated (badge: Ikke vurdert). */
+  /** LinkedIn: V1 ai_score. NAV/Careerjet: kun satt når V2-vurdert (versjon + screeningStatus). */
   score: number | null;
+  /** LinkedIn: V1 evaluert. NAV/Careerjet: ekvivalent til isV2Evaluated (avledet). */
   aiEvaluated: boolean;
   url: string | null;
-  /** Careerjet: `job_listings.id` when known (legacy path). */
   listingId?: string | null;
-  /** Canonical NAV/Careerjet: `canonical_opportunities.id`. */
   canonicalOpportunityId?: string | null;
-  /** True when canonical opportunity is past live cutoff (NAV expired karens). */
   isExpired?: boolean;
-  /** Normalized 'full_time' | 'part_time' | null. */
   work_extent?: string | null;
-  /** Normalized 'permanent' | 'temporary' | 'project' | 'interim' | null. */
   engagement_type?: string | null;
   // linkedin extras
   ai_reasoning?: string | null;
@@ -84,7 +90,36 @@ type Lead = {
   raw_snippet?: string | null;
   source_email_from?: string | null;
   source_subject?: string | null;
+  // V2 screening (NAV/Careerjet)
+  screeningStatus?: ScreeningStatus;
+  screeningReasons?: ScreeningReason[];
+  requirementSummary?: RequirementSummary;
+  matchScoreVersion?: string | null;
+  matchScoredModel?: string | null;
+  screeningEvaluatedAt?: string | null;
 };
+
+const REASON_LABELS_NB: Record<string, string> = {
+  target_role_only_in_reporting_line: "Målrolle nevnes kun i rapporteringslinjen",
+  target_role_mismatch: "Rollen avviker fra målrolle",
+  missing_legal_qualification: "Mangler juridisk kvalifikasjon",
+  missing_required_experience: "Mangler påkrevd erfaring",
+  missing_required_education: "Mangler påkrevd utdanning",
+  location_mismatch: "Lokasjon utenfor preferanse",
+  language_mismatch: "Språkkrav ikke oppfylt",
+  seniority_mismatch: "Seniornivå avviker",
+  industry_mismatch: "Bransje avviker",
+};
+
+function reasonLabelNb(r: ScreeningReason): string {
+  if (typeof r?.label === "string" && r.label.trim()) return r.label.trim();
+  const code = typeof r?.code === "string" ? r.code : "";
+  return REASON_LABELS_NB[code] ?? (code || "Uspesifisert årsak");
+}
+
+function isV2EvaluatedRaw(version: string | null | undefined, status: ScreeningStatus): boolean {
+  return version === MATCH_SCORE_VERSION && status != null;
+}
 
 function relevanceBadge(score: number | null) {
   const s = Number(score ?? 0);
@@ -93,33 +128,29 @@ function relevanceBadge(score: number | null) {
   return { label: `Mulig match · ${s}`, cls: "bg-slate-300 text-slate-800" };
 }
 
-function isCareerjetAiEvaluated(
-  aiScore: number | null | undefined,
-  aiScoredAt: string | null | undefined,
-): boolean {
-  if (aiScoredAt != null && String(aiScoredAt).trim() !== "") return true;
-  if (typeof aiScore === "number" && !Number.isNaN(aiScore)) return true;
-  return false;
-}
-
-function isLinkedInAiEvaluated(aiScore: unknown): boolean {
-  return typeof aiScore === "number" && !Number.isNaN(aiScore);
-}
-
-function relevanceReviewBadge(lead: Lead) {
-  if (!lead.aiEvaluated) {
-    return {
-      label: "Ikke vurdert",
-      cls: "bg-sky-600/15 text-sky-950 dark:text-sky-100 border border-sky-500/25",
-    };
+function leadBadge(lead: Lead) {
+  if (lead.source === "linkedin") {
+    if (!lead.aiEvaluated) {
+      return { label: "Ikke vurdert", cls: "bg-sky-600/15 text-sky-950 dark:text-sky-100 border border-sky-500/25" };
+    }
+    if (lead.score == null) {
+      return { label: "Vurdert", cls: "bg-violet-600/15 text-violet-950 dark:text-violet-100 border border-violet-500/25" };
+    }
+    return relevanceBadge(lead.score);
   }
-  if (lead.score == null || Number.isNaN(lead.score)) {
-    return {
-      label: "Vurdert",
-      cls: "bg-violet-600/15 text-violet-950 dark:text-violet-100 border border-violet-500/25",
-    };
+  // NAV / Careerjet — V2
+  if (!isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null)) {
+    return { label: "Ikke vurdert", cls: "bg-sky-600/15 text-sky-950 dark:text-sky-100 border border-sky-500/25" };
   }
-  return relevanceBadge(lead.score);
+  if (lead.screeningStatus === "excluded") {
+    return { label: "Ikke relevant", cls: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-100" };
+  }
+  if (lead.screeningStatus === "needs_review") {
+    return { label: "Må vurderes", cls: "bg-amber-500 text-white" };
+  }
+  // eligible
+  if (typeof lead.score === "number") return relevanceBadge(lead.score);
+  return { label: "Vurdert", cls: "bg-violet-600/15 text-violet-950 dark:text-violet-100 border border-violet-500/25" };
 }
 
 function formatSalary(min: number | null, max: number | null, cur: string | null, raw: string | null) {
@@ -143,6 +174,10 @@ function buildCareerjetSearchUrl(lead: Pick<Lead, "rowKind" | "title" | "company
   );
 }
 
+function isLinkedInAiEvaluated(aiScore: unknown): boolean {
+  return typeof aiScore === "number" && !Number.isNaN(aiScore);
+}
+
 function JobLeadsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -162,14 +197,16 @@ function JobLeadsPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("job_search_keywords, preferred_locations, target_city, target_region, target_country, listings_last_fetched_at")
+        .select(
+          "job_search_keywords, preferred_locations, target_city, target_region, target_country, target_role, target_roles, listings_last_fetched_at",
+        )
         .eq("id", user!.id)
         .maybeSingle();
       return data as any;
     },
   });
 
-  // LinkedIn-leads (from email sync)
+  // LinkedIn-leads (uendret)
   const { data: linkedinLeads, isLoading: loadingLI } = useQuery({
     queryKey: ["job-leads-linkedin", user?.id, statusFilter],
     enabled: !!user,
@@ -183,7 +220,7 @@ function JobLeadsPage() {
         .limit(300);
       if (statusFilter === "new") q = q.eq("status", "ny");
       else if (statusFilter === "applied") q = q.eq("status", "promotert");
-      else if (statusFilter === "saved") q = q.in("status", []); // none — LinkedIn has no "saved"
+      else if (statusFilter === "saved") q = q.in("status", []);
       else q = q.neq("status", "avvist");
       const { data, error } = await q;
       if (error) throw error;
@@ -191,8 +228,7 @@ function JobLeadsPage() {
     },
   });
 
-  // Canonical (NAV + Careerjet) + legacy Careerjet via unified RPC.
-  // LinkedIn beholdes i egen query (linkedinLeads) for å bevare ekstrafelt.
+  // NAV + Careerjet via unified RPC (uendret)
   const { data: cjLeads, isLoading: loadingCJ } = useQuery({
     queryKey: ["job-leads-careerjet", user?.id, statusFilter],
     enabled: !!user,
@@ -204,143 +240,235 @@ function JobLeadsPage() {
         p_source: "all",
       });
       if (error) throw error;
-      const rows = (data ?? []) as Array<{
-        row_kind: string;
-        source: string;
-        user_opportunity_id: string | null;
-        listing_status_id: string | null;
-        listing_id: string | null;
-        canonical_opportunity_id: string | null;
-        status: string;
-        is_expired: boolean | null;
-        relevance_score: number | null;
-        ai_score: number | null;
-        ai_scored_at: string | null;
-        ai_reasoning: string | null;
-        ai_match_highlights: string | null;
-        ai_concerns: string | null;
-        title: string | null;
-        employer: string | null;
-        location: string | null;
-        salary: string | null;
-        salary_min: number | null;
-        salary_max: number | null;
-        salary_currency: string | null;
-        published_at: string | null;
-        source_url: string | null;
-        display_url: string | null;
-        raw_url: string | null;
-        identity_fingerprint: string | null;
-        work_extent: string | null;
-        engagement_type: string | null;
-      }>;
-      // LinkedIn håndteres av egen query — filtrer bort her.
+      const rows = (data ?? []) as Array<any>;
       return rows.filter((r) => r.source !== "linkedin");
     },
   });
 
-  const merged: Lead[] = useMemo(() => {
-    let skippedNoRowId = 0;
+  // V2-screening fra user_opportunities
+  const uoIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (cjLeads ?? [])
+            .map((r: any) => r.user_opportunity_id)
+            .filter((v: any) => typeof v === "string" && v.length > 0),
+        ),
+      ),
+    [cjLeads],
+  );
+  const ujlsIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (cjLeads ?? [])
+            .map((r: any) => r.listing_status_id)
+            .filter((v: any) => typeof v === "string" && v.length > 0),
+        ),
+      ),
+    [cjLeads],
+  );
+
+  const screeningCols =
+    "id, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model, screening_evaluated_at";
+
+  const { data: screeningUo } = useQuery({
+    queryKey: ["job-leads-screening-uo", user?.id, uoIds],
+    enabled: !!user && uoIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_opportunities")
+        .select(screeningCols)
+        .eq("user_id", user!.id)
+        .in("id", uoIds as string[]);
+      if (error) throw error;
+      const map = new Map<string, any>();
+      for (const r of data ?? []) map.set((r as any).id, r);
+      return map;
+    },
+  });
+
+  const { data: screeningUjls } = useQuery({
+    queryKey: ["job-leads-screening-ujls", user?.id, ujlsIds],
+    enabled: !!user && ujlsIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_job_listing_status")
+        .select(screeningCols)
+        .eq("user_id", user!.id)
+        .in("id", ujlsIds as string[]);
+      if (error) throw error;
+      const map = new Map<string, any>();
+      for (const r of data ?? []) map.set((r as any).id, r);
+      return map;
+    },
+  });
+
+  // Bygg rå Lead-liste (uten match-/source-/time-filter) — brukes for empty-state-skille.
+  const rawLeads: Lead[] = useMemo(() => {
     const out: Lead[] = [];
     for (const r of linkedinLeads ?? []) {
-      const aiEvaluated = isLinkedInAiEvaluated(r.ai_score);
+      const aiEvaluated = isLinkedInAiEvaluated((r as any).ai_score);
       out.push({
-        id: `li-${r.id}`,
+        id: `li-${(r as any).id}`,
         rowKind: "linkedin",
-        rowId: r.id,
+        rowId: (r as any).id,
         source: "linkedin",
-        title: r.title,
-        company: r.company,
-        location: r.location,
-        work_type: r.work_type,
-        salary: r.salary_text,
-        posted_at: r.received_at,
-        posted_text: r.posted_text,
-        score: aiEvaluated ? (r.ai_score as number) : null,
+        title: (r as any).title,
+        company: (r as any).company,
+        location: (r as any).location,
+        work_type: (r as any).work_type,
+        salary: (r as any).salary_text,
+        posted_at: (r as any).received_at,
+        posted_text: (r as any).posted_text,
+        score: aiEvaluated ? ((r as any).ai_score as number) : null,
         aiEvaluated,
-        url: r.job_url,
-        ai_reasoning: r.ai_reasoning,
-        ai_match_highlights: r.ai_match_highlights,
-        ai_concerns: r.ai_concerns,
-        raw_snippet: r.raw_snippet,
-        source_email_from: r.source_email_from,
-        source_subject: r.source_subject,
+        url: (r as any).job_url,
+        ai_reasoning: (r as any).ai_reasoning,
+        ai_match_highlights: (r as any).ai_match_highlights,
+        ai_concerns: (r as any).ai_concerns,
+        raw_snippet: (r as any).raw_snippet,
+        source_email_from: (r as any).source_email_from,
+        source_subject: (r as any).source_subject,
       });
     }
     for (const row of cjLeads ?? []) {
-      const uoId = row.user_opportunity_id;
+      const uoId = (row as any).user_opportunity_id;
       const isCanonical =
-        uoId != null &&
-        String(uoId).trim() !== "" &&
-        String(uoId).toLowerCase() !== "null";
-      const rowId = isCanonical ? String(uoId) : String(row.listing_status_id ?? "");
-      if (!rowId) {
-        skippedNoRowId += 1;
-        continue;
-      }
-      const aiScore = row.ai_score;
-      const aiEvaluated = isCareerjetAiEvaluated(aiScore, row.ai_scored_at);
-      const score = aiEvaluated && typeof aiScore === "number" && !Number.isNaN(aiScore) ? aiScore : null;
-      const leadSource: LeadSource = row.source === "nav" ? "nav" : "careerjet";
-      const rawUrl = row.raw_url ?? row.source_url;
+        uoId != null && String(uoId).trim() !== "" && String(uoId).toLowerCase() !== "null";
+      const rowId = isCanonical ? String(uoId) : String((row as any).listing_status_id ?? "");
+      if (!rowId) continue;
+
+      const screening = isCanonical
+        ? screeningUo?.get(rowId)
+        : screeningUjls?.get(rowId);
+
+      const screeningStatus: ScreeningStatus = (screening?.screening_status as any) ?? null;
+      const matchScoreVersion: string | null = screening?.match_score_version ?? null;
+      const v2 = isV2EvaluatedRaw(matchScoreVersion, screeningStatus);
+
+      const rawAiScore = (row as any).ai_score;
+      // Gamle V1-score nulles ut for NAV/Careerjet med mindre V2-vurdert.
+      const score: number | null =
+        v2 && typeof rawAiScore === "number" && !Number.isNaN(rawAiScore) ? rawAiScore : null;
+
+      const leadSource: LeadSource = (row as any).source === "nav" ? "nav" : "careerjet";
+      const rawUrl = (row as any).raw_url ?? (row as any).source_url;
       const urlForCard =
         leadSource === "nav"
-          ? (row.display_url ?? rawUrl ?? null)
+          ? ((row as any).display_url ?? rawUrl ?? null)
           : effectiveCareerjetCardUrl({
               raw_url: rawUrl,
-              display_url: row.display_url,
-              title: row.title,
-              company: row.employer,
-              location: row.location,
+              display_url: (row as any).display_url,
+              title: (row as any).title,
+              company: (row as any).employer,
+              location: (row as any).location,
             });
+
+      // For excluded/needs_review: ikke vis gamle ai_match_highlights som positiv match.
+      const isExcludedOrNeeds = v2 && (screeningStatus === "excluded" || screeningStatus === "needs_review");
+      const highlights = isExcludedOrNeeds ? null : ((row as any).ai_match_highlights ?? null);
+
+      let screeningReasons: ScreeningReason[] = [];
+      const rawReasons = screening?.screening_reasons;
+      if (Array.isArray(rawReasons)) {
+        screeningReasons = rawReasons.map((r: any) =>
+          typeof r === "string" ? { code: r } : (r as ScreeningReason),
+        );
+      }
+
       out.push({
         id: `${leadSource}-${isCanonical ? "uo" : "legacy"}-${rowId}`,
         rowKind: leadSource === "nav" ? "nav" : "careerjet",
         rowId,
         cjBackend: isCanonical ? "uo" : "legacy",
         source: leadSource,
-        title: row.title,
-        company: row.employer,
-        location: row.location,
+        title: (row as any).title,
+        company: (row as any).employer,
+        location: (row as any).location,
         work_type: null,
-        salary: formatSalary(row.salary_min, row.salary_max, row.salary_currency, row.salary),
-        posted_at: row.published_at,
+        salary: formatSalary(
+          (row as any).salary_min,
+          (row as any).salary_max,
+          (row as any).salary_currency,
+          (row as any).salary,
+        ),
+        posted_at: (row as any).published_at,
         posted_text: null,
         score,
-        aiEvaluated,
+        aiEvaluated: v2,
         url: urlForCard,
-        listingId: row.listing_id,
-        canonicalOpportunityId: row.canonical_opportunity_id,
-        isExpired: row.is_expired === true,
-        work_extent: row.work_extent ?? null,
-        engagement_type: row.engagement_type ?? null,
-        ai_reasoning: row.ai_reasoning ?? null,
-        ai_match_highlights: row.ai_match_highlights ?? null,
-        ai_concerns: row.ai_concerns ?? null,
+        listingId: (row as any).listing_id,
+        canonicalOpportunityId: (row as any).canonical_opportunity_id,
+        isExpired: (row as any).is_expired === true,
+        work_extent: (row as any).work_extent ?? null,
+        engagement_type: (row as any).engagement_type ?? null,
+        ai_reasoning: (row as any).ai_reasoning ?? null,
+        ai_match_highlights: highlights,
+        ai_concerns: (row as any).ai_concerns ?? null,
+        screeningStatus,
+        screeningReasons,
+        requirementSummary: (screening?.requirement_summary as RequirementSummary) ?? null,
+        matchScoreVersion,
+        matchScoredModel: screening?.match_scored_model ?? null,
+        screeningEvaluatedAt: screening?.screening_evaluated_at ?? null,
       });
     }
+    return out;
+  }, [linkedinLeads, cjLeads, screeningUo, screeningUjls]);
 
-    let afterRelevance = out;
+  const merged: Lead[] = useMemo(() => {
+    const out = rawLeads;
+
+    // Match-filter
+    let afterRelevance: Lead[];
     if (relevanceView === "relevant") {
-      afterRelevance = out.filter(
-        (lead) =>
-          lead.aiEvaluated &&
+      afterRelevance = out.filter((lead) => {
+        if (lead.source === "linkedin") {
+          return lead.aiEvaluated && typeof lead.score === "number" && lead.score >= RELEVANT_MIN;
+        }
+        return (
+          isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
+          lead.screeningStatus === "eligible" &&
           typeof lead.score === "number" &&
-          !Number.isNaN(lead.score) &&
-          lead.score >= RELEVANT_MIN,
-      );
+          lead.score >= RELEVANT_MIN
+        );
+      });
     } else if (relevanceView === "high") {
+      afterRelevance = out.filter((lead) => {
+        if (lead.source === "linkedin") {
+          return lead.aiEvaluated && typeof lead.score === "number" && lead.score >= HIGH_MATCH_MIN;
+        }
+        return (
+          isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
+          lead.screeningStatus === "eligible" &&
+          typeof lead.score === "number" &&
+          lead.score >= HIGH_MATCH_MIN
+        );
+      });
+    } else if (relevanceView === "needs_review") {
       afterRelevance = out.filter(
         (lead) =>
-          lead.aiEvaluated &&
-          typeof lead.score === "number" &&
-          !Number.isNaN(lead.score) &&
-          lead.score >= HIGH_MATCH_MIN,
+          lead.source !== "linkedin" &&
+          isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
+          lead.screeningStatus === "needs_review",
       );
     } else if (relevanceView === "unreviewed") {
-      afterRelevance = out.filter((lead) => !lead.aiEvaluated);
+      afterRelevance = out.filter((lead) => {
+        if (lead.source === "linkedin") return !lead.aiEvaluated;
+        return !isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null);
+      });
+    } else {
+      // "all" — alle vurderinger, inkluderer excluded
+      afterRelevance = out;
     }
-    // "all" → vis alle, inkludert lav score og uvurderte
+
+    // Excluded skal aldri vises utenfor "all"
+    if (relevanceView !== "all") {
+      afterRelevance = afterRelevance.filter((lead) => lead.screeningStatus !== "excluded");
+    }
 
     const sourceMatched =
       sourceFilter === "all"
@@ -378,7 +506,7 @@ function JobLeadsPage() {
           return Number.isFinite(t) && t >= cutoffMs;
         });
 
-    filtered.sort((a, b) => {
+    const sorted = [...filtered].sort((a, b) => {
       if (!a.aiEvaluated && b.aiEvaluated) return -1;
       if (a.aiEvaluated && !b.aiEvaluated) return 1;
       if (!a.aiEvaluated && !b.aiEvaluated) {
@@ -389,22 +517,36 @@ function JobLeadsPage() {
       return new Date(b.posted_at ?? 0).getTime() - new Date(a.posted_at ?? 0).getTime();
     });
 
-  return filtered;
-  }, [linkedinLeads, cjLeads, sourceFilter, timeFilter, statusFilter, relevanceView, extentFilter, engagementFilter]);
+    return sorted;
+  }, [rawLeads, sourceFilter, timeFilter, relevanceView, extentFilter, engagementFilter]);
 
   const handleScorePending = async () => {
     setScoring(true);
     try {
+      // score-pending-opportunities aksepterer kun nav | careerjet | all.
+      const source = sourceFilter === "nav" || sourceFilter === "careerjet" ? sourceFilter : "all";
       const { data, error } = await supabase.functions.invoke("score-pending-opportunities", {
-        body: { source: sourceFilter === "linkedin" ? "all" : sourceFilter, limit: 20 },
+        body: { source, limit: 20, mode: "stale" },
       });
       if (error) { toast.error("Score-kall feilet"); return; }
-      const sel = Number(data?.selected ?? 0);
-      const sc = Number(data?.scored ?? 0);
-      const fl = Number(data?.failed ?? 0);
-      if (sel === 0) toast.info("Ingen uvurderte annonser å score");
-      else toast.success(`Vurderte ${sc} av ${sel}${fl ? ` (${fl} feilet)` : ""}`);
+      const evaluated = Number((data as any)?.evaluated ?? 0);
+      const counts = ((data as any)?.status_counts ?? {}) as Record<string, number>;
+      const eligible = Number(counts.eligible ?? 0);
+      const excluded = Number(counts.excluded ?? 0);
+      const needs = Number(counts.needs_review ?? 0);
+      const failed = Number((data as any)?.failed ?? 0);
+      const selected = Number((data as any)?.selected ?? 0);
+      if (selected === 0 && evaluated === 0) {
+        toast.info("Ingen nye eller utdaterte annonser å vurdere");
+      } else {
+        const parts = [`${evaluated} vurdert`, `${eligible} relevante`, `${excluded} ekskludert`];
+        if (needs > 0) parts.push(`${needs} må vurderes`);
+        if (failed > 0) parts.push(`${failed} feilet`);
+        toast.success(parts.join(" · "));
+      }
       qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
+      qc.invalidateQueries({ queryKey: ["job-leads-screening-uo"] });
+      qc.invalidateQueries({ queryKey: ["job-leads-screening-ujls"] });
     } finally {
       setScoring(false);
     }
@@ -425,17 +567,17 @@ function JobLeadsPage() {
         );
         return;
       }
-      if (!data?.ok) {
-        toast.warning(data?.message ?? "Ingen treff");
+      if (!(data as any)?.ok) {
+        toast.warning((data as any)?.message ?? "Ingen treff");
         return;
       }
-      const skipped = Number(data.skipped_duplicates ?? data.skipped ?? 0);
-      const newLinks = Number(data.new_lead_links ?? data.scored ?? 0);
-      const upserted = Number(data.listing_rows_upserted ?? data.upserted ?? 0);
-      const refreshed = Number(data.existing_rows_refreshed ?? 0);
-      const navMatched = Number(data.nav_matched ?? 0);
+      const skipped = Number((data as any).skipped_duplicates ?? (data as any).skipped ?? 0);
+      const newLinks = Number((data as any).new_lead_links ?? (data as any).scored ?? 0);
+      const upserted = Number((data as any).listing_rows_upserted ?? (data as any).upserted ?? 0);
+      const refreshed = Number((data as any).existing_rows_refreshed ?? 0);
+      const navMatched = Number((data as any).nav_matched ?? 0);
       const msg = [
-        `${data.fetched} fra Careerjet`,
+        `${(data as any).fetched} fra Careerjet`,
         upserted ? `${upserted} rader i jobbliste` : null,
         `${newLinks} nye koblinger til deg`,
         navMatched ? `${navMatched} NAV-treff` : null,
@@ -453,7 +595,6 @@ function JobLeadsPage() {
     }
   };
 
-
   const tombstoneDedupe = async (lead: Lead, status: "dismissed" | "promoted") => {
     if (!user) return;
     try {
@@ -465,7 +606,6 @@ function JobLeadsPage() {
         p_location: lead.location ?? "",
       });
       if (!keyData) return;
-      // Upsert dedupe key as tombstone
       await supabase.rpc("register_lead", {
         p_user_id: user.id,
         p_source: lead.source,
@@ -496,6 +636,8 @@ function JobLeadsPage() {
       : lead.url;
     const sourceLabel =
       lead.source === "linkedin" ? "LinkedIn" : lead.source === "nav" ? "NAV" : "Careerjet";
+    // Prioritet: bruk lead.score som allerede er nullet ut for ikke-V2 NAV/Careerjet.
+    const priority = (lead.score ?? 0) >= 70 ? "høy" : "middels";
     const { data: app, error: appErr } = await supabase
       .from("applications")
       .insert({
@@ -507,7 +649,7 @@ function JobLeadsPage() {
         job_url: jobUrl ?? null,
         source: sourceLabel,
         status: "identifisert",
-        priority: (lead.score ?? 0) >= 70 ? "høy" : "middels",
+        priority,
         ai_score: lead.score ?? null,
         ai_reasoning: lead.ai_reasoning ?? null,
         ai_match_highlights: lead.ai_match_highlights ?? null,
@@ -525,22 +667,18 @@ function JobLeadsPage() {
       return null;
     }
 
-    // Tombstone dedupe key as promoted so it doesn't re-import
     await tombstoneDedupe(lead, "promoted");
 
     if (lead.source === "linkedin") {
-      // LinkedIn: behold dagens flyt (delete from job_leads)
       await supabase.from("job_leads").delete().eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
       qc.invalidateQueries({ queryKey: ["job-leads"] });
     } else if (lead.source === "nav") {
-      // NAV: ALDRI delete. Sett status='applied' på user_opportunities.
       await (supabase.from("user_opportunities") as any)
         .update({ status: "applied", updated_at: new Date().toISOString() })
         .eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
     } else {
-      // Careerjet: behold eksisterende flyt (delete)
       if (lead.cjBackend === "uo") {
         await supabase.from("user_opportunities").delete().eq("id", lead.rowId);
       } else {
@@ -570,7 +708,6 @@ function JobLeadsPage() {
     // dismiss
     await tombstoneDedupe(lead, "dismissed");
     if (lead.source === "nav" || (lead.rowKind === "careerjet" && lead.cjBackend === "uo")) {
-      // NAV + canonical Careerjet: status-update på user_opportunities (aldri delete for NAV)
       await (supabase.from("user_opportunities") as any)
         .update({ status: "dismissed", updated_at: new Date().toISOString() })
         .eq("id", lead.rowId);
@@ -593,9 +730,14 @@ function JobLeadsPage() {
     (Array.isArray(profile?.preferred_locations) && profile.preferred_locations.length > 0) ||
     !!profile?.target_city?.trim() ||
     !!profile?.target_region?.trim() ||
-    !!profile?.target_country?.trim();
+    !!profile?.target_country?.trim() ||
+    !!profile?.target_role?.trim() ||
+    (Array.isArray(profile?.target_roles) && profile.target_roles.length > 0);
 
   const isLoading = loadingLI || loadingCJ;
+  const totalRawRows = (linkedinLeads?.length ?? 0) + (cjLeads?.length ?? 0);
+  const hasAnyRows = totalRawRows > 0;
+  const filteredAway = hasAnyRows && merged.length === 0;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -611,9 +753,14 @@ function JobLeadsPage() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Button onClick={handleScorePending} disabled={scoring} variant="outline">
+          <Button
+            onClick={handleScorePending}
+            disabled={scoring || sourceFilter === "linkedin"}
+            variant="outline"
+            title={sourceFilter === "linkedin" ? "Vurdering gjelder NAV/Careerjet" : undefined}
+          >
             <Sparkles className={`h-4 w-4 mr-2 ${scoring ? "animate-spin" : ""}`} />
-            {scoring ? "Vurderer…" : "Vurder uvurderte"}
+            {scoring ? "Vurderer…" : "Vurder nye og utdaterte"}
           </Button>
           <Button onClick={handleFetch} disabled={fetching || !hasPrefs}>
             <RefreshCw className={`h-4 w-4 mr-2 ${fetching ? "animate-spin" : ""}`} />
@@ -642,14 +789,15 @@ function JobLeadsPage() {
           </SelectContent>
         </Select>
         <Select value={relevanceView} onValueChange={(v: any) => setRelevanceView(v)}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Match-score" />
+          <SelectTrigger className="w-full sm:w-56">
+            <SelectValue placeholder="Match-vurdering" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="relevant">Relevante (≥{RELEVANT_MIN})</SelectItem>
-            <SelectItem value="high">Høy match (≥{HIGH_MATCH_MIN})</SelectItem>
-            <SelectItem value="unreviewed">Uvurderte</SelectItem>
-            <SelectItem value="all">Alle, også lav score</SelectItem>
+            <SelectItem value="relevant">Relevante (≥40)</SelectItem>
+            <SelectItem value="high">Høy match (≥70)</SelectItem>
+            <SelectItem value="needs_review">Må vurderes</SelectItem>
+            <SelectItem value="unreviewed">Uvurderte / utdaterte</SelectItem>
+            <SelectItem value="all">Alle vurderinger</SelectItem>
           </SelectContent>
         </Select>
         <Select value={timeFilter} onValueChange={(v: any) => setTimeFilter(v)}>
@@ -701,13 +849,23 @@ function JobLeadsPage() {
 
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
-      ) : !merged.length ? (
+      ) : !hasAnyRows ? (
         <EmptyState
           title="Ingen annonser ennå"
           description={
             hasPrefs
-              ? "Trykk «Hent fra Careerjet» eller synkroniser e-post for LinkedIn-jobbvarsler."
+              ? "Trykk «Hent fra Careerjet + NAV» eller synkroniser e-post for LinkedIn-jobbvarsler."
               : "Sett opp søkeord og byer i profilen din først."
+          }
+        />
+      ) : filteredAway ? (
+        <EmptyState
+          title="Ingen treff i valgt filter"
+          description="Ingen relevante treff etter kvalifikasjons- og lokasjonskontroll."
+          action={
+            <Button variant="outline" onClick={() => setRelevanceView("all")}>
+              Vis alle vurderinger
+            </Button>
           }
         />
       ) : (
@@ -727,101 +885,68 @@ function JobLeadsPage() {
   );
 }
 
-function jobLeadToExtractInput(lead: Lead): JobListingExtractInput {
-  const id =
-    (lead.listingId && String(lead.listingId).trim()) ||
-    (lead.canonicalOpportunityId && String(lead.canonicalOpportunityId).trim()) ||
-    lead.rowId;
-  return {
-    id,
-    title: lead.title,
-    employer: lead.company,
-    location: lead.location,
-    description: lead.raw_snippet ?? null,
-    salary: lead.salary,
-    salary_min: null,
-    salary_max: null,
-    salary_currency: null,
-    raw_data: null,
-  };
-}
+function RequirementSummarySection({ summary }: { summary: RequirementSummary }) {
+  const items = Array.isArray(summary?.requirements) ? summary!.requirements! : [];
+  if (items.length === 0) return null;
 
-function JobLeadTargetHints({ lead }: { lead: Lead }) {
-  if (lead.source !== "careerjet") return null;
-  const qc = useQueryClient();
-  const atomKey = {
-    listingId: lead.listingId ?? null,
-    canonicalOpportunityId: lead.canonicalOpportunityId ?? null,
-  };
-  const enabled = !!(atomKey.listingId || atomKey.canonicalOpportunityId);
-  const { data: rows = [], isLoading } = useQuery({
-    ...opportunityRequirementAtomsQuery(atomKey),
-    enabled,
-  });
-  const refresh = useMutation({
-    ...refreshOpportunityAtomsMutation(qc, atomKey),
-    onSuccess: (r) => {
-      toast.success(`Krav-atomer oppdatert (${r.upserted} nye/oppdatert, ${r.deactivated} deaktivert).`);
-    },
-    onError: (e: Error) => toast.error(e.message ?? "Kunne ikke oppdatere krav-atomer"),
-  });
+  const groups: Array<{ key: "mandatory" | "preferred" | "context"; title: string; items: RequirementItem[] }> = [
+    { key: "mandatory", title: "Obligatoriske krav", items: items.filter((r) => r.level === "mandatory") },
+    { key: "preferred", title: "Ønskede kvalifikasjoner", items: items.filter((r) => r.level === "preferred") },
+    { key: "context", title: "Annen kontekst", items: items.filter((r) => r.level === "context") },
+  ].filter((g) => g.items.length > 0);
 
-  const extracted = useMemo(() => extractOpportunityRequirementAtoms(jobLeadToExtractInput(lead)), [
-    lead.listingId,
-    lead.canonicalOpportunityId,
-    lead.rowId,
-    lead.title,
-    lead.company,
-    lead.location,
-    lead.salary,
-    lead.raw_snippet,
-  ]);
-
-  if (!enabled) return null;
-
-  const fromDb = rows.length > 0;
-  const list = fromDb ? rows.slice(0, 12) : extracted.slice(0, 10);
+  if (groups.length === 0) return null;
 
   return (
-    <div className="text-xs border-t border-border/60 pt-2 mt-2 space-y-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-foreground/90">Det stillingen ser ut til å vektlegge</span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 text-[10px] px-2 shrink-0"
-          disabled={refresh.isPending || isLoading}
-          onClick={() => refresh.mutate()}
-        >
-          {refresh.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-          <span className="ml-1">Oppdater</span>
-        </Button>
-      </div>
-      <p className="text-[10px] text-muted-foreground leading-snug">
-        Strukturerte krav fra tittel, arbeidsgiver og sted (MVP). Full tekst brukes når du oppdaterer atomer mot databasen.
-      </p>
-      <div className="flex flex-wrap gap-1">
-        {list.map((item, i) => {
-          const key =
-            "id" in item && item.id
-              ? item.id
-              : `${"source_hash" in item ? item.source_hash : "ex"}-${i}`;
-          const label =
-            typeof (item as { label?: string | null }).label === "string" &&
-            String((item as { label?: string | null }).label).trim()
-              ? String((item as { label: string }).label)
-              : opportunityRequirementLabelNb(String((item as { category: string }).category));
-          return (
-            <Badge key={key} variant="secondary" className="text-[10px] font-normal">
-              {label}
-            </Badge>
-          );
-        })}
-        {!list.length && !isLoading && (
-          <span className="text-muted-foreground">Ingen trekk funnet i korttekst. Trykk Oppdater for å hente fra lagret annonse.</span>
-        )}
-      </div>
+    <div className="text-xs border-t border-border/60 pt-2 mt-2 space-y-2">
+      {groups.map((g) => (
+        <div key={g.key} className="space-y-1">
+          <div className="font-medium text-foreground/90">{g.title}</div>
+          <ul className="space-y-1">
+            {g.items.map((req, idx) => {
+              const evidenceCount = Array.isArray(req.matched_evidence_refs)
+                ? req.matched_evidence_refs.length
+                : 0;
+              let statusLabel = "Må verifiseres";
+              let statusCls = "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-100";
+              if (req.met === true && evidenceCount > 0) {
+                statusLabel = "Dokumentert";
+                statusCls = "bg-emerald-500/15 text-emerald-900 dark:text-emerald-100 border border-emerald-500/30";
+              } else if (req.met === false) {
+                statusLabel = "Ikke dokumentert";
+                statusCls = "bg-amber-500/15 text-amber-900 dark:text-amber-100 border border-amber-500/30";
+              }
+              return (
+                <li key={`${g.key}-${idx}`} className="flex items-start gap-2">
+                  <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded ${statusCls}`}>{statusLabel}</span>
+                  <span className="text-foreground/85">{req.label ?? "—"}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ScreeningReasonsBlock({ lead }: { lead: Lead }) {
+  if (lead.source === "linkedin") return null;
+  if (lead.screeningStatus !== "excluded" && lead.screeningStatus !== "needs_review") return null;
+  const reasons = Array.isArray(lead.screeningReasons) ? lead.screeningReasons : [];
+  if (reasons.length === 0) return null;
+  const title = lead.screeningStatus === "excluded" ? "Ekskludert fordi" : "Må avklares";
+  return (
+    <div className="text-xs rounded-md bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 p-2 space-y-1">
+      <div className="font-medium">{title}</div>
+      <ul className="list-disc pl-4 space-y-0.5">
+        {reasons.map((r, i) => (
+          <li key={i}>
+            {reasonLabelNb(r)}
+            {r.detail ? <span className="text-amber-900/80 dark:text-amber-100/80"> — {r.detail}</span> : null}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -835,13 +960,17 @@ function LeadCard({
   onApply: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const badge = relevanceReviewBadge(lead);
+  const badge = leadBadge(lead);
   const isLI = lead.source === "linkedin";
   const isNav = lead.source === "nav";
   const sourceLabel = isLI ? "LinkedIn" : isNav ? "NAV" : "Careerjet";
   const actionUrl = isLI || isNav ? lead.url : buildCareerjetSearchUrl(lead);
-  const hasAIDetails =
+  const hasDetails =
     !!(lead.ai_reasoning || lead.ai_match_highlights || lead.ai_concerns || lead.raw_snippet);
+  const showPositiveHighlight =
+    !!lead.ai_match_highlights &&
+    !(lead.source !== "linkedin" &&
+      (lead.screeningStatus === "excluded" || lead.screeningStatus === "needs_review"));
 
   const cardInner = (
     <div className="flex-1 min-w-0 space-y-2">
@@ -874,7 +1003,7 @@ function LeadCard({
         {lead.posted_text ?? (lead.posted_at ? fmtRelative(lead.posted_at) : "—")}
       </div>
 
-      {lead.ai_match_highlights && (
+      {showPositiveHighlight && (
         <div className="text-xs rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-100 p-2">
           <span className="font-medium">Match: </span>{lead.ai_match_highlights}
         </div>
@@ -904,7 +1033,8 @@ function LeadCard({
           cardInner
         )}
 
-        <JobLeadTargetHints lead={lead} />
+        <ScreeningReasonsBlock lead={lead} />
+        <RequirementSummarySection summary={lead.requirementSummary ?? null} />
 
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
           {actionUrl && (
@@ -931,18 +1061,18 @@ function LeadCard({
           </Button>
         </div>
 
-        {hasAIDetails && (
+        {hasDetails && (
           <Collapsible open={open} onOpenChange={setOpen}>
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="text-xs h-7 px-2">
                 <ChevronDown className={`h-3 w-3 mr-1 transition-transform ${open ? "rotate-180" : ""}`} />
-                {open ? "Skjul AI-vurdering" : "Vis AI-vurdering & detaljer"}
+                {open ? "Skjul vurdering og detaljer" : "Vis vurdering og detaljer"}
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-2 pt-2 text-xs">
               {lead.ai_reasoning && (
                 <div>
-                  <div className="font-medium text-foreground mb-0.5">AI-vurdering</div>
+                  <div className="font-medium text-foreground mb-0.5">Matchvurdering</div>
                   <div className="text-muted-foreground whitespace-pre-wrap">{lead.ai_reasoning}</div>
                 </div>
               )}
