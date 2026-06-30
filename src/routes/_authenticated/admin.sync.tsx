@@ -464,13 +464,27 @@ function CareerjetTab() {
                     {data.cron.active ? "ACTIVE" : "INACTIVE"} · {data.cron.jobname}
                   </Badge>
                 </>
-              ) : <Muted>Ikke registrert (cron disabled inntil verifisering)</Muted>}
+              ) : data.cron_check_error ? (
+                <>
+                  <Badge active={false}>SJEKK FEILET</Badge>
+                  <Muted>Status ukjent — RPC-feil: {data.cron_check_error}</Muted>
+                </>
+              ) : <Muted>Ikke registrert</Muted>}
             </Card>
             <Card label="Vault secret (kun for cron)">
-              <Badge active={data.vault.has_sync_careerjet_secret}>
-                sync_careerjet_secret {data.vault.has_sync_careerjet_secret ? "FUNNET" : "MANGLER"}
-              </Badge>
-              <Muted>Manuell trigger bruker runtime-env og er upåvirket.</Muted>
+              {data.vault_check_error ? (
+                <>
+                  <Badge active={false}>SJEKK FEILET</Badge>
+                  <Muted>Status ukjent — RPC-feil: {data.vault_check_error}</Muted>
+                </>
+              ) : (
+                <>
+                  <Badge active={data.vault.has_sync_careerjet_secret}>
+                    sync_careerjet_secret {data.vault.has_sync_careerjet_secret ? "FUNNET" : "MANGLER"}
+                  </Badge>
+                  <Muted>Manuell trigger bruker runtime-env og er upåvirket.</Muted>
+                </>
+              )}
             </Card>
             <Card label="Careerjet source_postings">
               <Big>{data.duplicates.source_postings_careerjet}</Big>
