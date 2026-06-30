@@ -230,7 +230,9 @@ export const getCareerjetSyncStatus = createServerFn({ method: "GET" })
       runs: enriched,
       latest_non_replay_run,
       cron,
+      cron_check_error,
       vault,
+      vault_check_error,
       duplicates: {
         source_postings_careerjet: spCount ?? 0,
         distinct_external_ids: distinct,
