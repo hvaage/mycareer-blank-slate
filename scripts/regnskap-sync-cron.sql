@@ -1,20 +1,22 @@
--- regnskap-sync cron schedule — RUNBOOK / REFERENCE (M5.5).
+-- regnskap-sync cron schedule — RUNBOOK / REFERENCE.
 --
 -- Live schedule:
 --   Aktivert i Supabase pg_cron som jobben 'regnskap-sync-nightly'
---   (0 3 * * * UTC) via migrasjonen for M5.5. Cron-secret hentes fra
---   vault.decrypted_secrets ('regnskap_sync_cron_secret') ved hvert kall;
---   samme verdi ligger som Edge Function env REGNSKAP_SYNC_CRON_SECRET.
+--   med catchup-profil hvert 5. minutt (*/5 * * * *) via migrasjonen
+--   20260630123000_regnskap_sync_catchup_cron.sql. Cron-secret hentes
+--   fra vault.decrypted_secrets ('regnskap_sync_cron_secret') ved hvert
+--   kall; samme verdi ligger som Edge Function env REGNSKAP_SYNC_CRON_SECRET.
 --
 -- Denne filen beholdes som referanse hvis jobben må gjenopprettes manuelt
--- (f.eks. etter restore eller migrering). Body og defaults skal matche live
--- migrasjon: limit=20, rps=0.5, timeBudgetMs=50000. Juster bare etter
--- observasjon i admin-panelet /admin/regnskap.
+-- (f.eks. etter restore eller migrering). Body og defaults skal matche
+-- live migrasjon: mode=due, limit=60, rps=2, timeBudgetMs=55000,
+-- includePdfYears=false. Dette prioriterer rask speiling av minst ett
+-- regnskapsår; PDF-år kan hentes senere.
 
 -- Manuell (re)schedule — kjør kun ved behov:
 -- SELECT cron.schedule(
 --   'regnskap-sync-nightly',
---   '0 3 * * *',
+--   '*/5 * * * *',
 --   $$
 --   SELECT net.http_post(
 --     url := 'https://miwzhbludgwvskmsfqnq.supabase.co/functions/v1/regnskap-sync',
@@ -22,7 +24,18 @@
 --       'Content-Type', 'application/json',
 --       'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'regnskap_sync_cron_secret')
 --     ),
---     body := '{"op":"run","mode":"due","limit":20,"rps":0.5,"timeBudgetMs":50000}'::jsonb
+--     body := '{
+--       "op": "run",
+--       "mode": "due",
+--       "limit": 60,
+--       "rps": 2,
+--       "timeBudgetMs": 55000,
+--       "includePdfYears": false,
+--       "meta": {
+--         "profile": "catchup_min_1_year",
+--         "scheduledBy": "pg_cron"
+--       }
+--     }'::jsonb
 --   ) AS request_id;
 --   $$
 -- );
