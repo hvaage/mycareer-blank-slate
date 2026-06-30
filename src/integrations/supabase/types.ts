@@ -5528,6 +5528,106 @@ export type Database = {
         Returns: Json
       }
       get_employer_analysis_weight_config: { Args: never; Returns: Json }
+      get_employer_detail: {
+        Args: { p_organisasjonsnummer: string }
+        Returns: {
+          aarsresultat: number | null
+          aarsresultat_margin_prosent: number | null
+          agg_career_development_score: number | null
+          agg_culture_score: number | null
+          agg_financial_stability_score: number | null
+          agg_leadership_score: number | null
+          agg_mission_score: number | null
+          agg_overall_score: number | null
+          agg_rating_count: number | null
+          agg_work_environment_score: number | null
+          ai_career_development_score: number | null
+          ai_culture_score: number | null
+          ai_dimension_notes: Json | null
+          ai_financial_stability_score: number | null
+          ai_leadership_score: number | null
+          ai_mission_score: number | null
+          ai_overall_score: number | null
+          ai_rated_at: string | null
+          ai_rating_notes: string | null
+          ai_work_environment_score: number | null
+          aktivitet: string | null
+          ansatte_bucket: string | null
+          antall_ansatte: number | null
+          arbeidsgiver_type: string | null
+          available_pdf_years: string[] | null
+          company_id: string | null
+          datakvalitet_flags: string[] | null
+          domain: string | null
+          driftsinntekter: number | null
+          driftsmargin_prosent: number | null
+          driftsresultat: number | null
+          driftsresultat_per_ansatt: number | null
+          egenkapitalandel_prosent: number | null
+          er_i_konsern: boolean | null
+          er_offentlig: boolean | null
+          er_rekruttering: boolean | null
+          er_utdanning: boolean | null
+          financials: Json | null
+          forretningsadresse_fylke: string | null
+          forretningsadresse_fylkesnummer: string | null
+          forretningsadresse_kommune: string | null
+          forretningsadresse_kommunenummer: string | null
+          forretningsadresse_postnummer: string | null
+          forretningsadresse_poststed: string | null
+          gjeldsgrad: number | null
+          har_registrert_antall_ansatte: boolean | null
+          hjemmeside: string | null
+          institusjonell_sektorkode: string | null
+          konkurs: boolean | null
+          naeringskode1_beskrivelse: string | null
+          naeringskode1_kode: string | null
+          naeringskode2_beskrivelse: string | null
+          naeringskode2_kode: string | null
+          naeringskode3_beskrivelse: string | null
+          naeringskode3_kode: string | null
+          navn: string | null
+          omsetning_bucket: string | null
+          omsetning_per_ansatt: number | null
+          organisasjonsform_beskrivelse: string | null
+          organisasjonsform_kode: string | null
+          organisasjonsnummer: string | null
+          overordnet_enhet: string | null
+          registrert_i_foretaksregisteret: boolean | null
+          registrert_i_frivillighetsregisteret: boolean | null
+          registrert_i_mvaregisteret: boolean | null
+          regnskap_hentet_tidspunkt: string | null
+          regnskap_last_checked_at: string | null
+          regnskap_last_success_at: string | null
+          regnskap_sync_status: string | null
+          regnskapsaar: number | null
+          regnskapsperiode_fra: string | null
+          regnskapsperiode_til: string | null
+          regnskapstype: string | null
+          risiko_flags: string[] | null
+          selskapsalder_aar: number | null
+          slettet: boolean | null
+          stiftelsesdato: string | null
+          sum_anleggsmidler: number | null
+          sum_driftskostnad: number | null
+          sum_egenkapital: number | null
+          sum_egenkapital_gjeld: number | null
+          sum_eiendeler: number | null
+          sum_finansinntekter: number | null
+          sum_finanskostnad: number | null
+          sum_gjeld: number | null
+          sum_omloepsmidler: number | null
+          under_avvikling: boolean | null
+          under_tvangsavvikling_eller_tvangsopplosning: boolean | null
+          valuta: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "employer_search_v1"
+          isOneToOne: true
+          isSetofReturn: true
+        }
+      }
       get_nav_repair_cron_info: {
         Args: never
         Returns: {
