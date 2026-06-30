@@ -42,7 +42,9 @@ export type CareerjetSyncStatus = {
   /** S6: most recent run where meta->>'mode' IS DISTINCT FROM 'replay'. */
   latest_non_replay_run: CareerjetRunRow | null;
   cron: { jobname: string; schedule: string | null; active: boolean | null } | null;
+  cron_check_error: string | null;
   vault: { has_sync_careerjet_secret: boolean };
+  vault_check_error: string | null;
   duplicates: {
     source_postings_careerjet: number;
     distinct_external_ids: number;
