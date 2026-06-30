@@ -127,6 +127,7 @@ const adminGroup: GroupNode = {
   items: [
     { label: "Admin", to: "/admin" },
     { label: "Sync", to: "/admin/sync" },
+    { label: "Datainntak", to: "/admin/ingestion" },
   ],
   matchPrefixes: ["/admin"],
 };
