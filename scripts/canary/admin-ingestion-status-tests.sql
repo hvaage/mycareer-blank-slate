@@ -45,7 +45,10 @@ BEGIN
   PERFORM pg_temp.must(
     'regnskap remaining estimate is present',
     v_payload #>> '{brreg,regnskapsregisteret,remaining_estimate_kind}'
-      = 'local_enhetsregisteret_without_regnskap_row'
+      IN (
+        'local_enhetsregisteret_without_regnskap_row',
+        'local_enhetsregisteret_estimate_minus_regnskap_sync_success_rows'
+      )
   );
   PERFORM pg_temp.must(
     'NAV active unique count is numeric',
