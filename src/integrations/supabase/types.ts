@@ -5304,6 +5304,18 @@ export type Database = {
         Args: { p_relation_name: string }
         Returns: number
       }
+      _admin_pg_stats_upper_integer: {
+        Args: { p_attname: string; p_schemaname: string; p_tablename: string }
+        Returns: number
+      }
+      _admin_pg_stats_upper_text: {
+        Args: { p_attname: string; p_schemaname: string; p_tablename: string }
+        Returns: string
+      }
+      _admin_pg_stats_upper_timestamptz: {
+        Args: { p_attname: string; p_schemaname: string; p_tablename: string }
+        Returns: string
+      }
       _careerjet_assert_lease: {
         Args: {
           p_fencing_token: number
