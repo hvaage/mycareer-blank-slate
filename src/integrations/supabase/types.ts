@@ -5300,6 +5300,10 @@ export type Database = {
       }
     }
     Functions: {
+      _admin_estimated_rows: {
+        Args: { p_relation_name: string }
+        Returns: number
+      }
       _careerjet_assert_lease: {
         Args: {
           p_fencing_token: number
