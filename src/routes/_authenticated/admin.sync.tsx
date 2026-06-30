@@ -14,13 +14,23 @@ import {
   type CareerjetRunRow,
   type TriggerCareerjetSyncResult,
 } from "@/lib/careerjet-sync.functions";
+import { IngestionPanel } from "@/components/admin/IngestionPanel";
 
-type TabKey = "nav" | "careerjet";
+type TabKey = "nav" | "careerjet" | "ingestion";
+
+const TAB_LABELS: Record<TabKey, string> = {
+  nav: "NAV",
+  careerjet: "Careerjet",
+  ingestion: "Datainntak",
+};
 
 export const Route = createFileRoute("/_authenticated/admin/sync")({
-  validateSearch: (s: Record<string, unknown>) => ({
-    tab: (s.tab === "careerjet" ? "careerjet" : "nav") as TabKey,
-  }),
+  validateSearch: (s: Record<string, unknown>) => {
+    const t = s.tab;
+    const tab: TabKey =
+      t === "careerjet" || t === "ingestion" || t === "nav" ? t : "nav";
+    return { tab };
+  },
   head: () => ({
     meta: [
       { title: "Admin · Sync — Karrierenmin" },
@@ -54,11 +64,11 @@ function AdminSync() {
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-10">
         <h1 className="text-2xl font-bold text-foreground">Sync-admin</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Read-only oversikt over kildesyncer (NAV, Careerjet). Ingen handlinger her.
+          Read-only oversikt over kildesyncer (NAV, Careerjet) og datainntak. Ingen muterende handlinger her.
         </p>
 
         <div className="mt-6 flex gap-2 border-b border-border">
-          {(["nav", "careerjet"] as TabKey[]).map((t) => (
+          {(["nav", "careerjet", "ingestion"] as TabKey[]).map((t) => (
             <button
               key={t}
               onClick={() => navigate({ to: "/admin/sync", search: { tab: t } })}
@@ -68,12 +78,14 @@ function AdminSync() {
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t === "nav" ? "NAV" : "Careerjet"}
+              {TAB_LABELS[t]}
             </button>
           ))}
         </div>
 
-        {tab === "nav" ? <NavTab /> : <CareerjetTab />}
+        {tab === "nav" && <NavTab />}
+        {tab === "careerjet" && <CareerjetTab />}
+        {tab === "ingestion" && <IngestionPanel />}
       </main>
       <Footer />
     </div>
