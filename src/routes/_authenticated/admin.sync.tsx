@@ -14,19 +14,12 @@ import {
   type CareerjetRunRow,
   type TriggerCareerjetSyncResult,
 } from "@/lib/careerjet-sync.functions";
-import { AdminIngestionPanel } from "@/routes/_authenticated/admin.ingestion";
 
-type TabKey = "nav" | "careerjet" | "ingestion";
+type TabKey = "nav" | "careerjet";
 
 export const Route = createFileRoute("/_authenticated/admin/sync")({
   validateSearch: (s: Record<string, unknown>) => ({
-    tab: (
-      s.tab === "careerjet"
-        ? "careerjet"
-        : s.tab === "ingestion"
-          ? "ingestion"
-          : "nav"
-    ) as TabKey,
+    tab: (s.tab === "careerjet" ? "careerjet" : "nav") as TabKey,
   }),
   head: () => ({
     meta: [
@@ -61,11 +54,11 @@ function AdminSync() {
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-10">
         <h1 className="text-2xl font-bold text-foreground">Sync-admin</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Read-only oversikt over kildesyncer og datainntak. Ingen handlinger her.
+          Read-only oversikt over kildesyncer (NAV, Careerjet). Ingen handlinger her.
         </p>
 
         <div className="mt-6 flex gap-2 border-b border-border">
-          {(["nav", "careerjet", "ingestion"] as TabKey[]).map((t) => (
+          {(["nav", "careerjet"] as TabKey[]).map((t) => (
             <button
               key={t}
               onClick={() => navigate({ to: "/admin/sync", search: { tab: t } })}
@@ -75,18 +68,12 @@ function AdminSync() {
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t === "nav" ? "NAV" : t === "careerjet" ? "Careerjet" : "Datainntak"}
+              {t === "nav" ? "NAV" : "Careerjet"}
             </button>
           ))}
         </div>
 
-        {tab === "nav" ? (
-          <NavTab />
-        ) : tab === "careerjet" ? (
-          <CareerjetTab />
-        ) : (
-          <AdminIngestionPanel embedded />
-        )}
+        {tab === "nav" ? <NavTab /> : <CareerjetTab />}
       </main>
       <Footer />
     </div>
