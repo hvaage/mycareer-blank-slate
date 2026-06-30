@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/admin/ingestion")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: AdminIngestion,
+  component: AdminIngestionRoute,
 });
 
 function fmt(dt: string | null | undefined): string {
@@ -95,7 +95,19 @@ function Grid({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AdminIngestion() {
+function AdminIngestionRoute() {
+  return (
+    <div className="min-h-screen flex flex-col bg-background">
+      <Header />
+      <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-10">
+        <AdminIngestionPanel />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+export function AdminIngestionPanel({ embedded = false }: { embedded?: boolean }) {
   const fetchStatus = useServerFn(getAdminIngestionStatus);
   const { data, isLoading, error, refetch, isFetching } = useQuery<
     AdminIngestionStatus,
@@ -110,12 +122,14 @@ function AdminIngestion() {
     errMessage != null && /forbidden|unauthor|permission/i.test(errMessage);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Header />
-      <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-10">
+    <div className={embedded ? "mt-6" : ""}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Datainntak</h1>
+            {embedded ? (
+              <h2 className="text-lg font-semibold text-foreground">Datainntak</h2>
+            ) : (
+              <h1 className="text-2xl font-bold text-foreground">Datainntak</h1>
+            )}
             <p className="text-sm text-muted-foreground mt-1">
               Read-only status for register- og jobbannonse-nedlastinger
               (Brønnøysund og NAV).
@@ -158,8 +172,6 @@ function AdminIngestion() {
             <NavSection data={data} />
           </>
         )}
-      </main>
-      <Footer />
     </div>
   );
 }
