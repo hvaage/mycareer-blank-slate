@@ -118,20 +118,42 @@ export const getCareerjetSyncStatus = createServerFn({ method: "GET" })
     // S6: "latest Careerjet sync" must exclude replay-runs.
     const latest_non_replay_run = enriched.find((r) => !r.is_replay) ?? null;
 
+    // Admin-gated RPCs (require auth.uid()): call via the user-scoped client
+    // from requireSupabaseAuth context. supabaseAdmin runs as service_role,
+    // where auth.uid() is NULL and the guard would raise — masking real state.
+    const { supabase: userSupabase } = context as { supabase: typeof supabaseAdmin };
+
     let cron: CareerjetSyncStatus["cron"] = null;
+    let cron_check_error: string | null = null;
     try {
-      const { data: cronRows } = await supabaseAdmin.rpc("get_careerjet_sync_cron_info");
-      if (Array.isArray(cronRows) && cronRows.length) {
+      const { data: cronRows, error } = await userSupabase.rpc("get_careerjet_sync_cron_info");
+      if (error) {
+        cron_check_error = error.message;
+        console.warn("[careerjet-status] cron RPC failed:", error.message);
+      } else if (Array.isArray(cronRows) && cronRows.length) {
         const c = cronRows[0] as any;
         cron = { jobname: c.jobname, schedule: c.schedule, active: c.active };
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      cron_check_error = e instanceof Error ? e.message : String(e);
+      console.warn("[careerjet-status] cron RPC threw:", cron_check_error);
+    }
 
     let vault = { has_sync_careerjet_secret: false };
+    let vault_check_error: string | null = null;
     try {
-      const { data: vaultRes } = await supabaseAdmin.rpc("careerjet_sync_vault_has_secret");
-      vault.has_sync_careerjet_secret = Boolean(vaultRes);
-    } catch { /* ignore */ }
+      const { data: vaultRes, error } = await userSupabase.rpc("careerjet_sync_vault_has_secret");
+      if (error) {
+        vault_check_error = error.message;
+        console.warn("[careerjet-status] vault RPC failed:", error.message);
+      } else {
+        vault.has_sync_careerjet_secret = Boolean(vaultRes);
+      }
+    } catch (e) {
+      vault_check_error = e instanceof Error ? e.message : String(e);
+      console.warn("[careerjet-status] vault RPC threw:", vault_check_error);
+    }
+
 
     const { data: dupRows } = await supabaseAdmin.rpc("careerjet_sync_duplicate_external_ids");
     const duplicate_external_ids = Array.isArray(dupRows)
