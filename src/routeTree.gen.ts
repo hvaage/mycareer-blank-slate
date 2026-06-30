@@ -68,6 +68,7 @@ import { Route as AuthenticatedAdminRekruttererundersokelseRouteImport } from '.
 import { Route as AuthenticatedAdminRegnskapRouteImport } from './routes/_authenticated/admin.regnskap'
 import { Route as AuthenticatedAdminNavSyncRouteImport } from './routes/_authenticated/admin.nav-sync'
 import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authenticated/admin.leads'
+import { Route as AuthenticatedAdminIngestionRouteImport } from './routes/_authenticated/admin.ingestion'
 import { Route as AuthenticatedAdminCvTestRouteImport } from './routes/_authenticated/admin.cv-test'
 import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authenticated/admin.changelog'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
@@ -401,6 +402,12 @@ const AuthenticatedAdminLeadsRoute = AuthenticatedAdminLeadsRouteImport.update({
   path: '/admin/leads',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAdminIngestionRoute =
+  AuthenticatedAdminIngestionRouteImport.update({
+    id: '/admin/ingestion',
+    path: '/admin/ingestion',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminCvTestRoute =
   AuthenticatedAdminCvTestRouteImport.update({
     id: '/admin/cv-test',
@@ -475,6 +482,7 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
+  '/admin/ingestion': typeof AuthenticatedAdminIngestionRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/admin/nav-sync': typeof AuthenticatedAdminNavSyncRoute
   '/admin/regnskap': typeof AuthenticatedAdminRegnskapRoute
@@ -539,6 +547,7 @@ export interface FileRoutesByTo {
   '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
+  '/admin/ingestion': typeof AuthenticatedAdminIngestionRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/admin/nav-sync': typeof AuthenticatedAdminNavSyncRoute
   '/admin/regnskap': typeof AuthenticatedAdminRegnskapRoute
@@ -608,6 +617,7 @@ export interface FileRoutesById {
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/_authenticated/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/_authenticated/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
+  '/_authenticated/admin/ingestion': typeof AuthenticatedAdminIngestionRoute
   '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
   '/_authenticated/admin/nav-sync': typeof AuthenticatedAdminNavSyncRoute
   '/_authenticated/admin/regnskap': typeof AuthenticatedAdminRegnskapRoute
@@ -677,6 +687,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/'
     | '/admin/changelog'
     | '/admin/cv-test'
+    | '/admin/ingestion'
     | '/admin/leads'
     | '/admin/nav-sync'
     | '/admin/regnskap'
@@ -741,6 +752,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/admin/changelog'
     | '/admin/cv-test'
+    | '/admin/ingestion'
     | '/admin/leads'
     | '/admin/nav-sync'
     | '/admin/regnskap'
@@ -809,6 +821,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/'
     | '/_authenticated/admin/changelog'
     | '/_authenticated/admin/cv-test'
+    | '/_authenticated/admin/ingestion'
     | '/_authenticated/admin/leads'
     | '/_authenticated/admin/nav-sync'
     | '/_authenticated/admin/regnskap'
@@ -1285,6 +1298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminLeadsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/ingestion': {
+      id: '/_authenticated/admin/ingestion'
+      path: '/admin/ingestion'
+      fullPath: '/admin/ingestion'
+      preLoaderRoute: typeof AuthenticatedAdminIngestionRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/cv-test': {
       id: '/_authenticated/admin/cv-test'
       path: '/admin/cv-test'
@@ -1349,6 +1369,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedPreferencesRoute: typeof AuthenticatedPreferencesRoute
   AuthenticatedAdminChangelogRoute: typeof AuthenticatedAdminChangelogRoute
   AuthenticatedAdminCvTestRoute: typeof AuthenticatedAdminCvTestRoute
+  AuthenticatedAdminIngestionRoute: typeof AuthenticatedAdminIngestionRoute
   AuthenticatedAdminLeadsRoute: typeof AuthenticatedAdminLeadsRoute
   AuthenticatedAdminNavSyncRoute: typeof AuthenticatedAdminNavSyncRoute
   AuthenticatedAdminRegnskapRoute: typeof AuthenticatedAdminRegnskapRoute
@@ -1387,6 +1408,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedPreferencesRoute: AuthenticatedPreferencesRoute,
   AuthenticatedAdminChangelogRoute: AuthenticatedAdminChangelogRoute,
   AuthenticatedAdminCvTestRoute: AuthenticatedAdminCvTestRoute,
+  AuthenticatedAdminIngestionRoute: AuthenticatedAdminIngestionRoute,
   AuthenticatedAdminLeadsRoute: AuthenticatedAdminLeadsRoute,
   AuthenticatedAdminNavSyncRoute: AuthenticatedAdminNavSyncRoute,
   AuthenticatedAdminRegnskapRoute: AuthenticatedAdminRegnskapRoute,
