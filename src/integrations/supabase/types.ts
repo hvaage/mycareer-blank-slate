@@ -5487,6 +5487,10 @@ export type Database = {
         Args: { p_organisasjonsnummer: string }
         Returns: string
       }
+      get_admin_ingestion_status: {
+        Args: { p_days?: number; p_timezone?: string }
+        Returns: Json
+      }
       get_careerjet_sync_cron_info: {
         Args: never
         Returns: {
