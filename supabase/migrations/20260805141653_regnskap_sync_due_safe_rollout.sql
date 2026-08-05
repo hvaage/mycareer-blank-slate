@@ -3,7 +3,9 @@
 -- This migration makes the deployment safe whether
 -- 20260805132733_regnskap_sync_due_performance committed before its client
 -- timeout or rolled back. It only creates the missing expression index used by
--- the rewritten pending/retry/due branch and refreshes planner stats.
+-- the rewritten pending/retry/due branch. Planner statistics refresh is left
+-- to ordinary database maintenance because the Lovable-managed target gateway
+-- timed out while refreshing statistics through the migration API.
 
 CREATE INDEX IF NOT EXISTS idx_rss_ready_pending_retry_due
   ON reg.regnskap_sync_status (
@@ -12,5 +14,3 @@ CREATE INDEX IF NOT EXISTS idx_rss_ready_pending_retry_due
     organisasjonsnummer
   )
   WHERE status IN ('pending', 'retry', 'due');
-
-ANALYZE reg.regnskap_sync_status;
