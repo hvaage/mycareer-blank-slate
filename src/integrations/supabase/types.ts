@@ -5491,6 +5491,16 @@ export type Database = {
         }[]
       }
       careerjet_sync_vault_has_secret: { Args: never; Returns: boolean }
+      cron_job_run_details_health: {
+        Args: never
+        Returns: {
+          approx_rows: number
+          index_bytes: number
+          max_runid: number
+          table_bytes: number
+          total_bytes: number
+        }[]
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -5868,6 +5878,19 @@ export type Database = {
       opportunity_fingerprint: {
         Args: { p_company: string; p_location: string; p_title: string }
         Returns: string
+      }
+      prune_cron_job_run_details: {
+        Args: {
+          p_batch_size?: number
+          p_keep_latest?: number
+          p_max_batches?: number
+        }
+        Returns: {
+          batches: number
+          deleted_count: number
+          max_runid: number
+          prune_before_runid: number
+        }[]
       }
       prune_stale_leads: { Args: { p_user_id: string }; Returns: undefined }
       read_email_batch: {
