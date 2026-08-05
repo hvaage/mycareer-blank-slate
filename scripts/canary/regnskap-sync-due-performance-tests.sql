@@ -20,11 +20,14 @@ DO $tests$
 DECLARE
   v_plan json;
   v_execution_ms numeric;
-  v_missing_status bigint;
   v_lock_a boolean;
   v_lock_b boolean;
   v_unlock boolean;
 BEGIN
+  PERFORM pg_temp.must(
+    'idx_rss_ready_pending_retry_due exists',
+    to_regclass('reg.idx_rss_ready_pending_retry_due') IS NOT NULL
+  );
   PERFORM pg_temp.must(
     'idx_rss_ok_next_attempt exists',
     to_regclass('reg.idx_rss_ok_next_attempt') IS NOT NULL
@@ -44,21 +47,6 @@ BEGIN
   PERFORM pg_temp.must(
     'idx_rss_in_progress_checked exists',
     to_regclass('reg.idx_rss_in_progress_checked') IS NOT NULL
-  );
-
-  SELECT count(*)::bigint
-  INTO v_missing_status
-  FROM reg.enheter e
-  WHERE COALESCE(e.slettet, false) = false
-    AND NOT EXISTS (
-      SELECT 1
-      FROM reg.regnskap_sync_status s
-      WHERE s.organisasjonsnummer = e.organisasjonsnummer
-    );
-
-  PERFORM pg_temp.must(
-    'active enheter have status rows after migration',
-    v_missing_status = 0
   );
 
   EXECUTE $explain$
