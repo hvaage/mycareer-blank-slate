@@ -2,21 +2,22 @@
 --
 -- Live schedule:
 --   Aktivert i Supabase pg_cron som jobben 'regnskap-sync-nightly'
---   med catchup-profil hvert 5. minutt (*/5 * * * *) via migrasjonen
---   20260630123000_regnskap_sync_catchup_cron.sql. Cron-secret hentes
+--   med catchup-profil hvert 15. minutt, forskjøvet fra NAV/Careerjet
+--   (13,28,43,58 * * * *) via migrasjonen
+--   20260805184332_regnskap_sync_cron_delivery_relief.sql. Cron-secret hentes
 --   fra vault.decrypted_secrets ('regnskap_sync_cron_secret') ved hvert
 --   kall; samme verdi ligger som Edge Function env REGNSKAP_SYNC_CRON_SECRET.
 --
 -- Denne filen beholdes som referanse hvis jobben må gjenopprettes manuelt
 -- (f.eks. etter restore eller migrering). Body og defaults skal matche
 -- live migrasjon: mode=due, limit=60, rps=2, timeBudgetMs=55000,
--- includePdfYears=false. Dette prioriterer rask speiling av minst ett
--- regnskapsår; PDF-år kan hentes senere.
+-- includePdfYears=false, timeout_milliseconds=150000. Dette prioriterer rask
+-- speiling av minst ett regnskapsår; PDF-år kan hentes senere.
 
 -- Manuell (re)schedule — kjør kun ved behov:
 -- SELECT cron.schedule(
 --   'regnskap-sync-nightly',
---   '*/5 * * * *',
+--   '13,28,43,58 * * * *',
 --   $$
 --   SELECT net.http_post(
 --     url := 'https://miwzhbludgwvskmsfqnq.supabase.co/functions/v1/regnskap-sync',
@@ -33,9 +34,11 @@
 --       "includePdfYears": false,
 --       "meta": {
 --         "profile": "catchup_min_1_year",
---         "scheduledBy": "pg_cron"
+--         "scheduledBy": "pg_cron",
+--         "deliveryProfile": "relief_15m_offset"
 --       }
---     }'::jsonb
+--     }'::jsonb,
+--     timeout_milliseconds := 150000
 --   ) AS request_id;
 --   $$
 -- );
