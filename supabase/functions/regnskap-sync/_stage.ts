@@ -10,7 +10,7 @@ export type Stage =
 export class StageError extends Error {
   stage: Stage;
   code: string | null;
-  cause?: unknown;
+  override cause?: unknown;
   constructor(stage: Stage, cause: unknown) {
     const msg = cause instanceof Error ? cause.message : String(cause);
     super(msg);
