@@ -50,6 +50,17 @@ const CLAIMABLE_LOCKED_SQL = `(
 
 const NOT_ACTIVE_LEASE_SQL = `NOT (s.status = 'in_progress' AND s.last_checked_at > now() - interval '10 minutes')`;
 
+const RETRY_BACKOFF_INTERVAL_SQL = `
+make_interval(mins => (
+  LEAST(
+    120::numeric,
+    5::numeric * power(
+      2::numeric,
+      LEAST(GREATEST(COALESCE(consecutive_failures, 0), 0), 5)
+    )
+  )::integer
+))`;
+
 export async function selectCandidates(
   c: PoolClient, mode: SyncMode, limit: number, staleDays: number, explicitOrgnrs?: string[],
 ): Promise<string[]> {
@@ -134,8 +145,16 @@ export async function claimOrgs(
 export async function releaseClaim(c: PoolClient, orgnr: string, prevStatus: string | null): Promise<void> {
   await c.queryObject({
     text: `UPDATE reg.regnskap_sync_status
-           SET status = COALESCE($2, 'pending'),
+           SET status = CASE WHEN $2 = 'in_progress' THEN 'retry' ELSE COALESCE($2, 'pending') END,
                next_attempt_at = now() + interval '5 minutes',
+               backoff_until = CASE
+                 WHEN $2 = 'in_progress' THEN now() + interval '5 minutes'
+                 ELSE backoff_until
+               END,
+               last_error = CASE
+                 WHEN $2 = 'in_progress' THEN COALESCE(last_error, 'recovered stale in_progress claim during release')
+                 ELSE last_error
+               END,
                updated_at = now()
            WHERE organisasjonsnummer = $1 AND status = 'in_progress'`,
     args: [orgnr, prevStatus],
@@ -252,8 +271,8 @@ export async function writeFinalStatus(c: PoolClient, p: StatusPatch): Promise<v
       text: `UPDATE reg.regnskap_sync_status SET
               status='retry', last_checked_at=now(), last_http_status=$2,
               attempts=attempts+1, consecutive_failures=consecutive_failures+1,
-              backoff_until = now() + LEAST(interval '2 hours', interval '5 minutes' * power(2, consecutive_failures)),
-              next_attempt_at = now() + LEAST(interval '2 hours', interval '5 minutes' * power(2, consecutive_failures)),
+              backoff_until = now() + ${RETRY_BACKOFF_INTERVAL_SQL},
+              next_attempt_at = now() + ${RETRY_BACKOFF_INTERVAL_SQL},
               last_error=$3, updated_at=now()
              WHERE organisasjonsnummer=$1`,
       args: [p.orgnr, p.httpStatus, p.lastError],

@@ -32,6 +32,8 @@ verify_jwt = true
 
 # regnskap-sync håndterer auth i kode (caller-JWT + has_role ELLER x-cron-secret),
 # derfor verify_jwt = false (default). Bevisst sikkerhetsvalg for cron-støtte.
+[functions.regnskap-sync]
+verify_jwt = false
 
 [functions.sync-nav-opportunities]
 verify_jwt = false
