@@ -3,8 +3,18 @@
 -- Keeps the cron contract unchanged while making mode='due' index-friendly:
 -- the Edge Function now reads due candidates from small status-specific
 -- branches instead of one LEFT JOIN/global sort over reg.enheter. This
--- migration supplies the matching partial indexes and materializes currently
--- missing status rows once, so normal due-runs no longer need an anti-join.
+-- migration supplies the matching partial indexes only. It intentionally does
+-- not backfill missing status rows, because the ordinary due path no longer
+-- needs that anti-join and the target project is too small for large blocking
+-- mixed DDL/DML migrations under cron load.
+
+CREATE INDEX IF NOT EXISTS idx_rss_ready_pending_retry_due
+  ON reg.regnskap_sync_status (
+    (COALESCE(next_attempt_at, '-infinity'::timestamptz)),
+    last_checked_at,
+    organisasjonsnummer
+  )
+  WHERE status IN ('pending', 'retry', 'due');
 
 CREATE INDEX IF NOT EXISTS idx_rss_ok_next_attempt
   ON reg.regnskap_sync_status (next_attempt_at, last_checked_at, organisasjonsnummer)
@@ -25,30 +35,5 @@ CREATE INDEX IF NOT EXISTS idx_rss_not_found_checked
 CREATE INDEX IF NOT EXISTS idx_rss_in_progress_checked
   ON reg.regnskap_sync_status (last_checked_at, organisasjonsnummer)
   WHERE status = 'in_progress' AND last_checked_at IS NOT NULL;
-
-WITH inserted AS (
-  INSERT INTO reg.regnskap_sync_status (
-    organisasjonsnummer,
-    status,
-    next_attempt_at,
-    backoff_until
-  )
-  SELECT
-    e.organisasjonsnummer,
-    'pending',
-    now(),
-    NULL
-  FROM reg.enheter e
-  WHERE COALESCE(e.slettet, false) = false
-    AND NOT EXISTS (
-      SELECT 1
-      FROM reg.regnskap_sync_status s
-      WHERE s.organisasjonsnummer = e.organisasjonsnummer
-    )
-  ON CONFLICT (organisasjonsnummer) DO NOTHING
-  RETURNING organisasjonsnummer
-)
-SELECT count(*) AS inserted_missing_regnskap_sync_status_rows
-FROM inserted;
 
 ANALYZE reg.regnskap_sync_status;
