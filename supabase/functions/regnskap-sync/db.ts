@@ -1,12 +1,24 @@
 // Postgres-tilgang for regnskap-sync Edge Function.
 // Bruker deno-postgres mot SUPABASE_DB_URL. reg.* ikke eksponert i Data API.
 
-import { Pool, type PoolClient } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
+import {
+  Pool,
+  type PoolClient,
+} from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 import type { RegnskapRow } from "./normalize.ts";
 
 export type SyncMode = "due" | "orgnrs" | "all-missing" | "catchup";
-export type ClaimedOrg = { organisasjonsnummer: string; prevStatus: string | null };
-export type FinalStatus = "ok" | "no_regnskap" | "not_found" | "forbidden" | "client_error" | "retry";
+export type ClaimedOrg = {
+  organisasjonsnummer: string;
+  prevStatus: string | null;
+};
+export type FinalStatus =
+  | "ok"
+  | "no_regnskap"
+  | "not_found"
+  | "forbidden"
+  | "client_error"
+  | "retry";
 
 let _pool: Pool | null = null;
 
@@ -19,24 +31,60 @@ export function getPool(): Pool {
 }
 
 export async function closePool(): Promise<void> {
-  if (_pool) { try { await _pool.end(); } catch { /* */ } _pool = null; }
+  if (_pool) {
+    try {
+      await _pool.end();
+    } catch { /* */ }
+    _pool = null;
+  }
 }
 
-export async function withClient<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> {
+export async function withClient<T>(
+  fn: (c: PoolClient) => Promise<T>,
+): Promise<T> {
   const client = await getPool().connect();
-  try { return await fn(client); } finally { client.release(); }
+  try {
+    return await fn(client);
+  } finally {
+    client.release();
+  }
 }
 
-const CLAIMABLE_SQL = `(
-  s.organisasjonsnummer IS NULL
-  OR (s.status IN ('pending','retry','due')
-      AND coalesce(s.backoff_until, '-infinity'::timestamptz) <= now()
-      AND coalesce(s.next_attempt_at, '-infinity'::timestamptz) <= now())
-  OR (s.status = 'ok' AND (s.next_attempt_at <= now() OR s.last_success_at < now() - interval '180 days'))
-  OR (s.status = 'no_regnskap' AND s.last_checked_at < now() - interval '90 days')
-  OR (s.status = 'not_found' AND s.last_checked_at < now() - interval '180 days')
-  OR (s.status = 'in_progress' AND s.last_checked_at < now() - interval '10 minutes')
-)`;
+const CANDIDATE_STATEMENT_TIMEOUT_MS = 20_000;
+
+async function withStatementTimeout<T>(
+  c: PoolClient,
+  timeoutMs: number,
+  fn: () => Promise<T>,
+): Promise<T> {
+  await c.queryObject(`SET statement_timeout = '${timeoutMs}ms'`);
+  try {
+    return await fn();
+  } finally {
+    try {
+      await c.queryObject("RESET statement_timeout");
+    } catch { /* keep original error */ }
+  }
+}
+
+const REGNSKAP_SYNC_LOCK_KEY_SQL =
+  "hashtextextended('regnskap-sync:global', 0)";
+
+export async function tryAcquireRegnskapSyncLock(
+  c: PoolClient,
+): Promise<boolean> {
+  const r = await c.queryObject<{ acquired: boolean }>({
+    text:
+      `SELECT pg_try_advisory_lock(${REGNSKAP_SYNC_LOCK_KEY_SQL}) AS acquired`,
+  });
+  return r.rows[0]?.acquired === true;
+}
+
+export async function releaseRegnskapSyncLock(c: PoolClient): Promise<void> {
+  await c.queryObject({
+    text: `SELECT pg_advisory_unlock(${REGNSKAP_SYNC_LOCK_KEY_SQL})`,
+  });
+}
 
 const CLAIMABLE_LOCKED_SQL = `(
   (s.status IN ('pending','retry','due')
@@ -48,7 +96,8 @@ const CLAIMABLE_LOCKED_SQL = `(
   OR (s.status = 'in_progress' AND s.last_checked_at < now() - interval '10 minutes')
 )`;
 
-const NOT_ACTIVE_LEASE_SQL = `NOT (s.status = 'in_progress' AND s.last_checked_at > now() - interval '10 minutes')`;
+const NOT_ACTIVE_LEASE_SQL =
+  `NOT (s.status = 'in_progress' AND s.last_checked_at > now() - interval '10 minutes')`;
 
 const RETRY_BACKOFF_INTERVAL_SQL = `
 make_interval(mins => (
@@ -62,7 +111,11 @@ make_interval(mins => (
 ))`;
 
 export async function selectCandidates(
-  c: PoolClient, mode: SyncMode, limit: number, staleDays: number, explicitOrgnrs?: string[],
+  c: PoolClient,
+  mode: SyncMode,
+  limit: number,
+  staleDays: number,
+  explicitOrgnrs?: string[],
 ): Promise<string[]> {
   if (mode === "orgnrs") return (explicitOrgnrs ?? []).slice(0, limit);
   const oversample = limit * 3;
@@ -88,19 +141,99 @@ export async function selectCandidates(
     });
     return r.rows.map((x) => x.organisasjonsnummer);
   }
-  const r = await c.queryObject<{ organisasjonsnummer: string }>({
-    text: `SELECT e.organisasjonsnummer FROM reg.enheter e
-           LEFT JOIN reg.regnskap_sync_status s ON s.organisasjonsnummer = e.organisasjonsnummer
-           WHERE coalesce(e.slettet,false)=false AND ${CLAIMABLE_SQL}
-           ORDER BY (s.last_checked_at IS NULL) DESC, s.last_checked_at ASC NULLS FIRST,
-                    e.antall_ansatte DESC NULLS LAST
+  const r = await withStatementTimeout(
+    c,
+    CANDIDATE_STATEMENT_TIMEOUT_MS,
+    () =>
+      c.queryObject<{ organisasjonsnummer: string }>({
+        text: `WITH candidate_pool AS (
+             (
+               SELECT s.organisasjonsnummer, s.last_checked_at, 10 AS priority
+               FROM reg.regnskap_sync_status s
+               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+               WHERE coalesce(e.slettet,false)=false
+                 AND s.status IN ('pending','retry','due')
+                 AND coalesce(s.backoff_until, '-infinity'::timestamptz) <= now()
+                 AND coalesce(s.next_attempt_at, '-infinity'::timestamptz) <= now()
+               ORDER BY coalesce(s.next_attempt_at, '-infinity'::timestamptz), s.last_checked_at ASC NULLS FIRST
+               LIMIT $1
+             )
+             UNION ALL
+             (
+               SELECT s.organisasjonsnummer, s.last_checked_at, 20 AS priority
+               FROM reg.regnskap_sync_status s
+               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+               WHERE coalesce(e.slettet,false)=false
+                 AND s.status = 'ok'
+                 AND s.next_attempt_at <= now()
+               ORDER BY s.next_attempt_at, s.last_checked_at ASC NULLS FIRST
+               LIMIT $1
+             )
+             UNION ALL
+             (
+               SELECT s.organisasjonsnummer, s.last_checked_at, 30 AS priority
+               FROM reg.regnskap_sync_status s
+               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+               WHERE coalesce(e.slettet,false)=false
+                 AND s.status = 'ok'
+                 AND s.last_success_at < now() - interval '180 days'
+               ORDER BY s.last_success_at ASC NULLS FIRST
+               LIMIT $1
+             )
+             UNION ALL
+             (
+               SELECT s.organisasjonsnummer, s.last_checked_at, 40 AS priority
+               FROM reg.regnskap_sync_status s
+               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+               WHERE coalesce(e.slettet,false)=false
+                 AND s.status = 'no_regnskap'
+                 AND s.last_checked_at < now() - interval '90 days'
+               ORDER BY s.last_checked_at ASC NULLS FIRST
+               LIMIT $1
+             )
+             UNION ALL
+             (
+               SELECT s.organisasjonsnummer, s.last_checked_at, 50 AS priority
+               FROM reg.regnskap_sync_status s
+               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+               WHERE coalesce(e.slettet,false)=false
+                 AND s.status = 'not_found'
+                 AND s.last_checked_at < now() - interval '180 days'
+               ORDER BY s.last_checked_at ASC NULLS FIRST
+               LIMIT $1
+             )
+             UNION ALL
+             (
+               SELECT s.organisasjonsnummer, s.last_checked_at, 60 AS priority
+               FROM reg.regnskap_sync_status s
+               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+               WHERE coalesce(e.slettet,false)=false
+                 AND s.status = 'in_progress'
+                 AND s.last_checked_at < now() - interval '10 minutes'
+               ORDER BY s.last_checked_at ASC NULLS FIRST
+               LIMIT $1
+             )
+           ),
+           deduped AS (
+             SELECT DISTINCT ON (organisasjonsnummer)
+               organisasjonsnummer, priority, last_checked_at
+             FROM candidate_pool
+             ORDER BY organisasjonsnummer, priority, last_checked_at ASC NULLS FIRST
+           )
+           SELECT organisasjonsnummer
+           FROM deduped
+           ORDER BY priority, last_checked_at ASC NULLS FIRST
            LIMIT $1`,
-    args: [oversample],
-  });
+        args: [oversample],
+      }),
+  );
   return r.rows.map((x) => x.organisasjonsnummer);
 }
 
-export async function ensureStatusRows(c: PoolClient, orgnrs: string[]): Promise<void> {
+export async function ensureStatusRows(
+  c: PoolClient,
+  orgnrs: string[],
+): Promise<void> {
   if (orgnrs.length === 0) return;
   await c.queryObject({
     text: `INSERT INTO reg.regnskap_sync_status (organisasjonsnummer, status)
@@ -111,13 +244,20 @@ export async function ensureStatusRows(c: PoolClient, orgnrs: string[]): Promise
 }
 
 export async function claimOrgs(
-  c: PoolClient, orgnrs: string[], limit: number, mode: SyncMode,
+  c: PoolClient,
+  orgnrs: string[],
+  limit: number,
+  mode: SyncMode,
 ): Promise<ClaimedOrg[]> {
   if (orgnrs.length === 0) return [];
-  const claimableExpr = mode === "orgnrs" ? NOT_ACTIVE_LEASE_SQL : CLAIMABLE_LOCKED_SQL;
+  const claimableExpr = mode === "orgnrs"
+    ? NOT_ACTIVE_LEASE_SQL
+    : CLAIMABLE_LOCKED_SQL;
   await c.queryObject("BEGIN");
   try {
-    const r = await c.queryObject<{ organisasjonsnummer: string; prev_status: string | null }>({
+    const r = await c.queryObject<
+      { organisasjonsnummer: string; prev_status: string | null }
+    >({
       text: `WITH lockable AS (
                SELECT s.organisasjonsnummer, s.status AS prev_status
                FROM reg.regnskap_sync_status s
@@ -135,14 +275,23 @@ export async function claimOrgs(
       args: [orgnrs, limit],
     });
     await c.queryObject("COMMIT");
-    return r.rows.map((x) => ({ organisasjonsnummer: x.organisasjonsnummer, prevStatus: x.prev_status ?? null }));
+    return r.rows.map((x) => ({
+      organisasjonsnummer: x.organisasjonsnummer,
+      prevStatus: x.prev_status ?? null,
+    }));
   } catch (e) {
-    try { await c.queryObject("ROLLBACK"); } catch { /* */ }
+    try {
+      await c.queryObject("ROLLBACK");
+    } catch { /* */ }
     throw e;
   }
 }
 
-export async function releaseClaim(c: PoolClient, orgnr: string, prevStatus: string | null): Promise<void> {
+export async function releaseClaim(
+  c: PoolClient,
+  orgnr: string,
+  prevStatus: string | null,
+): Promise<void> {
   await c.queryObject({
     text: `UPDATE reg.regnskap_sync_status
            SET status = CASE WHEN $2 = 'in_progress' THEN 'retry' ELSE COALESCE($2, 'pending') END,
@@ -162,21 +311,45 @@ export async function releaseClaim(c: PoolClient, orgnr: string, prevStatus: str
 }
 
 const UPSERT_COLS = [
-  "driftsinntekter","driftsresultat","aarsresultat",
-  "sum_egenkapital","sum_gjeld","sum_eiendeler","sum_egenkapital_gjeld",
-  "sum_omloepsmidler","sum_anleggsmidler","sum_driftskostnad",
-  "sum_finansinntekter","sum_finanskostnad",
-  "valuta","oppstillingsplan","regnskapsregler",
-  "morselskap","avviklingsregnskap","smaa_foretak",
-  "ikke_revidert_aarsregnskap","fravalg_revisjon",
-  "brreg_regnskap_id","journalnr","regnskap_dokumenttype",
-  "regnskapsperiode_fra","regnskapsperiode_til",
+  "driftsinntekter",
+  "driftsresultat",
+  "aarsresultat",
+  "sum_egenkapital",
+  "sum_gjeld",
+  "sum_eiendeler",
+  "sum_egenkapital_gjeld",
+  "sum_omloepsmidler",
+  "sum_anleggsmidler",
+  "sum_driftskostnad",
+  "sum_finansinntekter",
+  "sum_finanskostnad",
+  "valuta",
+  "oppstillingsplan",
+  "regnskapsregler",
+  "morselskap",
+  "avviklingsregnskap",
+  "smaa_foretak",
+  "ikke_revidert_aarsregnskap",
+  "fravalg_revisjon",
+  "brreg_regnskap_id",
+  "journalnr",
+  "regnskap_dokumenttype",
+  "regnskapsperiode_fra",
+  "regnskapsperiode_til",
 ] as const;
 
-export async function upsertRegnskap(c: PoolClient, row: RegnskapRow): Promise<boolean> {
+export async function upsertRegnskap(
+  c: PoolClient,
+  row: RegnskapRow,
+): Promise<boolean> {
   if (row.regnskapsaar === null) return false;
-  const distinctClauses = UPSERT_COLS.map((col) => `reg.regnskap.${col} IS DISTINCT FROM EXCLUDED.${col}`).join(" OR ");
-  const setClauses = [...UPSERT_COLS.map((col) => `${col} = EXCLUDED.${col}`), `hentet_tidspunkt = now()`].join(", ");
+  const distinctClauses = UPSERT_COLS.map((col) =>
+    `reg.regnskap.${col} IS DISTINCT FROM EXCLUDED.${col}`
+  ).join(" OR ");
+  const setClauses = [
+    ...UPSERT_COLS.map((col) => `${col} = EXCLUDED.${col}`),
+    `hentet_tidspunkt = now()`,
+  ].join(", ");
   const r = await c.queryObject<{ id: number }>({
     text: `INSERT INTO reg.regnskap (
              organisasjonsnummer, regnskapsaar, regnskapstype,
@@ -198,16 +371,34 @@ export async function upsertRegnskap(c: PoolClient, row: RegnskapRow): Promise<b
            WHERE ${distinctClauses}
            RETURNING id`,
     args: [
-      row.organisasjonsnummer, row.regnskapsaar, row.regnskapstype,
-      row.brreg_regnskap_id, row.journalnr, row.regnskap_dokumenttype,
-      row.regnskapsperiode_fra, row.regnskapsperiode_til, row.morselskap,
-      row.driftsinntekter, row.driftsresultat, row.aarsresultat,
-      row.sum_egenkapital, row.sum_gjeld, row.sum_eiendeler, row.sum_egenkapital_gjeld,
-      row.sum_omloepsmidler, row.sum_anleggsmidler, row.sum_driftskostnad,
-      row.sum_finansinntekter, row.sum_finanskostnad,
-      row.valuta, row.avviklingsregnskap, row.oppstillingsplan,
-      row.smaa_foretak, row.regnskapsregler,
-      row.ikke_revidert_aarsregnskap, row.fravalg_revisjon,
+      row.organisasjonsnummer,
+      row.regnskapsaar,
+      row.regnskapstype,
+      row.brreg_regnskap_id,
+      row.journalnr,
+      row.regnskap_dokumenttype,
+      row.regnskapsperiode_fra,
+      row.regnskapsperiode_til,
+      row.morselskap,
+      row.driftsinntekter,
+      row.driftsresultat,
+      row.aarsresultat,
+      row.sum_egenkapital,
+      row.sum_gjeld,
+      row.sum_eiendeler,
+      row.sum_egenkapital_gjeld,
+      row.sum_omloepsmidler,
+      row.sum_anleggsmidler,
+      row.sum_driftskostnad,
+      row.sum_finansinntekter,
+      row.sum_finanskostnad,
+      row.valuta,
+      row.avviklingsregnskap,
+      row.oppstillingsplan,
+      row.smaa_foretak,
+      row.regnskapsregler,
+      row.ikke_revidert_aarsregnskap,
+      row.fravalg_revisjon,
     ],
   });
   return r.rows.length > 0;
@@ -223,7 +414,10 @@ export type StatusPatch = {
   lastError: string | null;
 };
 
-export async function writeFinalStatus(c: PoolClient, p: StatusPatch): Promise<void> {
+export async function writeFinalStatus(
+  c: PoolClient,
+  p: StatusPatch,
+): Promise<void> {
   if (p.status === "ok") {
     await c.queryObject({
       text: `UPDATE reg.regnskap_sync_status SET
@@ -233,7 +427,13 @@ export async function writeFinalStatus(c: PoolClient, p: StatusPatch): Promise<v
               attempts=attempts+1, next_attempt_at=now()+interval '180 days',
               backoff_until=NULL, last_error=NULL, updated_at=now()
              WHERE organisasjonsnummer=$1`,
-      args: [p.orgnr, p.latestRegnskapsaar, p.recordsFunnet, p.availablePdfYears, p.httpStatus],
+      args: [
+        p.orgnr,
+        p.latestRegnskapsaar,
+        p.recordsFunnet,
+        p.availablePdfYears,
+        p.httpStatus,
+      ],
     });
   } else if (p.status === "no_regnskap") {
     await c.queryObject({
@@ -281,31 +481,61 @@ export async function writeFinalStatus(c: PoolClient, p: StatusPatch): Promise<v
 }
 
 export type RunStartInput = {
-  mode: SyncMode; dryRun: boolean; limit: number; staleDays: number;
-  timeBudgetMs: number; rps: number; meta: Record<string, unknown>;
+  mode: SyncMode;
+  dryRun: boolean;
+  limit: number;
+  staleDays: number;
+  timeBudgetMs: number;
+  rps: number;
+  meta: Record<string, unknown>;
 };
 
-export async function startRun(c: PoolClient, i: RunStartInput): Promise<number> {
+export async function startRun(
+  c: PoolClient,
+  i: RunStartInput,
+): Promise<number> {
   const r = await c.queryObject<{ id: bigint | number }>({
     text: `INSERT INTO reg.regnskap_sync_runs (
              scope, mode, dry_run, max_orgs, stale_days,
              time_budget_ms, rps_setting, meta, status, payload
            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,'running','{}'::jsonb)
            RETURNING id`,
-    args: [i.mode, i.mode, i.dryRun, i.limit, i.staleDays, i.timeBudgetMs, i.rps, JSON.stringify(i.meta)],
+    args: [
+      i.mode,
+      i.mode,
+      i.dryRun,
+      i.limit,
+      i.staleDays,
+      i.timeBudgetMs,
+      i.rps,
+      JSON.stringify(i.meta),
+    ],
   });
   return Number(r.rows[0].id);
 }
 
 export type RunFinishInput = {
-  runId: number; status: "ok" | "partial" | "failed"; durationMs: number;
-  selected: number; checked: number; withRegnskap: number; noRegnskap: number;
-  failed: number; skipped: number; recordsLagret: number;
-  http429: number; http503: number; retries: number;
-  lastError: string | null; extraMeta: Record<string, unknown>;
+  runId: number;
+  status: "ok" | "partial" | "failed";
+  durationMs: number;
+  selected: number;
+  checked: number;
+  withRegnskap: number;
+  noRegnskap: number;
+  failed: number;
+  skipped: number;
+  recordsLagret: number;
+  http429: number;
+  http503: number;
+  retries: number;
+  lastError: string | null;
+  extraMeta: Record<string, unknown>;
 };
 
-export async function finishRun(c: PoolClient, i: RunFinishInput): Promise<void> {
+export async function finishRun(
+  c: PoolClient,
+  i: RunFinishInput,
+): Promise<void> {
   await c.queryObject({
     text: `UPDATE reg.regnskap_sync_runs SET
             status=$2, finished_at=now(), duration_ms=$3,
@@ -316,21 +546,39 @@ export async function finishRun(c: PoolClient, i: RunFinishInput): Promise<void>
             last_error=$14, meta = meta || $15::jsonb
            WHERE id=$1`,
     args: [
-      i.runId, i.status, i.durationMs,
-      i.selected, i.checked, i.withRegnskap, i.noRegnskap,
-      i.failed, i.skipped, i.recordsLagret,
-      i.http429, i.http503, i.retries,
-      i.lastError, JSON.stringify(i.extraMeta),
+      i.runId,
+      i.status,
+      i.durationMs,
+      i.selected,
+      i.checked,
+      i.withRegnskap,
+      i.noRegnskap,
+      i.failed,
+      i.skipped,
+      i.recordsLagret,
+      i.http429,
+      i.http503,
+      i.retries,
+      i.lastError,
+      JSON.stringify(i.extraMeta),
     ],
   });
 }
 
 export type RunItem = {
-  runId: number; orgnr: string; status: string;
-  httpStatus: number | null; attempts: number; latencyMs: number | null; error: string | null;
+  runId: number;
+  orgnr: string;
+  status: string;
+  httpStatus: number | null;
+  attempts: number;
+  latencyMs: number | null;
+  error: string | null;
 };
 
-export async function insertRunItems(c: PoolClient, items: RunItem[]): Promise<void> {
+export async function insertRunItems(
+  c: PoolClient,
+  items: RunItem[],
+): Promise<void> {
   if (items.length === 0) return;
   const chunkSize = 200;
   for (let i = 0; i < items.length; i += chunkSize) {
@@ -339,8 +587,20 @@ export async function insertRunItems(c: PoolClient, items: RunItem[]): Promise<v
     const placeholders: string[] = [];
     chunk.forEach((it, idx) => {
       const o = idx * 7;
-      placeholders.push(`($${o+1},$${o+2},$${o+3},$${o+4},$${o+5},$${o+6},$${o+7})`);
-      values.push(it.runId, it.orgnr, it.status, it.httpStatus, it.attempts, it.latencyMs, it.error);
+      placeholders.push(
+        `($${o + 1},$${o + 2},$${o + 3},$${o + 4},$${o + 5},$${o + 6},$${
+          o + 7
+        })`,
+      );
+      values.push(
+        it.runId,
+        it.orgnr,
+        it.status,
+        it.httpStatus,
+        it.attempts,
+        it.latencyMs,
+        it.error,
+      );
     });
     await c.queryObject({
       text: `INSERT INTO reg.regnskap_sync_run_items
@@ -376,9 +636,13 @@ export type RecentRun = {
   meta: Record<string, unknown> | null;
 };
 
-export async function getRecentRuns(c: PoolClient, limit = 5): Promise<RecentRun[]> {
+export async function getRecentRuns(
+  c: PoolClient,
+  limit = 5,
+): Promise<RecentRun[]> {
   const r = await c.queryObject<RecentRun & { id: bigint | number }>({
-    text: `SELECT id, started_at, finished_at, status, mode, scope, dry_run, duration_ms,
+    text:
+      `SELECT id, started_at, finished_at, status, mode, scope, dry_run, duration_ms,
                   selected_count, checked_count, with_regnskap_count, no_regnskap_count,
                   failed_count, skipped_count, records_lagret,
                   http_429_count, http_503_count, retry_count, last_error, meta
@@ -393,15 +657,21 @@ export async function getRecentRuns(c: PoolClient, limit = 5): Promise<RecentRun
 export type StatusSummary = {
   byStatus: Record<string, number>;
   total: number;
-  missing: number;          // ingen rad i sync_status (kandidat for first-run)
-  neverSucceeded: number;   // last_success_at IS NULL
-  stale: number;            // status='ok' med last_success_at < now() - staleDays
-  inProgressStuck: number;  // status='in_progress' og lease utløpt (>10 min)
+  missing: number; // ingen rad i sync_status (kandidat for first-run)
+  neverSucceeded: number; // last_success_at IS NULL
+  stale: number; // status='ok' med last_success_at < now() - staleDays
+  inProgressStuck: number; // status='in_progress' og lease utløpt (>10 min)
 };
 
-export async function getStatusSummary(c: PoolClient, staleDays = 180): Promise<StatusSummary> {
-  const byStatusRes = await c.queryObject<{ status: string; n: bigint | number }>({
-    text: `SELECT status, COUNT(*)::bigint AS n FROM reg.regnskap_sync_status GROUP BY status`,
+export async function getStatusSummary(
+  c: PoolClient,
+  staleDays = 180,
+): Promise<StatusSummary> {
+  const byStatusRes = await c.queryObject<
+    { status: string; n: bigint | number }
+  >({
+    text:
+      `SELECT status, COUNT(*)::bigint AS n FROM reg.regnskap_sync_status GROUP BY status`,
   });
   const byStatus: Record<string, number> = {};
   let total = 0;
@@ -417,7 +687,8 @@ export async function getStatusSummary(c: PoolClient, staleDays = 180): Promise<
             WHERE coalesce(e.slettet,false)=false AND s.organisasjonsnummer IS NULL`,
   });
   const neverRes = await c.queryObject<{ n: bigint | number }>({
-    text: `SELECT COUNT(*)::bigint AS n FROM reg.regnskap_sync_status WHERE last_success_at IS NULL`,
+    text:
+      `SELECT COUNT(*)::bigint AS n FROM reg.regnskap_sync_status WHERE last_success_at IS NULL`,
   });
   const staleRes = await c.queryObject<{ n: bigint | number }>({
     text: `SELECT COUNT(*)::bigint AS n FROM reg.regnskap_sync_status
@@ -451,49 +722,76 @@ export type PostStepResult = {
 
 /** Patcher meta JSONB på en eksisterende run uten å endre status. */
 export async function patchRunMeta(
-  c: PoolClient, runId: number, patch: Record<string, unknown>,
+  c: PoolClient,
+  runId: number,
+  patch: Record<string, unknown>,
 ): Promise<void> {
   await c.queryObject({
-    text: `UPDATE reg.regnskap_sync_runs SET meta = meta || $2::jsonb WHERE id = $1`,
+    text:
+      `UPDATE reg.regnskap_sync_runs SET meta = meta || $2::jsonb WHERE id = $1`,
     args: [runId, JSON.stringify(patch)],
   });
 }
 
 /** Sjekker om reg.regnskap_siste_per_org finnes og hvilken relkind den har. */
-async function getRelkind(c: PoolClient, qualified: string): Promise<string | null> {
+async function getRelkind(
+  c: PoolClient,
+  qualified: string,
+): Promise<string | null> {
   try {
     const r = await c.queryObject<{ relkind: string }>({
       text: `SELECT relkind::text FROM pg_class WHERE oid = $1::regclass`,
       args: [qualified],
     });
     return r.rows[0]?.relkind ?? null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /**
  * REFRESH av reg.regnskap_siste_per_org hvis den er materialized view.
  * Prøver CONCURRENTLY først, faller tilbake til plain. Aldri throw.
  */
-export async function refreshLatestRegnskapMV(c: PoolClient): Promise<PostStepResult> {
+export async function refreshLatestRegnskapMV(
+  c: PoolClient,
+): Promise<PostStepResult> {
   const t0 = Date.now();
   const kind = await getRelkind(c, "reg.regnskap_siste_per_org");
   if (kind !== "m") {
-    return { ok: true, durationMs: Date.now() - t0, skipped: true, reason: kind ? `relkind=${kind}` : "not_found" };
+    return {
+      ok: true,
+      durationMs: Date.now() - t0,
+      skipped: true,
+      reason: kind ? `relkind=${kind}` : "not_found",
+    };
   }
   try {
-    await c.queryObject(`REFRESH MATERIALIZED VIEW CONCURRENTLY reg.regnskap_siste_per_org`);
+    await c.queryObject(
+      `REFRESH MATERIALIZED VIEW CONCURRENTLY reg.regnskap_siste_per_org`,
+    );
     return { ok: true, durationMs: Date.now() - t0, mode: "concurrent" };
   } catch (e1) {
     try {
-      await c.queryObject(`REFRESH MATERIALIZED VIEW reg.regnskap_siste_per_org`);
+      await c.queryObject(
+        `REFRESH MATERIALIZED VIEW reg.regnskap_siste_per_org`,
+      );
       return {
-        ok: true, durationMs: Date.now() - t0, mode: "plain",
-        reason: e1 instanceof Error ? e1.message.slice(0, 200) : String(e1).slice(0, 200),
+        ok: true,
+        durationMs: Date.now() - t0,
+        mode: "plain",
+        reason: e1 instanceof Error
+          ? e1.message.slice(0, 200)
+          : String(e1).slice(0, 200),
       };
     } catch (e2) {
       return {
-        ok: false, durationMs: Date.now() - t0, mode: "failed",
-        error: e2 instanceof Error ? e2.message.slice(0, 300) : String(e2).slice(0, 300),
+        ok: false,
+        durationMs: Date.now() - t0,
+        mode: "failed",
+        error: e2 instanceof Error
+          ? e2.message.slice(0, 300)
+          : String(e2).slice(0, 300),
       };
     }
   }
@@ -504,7 +802,8 @@ export async function refreshLatestRegnskapMV(c: PoolClient): Promise<PostStepRe
  * MV analyseres hvis materialisert. Aldri throw.
  */
 export async function analyzeRegnskapTables(
-  c: PoolClient, opts: { includeEnheter: boolean },
+  c: PoolClient,
+  opts: { includeEnheter: boolean },
 ): Promise<PostStepResult & { tables: string[] }> {
   const t0 = Date.now();
   const tables: string[] = ["reg.regnskap", "reg.regnskap_sync_status"];
@@ -513,8 +812,13 @@ export async function analyzeRegnskapTables(
   if (mvKind === "m") tables.push("reg.regnskap_siste_per_org");
   const errors: string[] = [];
   for (const t of tables) {
-    try { await c.queryObject(`ANALYZE ${t}`); }
-    catch (e) { errors.push(`${t}: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200)); }
+    try {
+      await c.queryObject(`ANALYZE ${t}`);
+    } catch (e) {
+      errors.push(
+        `${t}: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200),
+      );
+    }
   }
   return {
     ok: errors.length === 0,
