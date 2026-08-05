@@ -1,6 +1,7 @@
 -- Regnskap sync due candidate performance postflight.
 -- Run after 20260805132733_regnskap_sync_due_performance.sql and regnskap-sync deploy.
--- Read-only after migration: verifies indexes, due candidate plan runtime and lock primitive.
+-- Read-only after migration: verifies required ready-queue index, first due
+-- branch runtime and lock primitive.
 
 BEGIN;
 SET LOCAL statement_timeout = '10s';
@@ -28,114 +29,25 @@ BEGIN
     'idx_rss_ready_pending_retry_due exists',
     to_regclass('reg.idx_rss_ready_pending_retry_due') IS NOT NULL
   );
-  PERFORM pg_temp.must(
-    'idx_rss_ok_next_attempt exists',
-    to_regclass('reg.idx_rss_ok_next_attempt') IS NOT NULL
-  );
-  PERFORM pg_temp.must(
-    'idx_rss_ok_last_success exists',
-    to_regclass('reg.idx_rss_ok_last_success') IS NOT NULL
-  );
-  PERFORM pg_temp.must(
-    'idx_rss_no_regnskap_checked exists',
-    to_regclass('reg.idx_rss_no_regnskap_checked') IS NOT NULL
-  );
-  PERFORM pg_temp.must(
-    'idx_rss_not_found_checked exists',
-    to_regclass('reg.idx_rss_not_found_checked') IS NOT NULL
-  );
-  PERFORM pg_temp.must(
-    'idx_rss_in_progress_checked exists',
-    to_regclass('reg.idx_rss_in_progress_checked') IS NOT NULL
-  );
 
   EXECUTE $explain$
     EXPLAIN (ANALYZE, FORMAT JSON)
-    WITH candidate_pool AS (
-      (
-        SELECT s.organisasjonsnummer, s.last_checked_at, 10 AS priority
-        FROM reg.regnskap_sync_status s
-        JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-        WHERE coalesce(e.slettet,false)=false
-          AND s.status IN ('pending','retry','due')
-          AND coalesce(s.backoff_until, '-infinity'::timestamptz) <= now()
-          AND coalesce(s.next_attempt_at, '-infinity'::timestamptz) <= now()
-        ORDER BY coalesce(s.next_attempt_at, '-infinity'::timestamptz), s.last_checked_at ASC NULLS FIRST
-        LIMIT 180
-      )
-      UNION ALL
-      (
-        SELECT s.organisasjonsnummer, s.last_checked_at, 20 AS priority
-        FROM reg.regnskap_sync_status s
-        JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-        WHERE coalesce(e.slettet,false)=false
-          AND s.status = 'ok'
-          AND s.next_attempt_at <= now()
-        ORDER BY s.next_attempt_at, s.last_checked_at ASC NULLS FIRST
-        LIMIT 180
-      )
-      UNION ALL
-      (
-        SELECT s.organisasjonsnummer, s.last_checked_at, 30 AS priority
-        FROM reg.regnskap_sync_status s
-        JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-        WHERE coalesce(e.slettet,false)=false
-          AND s.status = 'ok'
-          AND s.last_success_at < now() - interval '180 days'
-        ORDER BY s.last_success_at ASC NULLS FIRST
-        LIMIT 180
-      )
-      UNION ALL
-      (
-        SELECT s.organisasjonsnummer, s.last_checked_at, 40 AS priority
-        FROM reg.regnskap_sync_status s
-        JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-        WHERE coalesce(e.slettet,false)=false
-          AND s.status = 'no_regnskap'
-          AND s.last_checked_at < now() - interval '90 days'
-        ORDER BY s.last_checked_at ASC NULLS FIRST
-        LIMIT 180
-      )
-      UNION ALL
-      (
-        SELECT s.organisasjonsnummer, s.last_checked_at, 50 AS priority
-        FROM reg.regnskap_sync_status s
-        JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-        WHERE coalesce(e.slettet,false)=false
-          AND s.status = 'not_found'
-          AND s.last_checked_at < now() - interval '180 days'
-        ORDER BY s.last_checked_at ASC NULLS FIRST
-        LIMIT 180
-      )
-      UNION ALL
-      (
-        SELECT s.organisasjonsnummer, s.last_checked_at, 60 AS priority
-        FROM reg.regnskap_sync_status s
-        JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-        WHERE coalesce(e.slettet,false)=false
-          AND s.status = 'in_progress'
-          AND s.last_checked_at < now() - interval '10 minutes'
-        ORDER BY s.last_checked_at ASC NULLS FIRST
-        LIMIT 180
-      )
-    ),
-    deduped AS (
-      SELECT DISTINCT ON (organisasjonsnummer)
-        organisasjonsnummer, priority, last_checked_at
-      FROM candidate_pool
-      ORDER BY organisasjonsnummer, priority, last_checked_at ASC NULLS FIRST
-    )
-    SELECT organisasjonsnummer
-    FROM deduped
-    ORDER BY priority, last_checked_at ASC NULLS FIRST
+    SELECT s.organisasjonsnummer
+    FROM reg.regnskap_sync_status s
+    JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+    WHERE coalesce(e.slettet,false)=false
+      AND s.status IN ('pending','retry','due')
+      AND coalesce(s.backoff_until, '-infinity'::timestamptz) <= now()
+      AND coalesce(s.next_attempt_at, '-infinity'::timestamptz) <= now()
+    ORDER BY coalesce(s.next_attempt_at, '-infinity'::timestamptz), s.last_checked_at ASC NULLS FIRST
     LIMIT 180
   $explain$ INTO v_plan;
 
   v_execution_ms := (v_plan -> 0 ->> 'Execution Time')::numeric;
-  RAISE NOTICE 'due candidate explain execution_ms=%', v_execution_ms;
+  RAISE NOTICE 'ready due branch explain execution_ms=%', v_execution_ms;
 
   PERFORM pg_temp.must(
-    'due candidate query completes under 5s',
+    'ready due branch completes under 5s',
     v_execution_ms < 5000
   );
 

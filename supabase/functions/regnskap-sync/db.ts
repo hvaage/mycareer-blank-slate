@@ -50,7 +50,7 @@ export async function withClient<T>(
   }
 }
 
-const CANDIDATE_STATEMENT_TIMEOUT_MS = 20_000;
+const CANDIDATE_STATEMENT_TIMEOUT_MS = 8_000;
 
 async function withStatementTimeout<T>(
   c: PoolClient,
@@ -141,93 +141,116 @@ export async function selectCandidates(
     });
     return r.rows.map((x) => x.organisasjonsnummer);
   }
-  const r = await withStatementTimeout(
-    c,
-    CANDIDATE_STATEMENT_TIMEOUT_MS,
-    () =>
-      c.queryObject<{ organisasjonsnummer: string }>({
-        text: `WITH candidate_pool AS (
-             (
-               SELECT s.organisasjonsnummer, s.last_checked_at, 10 AS priority
-               FROM reg.regnskap_sync_status s
-               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-               WHERE coalesce(e.slettet,false)=false
-                 AND s.status IN ('pending','retry','due')
-                 AND coalesce(s.backoff_until, '-infinity'::timestamptz) <= now()
-                 AND coalesce(s.next_attempt_at, '-infinity'::timestamptz) <= now()
-               ORDER BY coalesce(s.next_attempt_at, '-infinity'::timestamptz), s.last_checked_at ASC NULLS FIRST
-               LIMIT $1
-             )
-             UNION ALL
-             (
-               SELECT s.organisasjonsnummer, s.last_checked_at, 20 AS priority
-               FROM reg.regnskap_sync_status s
-               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-               WHERE coalesce(e.slettet,false)=false
-                 AND s.status = 'ok'
-                 AND s.next_attempt_at <= now()
-               ORDER BY s.next_attempt_at, s.last_checked_at ASC NULLS FIRST
-               LIMIT $1
-             )
-             UNION ALL
-             (
-               SELECT s.organisasjonsnummer, s.last_checked_at, 30 AS priority
-               FROM reg.regnskap_sync_status s
-               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-               WHERE coalesce(e.slettet,false)=false
-                 AND s.status = 'ok'
-                 AND s.last_success_at < now() - interval '180 days'
-               ORDER BY s.last_success_at ASC NULLS FIRST
-               LIMIT $1
-             )
-             UNION ALL
-             (
-               SELECT s.organisasjonsnummer, s.last_checked_at, 40 AS priority
-               FROM reg.regnskap_sync_status s
-               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-               WHERE coalesce(e.slettet,false)=false
-                 AND s.status = 'no_regnskap'
-                 AND s.last_checked_at < now() - interval '90 days'
-               ORDER BY s.last_checked_at ASC NULLS FIRST
-               LIMIT $1
-             )
-             UNION ALL
-             (
-               SELECT s.organisasjonsnummer, s.last_checked_at, 50 AS priority
-               FROM reg.regnskap_sync_status s
-               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-               WHERE coalesce(e.slettet,false)=false
-                 AND s.status = 'not_found'
-                 AND s.last_checked_at < now() - interval '180 days'
-               ORDER BY s.last_checked_at ASC NULLS FIRST
-               LIMIT $1
-             )
-             UNION ALL
-             (
-               SELECT s.organisasjonsnummer, s.last_checked_at, 60 AS priority
-               FROM reg.regnskap_sync_status s
-               JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
-               WHERE coalesce(e.slettet,false)=false
-                 AND s.status = 'in_progress'
-                 AND s.last_checked_at < now() - interval '10 minutes'
-               ORDER BY s.last_checked_at ASC NULLS FIRST
-               LIMIT $1
-             )
-           ),
-           deduped AS (
-             SELECT DISTINCT ON (organisasjonsnummer)
-               organisasjonsnummer, priority, last_checked_at
-             FROM candidate_pool
-             ORDER BY organisasjonsnummer, priority, last_checked_at ASC NULLS FIRST
-           )
-           SELECT organisasjonsnummer
-           FROM deduped
-           ORDER BY priority, last_checked_at ASC NULLS FIRST
-           LIMIT $1`,
-        args: [oversample],
-      }),
+
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const appendRows = (rows: Array<{ organisasjonsnummer: string }>) => {
+    for (const row of rows) {
+      if (candidates.length >= oversample) break;
+      if (!seen.has(row.organisasjonsnummer)) {
+        seen.add(row.organisasjonsnummer);
+        candidates.push(row.organisasjonsnummer);
+      }
+    }
+  };
+  const remaining = () => Math.max(0, oversample - candidates.length);
+  const runBranch = async (
+    label: string,
+    text: string,
+    required = false,
+  ) => {
+    if (remaining() === 0) return;
+    try {
+      const r = await withStatementTimeout(
+        c,
+        CANDIDATE_STATEMENT_TIMEOUT_MS,
+        () =>
+          c.queryObject<{ organisasjonsnummer: string }>({
+            text,
+            args: [remaining()],
+          }),
+      );
+      appendRows(r.rows);
+    } catch (e) {
+      const anyE = e as any;
+      const code = anyE?.code || anyE?.fields?.code || anyE?.sqlState;
+      if (required || code !== "57014") throw e;
+      console.warn(
+        `[regnskap-sync] optional candidate branch timed out: ${label}`,
+      );
+    }
+  };
+
+  await runBranch(
+    "ready_pending_retry_due",
+    `SELECT s.organisasjonsnummer
+     FROM reg.regnskap_sync_status s
+     JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+     WHERE coalesce(e.slettet,false)=false
+       AND s.status IN ('pending','retry','due')
+       AND coalesce(s.backoff_until, '-infinity'::timestamptz) <= now()
+       AND coalesce(s.next_attempt_at, '-infinity'::timestamptz) <= now()
+     ORDER BY coalesce(s.next_attempt_at, '-infinity'::timestamptz), s.last_checked_at ASC NULLS FIRST
+     LIMIT $1`,
+    true,
   );
-  return r.rows.map((x) => x.organisasjonsnummer);
+  await runBranch(
+    "stale_in_progress",
+    `SELECT s.organisasjonsnummer
+     FROM reg.regnskap_sync_status s
+     JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+     WHERE coalesce(e.slettet,false)=false
+       AND s.status = 'in_progress'
+       AND s.last_checked_at < now() - interval '10 minutes'
+     ORDER BY s.last_checked_at ASC NULLS FIRST
+     LIMIT $1`,
+  );
+  await runBranch(
+    "due_no_regnskap",
+    `SELECT s.organisasjonsnummer
+     FROM reg.regnskap_sync_status s
+     JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+     WHERE coalesce(e.slettet,false)=false
+       AND s.status = 'no_regnskap'
+       AND s.last_checked_at < now() - interval '90 days'
+     ORDER BY s.last_checked_at ASC NULLS FIRST
+     LIMIT $1`,
+  );
+  await runBranch(
+    "due_not_found",
+    `SELECT s.organisasjonsnummer
+     FROM reg.regnskap_sync_status s
+     JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+     WHERE coalesce(e.slettet,false)=false
+       AND s.status = 'not_found'
+       AND s.last_checked_at < now() - interval '180 days'
+     ORDER BY s.last_checked_at ASC NULLS FIRST
+     LIMIT $1`,
+  );
+  await runBranch(
+    "ok_next_attempt",
+    `SELECT s.organisasjonsnummer
+     FROM reg.regnskap_sync_status s
+     JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+     WHERE coalesce(e.slettet,false)=false
+       AND s.status = 'ok'
+       AND s.next_attempt_at <= now()
+     ORDER BY s.next_attempt_at, s.last_checked_at ASC NULLS FIRST
+     LIMIT $1`,
+  );
+  await runBranch(
+    "ok_last_success",
+    `SELECT s.organisasjonsnummer
+     FROM reg.regnskap_sync_status s
+     JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+     WHERE coalesce(e.slettet,false)=false
+       AND s.status = 'ok'
+       AND s.last_success_at < now() - interval '180 days'
+     ORDER BY s.last_success_at ASC NULLS FIRST
+     LIMIT $1`,
+  );
+
+  return candidates;
 }
 
 export async function ensureStatusRows(
