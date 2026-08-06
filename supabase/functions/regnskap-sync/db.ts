@@ -99,16 +99,33 @@ const CLAIMABLE_LOCKED_SQL = `(
 const NOT_ACTIVE_LEASE_SQL =
   `NOT (s.status = 'in_progress' AND s.last_checked_at > now() - interval '10 minutes')`;
 
-const RETRY_BACKOFF_INTERVAL_SQL = `
-make_interval(mins => (
-  LEAST(
-    120::numeric,
-    5::numeric * power(
-      2::numeric,
-      LEAST(GREATEST(COALESCE(consecutive_failures, 0), 0), 5)
-    )
-  )::integer
-))`;
+export function retryBackoffMinutes(
+  httpStatus: number | null,
+  previousConsecutiveFailures: number | null | undefined,
+): number {
+  const failures = Math.max(
+    0,
+    Math.trunc(Number(previousConsecutiveFailures ?? 0)),
+  );
+  if (httpStatus === 500) {
+    if (failures >= 2) return 7 * 24 * 60;
+    if (failures >= 1) return 24 * 60;
+    return 6 * 60;
+  }
+  return Math.min(120, 5 * Math.pow(2, Math.min(failures, 5)));
+}
+
+async function getConsecutiveFailures(
+  c: PoolClient,
+  orgnr: string,
+): Promise<number> {
+  const r = await c.queryObject<{ consecutive_failures: number | null }>({
+    text:
+      `SELECT consecutive_failures FROM reg.regnskap_sync_status WHERE organisasjonsnummer = $1`,
+    args: [orgnr],
+  });
+  return Number(r.rows[0]?.consecutive_failures ?? 0);
+}
 
 export async function selectCandidates(
   c: PoolClient,
@@ -490,15 +507,19 @@ export async function writeFinalStatus(
       args: [p.orgnr, p.httpStatus, p.lastError, p.status],
     });
   } else {
+    const backoffMinutes = retryBackoffMinutes(
+      p.httpStatus,
+      await getConsecutiveFailures(c, p.orgnr),
+    );
     await c.queryObject({
       text: `UPDATE reg.regnskap_sync_status SET
               status='retry', last_checked_at=now(), last_http_status=$2,
-              attempts=attempts+1, consecutive_failures=consecutive_failures+1,
-              backoff_until = now() + ${RETRY_BACKOFF_INTERVAL_SQL},
-              next_attempt_at = now() + ${RETRY_BACKOFF_INTERVAL_SQL},
+              attempts=attempts+1, consecutive_failures=COALESCE(consecutive_failures, 0)+1,
+              backoff_until = now() + ($4::integer * interval '1 minute'),
+              next_attempt_at = now() + ($4::integer * interval '1 minute'),
               last_error=$3, updated_at=now()
              WHERE organisasjonsnummer=$1`,
-      args: [p.orgnr, p.httpStatus, p.lastError],
+      args: [p.orgnr, p.httpStatus, p.lastError, backoffMinutes],
     });
   }
 }
