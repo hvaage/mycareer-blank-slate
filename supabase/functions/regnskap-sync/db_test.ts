@@ -1,4 +1,7 @@
-import { retryBackoffMinutes } from "./db.ts";
+import {
+  retryBackoffMinutes,
+  unsupportedRegnskapApiReason,
+} from "./db.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -21,5 +24,56 @@ Deno.test("BRREG 500 uses long queue backoff", () => {
   assert(
     retryBackoffMinutes(500, 20) === 10080,
     "500 backoff stays capped at 7 days",
+  );
+});
+
+Deno.test("known unsupported regnskap API types are classified explicitly", () => {
+  assert(
+    unsupportedRegnskapApiReason({
+      organisasjonsformKode: "SPA",
+      organisasjonsformBeskrivelse: "Sparebank",
+      naeringskode1Kode: "64.190",
+      naeringskode1Beskrivelse: "Banker og kredittforetak",
+    })?.includes("unsupported_by_brreg_open_regnskap_api"),
+    "sparebank should be unsupported",
+  );
+  assert(
+    unsupportedRegnskapApiReason({
+      organisasjonsformKode: "GFS",
+      organisasjonsformBeskrivelse: "Gjensidig forsikringsselskap",
+      naeringskode1Kode: "65.120",
+      naeringskode1Beskrivelse: "Skadeforsikring",
+    })?.includes("insurance company"),
+    "mutual insurance should be unsupported",
+  );
+  assert(
+    unsupportedRegnskapApiReason({
+      organisasjonsformKode: "PK",
+      organisasjonsformBeskrivelse: "Pensjonskasse",
+      naeringskode1Kode: "65.300",
+      naeringskode1Beskrivelse: "Pensjonskasser",
+    })?.includes("pension fund"),
+    "pension fund should be unsupported",
+  );
+});
+
+Deno.test("ordinary organisation forms are not preclassified unsupported", () => {
+  assert(
+    unsupportedRegnskapApiReason({
+      organisasjonsformKode: "AS",
+      organisasjonsformBeskrivelse: "Aksjeselskap",
+      naeringskode1Kode: "62.010",
+      naeringskode1Beskrivelse: "Programmeringstjenester",
+    }) === null,
+    "ordinary AS outside banking/insurance should not be unsupported",
+  );
+  assert(
+    unsupportedRegnskapApiReason({
+      organisasjonsformKode: "FLI",
+      organisasjonsformBeskrivelse: "Forening/lag/innretning",
+      naeringskode1Kode: "88.996",
+      naeringskode1Beskrivelse: "Andre sosialtjenester uten botilbud ellers",
+    }) === null,
+    "association 500s need further upstream diagnosis, not blanket exclusion",
   );
 });

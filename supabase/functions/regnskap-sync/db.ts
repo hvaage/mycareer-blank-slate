@@ -18,6 +18,7 @@ export type FinalStatus =
   | "not_found"
   | "forbidden"
   | "client_error"
+  | "unsupported_regnskap_api"
   | "retry";
 
 let _pool: Pool | null = null;
@@ -113,6 +114,89 @@ export function retryBackoffMinutes(
     return 6 * 60;
   }
   return Math.min(120, 5 * Math.pow(2, Math.min(failures, 5)));
+}
+
+type RegnskapApiSupportInput = {
+  organisasjonsformKode?: string | null;
+  organisasjonsformBeskrivelse?: string | null;
+  naeringskode1Kode?: string | null;
+  naeringskode1Beskrivelse?: string | null;
+};
+
+const UNSUPPORTED_REGNSKAP_ORG_FORMS: Record<string, string> = {
+  SPA: "bank/sparebank",
+  GFS: "insurance company",
+  PK: "pension fund",
+};
+
+const UNSUPPORTED_REGNSKAP_NACE_PREFIXES: Array<{
+  prefix: string;
+  reason: string;
+}> = [
+  { prefix: "64.190", reason: "banking and credit institution" },
+  { prefix: "65.1", reason: "insurance" },
+  { prefix: "65.2", reason: "reinsurance" },
+  { prefix: "65.3", reason: "pension fund" },
+];
+
+export function unsupportedRegnskapApiReason(
+  input: RegnskapApiSupportInput,
+): string | null {
+  const orgForm = (input.organisasjonsformKode ?? "").trim().toUpperCase();
+  const orgFormReason = UNSUPPORTED_REGNSKAP_ORG_FORMS[orgForm];
+  if (orgFormReason) {
+    return [
+      "unsupported_by_brreg_open_regnskap_api",
+      orgFormReason,
+      `organisasjonsform=${orgForm}`,
+      input.organisasjonsformBeskrivelse ?? null,
+    ].filter(Boolean).join("; ");
+  }
+
+  const nace = (input.naeringskode1Kode ?? "").trim();
+  const naceMatch = UNSUPPORTED_REGNSKAP_NACE_PREFIXES.find((entry) =>
+    nace.startsWith(entry.prefix)
+  );
+  if (naceMatch) {
+    return [
+      "unsupported_by_brreg_open_regnskap_api",
+      naceMatch.reason,
+      `naeringskode1=${nace}`,
+      input.naeringskode1Beskrivelse ?? null,
+    ].filter(Boolean).join("; ");
+  }
+
+  return null;
+}
+
+export async function unsupportedRegnskapApiReasonForOrg(
+  c: PoolClient,
+  orgnr: string,
+): Promise<string | null> {
+  const r = await c.queryObject<{
+    organisasjonsform_kode: string | null;
+    organisasjonsform_beskrivelse: string | null;
+    naeringskode1_kode: string | null;
+    naeringskode1_beskrivelse: string | null;
+  }>({
+    text: `SELECT
+             organisasjonsform_kode,
+             organisasjonsform_beskrivelse,
+             naeringskode1_kode,
+             naeringskode1_beskrivelse
+           FROM reg.enheter
+           WHERE organisasjonsnummer = $1
+           LIMIT 1`,
+    args: [orgnr],
+  });
+  const row = r.rows[0];
+  if (!row) return null;
+  return unsupportedRegnskapApiReason({
+    organisasjonsformKode: row.organisasjonsform_kode,
+    organisasjonsformBeskrivelse: row.organisasjonsform_beskrivelse,
+    naeringskode1Kode: row.naeringskode1_kode,
+    naeringskode1Beskrivelse: row.naeringskode1_beskrivelse,
+  });
 }
 
 async function getConsecutiveFailures(
@@ -505,6 +589,24 @@ export async function writeFinalStatus(
               last_error=$3, updated_at=now()
              WHERE organisasjonsnummer=$1`,
       args: [p.orgnr, p.httpStatus, p.lastError, p.status],
+    });
+  } else if (p.status === "unsupported_regnskap_api") {
+    await c.queryObject({
+      text: `UPDATE reg.regnskap_sync_status SET
+              status='unsupported_regnskap_api',
+              last_checked_at=now(),
+              last_http_status=$2,
+              attempts=attempts+1,
+              consecutive_failures=COALESCE(consecutive_failures, 0)+1,
+              records_lagret=0,
+              latest_regnskapsaar=NULL,
+              available_pdf_years=NULL,
+              backoff_until=now()+interval '365 days',
+              next_attempt_at=now()+interval '365 days',
+              last_error=$3,
+              updated_at=now()
+             WHERE organisasjonsnummer=$1`,
+      args: [p.orgnr, p.httpStatus, p.lastError],
     });
   } else {
     const backoffMinutes = retryBackoffMinutes(
