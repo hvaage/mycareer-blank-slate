@@ -19,6 +19,7 @@ import {
   startRun,
   type SyncMode,
   tryAcquireRegnskapSyncLock,
+  unsupportedRegnskapApiReasonForOrg,
   upsertRegnskap,
   withClient,
   writeFinalStatus,
@@ -281,6 +282,17 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
             } else {
               finalStatus = "retry";
               lastError = (fetchRes as any).error;
+            }
+
+            if (finalStatus === "retry" && httpStatus === 500) {
+              const unsupportedReason =
+                await unsupportedRegnskapApiReasonForOrg(c, orgnr);
+              if (unsupportedReason) {
+                finalStatus = "unsupported_regnskap_api";
+                lastError = [lastError ?? "http 500", unsupportedReason].join(
+                  "; ",
+                );
+              }
             }
 
             if (
