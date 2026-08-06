@@ -1,0 +1,1 @@
+SELECT * FROM public.prune_cron_job_run_details(20000, 5000, 5);
