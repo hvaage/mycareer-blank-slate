@@ -1,93 +1,101 @@
-# Read-only diagnose: Supabase-target og regnskap-sync
+# Avklaring: migrering fra Lovable Cloud til egen Supabase
 
-Ingen kodeendringer, migrasjoner, deploys, cron-, secret- eller dataendringer er utført. Alt under er verifisert med read-only oppslag.
+Ingen migrering, cutover, eksport eller konfigurasjonsendring er utført. Dette er kun avklaring og plan.
 
-## 1. Supabase target-verifisering
+## Svar 1 — eierskap
 
-| Felt | Verdi |
-| --- | --- |
-| Project ref | `miwzhbludgwvskmsfqnq` |
-| URL | `https://miwzhbludgwvskmsfqnq.supabase.co` |
-| Organization ID | `wpczgwxsriezaubncuom` |
-| Managed by Lovable | Ja (Lovable Cloud-managed) |
-| Instansstørrelse | Tiny |
-| Pauset | Nei |
-| Pooler | `aws-1-eu-north-1.pooler.supabase.com:6543` |
+Bekreftet: backend-prosjektet `miwzhbludgwvskmsfqnq` er **Lovable Cloud-managed**. Det er provisjonert og administreres av Lovable, og ligger i en Lovable-eid Supabase-organisasjon — ikke i brukerens egen Supabase-konto. Derfor er det ikke synlig i brukerens Supabase Dashboard.
 
-Om `wcaqfupjatnjwbgatzjv`: dette er **ikke** feil prosjekt og ingen ommigrering har skjedd. Det er et **separat, eksternt marked/ESCO-prosjekt** som appen leser fra i tillegg, hardkodet som fallback i `src/integrations/market-supabase/client.ts` (linje 16) og injisert via `src/routes/__root.tsx` (linje 14) som `window.__MARKET_SUPABASE_URL`. Det brukes kun til markedsinnsikt/ESCO-data med anon-nøkkel, og inneholder ikke `reg.*`-skjemaet eller regnskap-sync.
+Praktiske konsekvenser, slik det er i dag:
+- Ingen Supabase-dashboardtilgang, ingen DBA-rolle, ingen service role key, ingen DB-passord eller direkte connection string tilgjengelig for brukeren.
+- Backup/restore, instansstørrelse og utvidelser styres gjennom Lovables Cloud-flate, ikke av brukeren.
+- All backend-endring må gå via Lovables migrasjons- og Edge-deployverktøy (slik dagens PR-baserte flyt gjør).
 
-Eierskap og tilgang:
-- Prosjektet er Lovable Cloud-managed. Det ligger i en Lovable-eid Supabase-organisasjon, ikke i din egen Supabase-org.
-- Du kan **ikke** legges til som Owner/Admin på prosjektet fra Lovable-siden, og prosjektet kan ikke overføres til din Supabase-org. Lovable Cloud eksponerer ikke det underliggende prosjektet for eksterne Supabase-kontoer, og service role key / DB-passord er ikke tilgjengelig.
-- Praktisk konsekvens: Codex kan ikke koble seg direkte til databasen. Backend-endringer må leveres som PR på main og deployes mekanisk gjennom Lovable (migrasjonsverktøy + Edge-deploy), slik som tidligere PR-er.
+Selve org-ID-en på Lovable-siden er ikke noe jeg kan lese ut eller publisere herfra; det må bekreftes skriftlig av Lovable support. Se «Hva vi trenger fra Lovable support» nederst.
 
-Prosjektet nås i produktet via Cloud-fanen (Database, Edge Functions, Secrets). Det finnes ingen Supabase-dashboardlenke å dele for et Cloud-managed prosjekt.
+## Svar 2 — migrasjonsvei
 
-## 2. Miljø som bruker prosjektet
+**Project transfer av et Cloud-managed prosjekt til brukerens egen Supabase-org støttes ikke** i produktet i dag. Prosjektet er ikke eksponert som et vanlig Supabase-prosjekt for eksterne kontoer, så det finnes ingen «transfer to organization»-knapp som kan brukes her. Det som må avklares direkte med Lovable support er om de kan gjøre det manuelt som et unntak — det er verdt å spørre om, men planlegg for at svaret er nei.
 
-Alle miljøer peker på samme backend — det finnes ingen separat preview-database.
+Av alternativene A–D er den realistiske veien en variant av **A + D**: nytt Supabase-prosjekt i brukerens egen org, og rekonstruksjon av innhold og konfigurasjon fra kilder vi allerede kontrollerer, supplert av Lovables dataeksport.
 
-| Miljø | Frontend | Backend |
-| --- | --- | --- |
-| Production | `https://karrierenmin.no`, `https://www.karrierenmin.no`, `https://mycareer-blank-slate.lovable.app` | `miwzhbludgwvskmsfqnq` |
-| Preview | `https://id-preview--4cf3d398-92d8-4618-910c-9be52ac97cf5.lovable.app` | `miwzhbludgwvskmsfqnq` |
+- **A (backup/restore til nytt prosjekt):** mulig, men ikke som en Supabase-nativ fysisk restore — det krever backup-artefakter som Cloud ikke eksponerer. Gjennomføres logisk (schema fra migrasjoner + data fra eksport).
+- **B (pg_dump/pg_restore-kompatibel eksport):** ikke tilgjengelig selvbetjent. Cloud-fanen har «Export data» (Cloud → Advanced settings → Export data), som gir dataeksport, men ikke nødvendigvis en fullverdig `pg_dump`-fil med roller, grants og extension-state. Må bekreftes med support.
+- **C (midlertidig direkte connection string):** ikke tilgjengelig via Lovable. Kun support kan eventuelt vurdere dette.
+- **D (strukturert eksport av schema/data/auth/storage/config-inventar):** i praksis den mest gjennomførbare, fordi det meste allerede finnes i repoet.
 
-- Edge Function base URL: `https://miwzhbludgwvskmsfqnq.supabase.co/functions/v1/` (f.eks. `.../functions/v1/regnskap-sync`)
-- `supabase/config.toml` → `project_id = "miwzhbludgwvskmsfqnq"`
-- Env-navn i bruk (verdier ikke gjengitt): `SUPABASE_URL`, `SUPABASE_PROJECT_ID`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PROJECT_ID`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (kun server), `SUPABASE_DB_URL` (kun Edge Function), `MARKET_SUPABASE_URL`, `MARKET_SUPABASE_ANON_KEY`
-- `regnskap-sync` kjører med `verify_jwt = false` og autentiserer i kode (caller-JWT + `has_role`, eller `x-cron-secret`).
+## Hva vi allerede eier i repoet (ingen eksport nødvendig)
 
-## 3. Regnskap-sync status (observert nå, 2026-08-05 ~12:56 UTC)
+Dette gjør migrasjonen langt mindre risikabel enn en ren blackbox-flytt:
 
-Feilen er observert i `miwzhbludgwvskmsfqnq`, samme target som over.
+- **Schema for `public` og `reg`:** hele migrasjonshistorikken ligger i `supabase/migrations/`. Et nytt prosjekt kan bygges opp ved å kjøre migrasjonene i rekkefølge — det gir også korrekt `supabase_migrations`-historikk uten å måtte kopiere den tabellen.
+- **Edge Functions:** all kildekode ligger i `supabase/functions/`, og `verify_jwt`-konfigurasjonen ligger i `supabase/config.toml`.
+- **Cron-jobber:** definert i migrasjoner og dokumentert i `scripts/regnskap-sync-cron.sql` og `scripts/cron-job-run-details-maintenance.sql`.
+- **Canary-tester:** `scripts/canary/*.sql` kan brukes som akseptansetester mot det nye prosjektet.
+- **RLS-policies, funksjoner, grants, indekser:** følger av migrasjonene.
 
-Faktisk kjøringsbilde de siste timene (`reg.regnskap_sync_runs`, id 8372–8383, hvert 5. minutt):
+Det som **ikke** finnes i repoet og må skaffes: radnivådata i `public`/`reg`, `auth.users` (inkl. passord-hasher og identiteter), storage-objekter (filer + metadata), secret- og vault-**verdier**, samt pg_net/pg_cron kjøringshistorikk.
+
+## Migrasjonsplan (ikke iverksatt)
 
 ```text
-status   mode  selected  checked  failed  last_error
-partial  due   60        2        2       interval out of range
+Fase 0  Avklaring med Lovable support (eierskap, transfer, eksportformat)
+Fase 1  Inventar og frys av backend-endringer
+Fase 2  Opprett nytt Supabase-prosjekt i brukerens org
+Fase 3  Bygg schema fra migrasjonshistorikk + verifiser med canaries
+Fase 4  Dataflytt (public/reg), deretter auth users, deretter storage
+Fase 5  Re-etabler extensions, cron, vault, Edge Functions, secrets
+Fase 6  Oppdater OAuth/redirect/callback for ny project ref
+Fase 7  Cutover av frontend-env + verifikasjon
 ```
 
-Dette endrer bildet fra det opprinnelige varselet:
+### Fase 1 — inventar (read-only, kan gjøres nå på forespørsel)
+Produsere et dokument med: tabeller og radantall i `public` og `reg`, alle funksjoner/policies/grants, alle extensions, alle cron-jobber, alle storage-buckets og objekt-antall, alle secret- og vault-**navn** (aldri verdier), alle Edge Functions med `verify_jwt`-status, og alle auth-provider-innstillinger. Dette blir sjekklisten migrasjonen valideres mot.
 
-- **`select_candidates` timer ikke ut nå.** Hver kjøring velger 60 kandidater og fullfører på ca. 68 sekunder. De 59× 504 / 3× 500 med SQLSTATE 57014 tilhører et tidligere vindu.
-- **Den dominerende feilen nå er `interval out of range`** — nøyaktig feilklassen Codex allerede har PR for. Kun 2 av 60 kandidater behandles per kjøring, og begge feiler.
-- **Stuck `in_progress` vokser**: 115 rader tidligere i økten, 175 rader nå, eldste lease fra 12:35 UTC. Også dekket av Codex-PR-en.
-- Datagrunnlag: `reg.enheter` 439 773 rader, `reg.regnskap_sync_status` 439 602 rader (393 139 `ok`, 175 `in_progress`, 1 `pending`). Kun ~171 enheter mangler statusrad.
-- Ad-hoc `EXPLAIN (ANALYZE)` på `due`-spørringen ble kansellert etter >60 s under samtidig cron-last, og databasens connection pool ble metta under diagnosen. Det indikerer at seleksjonen er marginal og sårbar for samtidighet, men den er ikke den aktive blokkeringen akkurat nå.
+### Fase 4 — data
+- `public`/`reg`: `reg.enheter` (~440k) og `reg.regnskap_sync_status` (~440k) er de tunge. Disse bør flyttes som CSV/COPY i batcher, ikke via API, ellers blir det timeouts.
+- `auth.users`: kan kun migreres med passord-hasher hvis Lovable leverer en eksport som inkluderer `auth`-schemaet. Hvis ikke, er alternativet å opprette brukerne på nytt i det nye prosjektet og tvinge passord-reset. **Dette er det viktigste enkeltspørsmålet til support**, fordi svaret avgjør om migrasjonen er usynlig for sluttbrukere eller ikke.
+- Aktive sesjoner og refresh-tokens migreres ikke uansett — alle brukere blir logget ut ved cutover.
+- Storage: filer må lastes ned og lastes opp på nytt; objekt-metadata (eier, mime, path) følger med i opplastningen.
 
-Konklusjon på tidsrekkefølge: dette er **før** Codex sin backoff/grant/stuck-fix er deployet. Ytelsesfunnet må revurderes **etter** at den PR-en er ute, siden gjennomstrømningen i dag er begrenset av `interval out of range`, ikke av kandidatvalget.
+### Fase 5 — state som ikke kopieres, men re-etableres
+- `pg_cron`: jobber schedules på nytt i det nye prosjektet. `cron.job_run_details` **ekskluderes** bevisst (det er nettopp den tabellen som har vært et driftsproblem).
+- `pg_net`: `net._http_response` ekskluderes; kun extension-aktivering re-etableres.
+- Vault: hemmelighetene må settes på nytt manuelt (f.eks. `regnskap_sync_cron_secret`). Verdier skal aldri gjengis i chat.
+- Edge Function secrets: settes på nytt i det nye prosjektet med samme navn.
 
-## 4. Handoff til Codex — backend-spesifikasjon
+### Fase 6 — auth/OAuth ved ny project ref
+Ny ref endrer både Supabase-URL og auth-callback-URL. Må oppdateres:
+- Site URL og redirect allow-list i det nye prosjektet.
+- Google OAuth: nye authorized redirect URIs i Google Cloud Console.
+- LinkedIn OAuth: ny callback-URL i LinkedIn-appen (`linkedin-login`, `linkedin-start`, `linkedin-connect`).
+- Frontend: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`.
+- Merk: `src/lib/supabase.ts` har i dag en hardkodet fallback-URL til dagens ref som må fjernes/oppdateres.
+- Alle absolutte `functions/v1/...`-URL-er (cron-body, runbooks) peker på gammel ref og må skrives om.
 
-Rekkefølge: deploy eksisterende Codex-PR først, mål på nytt, og gjør ytelsesarbeidet kun hvis det fortsatt trengs.
+### Fase 7 — frontend-kobling
+Lovable støtter å bruke en brukereid Supabase i stedet for Cloud, men **Cloud kan ikke slås av for dette prosjektet i ettertid** — det er irreversibelt knyttet til prosjektet. Praktisk betyr det at appen enten fortsetter å ha Cloud koblet på mens all faktisk trafikk peker mot det nye prosjektet, eller at frontend flyttes til et nytt Lovable-prosjekt koblet til brukerens Supabase fra start. Dette valget bør tas før Fase 2.
 
-### Steg A — deploy eksisterende PR (backoff / stuck / grant / edge config)
-Etter deploy, la 3–4 cron-sykluser gå og les av:
-- `reg.regnskap_sync_runs`: `checked_count` skal nærme seg `selected_count` (forventet ~60, ikke 2)
-- `failed_count` og `last_error` skal ikke lenger vise `interval out of range`
-- antall `status='in_progress'` i `reg.regnskap_sync_status` skal falle tilbake mot ~0 mellom kjøringer
+## Risiko
 
-### Steg B — ytelsesarbeid, kun hvis `select_candidates`-timeout fortsatt observeres
-Spesifikasjon (ikke implementert av Lovable):
+| Risiko | Konsekvens | Håndtering |
+| --- | --- | --- |
+| `auth.users` kan ikke eksporteres med hasher | Alle brukere må resette passord | Avklares i Fase 0 før noe annet starter |
+| Ingen `pg_dump`-tilgang | Datamigrering blir manuell og treg | Batch-COPY, kjør Fase 4 i vedlikeholdsvindu |
+| Cloud kan ikke frakobles | Dobbelt backend-oppsett i samme prosjekt | Vurder nytt Lovable-prosjekt for frontend |
+| 440k-radstabeller | Timeouts under flytt | Batching, sync-jobber pauses under flytt |
+| Skrivetrafikk under migrering | Datatap/divergens | Frys `regnskap-sync` og øvrige cron før Fase 4 |
 
-1. **Målrettede indekser** i `reg` — disse mangler i dag (verifisert mot `pg_indexes`):
-   ```sql
-   CREATE INDEX IF NOT EXISTS idx_rss_ok_next_attempt
-     ON reg.regnskap_sync_status (next_attempt_at) WHERE status = 'ok';
-   CREATE INDEX IF NOT EXISTS idx_rss_ok_last_success
-     ON reg.regnskap_sync_status (last_success_at) WHERE status = 'ok';
-   CREATE INDEX IF NOT EXISTS idx_rss_no_regnskap_checked
-     ON reg.regnskap_sync_status (last_checked_at) WHERE status = 'no_regnskap';
-   CREATE INDEX IF NOT EXISTS idx_rss_not_found_checked
-     ON reg.regnskap_sync_status (last_checked_at) WHERE status = 'not_found';
-   ```
-   Allerede dekket: `idx_regnskap_sync_status_next_attempt` (pending/retry/due) og `idx_admin_regnskap_sync_status_in_progress`.
+## Hva vi trenger fra Lovable support (Fase 0)
 
-2. **Omskriving av `selectCandidates()` for mode `due`** i `supabase/functions/regnskap-sync/db.ts`: erstatt én LEFT JOIN med global `ORDER BY` over ~440k rader med `UNION ALL` av små, indeksvennlige grener (pending/retry/due forfalt; `ok` forfalt på `next_attempt_at`; `ok` eldre enn 180 dager; `no_regnskap`/`not_found` forfalt; utløpte `in_progress`-leases; enheter uten statusrad), hver med egen `ORDER BY ... LIMIT`, deduplisert i ytre spørring. `antall_ansatte`-prioritering beholdes kun i grenen for enheter uten statusrad.
+Send disse spørsmålene skriftlig:
+1. Bekreft at `miwzhbludgwvskmsfqnq` er Cloud-managed, og oppgi eiende Supabase-organisasjon.
+2. Kan prosjektet overføres til brukerens egen Supabase-org? Hvis ja, hvordan og med hvilken nedetid?
+3. Hvis nei: kan dere levere en `pg_dump`-kompatibel eksport, og inkluderer den `auth`-schemaet med passord-hasher?
+4. Kan dere levere storage-objekter som en nedlastbar arkiv-eksport?
+5. Kan dere gi en tidsbegrenset direkte DB connection string for kontrollert dump?
+6. Hva skjer med det eksisterende Cloud-prosjektet og faktureringen etter en migrering?
 
-3. **Beskyttelse mot selvforsterkende last**: sett `statement_timeout` per sesjon i `withClient()` (f.eks. 20 s) slik at kandidatvalget feiler raskt i stedet for å holde en pool-connection i over et minutt, og legg en global `pg_try_advisory_lock` i runneren så overlappende 5-minutters cron-kjøringer avbryter tidlig.
+## Neste steg
 
-4. **Akseptansekriterier**: `EXPLAIN (ANALYZE)` på ny seleksjon under 500 ms; `dryRun`-kjøring med `stage=select_candidates` ok; ingen 504/57014 på `/functions/v1/regnskap-sync` over 6 påfølgende cron-sykluser.
-
-Leveranse som PR mot main med migrasjonsfil + canary-script, deretter mekanisk deploy via Lovable med commit-SHA og SHA-256 for hver fil, som tidligere.
+Ingenting iverksettes uten eksplisitt godkjenning. Det eneste jeg foreslår å gjøre nå — hvis du vil — er **Fase 1-inventaret**, som er rent read-only og gir sjekklisten resten av migrasjonen måles mot.
