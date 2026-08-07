@@ -195,10 +195,10 @@ export function useCommitImport(userId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (importId: string): Promise<CommitResponse> => {
-      const { data, error } = await supabase.functions.invoke<CommitResponse>(
+      const { data, error } = (await supabase.functions.invoke(
         "commit-cv-import",
         { body: { import_id: importId } },
-      );
+      )) as { data: CommitResponse | null; error: Error | null };
       if (error) {
         const ctx = (error as any).context;
         let code = "database_error";
