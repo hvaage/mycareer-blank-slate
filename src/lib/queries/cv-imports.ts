@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { normalizeAiErrorMessage } from "@/lib/ai-ux-messages";
 import { supabase } from "@/lib/supabase";
@@ -70,10 +69,10 @@ function sanitizeFilename(name: string) {
 const PARSE_INVOKE_MS = 180_000;
 
 async function invokeParseWithTimeout(importId: string): Promise<ParseResponse> {
-  const invokePromise = supabase.functions.invoke<ParseResponse>(
+  const invokePromise = supabase.functions.invoke(
     "parse-uploaded-cv",
     { body: { import_id: importId } },
-  );
+  ) as Promise<{ data: ParseResponse | null; error: Error | null }>;
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
       const err: any = new Error(
@@ -196,10 +195,10 @@ export function useCommitImport(userId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (importId: string): Promise<CommitResponse> => {
-      const { data, error } = await supabase.functions.invoke<CommitResponse>(
+      const { data, error } = (await supabase.functions.invoke(
         "commit-cv-import",
         { body: { import_id: importId } },
-      );
+      )) as { data: CommitResponse | null; error: Error | null };
       if (error) {
         const ctx = (error as any).context;
         let code = "database_error";
