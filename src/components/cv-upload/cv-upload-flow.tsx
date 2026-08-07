@@ -15,7 +15,7 @@ import {
   useRunCvParse,
 } from "@/lib/queries/cv-imports";
 import { supabase } from "@/lib/supabase";
-import type { CommitResponse, FlowState } from "@/types/cv-upload";
+import type { CommitResponse, FlowState, PreviewCounts } from "@/types/cv-upload";
 
 type Action =
   | { type: "select"; file: File }
