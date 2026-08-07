@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { normalizeAiErrorMessage } from "@/lib/ai-ux-messages";
 import { supabase } from "@/lib/supabase";
