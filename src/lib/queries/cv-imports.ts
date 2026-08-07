@@ -69,10 +69,10 @@ function sanitizeFilename(name: string) {
 const PARSE_INVOKE_MS = 180_000;
 
 async function invokeParseWithTimeout(importId: string): Promise<ParseResponse> {
-  const invokePromise = supabase.functions.invoke<ParseResponse>(
+  const invokePromise = supabase.functions.invoke(
     "parse-uploaded-cv",
     { body: { import_id: importId } },
-  );
+  ) as Promise<{ data: ParseResponse | null; error: Error | null }>;
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
       const err: any = new Error(
