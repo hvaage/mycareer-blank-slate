@@ -529,21 +529,31 @@ function JobLeadsPage() {
         body: { source, limit: 20, mode: "stale" },
       });
       if (error) { toast.error("Score-kall feilet"); return; }
+      const status = String((data as any)?.status ?? "");
       const evaluated = Number((data as any)?.evaluated ?? 0);
       const counts = ((data as any)?.status_counts ?? {}) as Record<string, number>;
       const eligible = Number(counts.eligible ?? 0);
       const excluded = Number(counts.excluded ?? 0);
       const needs = Number(counts.needs_review ?? 0);
       const failed = Number((data as any)?.failed ?? 0);
-      const selected = Number((data as any)?.selected ?? 0);
-      if (selected === 0 && evaluated === 0) {
+      const parts = [`${evaluated} vurdert`, `${eligible} relevante`, `${excluded} ekskludert`];
+      if (needs > 0) parts.push(`${needs} må vurderes`);
+      if (failed > 0) parts.push(`${failed} feilet`);
+      // Tomt, delvis og feilet er tre ulike utfall — de skal ikke se like ut.
+      if (status === "failed") {
+        toast.error(
+          (data as any)?.error
+            ? `Vurderingen feilet: ${String((data as any).error)}`
+            : "Vurderingen feilet",
+        );
+      } else if (status === "empty") {
         toast.info("Ingen nye eller utdaterte annonser å vurdere");
+      } else if (status === "partial") {
+        toast.warning(`Delvis fullført · ${parts.join(" · ")}`);
       } else {
-        const parts = [`${evaluated} vurdert`, `${eligible} relevante`, `${excluded} ekskludert`];
-        if (needs > 0) parts.push(`${needs} må vurderes`);
-        if (failed > 0) parts.push(`${failed} feilet`);
         toast.success(parts.join(" · "));
       }
+
       qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
       qc.invalidateQueries({ queryKey: ["job-leads-screening-uo"] });
       qc.invalidateQueries({ queryKey: ["job-leads-screening-ujls"] });

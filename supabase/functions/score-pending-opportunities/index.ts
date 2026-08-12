@@ -15,6 +15,25 @@ import {
   type ScreeningJob,
   type ScreeningProfile,
 } from "./screening-v2.ts";
+import {
+  logPreflightFailure,
+  preflight,
+  preflightFailureBody,
+} from "../_shared/preflight.ts";
+
+const FN = "score-pending-opportunities";
+
+// Alle fire variablene er nødvendige for reelt arbeid. Funksjonen har ingen
+// kjøringstabell, så preflight-feil rapporteres med logged: false.
+const PREFLIGHT_SPEC = {
+  logging: [] as string[],
+  work: [
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_ANON_KEY",
+    "LOVABLE_API_KEY",
+  ],
+};
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,6 +41,7 @@ const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
 const AI_MODEL = Deno.env.get("SCORE_PENDING_AI_MODEL") ??
   "google/gemini-2.5-flash";
+
 
 const ALLOWED_SOURCES = new Set(["nav", "careerjet", "all"]);
 const ALLOWED_MODES = new Set(["pending", "stale", "rescore"]);
@@ -796,15 +816,30 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (req.method !== "POST") {
+    return json({ status: "failed", error: "method_not_allowed" }, 405);
+  }
+
+  // --- PREFLIGHT ---
+  // Manglende konfigurasjon skal feile ved oppstart, ikke gi et tomt,
+  // tilsynelatende vellykket resultat. Funksjonen har ingen kjøringstabell,
+  // så vi merker svaret eksplisitt med logged: false.
+  const pf = preflight(PREFLIGHT_SPEC);
+  if (!pf.ok) {
+    logPreflightFailure(FN, pf);
+    return json(
+      { ...preflightFailureBody(FN, pf, { logged: false, log_error: "no run table for this function" }), status: "failed" },
+      503,
+    );
+  }
 
   const authHeader = req.headers.get("Authorization") ??
     req.headers.get("authorization") ?? "";
   if (!authHeader.toLowerCase().startsWith("bearer ")) {
-    return json({ error: "unauthorized" }, 401);
+    return json({ status: "failed", error: "unauthorized" }, 401);
   }
   const token = authHeader.slice(7).trim();
-  if (!token) return json({ error: "unauthorized" }, 401);
+  if (!token) return json({ status: "failed", error: "unauthorized" }, 401);
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -813,23 +848,26 @@ Deno.serve(async (req: Request) => {
     token,
   );
   if (userError || !userResult?.user?.id) {
-    return json({ error: "unauthorized" }, 401);
+    return json({ status: "failed", error: "unauthorized" }, 401);
   }
   const userId = userResult.user.id;
 
   let body: unknown = {};
   try {
     body = await req.json();
-  } catch {
+  } catch (error) {
+    // Tom kropp er lovlig, men årsaken skal aldri forsvinne.
+    console.warn(
+      `[${FN}] request body not JSON, using defaults`,
+      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+    );
     body = {};
   }
   const validated = validateInput(body);
   if (!validated.ok) {
-    return json({ error: "invalid_input", field: validated.field }, 400);
+    return json({ status: "failed", error: "invalid_input", field: validated.field }, 400);
   }
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    return json({ error: "server_misconfigured" }, 500);
-  }
+
   const input = validated.value;
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -838,7 +876,11 @@ Deno.serve(async (req: Request) => {
   try {
     const candidates = await loadCandidates(admin, userId, input);
     if (candidates.length === 0) {
+      // Tomt utvalg er et gyldig utfall, men det er ikke "ok" — det skilles ut
+      // som empty slik at konsumenter ikke tolker null arbeid som vellykket.
       return json({
+        status: "empty",
+        ok: false,
         score_version: MATCH_SCORE_VERSION,
         selected: 0,
         evaluated: 0,
@@ -849,6 +891,7 @@ Deno.serve(async (req: Request) => {
         mode: input.mode,
       });
     }
+
     const { profile, profileAi, evidence } = await loadProfileAndEvidence(
       admin,
       userId,
@@ -971,12 +1014,12 @@ Deno.serve(async (req: Request) => {
           previous_score_version: candidate.current.match_score_version ?? null,
         });
       } catch (error) {
-        failures.push({
-          id: candidate.row_id,
-          error: error instanceof Error
-            ? error.message.slice(0, 240)
-            : "write_failed",
-        });
+        const message = error instanceof Error ? error.message : "write_failed";
+        console.error(
+          `[${FN}] evaluation write failed`,
+          JSON.stringify({ row_id: candidate.row_id, row_kind: candidate.row_kind, error: message }),
+        );
+        failures.push({ id: candidate.row_id, error: message.slice(0, 240) });
       }
     }
 
@@ -988,7 +1031,15 @@ Deno.serve(async (req: Request) => {
       },
       {},
     );
+    // ok/partial/failed/empty: delvise feil skal telles og rapporteres, ikke
+    // pakkes inn i et 200-svar som ser komplett ut.
+    const resultStatus: "ok" | "empty" | "partial" | "failed" =
+      failures.length === 0
+        ? (resultRows.length === 0 ? "empty" : "ok")
+        : (resultRows.length === 0 ? "failed" : "partial");
     return json({
+      status: resultStatus,
+      ok: resultStatus === "ok",
       score_version: MATCH_SCORE_VERSION,
       selected: candidates.length,
       evaluated: resultRows.length,
@@ -1001,13 +1052,17 @@ Deno.serve(async (req: Request) => {
       evidence_items_used: evidence.length,
       results: resultRows,
       failures,
-    });
+    }, resultStatus === "failed" ? 500 : 200);
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown_error";
     const status = message === "profile_not_found" ? 403 : 500;
+    console.error(`[${FN}] run failed`, JSON.stringify({ user_id: userId, error: message }));
     return json({
+      status: "failed",
+      ok: false,
       error: message.slice(0, 300),
       score_version: MATCH_SCORE_VERSION,
     }, status);
   }
+
 });

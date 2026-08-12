@@ -355,15 +355,25 @@ Deno.serve(async (req) => {
   // To re-enable: remove this guard once first_sight rows have an idempotent
   // canonical + visible-keeper link path through a fenced DB RPC.
   // ============================================================
+  // KJENT HULL: denne funksjonen har ingen kjøringstabell, så et avslag her
+  // etterlater kun konsollspor. Statusen er eksplisitt "disabled" — ikke ok,
+  // og ikke et tomt resultat som kan forveksles med "fant ingenting".
+  console.warn(
+    "[fetch-careerjet-listings] invocation refused",
+    JSON.stringify({ reason: "careerjet_resolver_rollout", logged: false }),
+  );
   return new Response(
     JSON.stringify({
       disabled: true,
       reason: "careerjet_resolver_rollout",
       ok: false,
+      status: "disabled",
+      logged: false,
       message: "Careerjet-henting er midlertidig pauset under identity-resolverutrullingen.",
     }),
-    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
+
 
 
   const serviceClient = createClient(
