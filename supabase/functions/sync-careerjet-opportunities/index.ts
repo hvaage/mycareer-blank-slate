@@ -302,14 +302,26 @@ Deno.serve(async (req: Request) => {
   const fencingToken: number = Number(lease.fencing_token);
 
   // Heartbeat
+  // Leasen har TTL på LEASE_TTL_SECONDS + fencing-token, så en tapt heartbeat
+  // eller release blokkerer maksimalt TTL-en. Logging er derfor tilstrekkelig —
+  // men aldri stille.
+  let heartbeatFailures = 0;
   const heartbeatTimer = setInterval(async () => {
     try {
-      await admin.rpc("careerjet_lease_heartbeat", {
+      const { error } = await admin.rpc("careerjet_lease_heartbeat", {
         p_lease_name: LEASE_NAME, p_run_id: runId,
         p_fencing_token: fencingToken, p_ttl_seconds: LEASE_TTL_SECONDS,
       });
-    } catch { /* swallow */ }
+      if (error) {
+        heartbeatFailures++;
+        console.warn(`[${FN}] lease heartbeat failed`, JSON.stringify({ run_id: runId, error: error.message }));
+      }
+    } catch (e: any) {
+      heartbeatFailures++;
+      console.warn(`[${FN}] lease heartbeat threw`, JSON.stringify({ run_id: runId, error: String(e?.message ?? e) }));
+    }
   }, HEARTBEAT_INTERVAL_MS);
+
 
   // Witness counters for direct writes done by THIS function (should stay 0).
   // The function never calls these tables, so we record before/after counts
