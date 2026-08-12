@@ -707,13 +707,35 @@ Deno.serve(async (req: Request) => {
     .eq("lease_name", LEASE_NAME).maybeSingle();
   const leaseReleased = !leaseState || String(leaseState.run_id) !== String(runId) || Number(leaseState.fencing_token) !== fencingToken;
 
+  // --- Statusutledning ---
+  // Databasekolonnen `status` beholder sine eksisterende verdier (success /
+  // partial / failed) slik at eksisterende canary-spørringer ikke brytes.
+  // Svaret og meta.result_status bruker det finere skillet, der tomt resultat
+  // ("empty") ikke lenger forveksles med vellykket arbeid.
+  if (status === "success" && (apiErrors.length > 0 || resolverErrors.length > 0 || canonicalizeSystemErrors > 0)) {
+    status = "partial";
+    errorSummary ??= `partial_failure: api_errors=${apiErrors.length}, resolver_errors=${resolverErrors.length}, canonicalize_errors=${canonicalizeSystemErrors}`;
+  }
+  const resultStatus: "ok" | "empty" | "partial" | "failed" =
+    status === "failed"
+      ? "failed"
+      : status === "partial"
+        ? "partial"
+        : rowsFetched === 0
+          ? "empty"
+          : "ok";
+
   const summary: Record<string, unknown> = {
     run_id: runId,
     mode,
     status,
+    result_status: resultStatus,
     stop_reason: stopReason,
     error_summary: errorSummary,
+    lease_release_error: releaseError,
+    heartbeat_failures: heartbeatFailures,
     duration_ms: Date.now() - tStart,
+
     terms_per_run: termsPerRun,
     pages_per_term: pagesPerTerm,
     max_distinct_fingerprints: maxDistinct,
