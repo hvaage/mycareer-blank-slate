@@ -520,16 +520,32 @@ function JobLeadsPage() {
     return sorted;
   }, [rawLeads, sourceFilter, timeFilter, relevanceView, extentFilter, engagementFilter]);
 
+  // supabase.functions.invoke kaster bort responskroppen ved ikke-2xx. Uten dette
+  // ville 503 (manglende konfigurasjon / midlertidig avslått) og 500 (feilet
+  // kjøring) sett like ut for brukeren.
+  const readInvokeErrorBody = async (error: unknown): Promise<any | null> => {
+    const ctx = (error as any)?.context;
+    if (!ctx || typeof ctx.text !== "function") return null;
+    try {
+      const text = await ctx.text();
+      return text ? JSON.parse(text) : null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleScorePending = async () => {
     setScoring(true);
     try {
       // score-pending-opportunities aksepterer kun nav | careerjet | all.
       const source = sourceFilter === "nav" || sourceFilter === "careerjet" ? sourceFilter : "all";
-      const { data, error } = await supabase.functions.invoke("score-pending-opportunities", {
+      const { data: rawData, error } = await supabase.functions.invoke("score-pending-opportunities", {
         body: { source, limit: 20, mode: "stale" },
       });
-      if (error) { toast.error("Score-kall feilet"); return; }
-      const status = String((data as any)?.status ?? "");
+      const data = (error ? await readInvokeErrorBody(error) : rawData) as any;
+      if (error && !data) { toast.error("Score-kall feilet"); return; }
+      const status = String(data?.status ?? "");
+
       const evaluated = Number((data as any)?.evaluated ?? 0);
       const counts = ((data as any)?.status_counts ?? {}) as Record<string, number>;
       const eligible = Number(counts.eligible ?? 0);
@@ -540,13 +556,15 @@ function JobLeadsPage() {
       if (needs > 0) parts.push(`${needs} må vurderes`);
       if (failed > 0) parts.push(`${failed} feilet`);
       // Tomt, delvis og feilet er tre ulike utfall — de skal ikke se like ut.
-      if (status === "failed") {
-        toast.error(
-          (data as any)?.error
-            ? `Vurderingen feilet: ${String((data as any).error)}`
-            : "Vurderingen feilet",
-        );
+      if (status === "failed" || (error && status !== "partial")) {
+        const reason = data?.error === "missing_configuration"
+          ? "tjenesten er ikke ferdig konfigurert"
+          : data?.error
+            ? String(data.error)
+            : null;
+        toast.error(reason ? `Vurderingen feilet: ${reason}` : "Vurderingen feilet");
       } else if (status === "empty") {
+
         toast.info("Ingen nye eller utdaterte annonser å vurdere");
       } else if (status === "partial") {
         toast.warning(`Delvis fullført · ${parts.join(" · ")}`);
@@ -565,22 +583,27 @@ function JobLeadsPage() {
   const handleFetch = async () => {
     setFetching(true);
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-careerjet-listings");
-      if (error) {
-        toast.error("Henting feilet");
-        return;
-      }
-      if ((data as any)?.disabled) {
+      const { data: rawData, error } = await supabase.functions.invoke("fetch-careerjet-listings");
+      // Ved ikke-2xx (503 = midlertidig avslått) gir invoke error og data = null.
+      // Kroppen må hentes ut av error.context for at brukeren skal se årsaken
+      // i stedet for en generisk feilmelding.
+      const data = (error ? await readInvokeErrorBody(error) : rawData) as any;
+      if (data?.disabled) {
         toast.info(
-          (data as any)?.message ??
-            "Careerjet-henting er midlertidig pauset under identity-resolverutrullingen.",
+          data?.message ??
+            "Careerjet-henting er midlertidig avslått under identity-resolverutrullingen.",
         );
         return;
       }
-      if (!(data as any)?.ok) {
-        toast.warning((data as any)?.message ?? "Ingen treff");
+      if (error) {
+        toast.error(data?.error ? `Henting feilet: ${String(data.error)}` : "Henting feilet");
         return;
       }
+      if (!data?.ok) {
+        toast.warning(data?.message ?? "Ingen treff");
+        return;
+      }
+
       const skipped = Number((data as any).skipped_duplicates ?? (data as any).skipped ?? 0);
       const newLinks = Number((data as any).new_lead_links ?? (data as any).scored ?? 0);
       const upserted = Number((data as any).listing_rows_upserted ?? (data as any).upserted ?? 0);
