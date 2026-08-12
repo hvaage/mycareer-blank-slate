@@ -796,15 +796,30 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (req.method !== "POST") {
+    return json({ status: "failed", error: "method_not_allowed" }, 405);
+  }
+
+  // --- PREFLIGHT ---
+  // Manglende konfigurasjon skal feile ved oppstart, ikke gi et tomt,
+  // tilsynelatende vellykket resultat. Funksjonen har ingen kjøringstabell,
+  // så vi merker svaret eksplisitt med logged: false.
+  const pf = preflight(PREFLIGHT_SPEC);
+  if (!pf.ok) {
+    logPreflightFailure(FN, pf);
+    return json(
+      { status: "failed", ...preflightFailureBody(FN, pf, { logged: false, log_error: "no run table for this function" }) },
+      503,
+    );
+  }
 
   const authHeader = req.headers.get("Authorization") ??
     req.headers.get("authorization") ?? "";
   if (!authHeader.toLowerCase().startsWith("bearer ")) {
-    return json({ error: "unauthorized" }, 401);
+    return json({ status: "failed", error: "unauthorized" }, 401);
   }
   const token = authHeader.slice(7).trim();
-  if (!token) return json({ error: "unauthorized" }, 401);
+  if (!token) return json({ status: "failed", error: "unauthorized" }, 401);
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -813,23 +828,26 @@ Deno.serve(async (req: Request) => {
     token,
   );
   if (userError || !userResult?.user?.id) {
-    return json({ error: "unauthorized" }, 401);
+    return json({ status: "failed", error: "unauthorized" }, 401);
   }
   const userId = userResult.user.id;
 
   let body: unknown = {};
   try {
     body = await req.json();
-  } catch {
+  } catch (error) {
+    // Tom kropp er lovlig, men årsaken skal aldri forsvinne.
+    console.warn(
+      `[${FN}] request body not JSON, using defaults`,
+      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+    );
     body = {};
   }
   const validated = validateInput(body);
   if (!validated.ok) {
-    return json({ error: "invalid_input", field: validated.field }, 400);
+    return json({ status: "failed", error: "invalid_input", field: validated.field }, 400);
   }
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    return json({ error: "server_misconfigured" }, 500);
-  }
+
   const input = validated.value;
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
