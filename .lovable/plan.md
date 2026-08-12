@@ -27,3 +27,18 @@ Feilen har ingenting med secrets å gjøre. Den kommer av manglende leserettighe
 
 - Frontend: `loadEmployerDetail()` bytter fra `.from("employer_search_v1").select("*").eq(...)` til `.rpc("get_employer_detail", { p_organisasjonsnummer: orgnr })`, med samme returkontrakt (`ok` / `not_found` / `unavailable`).
 - Migrasjon: `GRANT EXECUTE ON FUNCTION public.get_employer_detail(text) TO anon;` og `GRANT EXECUTE ON FUNCTION public.search_employers(...) TO anon;` (begge er allerede `SECURITY DEFINER` med `search_path` satt).
+
+## Risiko og bivirkninger
+
+Lav risiko. Vurdert punkt for punkt:
+
+- **Datainnhold blir identisk.** Funksjonen `get_employer_detail` returnerer nøyaktig samme kolonnesett som visningen siden (den er definert som `SETOF employer_search_v1`). UI-feltene trenger ingen endring.
+- **Åpner vi noe for mye?** Anonyme får kun kjøre to funksjoner som allerede er skrevet for offentlig registerinnsikt (Brreg-data som er offentlig tilgjengelig). De får ikke tilgang til `reg`-skjemaet, ingen brukerdata, ingen skriverettigheter. Søket har allerede en øvre grense på antall treff per kall.
+- **Skraping/last:** offentlig søk uten innlogging kan gi noe mer trafikk mot databasen. Kan avgrenses senere med rate-limit hvis det blir et problem — ikke nødvendig nå.
+- **Sikkerhetsskanner:** `SECURITY DEFINER`-funksjoner med anon-tilgang kan bli flagget i skann. Det er et bevisst valg her og bør noteres i sikkerhetsminnet.
+- **Alternativ hvis dere heller vil holde arbeidsgiversidene bak innlogging:** da dropper vi anon-grantene helt og gjør kun frontend-byttet. Da fungerer sidene for innloggede, og utloggede får en «logg inn»-melding i stedet for feil.
+- **Rulles enkelt tilbake:** frontend-endringen er noen få linjer, og grantene kan trekkes tilbake med én setning.
+
+## Tidsbruk
+
+Cirka 15–25 minutter totalt: frontend-bytte (~5 min), migrasjon med grants (~5 min), verifisering utlogget/innlogget på detalj- og søkeside (~10 min).
