@@ -358,12 +358,20 @@ Deno.serve(async (req: Request) => {
   const heartbeatTimer2 = setInterval(async () => {
     heartbeatCalls++;
     try {
-      await admin.rpc("careerjet_lease_heartbeat", {
+      const { error } = await admin.rpc("careerjet_lease_heartbeat", {
         p_lease_name: LEASE_NAME, p_run_id: runId,
         p_fencing_token: fencingToken, p_ttl_seconds: LEASE_TTL_SECONDS,
       });
-    } catch { /* swallow */ }
+      if (error) {
+        heartbeatFailures++;
+        console.warn(`[${FN}] lease heartbeat failed`, JSON.stringify({ run_id: runId, error: error.message }));
+      }
+    } catch (e: any) {
+      heartbeatFailures++;
+      console.warn(`[${FN}] lease heartbeat threw`, JSON.stringify({ run_id: runId, error: String(e?.message ?? e) }));
+    }
   }, HEARTBEAT_INTERVAL_MS);
+
 
   // Capture before-counters for the "no direct edge writes" invariant
   const [{ count: spBefore }, { count: coBefore }, { count: linkBefore }, { count: auditBefore }] = await Promise.all([
