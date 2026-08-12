@@ -660,15 +660,25 @@ Deno.serve(async (req: Request) => {
     status = "failed";
     errorSummary = `system: ${String(e?.message ?? e)}`;
     stopReason = "exception";
+    console.error(`[${FN}] run threw`, JSON.stringify({ run_id: runId, error: String(e?.message ?? e) }));
   } finally {
     clearInterval(heartbeatTimer2);
     // Conditional release: only release if our fencing token is current.
+    // Feiler den, blokkeres neste kjøring i inntil TTL — det skal være synlig.
     try {
-      await admin.rpc("careerjet_lease_release", {
+      const { error } = await admin.rpc("careerjet_lease_release", {
         p_lease_name: LEASE_NAME, p_run_id: runId, p_fencing_token: fencingToken,
       });
-    } catch { /* swallow */ }
+      if (error) {
+        releaseError = error.message;
+        console.error(`[${FN}] lease release failed`, JSON.stringify({ run_id: runId, error: error.message }));
+      }
+    } catch (e: any) {
+      releaseError = String(e?.message ?? e);
+      console.error(`[${FN}] lease release threw`, JSON.stringify({ run_id: runId, error: releaseError }));
+    }
   }
+
 
   // After-counters (witness)
   const [{ count: spAfter }, { count: coAfter }, { count: linkAfter }, { count: auditAfter }] = await Promise.all([
