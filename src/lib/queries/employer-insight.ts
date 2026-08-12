@@ -243,7 +243,7 @@ export function searchEmployersQuery(filters: EmployerSearchFilters) {
   });
 }
 
-// ---------- employer_search_v1 (detail) ----------
+// ---------- get_employer_detail (detail) ----------
 
 export type EmployerDetailLoadResult =
   | { kind: "ok"; data: EmployerDetail }
@@ -251,11 +251,10 @@ export type EmployerDetailLoadResult =
   | { kind: "unavailable" };
 
 export async function loadEmployerDetail(orgnr: string): Promise<EmployerDetailLoadResult> {
-  const { data, error } = await sb
-    .from("employer_search_v1")
-    .select("*")
-    .eq("organisasjonsnummer", orgnr)
-    .maybeSingle();
+  // Går via SECURITY DEFINER-RPC: frontend har ingen direkte lesetilgang til `reg.*`.
+  const { data, error } = await sb.rpc("get_employer_detail", {
+    p_organisasjonsnummer: orgnr,
+  });
 
   if (error) {
     const code = (error as { code?: string }).code;
@@ -264,9 +263,11 @@ export async function loadEmployerDetail(orgnr: string): Promise<EmployerDetailL
     throw error;
   }
 
-  if (!data) return { kind: "not_found" };
-  return { kind: "ok", data: data as EmployerDetail };
+  const row = Array.isArray(data) ? (data[0] as EmployerDetail | undefined) : (data as EmployerDetail | null);
+  if (!row) return { kind: "not_found" };
+  return { kind: "ok", data: row };
 }
+
 
 export function employerDetailQuery(orgnr: string) {
   return queryOptions({
