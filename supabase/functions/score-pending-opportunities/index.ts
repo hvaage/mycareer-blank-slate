@@ -15,6 +15,25 @@ import {
   type ScreeningJob,
   type ScreeningProfile,
 } from "./screening-v2.ts";
+import {
+  logPreflightFailure,
+  preflight,
+  preflightFailureBody,
+} from "../_shared/preflight.ts";
+
+const FN = "score-pending-opportunities";
+
+// Alle fire variablene er nødvendige for reelt arbeid. Funksjonen har ingen
+// kjøringstabell, så preflight-feil rapporteres med logged: false.
+const PREFLIGHT_SPEC = {
+  logging: [] as string[],
+  work: [
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_ANON_KEY",
+    "LOVABLE_API_KEY",
+  ],
+};
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -22,6 +41,7 @@ const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
 const AI_MODEL = Deno.env.get("SCORE_PENDING_AI_MODEL") ??
   "google/gemini-2.5-flash";
+
 
 const ALLOWED_SOURCES = new Set(["nav", "careerjet", "all"]);
 const ALLOWED_MODES = new Set(["pending", "stale", "rescore"]);
