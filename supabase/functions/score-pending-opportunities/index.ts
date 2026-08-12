@@ -828,7 +828,7 @@ Deno.serve(async (req: Request) => {
   if (!pf.ok) {
     logPreflightFailure(FN, pf);
     return json(
-      { status: "failed", ...preflightFailureBody(FN, pf, { logged: false, log_error: "no run table for this function" }) },
+      { ...preflightFailureBody(FN, pf, { logged: false, log_error: "no run table for this function" }), status: "failed" },
       503,
     );
   }
