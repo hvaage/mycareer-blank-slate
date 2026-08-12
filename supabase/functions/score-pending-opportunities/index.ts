@@ -856,7 +856,11 @@ Deno.serve(async (req: Request) => {
   try {
     const candidates = await loadCandidates(admin, userId, input);
     if (candidates.length === 0) {
+      // Tomt utvalg er et gyldig utfall, men det er ikke "ok" — det skilles ut
+      // som empty slik at konsumenter ikke tolker null arbeid som vellykket.
       return json({
+        status: "empty",
+        ok: false,
         score_version: MATCH_SCORE_VERSION,
         selected: 0,
         evaluated: 0,
@@ -867,6 +871,7 @@ Deno.serve(async (req: Request) => {
         mode: input.mode,
       });
     }
+
     const { profile, profileAi, evidence } = await loadProfileAndEvidence(
       admin,
       userId,
