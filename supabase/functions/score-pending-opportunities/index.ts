@@ -994,12 +994,12 @@ Deno.serve(async (req: Request) => {
           previous_score_version: candidate.current.match_score_version ?? null,
         });
       } catch (error) {
-        failures.push({
-          id: candidate.row_id,
-          error: error instanceof Error
-            ? error.message.slice(0, 240)
-            : "write_failed",
-        });
+        const message = error instanceof Error ? error.message : "write_failed";
+        console.error(
+          `[${FN}] evaluation write failed`,
+          JSON.stringify({ row_id: candidate.row_id, row_kind: candidate.row_kind, error: message }),
+        );
+        failures.push({ id: candidate.row_id, error: message.slice(0, 240) });
       }
     }
 
@@ -1011,7 +1011,15 @@ Deno.serve(async (req: Request) => {
       },
       {},
     );
+    // ok/partial/failed/empty: delvise feil skal telles og rapporteres, ikke
+    // pakkes inn i et 200-svar som ser komplett ut.
+    const resultStatus: "ok" | "empty" | "partial" | "failed" =
+      failures.length === 0
+        ? (resultRows.length === 0 ? "empty" : "ok")
+        : (resultRows.length === 0 ? "failed" : "partial");
     return json({
+      status: resultStatus,
+      ok: resultStatus === "ok",
       score_version: MATCH_SCORE_VERSION,
       selected: candidates.length,
       evaluated: resultRows.length,
@@ -1024,13 +1032,17 @@ Deno.serve(async (req: Request) => {
       evidence_items_used: evidence.length,
       results: resultRows,
       failures,
-    });
+    }, resultStatus === "failed" ? 500 : 200);
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown_error";
     const status = message === "profile_not_found" ? 403 : 500;
+    console.error(`[${FN}] run failed`, JSON.stringify({ user_id: userId, error: message }));
     return json({
+      status: "failed",
+      ok: false,
       error: message.slice(0, 300),
       score_version: MATCH_SCORE_VERSION,
     }, status);
   }
+
 });
