@@ -833,6 +833,14 @@ Deno.serve(async (req: Request) => {
     error_summary: errorSummary,
     meta: summary,
   }).eq("id", runId);
+  if (finishErr) {
+    console.error(`[${FN}] run finalize failed`, JSON.stringify({ run_id: runId, error: finishErr.message }));
+  }
 
-  return json({ ok: status !== "failed", ...summary });
+  // ok betyr fullt vellykket arbeid — ikke "ikke feilet".
+  return json(
+    { ok: resultStatus === "ok", logged: true, finalize_error: finishErr?.message ?? null, ...summary },
+    resultStatus === "failed" ? 500 : 200,
+  );
 });
+
