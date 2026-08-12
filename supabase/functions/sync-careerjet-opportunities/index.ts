@@ -818,7 +818,7 @@ Deno.serve(async (req: Request) => {
     };
   }
 
-  await admin.from("careerjet_sync_runs").update({
+  const { error: finishErr } = await admin.from("careerjet_sync_runs").update({
     finished_at: new Date().toISOString(),
     status,
     cursor_term: lastTerm,
