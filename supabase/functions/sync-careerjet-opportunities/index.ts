@@ -352,6 +352,8 @@ Deno.serve(async (req: Request) => {
   let stopReason: string = "completed";
   let status: "success" | "partial" | "failed" = "success";
   let errorSummary: string | null = null;
+  let releaseError: string | null = null;
+
 
   // Track heartbeat-call count by replacing the closure
   clearInterval(heartbeatTimer);
