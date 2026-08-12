@@ -17,14 +17,32 @@
 //   }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  logPreflightFailure,
+  preflight,
+  preflightFailureBody,
+  Tally,
+  type PreflightResult,
+} from "../_shared/preflight.ts";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const NAV_SOURCE_URL = Deno.env.get("NAV_SOURCE_SUPABASE_URL") ?? "";
-const NAV_SOURCE_KEY = Deno.env.get("NAV_SOURCE_SERVICE_ROLE_KEY") ?? "";
-const SYNC_NAV_SECRET = Deno.env.get("SYNC_NAV_SECRET") ?? "";
+const FN = "sync-nav-opportunities";
+
+// Preflight-kontrakt. LOGGING-variabler må finnes for i det hele tatt å kunne
+// skrive en kjøringsrad; WORK-variabler kontrolleres etter at vi kan logge.
+const PREFLIGHT_SPEC = {
+  logging: ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+  work: [
+    "SYNC_NAV_SECRET",
+    "NAV_SOURCE_SUPABASE_URL",
+    "NAV_SOURCE_SERVICE_ROLE_KEY",
+    // AI-scoring er en del av leveransen, ikke en valgfri ekstra: mangler nøkkelen
+    // skal kjøringen feile ved oppstart i stedet for å hoppe stille over scoring.
+    "LOVABLE_API_KEY",
+  ],
+};
+
 const AI_MODEL = Deno.env.get("NAV_SYNC_AI_MODEL") ?? "google/gemini-2.5-flash";
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
+
 
 const CURSOR_BATCH_LIMIT = 200;
 const REPAIR_BATCH_DEFAULT = 200;
@@ -62,31 +80,61 @@ function timingSafeEqualStr(a: string, b: string): boolean {
 }
 
 // --- Global target writer lease helpers ---
-async function claimLease(admin: any, runId: string, mode: string)
-  : Promise<{ ok: boolean; owner_run_id?: string; owner_mode?: string; expires_at?: string }> {
+// Leasen har TTL (LEASE_TTL_SECONDS) og fencing-token i databasen, så en tapt
+// release blokkerer maksimalt TTL-en. Derfor er logging tilstrekkelig ved
+// heartbeat/release-feil — men den skal aldri svelges stille.
+type LeaseClaim =
+  | { outcome: "claimed" }
+  | { outcome: "already_running"; owner_run_id?: string; owner_mode?: string; expires_at?: string }
+  // En databasefeil er IKKE normal samtidighet og skal aldri fremstå som det.
+  | { outcome: "lease_error"; error: string };
+
+async function claimLease(admin: any, runId: string, mode: string): Promise<LeaseClaim> {
   const { data, error } = await admin.rpc("nav_target_lease_claim", {
     p_lease_name: LEASE_NAME, p_run_id: runId, p_mode: mode, p_ttl_seconds: LEASE_TTL_SECONDS,
   });
-  if (error) return { ok: false };
+  if (error) {
+    console.error(`[${FN}] lease claim rpc failed`, JSON.stringify({ run_id: runId, error: error.message }));
+    return { outcome: "lease_error", error: error.message };
+  }
   const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return { ok: false };
-  return {
-    ok: Boolean(row.claimed),
-    owner_run_id: row.current_run_id ?? undefined,
-    owner_mode: row.current_mode ?? undefined,
-    expires_at: row.expires_at ?? undefined,
-  };
+  if (!row) {
+    console.error(`[${FN}] lease claim returned no row`, JSON.stringify({ run_id: runId }));
+    return { outcome: "lease_error", error: "nav_target_lease_claim returned no row" };
+  }
+  if (!row.claimed) {
+    return {
+      outcome: "already_running",
+      owner_run_id: row.current_run_id ?? undefined,
+      owner_mode: row.current_mode ?? undefined,
+      expires_at: row.expires_at ?? undefined,
+    };
+  }
+  return { outcome: "claimed" };
 }
 async function heartbeatLease(admin: any, runId: string): Promise<void> {
-  try { await admin.rpc("nav_target_lease_heartbeat", {
-    p_lease_name: LEASE_NAME, p_run_id: runId, p_ttl_seconds: LEASE_TTL_SECONDS,
-  }); } catch { /* noop */ }
+  try {
+    const { error } = await admin.rpc("nav_target_lease_heartbeat", {
+      p_lease_name: LEASE_NAME, p_run_id: runId, p_ttl_seconds: LEASE_TTL_SECONDS,
+    });
+    // Forventet støy når leasen er overtatt etter TTL — logges som warn, ikke error.
+    if (error) console.warn(`[${FN}] lease heartbeat failed`, JSON.stringify({ run_id: runId, error: error.message }));
+  } catch (e: any) {
+    console.warn(`[${FN}] lease heartbeat threw`, JSON.stringify({ run_id: runId, error: String(e?.message ?? e) }));
+  }
 }
 async function releaseLease(admin: any, runId: string): Promise<void> {
-  try { await admin.rpc("nav_target_lease_release", {
-    p_lease_name: LEASE_NAME, p_run_id: runId,
-  }); } catch { /* noop */ }
+  try {
+    const { error } = await admin.rpc("nav_target_lease_release", {
+      p_lease_name: LEASE_NAME, p_run_id: runId,
+    });
+    // Tapt release blokkerer neste kjøring i inntil TTL, deretter overtar den.
+    if (error) console.error(`[${FN}] lease release failed`, JSON.stringify({ run_id: runId, error: error.message }));
+  } catch (e: any) {
+    console.error(`[${FN}] lease release threw`, JSON.stringify({ run_id: runId, error: String(e?.message ?? e) }));
+  }
 }
+
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -534,12 +582,24 @@ async function processRow(
   }
 }
 
-async function callAi(prompt: string): Promise<{ score: number; reasoning: string } | null> {
-  if (!LOVABLE_API_KEY) return null;
+/** Feil med maskinlesbar kode, slik at delvise AI-feil kan telles per årsak. */
+class AiError extends Error {
+  constructor(public readonly code: string, message: string) {
+    super(message);
+    this.name = "AiError";
+  }
+}
+
+/**
+ * Kaller AI-gatewayen. Kaster AiError med årsakskode ved feil — returnerer aldri
+ * null stille. Nøkkelen er garantert til stede via preflight.
+ */
+async function callAi(apiKey: string, prompt: string): Promise<{ score: number; reasoning: string }> {
+  let res: Response;
   try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: AI_MODEL,
         messages: [
@@ -549,29 +609,51 @@ async function callAi(prompt: string): Promise<{ score: number; reasoning: strin
         temperature: 0.2,
       }),
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const txt = data?.choices?.[0]?.message?.content ?? "";
-    const m = String(txt).match(/\{[\s\S]*\}/);
-    if (!m) return null;
-    const parsed = JSON.parse(m[0]);
-    const score = Math.max(0, Math.min(100, Number(parsed.score) || 0));
-    return { score, reasoning: String(parsed.reasoning ?? "").slice(0, 1000) };
-  } catch {
-    return null;
+  } catch (e: any) {
+    throw new AiError("ai_network", String(e?.message ?? e));
   }
+  if (!res.ok) {
+    const body = await res.text().catch((e: any) => `<unreadable body: ${String(e?.message ?? e)}>`);
+    const code = res.status === 429
+      ? "ai_rate_limited"
+      : res.status === 402
+        ? "ai_payment_required"
+        : "ai_http_error";
+    throw new AiError(code, `HTTP ${res.status}: ${body.slice(0, 300)}`);
+  }
+  let data: any;
+  try {
+    data = await res.json();
+  } catch (e: any) {
+    throw new AiError("ai_bad_json", String(e?.message ?? e));
+  }
+  const txt = data?.choices?.[0]?.message?.content ?? "";
+  const m = String(txt).match(/\{[\s\S]*\}/);
+  if (!m) throw new AiError("ai_unparseable", `no JSON object in response: ${String(txt).slice(0, 200)}`);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(m[0]);
+  } catch (e: any) {
+    throw new AiError("ai_unparseable", String(e?.message ?? e));
+  }
+  const score = Math.max(0, Math.min(100, Number(parsed.score) || 0));
+  return { score, reasoning: String(parsed.reasoning ?? "").slice(0, 1000) };
 }
+
 
 /** Match newly active canonicals to user profiles; only score those within ACTIVE/grace. */
 async function runMatching(
   admin: any,
   touchedCanonicalIds: string[],
+  aiKey: string,
+  aiTally: Tally,
 ): Promise<{ matched_user_opps: number; scored: number; aiErrors: any[] }> {
   let matched_user_opps = 0;
   let scored = 0;
   const aiErrors: any[] = [];
   const ids = Array.from(new Set(touchedCanonicalIds));
   if (ids.length === 0) return { matched_user_opps, scored, aiErrors };
+
 
   const nowIso = new Date().toISOString();
   // Visibility predicate: EXISTS active linked source_posting OR live_until > now().
@@ -652,25 +734,35 @@ async function runMatching(
     }
   }
 
-  if (LOVABLE_API_KEY) {
-    for (const item of usersToScore.slice(0, AI_MAX_PER_RUN)) {
-      try {
-        const ai = await callAi(
-          `Stilling: ${item.co.display_title} hos ${item.co.display_company} i ${item.co.display_location ?? ""}. Vurder match 0-100.`,
-        );
-        if (ai) {
-          await admin.from("user_opportunities").update({
-            ai_score: ai.score, ai_reasoning: ai.reasoning, ai_scored_at: new Date().toISOString(),
-          }).eq("user_id", item.userId).eq("canonical_opportunity_id", item.canonicalId);
-          scored++;
-        }
-      } catch (e: any) {
-        aiErrors.push({ canonicalId: item.canonicalId, error: String(e?.message ?? e) });
+  // Nøkkelen er garantert av preflight — ingen stille "hopp over scoring"-gren.
+  const toScore = usersToScore.slice(0, AI_MAX_PER_RUN);
+  aiTally.skip(Math.max(0, usersToScore.length - toScore.length));
+  for (const item of toScore) {
+    aiTally.attempt();
+    try {
+      const ai = await callAi(
+        aiKey,
+        `Stilling: ${item.co.display_title} hos ${item.co.display_company} i ${item.co.display_location ?? ""}. Vurder match 0-100.`,
+      );
+      const upd = await admin.from("user_opportunities").update({
+        ai_score: ai.score, ai_reasoning: ai.reasoning, ai_scored_at: new Date().toISOString(),
+      }).eq("user_id", item.userId).eq("canonical_opportunity_id", item.canonicalId);
+      if (upd.error) {
+        aiTally.fail(item.canonicalId, upd.error.message, "score_write_failed");
+        aiErrors.push({ canonicalId: item.canonicalId, code: "score_write_failed", error: upd.error.message });
+        continue;
       }
+      aiTally.succeed();
+      scored++;
+    } catch (e: any) {
+      const code = e instanceof AiError ? e.code : "ai_unexpected";
+      aiTally.fail(item.canonicalId, e, code);
+      aiErrors.push({ canonicalId: item.canonicalId, code, error: String(e?.message ?? e) });
     }
   }
   return { matched_user_opps, scored, aiErrors };
 }
+
 
 // ------- CURSOR MODE -------
 async function runCursorMode(admin: any, navClient: any, prevMeta: any): Promise<any> {
@@ -880,36 +972,119 @@ async function runRepairMode(
 }
 
 // ------- HANDLER -------
+
+/** Skriver en failed-kjøringsrad slik at preflight-feil etterlater spor. */
+async function logPreflightRun(
+  admin: any,
+  mode: string,
+  pf: PreflightResult,
+): Promise<{ run_id: string | null; log_error: string | null }> {
+  try {
+    const { data, error } = await admin.from("nav_sync_runs").insert({
+      finished_at: new Date().toISOString(),
+      error_summary: `missing_configuration: ${pf.missing.join(", ")}`,
+      meta: {
+        mode,
+        status: "failed",
+        preflight: "failed",
+        missing: pf.missing,
+        missing_work: pf.missingWork,
+      },
+    }).select("id").maybeSingle();
+    if (error) return { run_id: null, log_error: error.message };
+    return { run_id: data?.id ?? null, log_error: null };
+  } catch (e: any) {
+    return { run_id: null, log_error: String(e?.message ?? e) };
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return json({ ok: false, error: "method not allowed" }, 405);
+  if (req.method !== "POST") return json({ ok: false, status: "failed", error: "method not allowed" }, 405);
+
+  // --- PREFLIGHT ---
+  const pf = preflight(PREFLIGHT_SPEC);
+  if (!pf.canLog) {
+    // Uten SUPABASE_URL/service role finnes ingen kanal til kjøringstabellen.
+    // logged: false gjør eksplisitt at fravær av rad ikke betyr fravær av kjøring.
+    logPreflightFailure(FN, pf);
+    return json(preflightFailureBody(FN, pf, { logged: false }), 503);
+  }
+  const SUPABASE_URL = pf.env["SUPABASE_URL"]!;
+  const SERVICE_ROLE_KEY = pf.env["SUPABASE_SERVICE_ROLE_KEY"]!;
+
+  // Mangler selve delt hemmelighet kan ingen kaller autentiseres. Vi skriver
+  // bevisst INGEN kjøringsrad her: endepunktet er da åpent for ukjente kallere,
+  // og radskriving ville gitt en forsterkningsvektor. Konsollsporet står.
+  const SYNC_NAV_SECRET = pf.env["SYNC_NAV_SECRET"] ?? "";
+  if (!SYNC_NAV_SECRET) {
+    logPreflightFailure(FN, pf);
+    return json(
+      preflightFailureBody(FN, pf, { logged: false, log_error: "unauthenticated caller — no run row written" }),
+      503,
+    );
+  }
 
   const provided = req.headers.get("x-sync-nav-secret") ?? "";
-  if (!SYNC_NAV_SECRET || !provided || !timingSafeEqualStr(provided, SYNC_NAV_SECRET)) {
-    return json({ ok: false, error: "unauthorized" }, 401);
+  if (!provided || !timingSafeEqualStr(provided, SYNC_NAV_SECRET)) {
+    return json({ ok: false, status: "failed", error: "unauthorized" }, 401);
   }
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return json({ ok: false, error: "missing supabase env" }, 500);
-  if (!NAV_SOURCE_URL || !NAV_SOURCE_KEY) return json({ ok: false, error: "missing NAV_SOURCE env" }, 500);
+
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
   let body: any = {};
-  try { body = await req.json(); } catch { body = {}; }
+  try {
+    body = await req.json();
+  } catch (e: any) {
+    // Tom eller ugyldig kropp er lovlig (cron sender ingenting) — men logg årsaken.
+    console.warn(`[${FN}] request body not JSON, using defaults`, JSON.stringify({ error: String(e?.message ?? e) }));
+    body = {};
+  }
   const modeRaw = String(body?.mode ?? "cursor").toLowerCase();
   const mode = (modeRaw === "repair_by_ids" || modeRaw === "repair") ? "repair_by_ids" : "cursor";
   const repair_batch_size = Math.max(1, Math.min(REPAIR_BATCH_MAX, Number(body?.repair_batch_size ?? REPAIR_BATCH_DEFAULT)));
   const max_batches = Math.max(1, Math.min(REPAIR_BATCHES_MAX, Number(body?.max_batches ?? 1)));
   const repair_run_id = typeof body?.repair_run_id === "string" ? body.repair_run_id : null;
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  // Resterende arbeids-variabler: her KAN vi logge, så vi etterlater spor før 503.
+  if (!pf.ok) {
+    logPreflightFailure(FN, pf);
+    const logged = await logPreflightRun(admin, mode, pf);
+    return json(
+      preflightFailureBody(FN, pf, {
+        logged: logged.run_id != null,
+        run_id: logged.run_id,
+        log_error: logged.log_error,
+      }),
+      503,
+    );
+  }
+  const NAV_SOURCE_URL = pf.env["NAV_SOURCE_SUPABASE_URL"]!;
+  const NAV_SOURCE_KEY = pf.env["NAV_SOURCE_SERVICE_ROLE_KEY"]!;
+  const LOVABLE_API_KEY = pf.env["LOVABLE_API_KEY"]!;
 
   // Global target writer lease — single serializer across cursor + repair_by_ids.
   // We claim BEFORE inserting a run row so already_running paths leave no side effects.
   const probeId = crypto.randomUUID();
   const probe = await claimLease(admin, probeId, mode);
-  if (!probe.ok) {
+  if (probe.outcome === "lease_error") {
+    // En databasefeil i lease-RPC-en er en ekte feil, ikke normal samtidighet.
+    const { data: leaseRun } = await admin.from("nav_sync_runs").insert({
+      finished_at: new Date().toISOString(),
+      error_summary: `system_error: lease_error: ${probe.error}`,
+      meta: { mode, status: "failed", lease: "error", lease_error: probe.error },
+    }).select("id").maybeSingle();
     return json({
-      ok: true, status: "already_running", mode,
+      ok: false, status: "failed", error: "lease_error", mode,
+      run_id: leaseRun?.id ?? null,
+      error_summary: `lease_error: ${probe.error}`,
+    }, 500);
+  }
+  if (probe.outcome === "already_running") {
+    return json({
+      ok: false, status: "skipped", reason: "already_running", mode,
       lease: {
         owner_run_id: probe.owner_run_id ?? null,
         owner_mode: probe.owner_mode ?? null,
@@ -919,16 +1094,23 @@ Deno.serve(async (req: Request) => {
   }
 
 
+
   // Last successful cursor-mode run is the source of cursor tuple.
+  // Delvis vellykkede kjøringer (partial) har nå error_summary satt, men markøren
+  // deres er gyldig — derfor filtreres det på meta.status, ikke på error_summary.
   const { data: lastDone } = await admin
     .from("nav_sync_runs")
-    .select("id, meta")
+    .select("id, meta, error_summary")
     .not("finished_at", "is", null)
-    .is("error_summary", null)
     .order("finished_at", { ascending: false })
-    .limit(20);
-  const lastCursorRun = (lastDone ?? []).find((r: any) =>
-    String(r?.meta?.mode ?? "cursor") === "cursor");
+    .limit(40);
+  const lastCursorRun = (lastDone ?? []).find((r: any) => {
+    if (String(r?.meta?.mode ?? "cursor") !== "cursor") return false;
+    const st = r?.meta?.status;
+    // Eldre rader mangler meta.status: da gjelder den gamle regelen.
+    if (typeof st !== "string") return r?.error_summary == null;
+    return st === "ok" || st === "partial" || st === "empty";
+  });
   const meta0 = (lastCursorRun?.meta as any) ?? {};
   const prevRunId = lastCursorRun?.id ?? null;
 
@@ -936,6 +1118,7 @@ Deno.serve(async (req: Request) => {
     .from("nav_sync_runs").insert({
       meta: {
         mode,
+        status: "running",
         cursor_changed_at: meta0.cursor_changed_at ?? null,
         cursor_external_id: meta0.cursor_external_id ?? null,
         model: AI_MODEL,
@@ -945,7 +1128,15 @@ Deno.serve(async (req: Request) => {
         repair_run_id_input: repair_run_id ?? undefined,
       },
     }).select("id").single();
-  if (runErr || !runRow) return json({ ok: false, error: `run insert failed: ${runErr?.message}` }, 500);
+  if (runErr || !runRow) {
+    console.error(`[${FN}] run insert failed`, JSON.stringify({ error: runErr?.message ?? "no row" }));
+    await releaseLease(admin, probeId);
+    return json({
+      ok: false, status: "failed", error: "run_insert_failed",
+      error_summary: `run insert failed: ${runErr?.message ?? "no row returned"}`,
+      logged: false,
+    }, 500);
+  }
   const runId = runRow.id;
 
   const navClient = createClient(NAV_SOURCE_URL, NAV_SOURCE_KEY, {
@@ -959,6 +1150,7 @@ Deno.serve(async (req: Request) => {
   const dataIssues: any[] = [];
   const systemErrors: any[] = [];
   const aiErrors: any[] = [];
+  const aiTally = new Tally(`${FN}:ai`);
   const finalMeta: any = { mode, model: AI_MODEL, prev_run_id: prevRunId, lease_run_id: probeId };
 
   const hbTimer = setInterval(() => { heartbeatLease(admin, probeId); }, 60_000);
@@ -973,7 +1165,7 @@ Deno.serve(async (req: Request) => {
       finalMeta.cursor_external_id = res.cursorExternalId;
       finalMeta.noop = noopCount; finalMeta.stale = staleCount;
       if (!errorSummary && res.touchedCanonicalIds.length) {
-        const m = await runMatching(admin, res.touchedCanonicalIds);
+        const m = await runMatching(admin, res.touchedCanonicalIds, LOVABLE_API_KEY, aiTally);
         matched_user_opps = m.matched_user_opps; scored = m.scored;
         aiErrors.push(...m.aiErrors);
       }
@@ -996,7 +1188,7 @@ Deno.serve(async (req: Request) => {
       finalMeta.failed = res.failed;
       if (Array.isArray(res.dataIssues)) dataIssues.push(...res.dataIssues);
       if (!errorSummary && res.touchedCanonicalIds?.length) {
-        const m = await runMatching(admin, res.touchedCanonicalIds);
+        const m = await runMatching(admin, res.touchedCanonicalIds, LOVABLE_API_KEY, aiTally);
         matched_user_opps = m.matched_user_opps; scored = m.scored;
         aiErrors.push(...m.aiErrors);
       }
@@ -1004,27 +1196,64 @@ Deno.serve(async (req: Request) => {
   } catch (e: any) {
     errorSummary = `system_error: ${String(e?.message ?? e)}`;
     systemErrors.push({ error: String(e?.message ?? e) });
+    console.error(`[${FN}] run threw`, JSON.stringify({ run_id: runId, error: String(e?.message ?? e) }));
   } finally {
     clearInterval(hbTimer);
     await releaseLease(admin, probeId);
   }
 
+  // --- Statusutledning: ok / empty / partial / failed. Aldri ok = !failed. ---
+  const rowFailures = systemErrors.length + dataIssues.length + Number(finalMeta.failed ?? 0);
+  const aiSnapshot = aiTally.snapshot();
+  let status: "ok" | "empty" | "partial" | "failed";
+  if (errorSummary) {
+    status = "failed";
+  } else if (rowFailures > 0 || aiSnapshot.failed > 0) {
+    status = "partial";
+  } else if (fetched === 0) {
+    // Tomt resultat er ikke det samme som vellykket arbeid.
+    status = "empty";
+  } else {
+    status = "ok";
+  }
 
+  if (!errorSummary && status === "partial") {
+    const parts: string[] = [];
+    if (systemErrors.length) parts.push(`system_errors=${systemErrors.length}`);
+    if (dataIssues.length) parts.push(`data_issues=${dataIssues.length}`);
+    if (Number(finalMeta.failed ?? 0) > 0) parts.push(`rows_failed=${finalMeta.failed}`);
+    if (aiSnapshot.failed > 0) {
+      const reasons = Object.entries(aiSnapshot.failure_reasons).map(([c, n]) => `${c}=${n}`).join(", ");
+      parts.push(`ai_failed=${aiSnapshot.failed}/${aiSnapshot.attempted} (${reasons})`);
+    }
+    errorSummary = `partial_failure: ${parts.join("; ")}`;
+  }
+
+  finalMeta.status = status;
   finalMeta.dataIssues = dataIssues.slice(0, 200);
   finalMeta.systemErrors = systemErrors.slice(0, 50);
   finalMeta.aiErrors = aiErrors.slice(0, 50);
+  finalMeta.ai = aiSnapshot;
 
-  await admin.from("nav_sync_runs").update({
+  const { error: finishErr } = await admin.from("nav_sync_runs").update({
     finished_at: new Date().toISOString(),
     fetched, upserted, expired, reactivated, matched_user_opps, scored,
     error_summary: errorSummary, meta: finalMeta,
   }).eq("id", runId);
+  if (finishErr) {
+    console.error(`[${FN}] run finalize failed`, JSON.stringify({ run_id: runId, error: finishErr.message }));
+  }
 
   return json({
-    ok: errorSummary == null,
+    // ok betyr fullt vellykket arbeid — ikke "ikke feilet".
+    ok: status === "ok",
+    status,
     run_id: runId, mode,
     fetched, upserted, expired, reactivated, noop: noopCount, stale: staleCount,
     matched_user_opps, scored,
+    ai: aiSnapshot,
+    logged: true,
+    finalize_error: finishErr?.message ?? null,
     repair: mode === "repair_by_ids" ? {
       repair_run_id: finalMeta.repair_run_id,
       cursor_after_external_id: finalMeta.cursor_after_external_id,
@@ -1033,5 +1262,6 @@ Deno.serve(async (req: Request) => {
       merged: finalMeta.merged, noop: finalMeta.noop, stale: finalMeta.stale, failed: finalMeta.failed,
     } : undefined,
     error_summary: errorSummary,
-  });
+  }, status === "failed" ? 500 : 200);
 });
+

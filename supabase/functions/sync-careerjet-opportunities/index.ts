@@ -22,11 +22,25 @@ import {
   noteFingerprintSighting,
   summarizeSightings,
 } from "./sightings.ts";
+import {
+  logPreflightFailure,
+  preflight,
+  preflightFailureBody,
+  type PreflightResult,
+} from "../_shared/preflight.ts";
+
+const FN = "sync-careerjet-opportunities";
+
+const PREFLIGHT_SPEC = {
+  logging: ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+  work: ["SYNC_CAREERJET_SECRET", "CAREERJET_AFFID"],
+};
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SYNC_CAREERJET_SECRET = Deno.env.get("SYNC_CAREERJET_SECRET") ?? "";
 const CAREERJET_AFFID = Deno.env.get("CAREERJET_AFFID") ?? "";
+
 
 const STALE_LOCK_MINUTES = 60;
 const RUN_TIME_BUDGET_MS = 130_000;
@@ -136,24 +150,77 @@ async function fetchCareerjetPage(opts: {
   }
 }
 
+/** Skriver en failed-kjøringsrad slik at preflight-feil etterlater spor. */
+async function logPreflightRun(admin: any, pf: PreflightResult): Promise<{ run_id: string | null; log_error: string | null }> {
+  try {
+    const { data, error } = await admin.from("careerjet_sync_runs").insert({
+      status: "failed",
+      finished_at: new Date().toISOString(),
+      error_summary: `missing_configuration: ${pf.missing.join(", ")}`,
+      meta: { preflight: "failed", result_status: "failed", missing: pf.missing, missing_work: pf.missingWork },
+    }).select("id").maybeSingle();
+    if (error) return { run_id: null, log_error: error.message };
+    return { run_id: data?.id ?? null, log_error: null };
+  } catch (e: any) {
+    return { run_id: null, log_error: String(e?.message ?? e) };
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const provided = req.headers.get("x-sync-careerjet-secret") ?? "";
-  if (!SYNC_CAREERJET_SECRET || !provided || !timingSafeEqualStr(provided, SYNC_CAREERJET_SECRET)) {
-    return json({ ok: false, error: "unauthorized" }, 401);
+  // --- PREFLIGHT ---
+  const pf = preflight(PREFLIGHT_SPEC);
+  if (!pf.canLog) {
+    // Ingen kanal til kjøringstabellen: logged: false gjør det eksplisitt at
+    // fravær av kjøringsrad ikke betyr at ingenting skjedde.
+    logPreflightFailure(FN, pf);
+    return json(preflightFailureBody(FN, pf, { logged: false }), 503);
   }
-  if (req.method !== "POST") return json({ ok: false, error: "method not allowed" }, 405);
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return json({ ok: false, error: "missing supabase env" }, 500);
-  if (!CAREERJET_AFFID) return json({ ok: false, error: "missing CAREERJET_AFFID" }, 500);
+  if (!SYNC_CAREERJET_SECRET) {
+    // Uten delt hemmelighet kan ingen kaller autentiseres. Vi skriver bevisst
+    // ingen kjøringsrad: endepunktet er da åpent, og radskriving ville gitt en
+    // forsterkningsvektor for ukjente kallere. Konsollsporet står.
+    logPreflightFailure(FN, pf);
+    return json(
+      preflightFailureBody(FN, pf, { logged: false, log_error: "unauthenticated caller — no run row written" }),
+      503,
+    );
+  }
+
+  const provided = req.headers.get("x-sync-careerjet-secret") ?? "";
+  if (!provided || !timingSafeEqualStr(provided, SYNC_CAREERJET_SECRET)) {
+    return json({ ok: false, status: "failed", error: "unauthorized" }, 401);
+  }
+  if (req.method !== "POST") return json({ ok: false, status: "failed", error: "method not allowed" }, 405);
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  // Resterende arbeids-variabler: her kan vi logge, så vi etterlater spor før 503.
+  if (!pf.ok) {
+    logPreflightFailure(FN, pf);
+    const logged = await logPreflightRun(admin, pf);
+    return json(
+      preflightFailureBody(FN, pf, {
+        logged: logged.run_id != null,
+        run_id: logged.run_id,
+        log_error: logged.log_error,
+      }),
+      503,
+    );
+  }
+
   // Body opts
   let body: any = {};
-  try { body = await req.json(); } catch { /* ignore */ }
+  try {
+    body = await req.json();
+  } catch (e: any) {
+    // Tom kropp er lovlig (cron sender ingenting) — men årsaken skal logges.
+    console.warn(`[${FN}] request body not JSON, using defaults`, JSON.stringify({ error: String(e?.message ?? e) }));
+  }
+
   const canary: boolean = body?.canary === true;
   const isReplay: boolean = body?.mode === "replay";
   const mode: "production" | "canary" | "replay" =
