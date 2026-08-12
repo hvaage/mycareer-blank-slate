@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/lib/auth-context";
+import { Toaster } from "@/components/ui/sonner";
 import {
   Outlet,
   Link,
@@ -166,6 +167,8 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Outlet />
+        {/* Uten denne var alle toast-varsler usynlige — feil ble tause. */}
+        <Toaster richColors closeButton position="top-right" />
       </AuthProvider>
     </QueryClientProvider>
   );
