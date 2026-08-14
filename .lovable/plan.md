@@ -1,74 +1,40 @@
-# Oppgave A — fjern stille degradering i edge-funksjoner
+# Etter nullmålingen: hva som bør rettes i registerspeilet
 
-Kun feilhåndtering. Ingen endring i hva funksjonene gjør når alt virker. Ingen bytte av AI-leverandør (spor B). Ingen deploy før rapporten er gjennomgått.
+Prosjekt: `miwzhbludgwvskmsfqnq`. Nullmålingen er utført og rapportert i chat. Denne planen er kun forslag til oppfølging — ingenting er endret.
 
-## Prinsipper som implementeres
+## Rangert etter alvorlighet
 
-1. Preflight: alle nødvendige miljøvariabler valideres før arbeid starter → `503` med navn på manglende variabel.
-2. Delvis feil telles: `attempted / succeeded / failed` returneres og logges.
-3. Ingen tom `catch`: alle fangede feil logges med kontekst (funksjon, run_id, rad-id/orgnr, hvilket kall).
-4. Status har tre tilstander: `ok` / `partial` / `failed`.
-5. Tomt resultat skilles fra feilet resultat i logg og respons.
+### 1. Enhetsspeilet synkroniseres ikke i det hele tatt (kritisk)
+`reg.sync_log` er tom (0 rader), det finnes ingen kolonne som lagrer Brregs `oppdateringsid` noe sted i `reg`, og ingen cron-jobb dekker enhetsregisteret. Ferskeste `oppdatert_tidspunkt` i `reg.enheter` er 15. juni 2026. Brreg har hatt ca. 380 700 oppdateringer siden da.
 
-## Funn og planlagte endringer
+Tiltak: bygg en enhetssynk med varig markør (`oppdateringsid`) og kjøringslogg i `reg.sync_log`, etter samme mønster som `regnskap_sync_runs` (som fungerer og logger hvert kvarter). Skriv `status` = ok/partial/failed slik oppgave A etablerte.
 
-### sync-nav-opportunities/index.ts
-- **L27 / L538 `callAi` — `if (!LOVABLE_API_KEY) return null`.** Stille: kjøringen fortsetter uten scoring, svarer 200, `error_summary = null`. Nytt: `LOVABLE_API_KEY` inn i preflight sammen med `SUPABASE_URL`, `SERVICE_ROLE_KEY`, `NAV_SOURCE_*`, `SYNC_NAV_SECRET` → 503 før noe hentes.
-- **L552 `if (!res.ok) return null` og L562 `catch { return null }`.** Stille: HTTP-feil og parsefeil fra AI-gateway ser identiske ut som "ingen score". Nytt: `callAi` returnerer `{ ok, value } | { ok:false, reason, status, bodyExcerpt }`; kaller logger og teller.
-- **L654 `if (LOVABLE_API_KEY) { ... }`.** Stille: hele scoringsblokken hoppes over uten spor. Nytt: blokken kjører alltid (nøkkel er garantert av preflight); `runMatching` returnerer `ai_attempted / ai_succeeded / ai_failed`, som skrives til `nav_sync_runs.meta` og responsen.
-- **L83 / L88 lease heartbeat/release `catch { /* noop */ }`.** Nytt: `console.warn` med `run_id` og lease-navn. Feilen skal fortsatt ikke velte kjøringen (heartbeat-tap håndteres av TTL) — men den skal være synlig.
-- **Statusfelt.** `ok: errorSummary == null` erstattes av `status: "ok" | "partial" | "failed"`: `partial` når `ai_failed > 0`, `systemErrors.length > 0` eller `res.failed > 0`. `ok` beholdes for bakoverkompatibilitet = `status !== "failed"`.
-- **Tomt vs. feilet:** `fetched = 0` logges eksplisitt som `empty_upstream` når RPC lyktes, atskilt fra `system_error: nav rpc failed`.
+### 2. Søk faller til full tabellskanning på vanlige ord (høy)
+Brede søkeord planlegges som parallell seq scan over hele `reg.enheter` fordi `ORDER BY similarity(...)` ikke kan betjenes av GIN-trigram: «bygg» 3 456 ms, «consulting» 3 717 ms, «e» 1 119 ms, med ~200 000 rader forkastet i filter.
 
-### fetch-careerjet-listings/index.ts
-- **L744 og L839 — `Deno.env.get("LOVABLE_API_KEY")` lest lokalt, blokken hoppes over hvis tom.** Nytt: nøkkelen (samt `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CAREERJET_AFFID`) valideres i preflight øverst i handleren → 503. De to `if (lovableKey)`-vaktene fjernes.
-- **L1011-1012 og L1122-1123 — AI-gateway ikke-2xx → `return 0`.** Stille: null scoret ser ut som ingenting å score. Nytt: returnerer `{ attempted, scored, failed, lastError }`; teller rulles opp i responsen.
-- **L1019-1021 og L1128-1130 — ikke-JSON-svar → `return 0`.** Nytt: samme tellerstruktur; feilen logges allerede, men skal nå også telles og rapporteres.
-- **L736, L759, L768, L856, L860 — `catch` som kun logger og fortsetter.** Beholdes som "fortsett", men bidrar nå til `partial`-status og en `errors[]`-liste i responsen med fase-navn.
-- **L505-506 — henting per keyword/lokasjon feiler.** Nytt: teller `pages_failed` per keyword; kjøring med `pages_failed > 0` blir `partial`.
-- **Respons:** legger til `status`, `ai: { attempted, scored, failed }`, `errors[]`.
+Tiltak (som egen, godkjent oppgave): to-trinns strategi — hent kandidater via trigram/prefiks-indeks først, sorter etterpå på det begrensede settet. Eventuelt en `navn`-normalisert kolonne med `gin_trgm_ops` + `word_similarity`-terskel.
 
-### score-pending-opportunities/index.ts
-- **L22 `LOVABLE_API_KEY ?? ""` + L652 `throw new Error("ai_key_missing")` midt i arbeidet.** Kastet skjer først etter kandidatvalg og evidenshenting. Nytt: preflight i handleren → 503 `{ missing: ["LOVABLE_API_KEY"] }` før kandidatvalg.
-- **L823 `catch { body = {} }`** — beholdes (ugyldig/ tom body er lovlig og gir `400 invalid_input` senere), men logges på debug-nivå.
-- **L973 skrivefeil per kandidat** — allerede talt i `failures`. Nytt: `status: "partial"` når `failed > 0`, i dag returneres 200 uten skille.
-- **Tomt vs. feilet:** `selected = 0` merkes `reason: "no_candidates"`.
+### 3. Totalantall vises aldri (høy, funksjonell)
+`search_employers` returnerer ikke `total_count`; frontend leser `arr[0].total_count`, får `undefined`, og setter `totalCount = null`. I tillegg kapper kandidat-CTE-en på `LIMIT 300`, så maks 12 sider er tilgjengelig selv når det finnes 11 603 treff.
 
-### sync-careerjet-opportunities/index.ts
-- **L244, L286 lease-heartbeat `catch { /* swallow */ }`** → `console.warn` med run_id og fencing_token.
-- **L583 lease-release `catch { /* swallow */ }`** → `console.error` med run_id; release-feil er en reell risiko for at neste kjøring blokkeres.
-- **L156 `catch { /* ignore */ }` på `req.json()`** — beholdes (tom body er gyldig), men logges på debug-nivå.
-- Preflight for `SUPABASE_URL`, `SERVICE_ROLE_KEY`, `SYNC_CAREERJET_SECRET`, `CAREERJET_AFFID`.
+Tiltak: returner et eksakt antall under en terskel og et estimat over, og vis at listen er avkortet.
 
-### extract-job-ad/index.ts
-- **L104-105** — kaster allerede ved manglende nøkkel, men først etter URL-henting. Flyttes til preflight; svar endres fra 500 til 503 med variabelnavn.
+### 4. «Ansatte» kan tolkes som selskaper med ansatte (middels)
+283 048 av 439 773 enheter (64 %) har ukjent ansattall. Visningen skiller ikke ukjent fra null. Tiltak: vis «ukjent» eksplisitt i tabell og innsiktspanel.
 
-### regnskap-sync
-- **index.ts L114** — allerede eksplisitt preflight på `SUPABASE_DB_URL`. Status endres fra 500 til 503 for konsistens; ingen annen endring.
-- **db.ts L38/L67/L409, warmup.ts L86, index.ts L166 (`closePool`, `ROLLBACK`)** — **lot stå.** Dette er opprydding i `finally`-blokker der originalfeilen allerede propagerer; logging her ville skjule den. Legger til én `console.warn` i `closePool` slik at pool-lekkasje er sporbar.
+### 5. Datakvalitetsavvik fra NAV-kilden (lav, men skal følges)
+`missing required field` betyr manglende `title` eller `company_name` i NAV-annonsen. Tiltak: logg hvilket felt som mangler, ikke bare at noe mangler.
 
-## Steder som bevisst lates i fred
+### 6. Ingen driftsvarsling (middels)
+Ingen kode varsler ved feilet eller uteblitt synk. E-postinfrastrukturen brukes kun til brukerkommunikasjon (leads/selskapsanalyse). Tiltak: en daglig vaktjobb som varsler når en kilde ikke har hatt vellykket kjøring innen forventet vindu.
 
-| Sted | Begrunnelse |
-|---|---|
-| `sync-nav-opportunities` L128-154, `navDisplayUrl`/parsere `return null` | Valgfritt felt mangler i upstream-payload — legitimt fravær, ikke feil. Dekkes allerede av `dataIssues`. |
-| `generate-cover-letter` L190-215 `return null` | Parsing av valgfrie seksjoner i AI-svar; manglende seksjon er gyldig utfall. |
-| `generate-cover-letter` L314-318 `?? ""` | Defaults for valgfrie tekstblokker. |
-| `analyze-company` L384 `catch` på URL-parsing | URL-er er allerede validert oppstrøms; kommentaren dokumenterer det. |
-| `analyze-company` L315, L565 `catch { /* ignore */ }` | Verifiseres i gjennomgangen; hvis de dekker skriving av jobbstatus blir de logget, ellers står de. |
-| `linkedin-*`, `commit-cv-import`, `delete-account`, `parse-uploaded-cv` | Bruker `!`-assert på env og feiler høylytt ved manglende variabel. Får preflight kun hvis gjennomgangen viser at en manglende variabel gir 200. |
-| `analyze-company` AI-kall mot Anthropic | Utenfor scope per avgrensning (spor B). |
+### 7. Toaster-klassen: flere steder uten visning
+`<Toaster />` er nå montert. Neste steg er en gjennomgang av feil som fanges i `catch` uten å nå brukeren, med `src/lib/queries/atom-enrichment.ts` og `src/lib/queries/cv-imports.ts` som første kandidater.
 
-## Teknisk gjennomføring
+## Ikke funnet her
+- Avledede markører er korrekte: `er_utdanning` = 93 = antall 85.4, `er_rekruttering` = 2 361 = antall 78.x, `er_offentlig` = 4 205 = forventet 4 205.
+- Kjøringsloggen er ryddig: `cron.job_run_details` er 1,4 MB / 933 rader, jobben `rydd-cron-logg` kjører daglig.
+- Jobbnavn stemmer ikke helt med skjema: `regnskap-sync-nightly` kjører fire ganger i timen — kosmetisk, men verdt å endre navn.
 
-- Ny delt modul `supabase/functions/_shared/preflight.ts`:
-  - `requireEnv(names: string[]): { ok: true; env: Record<string,string> } | { ok: false; missing: string[] }`
-  - `missingEnvResponse(missing, corsHeaders)` → `503 { error: "missing_configuration", missing: [...] }`
-  - `RunTally`-hjelper med `attempted/succeeded/failed`, `addFailure(context, error)` og `status()` → `ok|partial|failed`.
-- Deno-tester i `_shared/preflight_test.ts` samt oppdaterte tester for tellerlogikken i `score-pending-opportunities`.
-- Ingen migrasjoner. `nav_sync_runs.meta` er `jsonb`, så nye tellere krever ikke skjemaendring.
-- Verifisering før deploy: `supabase--test_edge_functions` for de berørte funksjonene + `tsgo --noEmit`.
-
-## Leveranse
-
-Rapport per funn med fil, linjenummer, tidligere stille oppførsel, ny oppførsel, og begrunnede unntak. Deploy skjer først etter din gjennomgang.
+## Rekkefølge
+1 → 3 → 2 → 6 → 4 → 5 → 7. Hvert punkt som egen godkjent oppgave, med måling før og etter mot tallene i nullmålingen.
