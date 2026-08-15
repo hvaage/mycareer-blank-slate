@@ -214,7 +214,7 @@ export async function searchEmployers(filters: EmployerSearchFilters): Promise<E
     p_offset: offset,
   };
 
-  const { data, error } = await sb.rpc("search_employers", params);
+
 
   // Treffantall kommer fra egen RPC: `search_employers` returnerer bare siden.
   // Uten den ville brukeren aldri se hvor mange treff søket ga.
