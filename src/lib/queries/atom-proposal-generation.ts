@@ -384,6 +384,13 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     .limit(200);
   if (rejErr) throw rejErr;
 
+  type DedupeRow = {
+    source_hash: string;
+    proposal_action: string;
+    target_atom_type: string;
+    proposal_payload: unknown;
+  };
+
   let skippedDuplicate = 0;
   const toInsert: ProposalInsert[] = [];
   const fpSeen = new Set<string>();
@@ -398,7 +405,7 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     );
   }
   const rejectFp = new Set(
-    (rejectRows ?? []).map((r: (typeof dedupeRows extends null ? never : NonNullable<typeof rejectRows>)[number]) =>
+    (rejectRows ?? []).map((r: DedupeRow) =>
       proposalDedupeFingerprint({
         source_hash: r.source_hash,
         proposal_action: r.proposal_action,
