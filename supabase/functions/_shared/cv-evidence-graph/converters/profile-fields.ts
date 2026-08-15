@@ -125,15 +125,18 @@ export function profileToCandidates(
     for (const name of profile.skills) {
       const trimmed = name.trim();
       if (!trimmed) continue;
-      const category = inferSkillCategory(trimmed);
-      const suggested = suggestAtomTypeFromCategory(category);
+      // Navneleksikonet får første ord der navnet er kjent; ellers grovkategorien.
+      const known = lookupNameSuggestion(trimmed);
+      const category = known?.category ?? inferSkillCategory(trimmed);
+      const suggested = known?.atom_type ?? suggestAtomTypeFromCategory(category);
+      const label = known?.canonical ?? trimmed;
       const base = {
         local_ref: ref("skill"),
         source_type: "about_me_profile" as const,
-        content_no: trimmed,
-        content_en: trimmed,
+        content_no: label,
+        content_en: label,
         suggested_from_category: category,
-        parse_confidence: suggested === null ? 0.3 : 0.6,
+        parse_confidence: known ? known.parse_confidence : suggested === null ? 0.3 : 0.6,
       };
 
       if (suggested === "tool") {
@@ -141,10 +144,23 @@ export function profileToCandidates(
           createToolDraft({
             ...base,
             structured_data: {
-              name: trimmed,
+              name: label,
               tool_kind: "other",
               proficiency: null,
               years_used: null,
+              suggested_from_name_lexicon: Boolean(known),
+            },
+          }),
+        );
+      } else if (suggested === "language") {
+        candidates.push(
+          createLanguageDraft({
+            ...base,
+            structured_data: {
+              language: label,
+              level: null,
+              cefr: null,
+              suggested_from_name_lexicon: Boolean(known),
             },
           }),
         );
@@ -152,8 +168,8 @@ export function profileToCandidates(
         // Både `skill` og uavklart (`other`) bæres som kompetanse-kandidat.
         // Uavklarte blir et spørsmål til brukeren i gjennomgangen.
         const data: SkillStructuredData = {
-          name: trimmed,
-          name_normalized: trimmed.toLowerCase(),
+          name: label,
+          name_normalized: label.toLowerCase(),
           source_category: category,
           proficiency: null,
           years_used: null,
