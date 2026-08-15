@@ -63,7 +63,7 @@ export function EmployerAnalysisSearchDialog({
     return () => clearTimeout(t);
   }, [query, open]);
 
-  const searchEnabled = open && debounced.length >= 2;
+  const searchEnabled = open && debounced.length >= 3;
 
   const {
     data: result,
