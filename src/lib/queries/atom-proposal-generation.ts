@@ -192,36 +192,31 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
   const userId = auth.user?.id;
   if (!userId) throw new Error("Du må være innlogget.");
 
-  const [careerRes, profileRes, prefRes, evRes, docsRes, cvImportsRes, cvEvCountRes] =
-    await Promise.all([
-      supabase.from("user_career_profiles").select("*").eq("user_id", userId).maybeSingle(),
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase.from("user_preference_atoms").select("*").eq("user_id", userId),
-      supabase.from("user_evidence_atoms").select("*").eq("user_id", userId),
-      supabase
-        .from("documents")
-        .select("id, title, document_type, deleted_at")
-        .eq("user_id", userId)
-        .is("deleted_at", null),
-      supabase.from("cv_imports").select("id, status, source_filename").eq("user_id", userId),
-      supabase
-        .from("cv_evidence_atoms")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId),
-    ]);
+  const [careerRes, profileRes, atomsRes, docsRes, cvImportsRes, cvEvCountRes] = await Promise.all([
+    supabase.from("user_career_profiles").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+    supabase.from("career_atoms").select("*").eq("user_id", userId),
+    supabase
+      .from("documents")
+      .select("id, title, document_type, deleted_at")
+      .eq("user_id", userId)
+      .is("deleted_at", null),
+    supabase.from("cv_imports").select("id, status, source_filename").eq("user_id", userId),
+    supabase
+      .from("cv_evidence_atoms")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+  ]);
 
   if (careerRes.error) throw careerRes.error;
   if (profileRes.error) throw profileRes.error;
-  if (prefRes.error) throw prefRes.error;
-  if (evRes.error) throw evRes.error;
+  if (atomsRes.error) throw atomsRes.error;
   if (docsRes.error) throw docsRes.error;
   if (cvImportsRes.error) throw cvImportsRes.error;
   if (cvEvCountRes.error) throw cvEvCountRes.error;
 
   const careerProfile = careerRes.data as Tables<"user_career_profiles"> | null;
   const profile = profileRes.data as Tables<"profiles"> | null;
-  const prefs = (prefRes.data ?? []) as Tables<"user_preference_atoms">[];
-  const evidence = (evRes.data ?? []) as Tables<"user_evidence_atoms">[];
   const documents = (docsRes.data ?? []) as DocumentRow[];
   const cvImports = (cvImportsRes.data ?? []) as CvImportRow[];
   const cvEvidenceCount = cvEvCountRes.count ?? 0;
@@ -249,68 +244,125 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     );
   }
 
-  let prefsReload = [...prefs];
-  let evidenceReload = [...evidence];
+  let atoms = (atomsRes.data ?? []) as CareerAtomRow[];
   let preferencesAutoStructured = 0;
   let evidenceAutoStructured = 0;
 
-  const activePrefsNow = () => prefsReload.filter((p) => p.is_active);
-  const activeEvidenceNow = () => evidenceReload.filter((e) => e.is_active);
+  const activeAtoms = () => atoms.filter((a) => a.is_active);
+  const hasLogicalKey = (key: string) =>
+    activeAtoms().some((a) => logicalKeyFromCareerAtom(a.structured_data) === key);
+
+  /** Kandidater som kan belegge en kompetanse indirekte. */
+  const pointerCandidates = () =>
+    activeAtoms()
+      .filter((a) => a.atom_kind === "evidens")
+      .map((a) => ({
+        id: a.id,
+        atom_class: a.atom_class,
+        atom_type: a.atom_type,
+        content_no: a.content_no,
+      }));
+
+  const latestRoleAtomId = (): string | null => {
+    const roles = activeAtoms().filter((a) => a.atom_type === "role");
+    if (roles.length === 0) return null;
+    roles.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+    return roles[0]!.id;
+  };
 
   for (const pl of plannedPrefs) {
     if (!isExplicitStructuredPreference(pl)) continue;
-    if (activePrefsNow().some((ap) => preferenceLogicalKeyFromRow(ap) === pl.logicalKey)) continue;
+    if (hasLogicalKey(pl.logicalKey)) continue;
     try {
-      await insertExplicitPreferenceFromPlan(userId, pl);
+      const id = await insertExplicitPreferenceFromPlan(userId, pl);
       preferencesAutoStructured += 1;
-      prefsReload.push({
-        id: `__local__${pl.logicalKey}`,
+      atoms.push({
+        ...(preferencePlanToCareerAtom(pl) as unknown as CareerAtomRow),
+        id,
         user_id: userId,
         is_active: true,
-        source: pl.source,
-        source_field: pl.source_field,
-        dimension: pl.dimension,
-        label: pl.label,
-        value: pl.value,
-      } as Tables<"user_preference_atoms">);
+        atom_class: null,
+        created_at: new Date().toISOString(),
+      });
     } catch {
       /* RLS eller unikhetskonflikt — hopp over enkeltforsøk */
     }
   }
 
+  /**
+   * Kompetanse og eksponering som mangler pekere blir ikke skrevet automatisk.
+   * De faller ned til forslagsløypa og blir spørsmål til brukeren.
+   */
+  type PointerGap = { plan: PlannedEvidenceAtom; atomType: "skill" | "domain"; reason: string };
+  const pointerGaps: PointerGap[] = [];
+
+  const resolvePointers = (
+    ev: PlannedEvidenceAtom,
+  ): { atomType: ReturnType<typeof evidenceAtomTypeFor>; ids: string[]; parent: string | null } => {
+    const atomType = evidenceAtomTypeFor(ev.category);
+    if (!atomType) return { atomType: null, ids: [], parent: null };
+    if (atomType === "skill") {
+      return {
+        atomType,
+        ids: findEvidencePointersForSkill(bareTermFromLabel(ev.label), pointerCandidates()),
+        parent: null,
+      };
+    }
+    if (atomType === "domain") {
+      const role = latestRoleAtomId();
+      return { atomType, ids: role ? [role] : [], parent: role };
+    }
+    return { atomType, ids: [], parent: null };
+  };
+
   for (const ev of plannedEvidenceEff) {
+    const { atomType, ids, parent } = resolvePointers(ev);
+    if (!atomType) continue;
+    if (INDIRECT_ATOM_TYPES.has(atomType) && ids.length === 0) {
+      pointerGaps.push({
+        plan: ev,
+        atomType: atomType as "skill" | "domain",
+        reason:
+          atomType === "skill"
+            ? "Ingen kvalifikasjon, resultat eller rolle i karriereprofilen nevner denne kompetansen."
+            : "Ingen rolle å knytte eksponeringen til.",
+      });
+      continue;
+    }
     if (!isAutoStructurableEvidence(ev, { skipCvEvidenceSummary: hasActiveCvImport })) continue;
-    if (activeEvidenceNow().some((ae) => evidenceLogicalKeyFromRow(ae) === ev.logicalKey)) continue;
+    if (hasLogicalKey(ev.logicalKey)) continue;
     try {
-      await insertExplicitEvidenceFromPlan(userId, ev);
+      const id = await insertExplicitEvidenceFromPlan(userId, ev, {
+        atomType,
+        evidenceAtomIds: ids,
+        parentAtomId: parent,
+      });
       evidenceAutoStructured += 1;
-      evidenceReload.push({
-        id: `__local__${ev.logicalKey}`,
+      atoms.push({
+        ...(evidencePlanToCareerAtom(ev, {
+          atomType,
+          evidenceAtomIds: ids,
+          parentAtomId: parent,
+        }) as unknown as CareerAtomRow),
+        id,
         user_id: userId,
         is_active: true,
-        category: ev.category,
-        label: ev.label,
-        source: ev.source,
-        source_field: ev.source_field,
-      } as Tables<"user_evidence_atoms">);
+        atom_class: null,
+        created_at: new Date().toISOString(),
+      });
     } catch {
       /* RLS eller unikhetskonflikt */
     }
   }
 
   if (preferencesAutoStructured > 0 || evidenceAutoStructured > 0) {
-    const [prefReloadRes, evReloadRes] = await Promise.all([
-      supabase.from("user_preference_atoms").select("*").eq("user_id", userId),
-      supabase.from("user_evidence_atoms").select("*").eq("user_id", userId),
-    ]);
-    if (prefReloadRes.error) throw prefReloadRes.error;
-    if (evReloadRes.error) throw evReloadRes.error;
-    prefsReload = (prefReloadRes.data ?? []) as Tables<"user_preference_atoms">[];
-    evidenceReload = (evReloadRes.data ?? []) as Tables<"user_evidence_atoms">[];
+    const reloadRes = await supabase.from("career_atoms").select("*").eq("user_id", userId);
+    if (reloadRes.error) throw reloadRes.error;
+    atoms = (reloadRes.data ?? []) as CareerAtomRow[];
   }
 
-  const activePrefs = prefsReload.filter((p) => p.is_active);
-  const activeEvidence = evidenceReload.filter((e) => e.is_active);
+  const activeAtomRows = atoms.filter((a) => a.is_active);
+
 
   const rejectCutoff = new Date(Date.now() - 7 * 864e5).toISOString();
   const { data: dedupeRows, error: dedupeErr } = await supabase
