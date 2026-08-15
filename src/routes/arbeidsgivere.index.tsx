@@ -220,31 +220,39 @@ function ArbeidsgivereIndex() {
           />
 
           {(rows.length > 0 || search.page > 1) && (
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={search.page <= 1}
-                onClick={() => goPage(Math.max(1, search.page - 1))}
-              >
-                Forrige
-              </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs text-muted-foreground">
-                Side <span className="tabular-nums">{search.page}</span>
-                {data?.totalCount !== null && data?.totalCount !== undefined
-                  ? ` av ${Math.max(1, Math.ceil(data.totalCount / PAGE_SIZE))}`
-                  : ""}
+                {typeof data?.totalCount === "number"
+                  ? `${data.totalIsEstimate ? "Omtrent " : ""}${data.totalCount.toLocaleString("nb-NO")} treff`
+                  : "Treffantall ikke tilgjengelig"}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!next}
-                onClick={() => goPage(search.page + 1)}
-              >
-                Neste
-              </Button>
+              <div className="flex items-center justify-between gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={search.page <= 1}
+                  onClick={() => goPage(Math.max(1, search.page - 1))}
+                >
+                  Forrige
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Side <span className="tabular-nums">{search.page}</span>
+                  {typeof data?.totalCount === "number"
+                    ? ` av ${Math.max(1, Math.ceil(data.totalCount / PAGE_SIZE))}`
+                    : ""}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!next}
+                  onClick={() => goPage(search.page + 1)}
+                >
+                  Neste
+                </Button>
+              </div>
             </div>
           )}
+
         </div>
       </main>
       <Footer />
