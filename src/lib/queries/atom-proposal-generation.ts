@@ -1,6 +1,6 @@
-// @ts-nocheck
 /**
  * Module 5.1 — deterministic, user-triggered atom proposal generation (no AI, no Edge).
+ * Karriereontologi v4: alle forslag genereres mot `career_atoms`.
  * Inserts rows into atom_enrichment_batches / atom_enrichment_proposals only.
  */
 
@@ -12,6 +12,16 @@ import {
   isAutoStructurableEvidence,
   isExplicitStructuredPreference,
 } from "@/lib/atom-explicit-writes";
+import {
+  bareTermFromLabel,
+  evidenceAtomTypeFor,
+  evidencePlanToCareerAtom,
+  findEvidencePointersForSkill,
+  INDIRECT_ATOM_TYPES,
+  logicalKeyFromCareerAtom,
+  preferencePlanToCareerAtom,
+  type CareerAtomFields,
+} from "@/lib/career-atom-v4-mapping";
 import {
   evidenceLogicalKeyFromRow,
   generateEvidenceAtomsFromCvEvidenceAtoms,
