@@ -66,3 +66,35 @@ Neste grep, hvis dette blir merkbart i bruk, er å **begrense kandidatmengden f�
 rangering** (for eksempel topp N per etasje før sortering), ikke å optimalisere videre
 på indeks. Indeksene dekker allerede oppslaget; kostnaden ligger i mengden rader som
 rangeres.
+
+## Ansattefordeling: budsjett i spørringen, ikke i tidsgrensen
+
+Tidsgrensen for et kall settes når det ytterste uttrykket starter. En funksjon
+kan derfor ikke gi seg selv kortere frist underveis: `set_config('statement_timeout', ...)`
+inne i `employer_ansatte_distribution` hadde ingen virkning, og tunge filtersøk
+traff 10-sekundersgrensen og returnerte feil i stedet for tall.
+
+Budsjettet ligger nå i selve spørringen:
+
+- Rene navnesøk går mot søkespeilet `reg.enheter_sok` og telles i sin helhet opp til taket på 50 000.
+- Søk med filtre går mot hele `reg.enheter`, og der telles høyst 3 000 treff. Nås
+  grensen, svarer funksjonen `status: "utvalg"`, og banneret sier eksplisitt at
+  tallene er et utvalg og at andelene kan avvike.
+- Skulle beregningen likevel feile, svarer funksjonen `status: "utilgjengelig"`.
+  Banneret viser da at fordelingen ikke kunne beregnes. Den skjuler seg aldri.
+
+Målt etter endringen (kald og varm, sekunder):
+
+| Søk | Kald | Varm | Status |
+| --- | --- | --- | --- |
+| bygg | 2,98 | 0,15 | ok (11 760 treff) |
+| eiendom | 0,61 | 0,20 | ok (26 910) |
+| holding | 0,33 | 0,22 | ok (49 335) |
+| by | 0,14 | 0,12 | avvist, under tre tegn |
+| bransje=bygg | 3,53 | – | utvalg (3 000) |
+| bransje=helse | 2,04 | – | utvalg (3 000) |
+| bransje=eiendom | 1,80 | – | utvalg (3 000) |
+| bygg + bransje=bygg | 1,59 | – | utvalg (3 000) |
+
+Fordelingstallene for rene navnesøk er uendret av grepet; de telles fortsatt
+eksakt. Bare filtrerte søk regnes over et utvalg, og det fremgår i visningen.
