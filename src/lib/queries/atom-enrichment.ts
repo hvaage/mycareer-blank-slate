@@ -1,4 +1,5 @@
-// @ts-nocheck
+// Karriereontologi v4, fase 2.2. @ts-nocheck er fjernet med vilje: typekontrollen er
+// det som fanger feil måltabell, feil felttype og manglende peker-ID-er.
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type {
@@ -42,8 +43,10 @@ export const ATOM_ENRICHMENT_PROPOSAL_STATUS_LABELS: Record<AtomEnrichmentPropos
   };
 
 export const TARGET_ATOM_TYPE_LABELS: Record<string, string> = {
-  user_preference_atom: "Preferanseatom",
-  user_evidence_atom: "Evidensatom",
+  career_atom: "Karriereatom",
+  // Utfaset modell. Beholdes bare så gamle forslag kan vises og avvises forståelig.
+  user_preference_atom: "Preferanseatom (utfaset modell)",
+  user_evidence_atom: "Evidensatom (utfaset modell)",
   opportunity_requirement_atom: "Stillingskrav-atom",
   company_profile_atom: "Selskapsprofil-atom",
   company_signal_atom: "Selskapssignal-atom",
@@ -168,40 +171,169 @@ function numField(obj: Record<string, unknown>, key: string): number | null {
   return null;
 }
 
-async function assertManualSafePreference(userId: string, atomId: string): Promise<void> {
-  const { data, error } = await supabase
-    .from("user_preference_atoms")
-    .select("id, source")
-    .eq("id", atomId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error("Fant ikke preferanse-atomet.");
-  if (data.source === "manual") {
-    throw new Error(
-      "Kan ikke endre manuelle preferanser via AI-forslag. Rediger selv under Karriereprofil.",
-    );
-  }
+function strArrayField(obj: Record<string, unknown>, key: string): string[] {
+  const v = obj[key];
+  if (!Array.isArray(v)) return [];
+  return v.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    .map((entry) => entry.trim());
 }
 
-async function assertManualSafeEvidence(userId: string, atomId: string): Promise<void> {
+/** Klasser som bare kan belegges indirekte — de krever pekere til andre atomer. */
+const ATOM_TYPES_REQUIRING_EVIDENCE_POINTERS = new Set(["skill", "domain"]);
+
+const CAREER_ATOM_KINDS = new Set([
+  "evidens",
+  "mangel",
+  "onske",
+  "maal",
+  "begrensning",
+  "verdi",
+]);
+
+const CAREER_ATOM_TYPES = new Set([
+  "role",
+  "achievement",
+  "metric",
+  "context",
+  "tool",
+  "education",
+  "skill",
+  "domain",
+  "language",
+  "certification",
+  "project",
+  "volunteer",
+  "summary_fragment",
+]);
+
+const CAREER_ATOM_CONFIDENCE = new Set(["imported", "inferred", "verified"]);
+
+async function assertCareerAtomEditable(userId: string, atomId: string): Promise<void> {
   const { data, error } = await supabase
-    .from("user_evidence_atoms")
-    .select("id, source")
+    .from("career_atoms")
+    .select("id, user_locked")
     .eq("id", atomId)
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error("Fant ikke evidens-atomet.");
-  if (data.source === "manual") {
+  if (!data) throw new Error("Fant ikke karriereatomet.");
+  if (data.user_locked) {
     throw new Error(
-      "Kan ikke endre manuelle evidens-atomer via AI-forslag. Rediger selv under Karriereprofil.",
+      "Atomet er låst av deg og kan ikke endres via AI-forslag. Rediger selv under Karriereprofil.",
     );
   }
 }
 
 /**
+ * Bygger et career_atoms-innslag fra forslagets payload.
+ *
+ * Regler som håndheves her:
+ * - `atom_class` og `attestation` settes aldri herfra (databasen eier dem).
+ * - `confidence` er en opprinnelsesakse (imported/inferred/verified) og har ingenting
+ *   med forslagets numeriske `confidence_score` å gjøre. De konverteres ikke.
+ * - Indirekte klasser (kompetanse/eksponering) krever `evidence_atom_ids`.
+ */
+function buildCareerAtomFields(
+  payload: Record<string, unknown>,
+  row: AtomEnrichmentProposalRow,
+): {
+  atom_kind: string;
+  atom_type: string | null;
+  parent_atom_id: string | null;
+  content_no: string | null;
+  content_en: string | null;
+  structured_data: Json;
+  source_type: string;
+  source_ref: string | null;
+  source_quote: string | null;
+  evidence_atom_ids: string[];
+  confidence: string;
+  viktighet: number | null;
+  is_active: boolean;
+} {
+  const atomKind = strField(payload, "atom_kind")?.trim() ?? "";
+  if (!CAREER_ATOM_KINDS.has(atomKind)) {
+    throw new Error(
+      `Forslaget mangler gyldig atom_kind (fikk «${atomKind || "ingen"}»). Forslaget må regenereres mot karriereontologi v4.`,
+    );
+  }
+  const rawType = strField(payload, "atom_type")?.trim() || null;
+  if (atomKind === "evidens") {
+    if (!rawType || !CAREER_ATOM_TYPES.has(rawType)) {
+      throw new Error(
+        `Evidensforslag krever gyldig atom_type (fikk «${rawType ?? "ingen"}»).`,
+      );
+    }
+  } else if (rawType) {
+    throw new Error("atom_type kan bare brukes for evidens-atomer.");
+  }
+
+  const evidenceAtomIds = strArrayField(payload, "evidence_atom_ids");
+  if (rawType && ATOM_TYPES_REQUIRING_EVIDENCE_POINTERS.has(rawType) && evidenceAtomIds.length === 0) {
+    throw new Error(
+      "Forslaget mangler evidence_atom_ids. Kompetanse og eksponering kan bare belegges indirekte, via pekere til kvalifikasjons-, resultat- eller rolleatomer.",
+    );
+  }
+
+  const parentAtomId = strField(payload, "parent_atom_id");
+  if (rawType === "domain" && !parentAtomId) {
+    throw new Error(
+      "Eksponering (atom_type=domain) krever parent_atom_id som peker på et rolleatom.",
+    );
+  }
+
+  const contentNo = strField(payload, "content_no")?.trim() || null;
+  const contentEn = strField(payload, "content_en")?.trim() || null;
+  if (!contentNo && !contentEn) {
+    throw new Error("Forslaget mangler innhold (content_no eller content_en).");
+  }
+
+  const confidence = strField(payload, "confidence")?.trim() || "inferred";
+  if (!CAREER_ATOM_CONFIDENCE.has(confidence)) {
+    throw new Error(
+      `Ugyldig confidence «${confidence}». Gyldige verdier: imported, inferred, verified. Merk at forslagets numeriske confidence_score er en annen akse og ikke skal konverteres hit.`,
+    );
+  }
+
+  const viktighetRaw = numField(payload, "viktighet");
+  let viktighet: number | null = null;
+  if (viktighetRaw != null) {
+    if (!["onske", "verdi", "begrensning"].includes(atomKind)) {
+      throw new Error("viktighet gjelder bare onske, verdi og begrensning.");
+    }
+    const rounded = Math.round(viktighetRaw);
+    if (rounded < 1 || rounded > 6) {
+      throw new Error("viktighet må ligge på 1–6-skalaen og skal ikke normaliseres.");
+    }
+    viktighet = rounded;
+  }
+
+  const structured = payload["structured_data"];
+  const structuredData: Json =
+    structured != null && typeof structured === "object" && !Array.isArray(structured)
+      ? (structured as Json)
+      : ({} as Json);
+
+  return {
+    atom_kind: atomKind,
+    atom_type: rawType,
+    parent_atom_id: parentAtomId,
+    content_no: contentNo,
+    content_en: contentEn,
+    structured_data: structuredData,
+    source_type: strField(payload, "source_type")?.trim() || row.source_type || "enrichment",
+    source_ref: strField(payload, "source_ref") ?? row.source_id ?? null,
+    source_quote: strField(payload, "source_quote"),
+    evidence_atom_ids: evidenceAtomIds,
+    confidence,
+    viktighet,
+    is_active: payload["is_active"] !== false,
+  };
+}
+
+/**
  * Applies an approved proposal to user-owned atoms only.
+ * Karriereontologi v4: `career_atoms` er eneste måltabell for brukeratomer.
  * Target-side atoms stay schema-ready; application is deferred (review-only in UI).
  */
 async function applyApprovedUserAtomProposal(
@@ -211,118 +343,44 @@ async function applyApprovedUserAtomProposal(
   const payload = asRecord(row.proposal_payload);
   const action = row.proposal_action;
 
-  if (row.target_atom_type === "user_preference_atom") {
-    if (action === "create_atom") {
-      const dimension = strField(payload, "dimension");
-      const label = strField(payload, "label");
-      if (!dimension?.trim() || !label?.trim()) {
-        throw new Error("Forslaget mangler dimension eller label for preferanse-atom.");
-      }
-      const insert: TablesInsert<"user_preference_atoms"> = {
-        user_id: userId,
-        career_profile_id: strField(payload, "career_profile_id"),
-        dimension: dimension.trim(),
-        label: label.trim(),
-        value: strField(payload, "value"),
-        importance_score: numField(payload, "importance_score") as number | null,
-        confidence_score: row.confidence ?? numField(payload, "confidence_score"),
-        source: strField(payload, "source")?.trim() || "enrichment",
-        source_field: strField(payload, "source_field"),
-        source_hash: strField(payload, "source_hash") ?? row.source_hash,
-        reasoning: strField(payload, "reasoning") ?? row.rationale,
-        is_active: payload.is_active !== false,
-      };
-      const { error } = await supabase.from("user_preference_atoms").insert(insert);
-      if (error) throw error;
-      return;
-    }
-    if (action === "update_atom") {
-      const tid = row.target_atom_id;
-      if (!tid) throw new Error("Mangler mål-atom-ID for oppdatering.");
-      await assertManualSafePreference(userId, tid);
-      const patch: TablesUpdate<"user_preference_atoms"> = {
-        career_profile_id: strField(payload, "career_profile_id") ?? undefined,
-        dimension: strField(payload, "dimension")?.trim() ?? undefined,
-        label: strField(payload, "label")?.trim() ?? undefined,
-        value: strField(payload, "value"),
-        importance_score: numField(payload, "importance_score") as number | null | undefined,
-        confidence_score: row.confidence ?? numField(payload, "confidence_score") ?? undefined,
-        source: strField(payload, "source")?.trim() ?? undefined,
-        source_field: strField(payload, "source_field") ?? undefined,
-        source_hash: strField(payload, "source_hash") ?? row.source_hash ?? undefined,
-        reasoning: strField(payload, "reasoning") ?? row.rationale ?? undefined,
-        is_active: typeof payload.is_active === "boolean" ? payload.is_active : undefined,
-      };
-      const { error } = await supabase
-        .from("user_preference_atoms")
-        .update(patch)
-        .eq("id", tid)
-        .eq("user_id", userId);
-      if (error) throw error;
-      return;
-    }
-    if (action === "deactivate_atom") {
-      const tid = row.target_atom_id;
-      if (!tid) throw new Error("Mangler mål-atom-ID for deaktivering.");
-      await assertManualSafePreference(userId, tid);
-      const { error } = await supabase
-        .from("user_preference_atoms")
-        .update({ is_active: false })
-        .eq("id", tid)
-        .eq("user_id", userId);
-      if (error) throw error;
-      return;
-    }
+  if (
+    row.target_atom_type === "user_preference_atom" ||
+    row.target_atom_type === "user_evidence_atom"
+  ) {
+    throw new Error(
+      "Forslaget peker på den utfasede atommodellen (user_preference_atoms / user_evidence_atoms). Det må regenereres mot career_atoms før det kan godkjennes.",
+    );
   }
 
-  if (row.target_atom_type === "user_evidence_atom") {
+  if (row.target_atom_type === "career_atom") {
     if (action === "create_atom") {
-      const category = strField(payload, "category");
-      const label = strField(payload, "label");
-      if (!category?.trim() || !label?.trim()) {
-        throw new Error("Forslaget mangler category eller label for evidens-atom.");
-      }
-      const insert: TablesInsert<"user_evidence_atoms"> = {
+      const fields = buildCareerAtomFields(payload, row);
+      const { error } = await supabase.from("career_atoms").insert({
         user_id: userId,
-        category: category.trim(),
-        label: label.trim(),
-        description: strField(payload, "description"),
-        evidence_type: strField(payload, "evidence_type"),
-        source: strField(payload, "source")?.trim() || "enrichment",
-        source_document_id: strField(payload, "source_document_id"),
-        source_profile_field: strField(payload, "source_profile_field"),
-        source_url: strField(payload, "source_url"),
-        source_hash: strField(payload, "source_hash") ?? row.source_hash,
-        strength_score: numField(payload, "strength_score") as number | null,
-        confidence_score: row.confidence ?? numField(payload, "confidence_score"),
-        reasoning: strField(payload, "reasoning") ?? row.rationale,
-        is_active: payload.is_active !== false,
-      };
-      const { error } = await supabase.from("user_evidence_atoms").insert(insert);
+        ...fields,
+      } as TablesInsert<"career_atoms">);
       if (error) throw error;
       return;
     }
     if (action === "update_atom") {
       const tid = row.target_atom_id;
       if (!tid) throw new Error("Mangler mål-atom-ID for oppdatering.");
-      await assertManualSafeEvidence(userId, tid);
-      const patch: TablesUpdate<"user_evidence_atoms"> = {
-        category: strField(payload, "category")?.trim() ?? undefined,
-        label: strField(payload, "label")?.trim() ?? undefined,
-        description: strField(payload, "description"),
-        evidence_type: strField(payload, "evidence_type") ?? undefined,
-        source: strField(payload, "source")?.trim() ?? undefined,
-        source_document_id: strField(payload, "source_document_id") ?? undefined,
-        source_profile_field: strField(payload, "source_profile_field") ?? undefined,
-        source_url: strField(payload, "source_url") ?? undefined,
-        source_hash: strField(payload, "source_hash") ?? row.source_hash ?? undefined,
-        strength_score: numField(payload, "strength_score") as number | null | undefined,
-        confidence_score: row.confidence ?? numField(payload, "confidence_score") ?? undefined,
-        reasoning: strField(payload, "reasoning") ?? row.rationale ?? undefined,
-        is_active: typeof payload.is_active === "boolean" ? payload.is_active : undefined,
+      await assertCareerAtomEditable(userId, tid);
+      const fields = buildCareerAtomFields(payload, row);
+      const patch: TablesUpdate<"career_atoms"> = {
+        content_no: fields.content_no,
+        content_en: fields.content_en,
+        structured_data: fields.structured_data,
+        source_quote: fields.source_quote,
+        source_ref: fields.source_ref,
+        evidence_atom_ids: fields.evidence_atom_ids,
+        parent_atom_id: fields.parent_atom_id,
+        confidence: fields.confidence,
+        viktighet: fields.viktighet,
+        is_active: fields.is_active,
       };
       const { error } = await supabase
-        .from("user_evidence_atoms")
+        .from("career_atoms")
         .update(patch)
         .eq("id", tid)
         .eq("user_id", userId);
@@ -332,9 +390,9 @@ async function applyApprovedUserAtomProposal(
     if (action === "deactivate_atom") {
       const tid = row.target_atom_id;
       if (!tid) throw new Error("Mangler mål-atom-ID for deaktivering.");
-      await assertManualSafeEvidence(userId, tid);
+      await assertCareerAtomEditable(userId, tid);
       const { error } = await supabase
-        .from("user_evidence_atoms")
+        .from("career_atoms")
         .update({ is_active: false })
         .eq("id", tid)
         .eq("user_id", userId);
@@ -357,6 +415,7 @@ async function applyApprovedUserAtomProposal(
     `Godkjenning for handlingen «${ATOM_ENRICHMENT_PROPOSAL_ACTION_LABELS[action] ?? action}» er ikke implementert ennå.`,
   );
 }
+
 
 export async function approveAtomEnrichmentProposal(
   userId: string,
@@ -589,11 +648,14 @@ export async function insertLocalDevSamplePendingProposal(userId: string): Promi
   const batchId = batch!.id as string;
 
   const proposalPayload: Json = {
-    dimension: "arbeidsform",
-    label: "Hybrid (2–3 dager kontor)",
-    value: "Ønsker hovedsakelig hjemmekontor med planlagte kontordager.",
-    importance_score: 5,
-    source: "enrichment",
+    atom_kind: "onske",
+    content_no: "Ønsker hovedsakelig hjemmekontor med planlagte kontordager.",
+    structured_data: { dimensjon: "arbeidsform", etikett: "Hybrid (2–3 dager kontor)" },
+    // Opprinnelsesakse, ikke styrke. Skal ikke utledes av forslagets confidence-tall.
+    confidence: "inferred",
+    viktighet: 5,
+    source_type: "dev_seed",
+    evidence_atom_ids: [],
   };
 
   const { data: prop, error: pErr } = await supabase
@@ -602,7 +664,7 @@ export async function insertLocalDevSamplePendingProposal(userId: string): Promi
       user_id: userId,
       batch_id: batchId,
       proposal_action: "create_atom",
-      target_atom_type: "user_preference_atom",
+      target_atom_type: "career_atom",
       source_type: "dev_seed",
       proposal_payload: proposalPayload,
       rationale: "Dette er et kunstig testforslag for utviklere — ikke ekte brukerdata.",

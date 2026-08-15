@@ -629,7 +629,10 @@ async function sha256(value: unknown): Promise<string> {
   ).join("");
 }
 
-function requirementSummary(result: FinalEvaluation): Record<string, unknown> {
+function requirementSummary(
+  result: FinalEvaluation,
+  evidenceCount: number,
+): Record<string, unknown> {
   const mandatory = result.requirements.filter((item) =>
     item.level === "mandatory"
   );
@@ -645,8 +648,15 @@ function requirementSummary(result: FinalEvaluation): Record<string, unknown> {
         item.met === false || item.matched_evidence_refs.length === 0
       ).length,
     requirements: result.requirements,
+    // En scoring uten evidensgrunnlag skal ikke se ut som en scoring med grunnlag.
+    evidence_basis: {
+      status: evidenceCount === 0 ? "empty" : "present",
+      items_used: evidenceCount,
+      source: "career_atoms",
+    },
   };
 }
+
 
 async function callAi(
   profileAi: Record<string, unknown>,
@@ -942,7 +952,7 @@ Deno.serve(async (req: Request) => {
         final.concerns = final.reasons.map((reason) => reason.label).join(" ")
           .slice(0, 1000);
       }
-      const summary = requirementSummary(final);
+      const summary = requirementSummary(final, evidence.length);
       const jobInputHash = await sha256({
         title: candidate.title,
         company: candidate.company,
@@ -953,6 +963,8 @@ Deno.serve(async (req: Request) => {
         description_complete: candidate.description_complete,
       });
       const resultPayload = {
+        evidence_basis_status: evidence.length === 0 ? "empty" : "present",
+        evidence_items_used: evidence.length,
         screening_status: final.status,
         screening_reasons: final.reasons,
         requirement_summary: summary,
@@ -1035,6 +1047,7 @@ Deno.serve(async (req: Request) => {
       mode: input.mode,
       status_counts: statusCounts,
       evidence_items_used: evidence.length,
+      evidence_basis: evidence.length === 0 ? "empty" : "present",
       results: resultRows,
       failures,
     }, resultStatus === "failed" ? 500 : 200);

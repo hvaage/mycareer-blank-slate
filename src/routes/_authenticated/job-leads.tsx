@@ -27,8 +27,14 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
 });
 
-/** Locked contract: only NAV/Careerjet rows with this version + non-null screening_status are V2-evaluated. */
-const MATCH_SCORE_VERSION = "job_match_v2_2026_06_24";
+/** Locked contract: only NAV/Careerjet rows with an accepted version + non-null screening_status are V2-evaluated. */
+const MATCH_SCORE_VERSION = "job_match_v3_2026_08_15";
+/** Eldre scoringer mot et annet evidensgrunnlag (user_evidence_atoms). Vises, men merkes. */
+const MATCH_SCORE_VERSION_LEGACY = "job_match_v2_2026_06_24";
+const ACCEPTED_MATCH_SCORE_VERSIONS = new Set<string>([
+  MATCH_SCORE_VERSION,
+  MATCH_SCORE_VERSION_LEGACY,
+]);
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
@@ -56,9 +62,21 @@ type RequirementItem = {
   matched_evidence_refs?: string[] | null;
 };
 
+type EvidenceBasis = {
+  status?: "empty" | "present" | null;
+  items_used?: number | null;
+  source?: string | null;
+} | null;
+
 type RequirementSummary = {
   requirements?: RequirementItem[];
+  evidence_basis?: EvidenceBasis;
 } | null;
+
+/** Tomt evidensgrunnlag skal vises eksplisitt, ikke som et lavt tall uten forklaring. */
+function hasEmptyEvidenceBasis(summary: RequirementSummary): boolean {
+  return summary?.evidence_basis?.status === "empty";
+}
 
 type Lead = {
   id: string;
@@ -118,7 +136,11 @@ function reasonLabelNb(r: ScreeningReason): string {
 }
 
 function isV2EvaluatedRaw(version: string | null | undefined, status: ScreeningStatus): boolean {
-  return version === MATCH_SCORE_VERSION && status != null;
+  return !!version && ACCEPTED_MATCH_SCORE_VERSIONS.has(version) && status != null;
+}
+
+function isLegacyScoreVersion(version: string | null | undefined): boolean {
+  return version === MATCH_SCORE_VERSION_LEGACY;
 }
 
 function relevanceBadge(score: number | null) {
@@ -918,9 +940,19 @@ function JobLeadsPage() {
   );
 }
 
+function EvidenceBasisNotice({ summary }: { summary: RequirementSummary }) {
+  if (!hasEmptyEvidenceBasis(summary)) return null;
+  return (
+    <div className="text-xs mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-amber-900 dark:text-amber-100">
+      Ingen karrieredata lastet opp ennå. Vurderingen er gjort uten evidensgrunnlag —
+      poengsummen sier derfor ikke noe om hvor godt du passer.
+    </div>
+  );
+}
+
 function RequirementSummarySection({ summary }: { summary: RequirementSummary }) {
   const items = Array.isArray(summary?.requirements) ? summary!.requirements! : [];
-  if (items.length === 0) return null;
+  if (items.length === 0) return <EvidenceBasisNotice summary={summary} />;
 
   const groups: Array<{ key: "mandatory" | "preferred" | "context"; title: string; items: RequirementItem[] }> = [
     { key: "mandatory", title: "Obligatoriske krav", items: items.filter((r) => r.level === "mandatory") },
@@ -928,10 +960,11 @@ function RequirementSummarySection({ summary }: { summary: RequirementSummary })
     { key: "context", title: "Annen kontekst", items: items.filter((r) => r.level === "context") },
   ].filter((g) => g.items.length > 0);
 
-  if (groups.length === 0) return null;
+  if (groups.length === 0) return <EvidenceBasisNotice summary={summary} />;
 
   return (
     <div className="text-xs border-t border-border/60 pt-2 mt-2 space-y-2">
+      <EvidenceBasisNotice summary={summary} />
       {groups.map((g) => (
         <div key={g.key} className="space-y-1">
           <div className="font-medium text-foreground/90">{g.title}</div>
@@ -1068,6 +1101,12 @@ function LeadCard({
 
         <ScreeningReasonsBlock lead={lead} />
         <RequirementSummarySection summary={lead.requirementSummary ?? null} />
+        {isLegacyScoreVersion(lead.matchScoreVersion) && (
+          <div className="text-[11px] text-muted-foreground mt-1">
+            Vurdert mot et eldre evidensgrunnlag ({MATCH_SCORE_VERSION_LEGACY}). Kjør ny
+            vurdering for å score mot karriereatomene dine.
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
           {actionUrl && (
