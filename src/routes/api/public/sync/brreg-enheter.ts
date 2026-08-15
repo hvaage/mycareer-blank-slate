@@ -280,7 +280,7 @@ async function phase3(admin: Admin, runId: number, dryRun: boolean) {
   const merged = await rpc<{ upserted: number; missing: number }>(admin, "brreg_full_merge", {
     p_run_id: runId,
   });
-  await rpc(admin, "brreg_full_clear_staging_keep_report" as never, {}).catch(() => {});
+  // Mellomlagringen beholdes med vilje: den er dokumentasjonen for hva kjøringen skrev.
   const patched = await rpc<RunRow>(admin, "brreg_full_patch_run", {
     p_run_id: runId,
     p_patch: { phase: "phase3_done", status: "ok", finished: true },
