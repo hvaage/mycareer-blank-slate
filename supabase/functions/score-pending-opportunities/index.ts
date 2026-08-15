@@ -667,7 +667,7 @@ async function callAi(
   const systemPrompt = `Du er en streng kvalifikasjons- og jobbmatchmotor.
 
 Svar KUN med gyldig JSON i denne formen:
-{"results":[{"id":"uuid","score":0,"reasoning":"...","match_highlights":"...","concerns":"...","requirements":[{"type":"education|license|certification|language|experience|skill|other","level":"mandatory|preferred|context","label":"...","evidence_quote":"ordrett sitat fra annonsen","met":true|false|null,"matched_evidence_refs":["ue:uuid|cv:uuid"]}]}]}
+{"results":[{"id":"uuid","score":0,"reasoning":"...","match_highlights":"...","concerns":"...","requirements":[{"type":"education|license|certification|language|experience|skill|other","level":"mandatory|preferred|context","label":"...","evidence_quote":"ordrett sitat fra annonsen","met":true|false|null,"matched_evidence_refs":["ca:uuid"]}]}]}
 
 Regler:
 1. Inkluder nøyaktig én rad for hver mottatt jobb-id.
