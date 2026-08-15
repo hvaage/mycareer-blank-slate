@@ -216,27 +216,51 @@ export async function searchEmployers(filters: EmployerSearchFilters): Promise<E
 
   const { data, error } = await sb.rpc("search_employers", params);
 
+  // Treffantall kommer fra egen RPC: `search_employers` returnerer bare siden.
+  // Uten den ville brukeren aldri se hvor mange treff søket ga.
+  const countParams = { ...params };
+  delete countParams.p_limit;
+  delete countParams.p_offset;
+
+  const [{ data, error }, countRes] = await Promise.all([
+    sb.rpc("search_employers", params),
+    sb.rpc("count_employers", countParams),
+  ]);
+
   if (error) {
     if (isMissingRpcOrView(error)) {
       // eslint-disable-next-line no-console
       console.warn("[employer-insight] search_employers ikke tilgjengelig:", error);
-      return { rows: [], totalCount: null, available: false, errorMessage: null };
+      return { rows: [], totalCount: null, totalIsEstimate: false, available: false, errorMessage: null };
     }
     const msg = (error as { message?: string }).message ?? "Ukjent feil";
-    return { rows: [], totalCount: null, available: true, errorMessage: msg };
+    return { rows: [], totalCount: null, totalIsEstimate: false, available: true, errorMessage: msg };
   }
 
   const arr = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
-  const firstTotal = arr.length > 0 ? (arr[0] as { total_count?: number }).total_count : undefined;
-  const totalCount = typeof firstTotal === "number" ? firstTotal : null;
+
+  let totalCount: number | null = null;
+  let totalIsEstimate = false;
+  if (!countRes.error && countRes.data && typeof countRes.data === "object") {
+    const c = countRes.data as { total_count?: number; is_estimate?: boolean };
+    if (typeof c.total_count === "number") {
+      totalCount = c.total_count;
+      totalIsEstimate = c.is_estimate === true;
+    }
+  } else if (countRes.error) {
+    // eslint-disable-next-line no-console
+    console.warn("[employer-insight] count_employers feilet:", countRes.error);
+  }
 
   return {
     rows: arr as EmployerSearchRow[],
     totalCount,
+    totalIsEstimate,
     available: true,
     errorMessage: null,
   };
 }
+
 
 export function searchEmployersQuery(filters: EmployerSearchFilters) {
   return queryOptions({
