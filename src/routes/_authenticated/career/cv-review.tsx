@@ -203,7 +203,7 @@ function CvReviewPage() {
             <SelectContent>
               {imports.data?.map((i) => (
                 <SelectItem key={i.id} value={i.id}>
-                  {i.file_name ?? "Import"} — {fmtDateTime(i.created_at)}
+                  {i.source_filename ?? i.import_type} — {fmtDateTime(i.created_at)}
                 </SelectItem>
               ))}
             </SelectContent>
