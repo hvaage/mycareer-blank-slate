@@ -14,10 +14,12 @@ import type {
   LanguageStructuredData,
   CertificationStructuredData,
   ProjectStructuredData,
+  ToolStructuredData,
   VolunteerStructuredData,
   SummaryFragmentStructuredData,
   SourceType,
 } from "../types.ts";
+import { lookupNameSuggestion } from "../name-lexicon.ts";
 import { suggestAtomTypeFromCategory } from "../types.ts";
 
 // ---------------------------------------------------------------------------
