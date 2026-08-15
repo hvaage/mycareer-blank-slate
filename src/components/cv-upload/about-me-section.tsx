@@ -40,6 +40,11 @@ export function AboutMeCvSection({ userId }: Props) {
         <CardContent>
           {atomCount.isLoading ? (
             <Skeleton className="h-6 w-32" />
+          ) : atomCount.isError ? (
+            <p className="text-sm text-destructive">
+              Kunne ikke hente antall elementer:{" "}
+              {atomCount.error instanceof Error ? atomCount.error.message : "ukjent årsak"}
+            </p>
           ) : (
             <p className="text-sm">
               <strong>{atomCount.data ?? 0}</strong> elementer i karriereoversikten
@@ -62,6 +67,12 @@ export function AboutMeCvSection({ userId }: Props) {
         <CardContent>
           {imports.isLoading ? (
             <Skeleton className="h-24 w-full" />
+          ) : imports.isError ? (
+            <p className="text-sm text-destructive">
+              Kunne ikke hente opplastingene:{" "}
+              {imports.error instanceof Error ? imports.error.message : "ukjent årsak"}. Dette betyr
+              ikke at listen er tom.
+            </p>
           ) : !imports.data?.length ? (
             <p className="text-sm text-muted-foreground">Ingen opplastinger ennå.</p>
           ) : (
