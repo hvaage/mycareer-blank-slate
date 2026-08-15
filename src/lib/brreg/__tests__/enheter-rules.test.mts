@@ -17,7 +17,7 @@ describe("arbeidsgiverfilter", () => {
     });
   });
 
-  it("krever ansatte for ENK", () => {
+  it("krever ansatte for alle former utenom AS/ASA/offentlige", () => {
     expect(
       evaluateEmployerFilter(rec({ organisasjonsform: { kode: "ENK" }, antallAnsatte: 0 })).include,
     ).toBe(false);
@@ -26,10 +26,23 @@ describe("arbeidsgiverfilter", () => {
     ).toBe(true);
   });
 
-  it("filtrerer ikke AS på ansatte", () => {
-    expect(
-      evaluateEmployerFilter(rec({ organisasjonsform: { kode: "AS" }, antallAnsatte: 0 })).include,
-    ).toBe(true);
+  it("filtrerer ikke AS, ASA eller offentlige former på ansatte", () => {
+    for (const kode of ["AS", "ASA", "STAT", "KOMM", "IKS", "ORGL"]) {
+      expect(
+        evaluateEmployerFilter(rec({ organisasjonsform: { kode }, antallAnsatte: 0 })).include,
+      ).toBe(true);
+    }
+  });
+
+  it("krever ansatte for FLI, ESEK, NUF, DA og SA", () => {
+    for (const kode of ["FLI", "ESEK", "NUF", "DA", "SA"]) {
+      expect(
+        evaluateEmployerFilter(rec({ organisasjonsform: { kode }, antallAnsatte: 0 })),
+      ).toEqual({ include: false, reason: "form_requires_employees" });
+      expect(
+        evaluateEmployerFilter(rec({ organisasjonsform: { kode }, antallAnsatte: 3 })).include,
+      ).toBe(true);
+    }
   });
 });
 
@@ -120,5 +133,32 @@ describe("filintegritet", () => {
     expect(verifyDownloadIntegrity({ expectedBytes: null, actualBytes: 1 }).reason).toBe(
       "missing_content_length",
     );
+  });
+});
+
+describe("er_i_konsern er unntatt stoppkriteriet", () => {
+  const base = {
+    filteredCount: 443_248,
+    mirrorCount: 439_773,
+    overlapCount: 435_952,
+  };
+
+  it("stort konsernavvik stopper ikke porten, men rapporteres", () => {
+    const r = evaluateComparisonGate({
+      ...base,
+      markerDiffs: { er_utdanning: 0, er_rekruttering: 44, er_offentlig: 0, er_i_konsern: 30_074 },
+    });
+    expect(r.pass).toBe(true);
+    expect(r.warnings.some((w) => w.startsWith("er_i_konsern="))).toBe(true);
+  });
+
+  it("streng modus stopper heller ikke på konsern alene", () => {
+    const r = evaluateComparisonGate({
+      ...base,
+      overlapCount: 439_773,
+      markerDiffs: { er_utdanning: 0, er_rekruttering: 0, er_offentlig: 0, er_i_konsern: 30_074 },
+      strict: true,
+    });
+    expect(r.failures.some((f) => f.includes("markøravvik"))).toBe(false);
   });
 });

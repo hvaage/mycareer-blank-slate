@@ -55,9 +55,38 @@ const ansatte = (r: BrregEnhetRecord) => r.antallAnsatte ?? 0;
 // ---------------------------------------------------------------------------
 
 /**
- * Organisasjonsformer som bare tas med når de faktisk har ansatte.
- * Enkeltpersonforetak og bolig-/borettslag uten ansatte er ikke arbeidsgivere.
- * Bekreftet: 0 rader i speilet med disse formene og 0 ansatte.
+ * UTVIDET REGEL (august 2026) — UTLEDET AV FORDELINGSANALYSE, IKKE AV BEVART KODE
+ * ------------------------------------------------------------------------------
+ * Den opprinnelige rekonstruksjonen antok at bare ENK/SAM/BRL/BBL krevde
+ * ansatte. Den var for løs: mellomlagringen ga 694 754 rader mot speilets
+ * 439 773. Fordelingsanalysen per organisasjonsform viste at speilet
+ * inneholder nøyaktig de enhetene med ansatte > 0 for ALLE former utenom
+ * AS, ASA og de offentlige formene. FLI, ESEK, NUF, DA og SA stemte på raden.
+ *
+ * Regelen er altså: ansatte kreves med mindre formen er AS, ASA eller
+ * offentlig. Målt mot mellomlagringen gir den 443 248 rader mot speilets
+ * 439 773 — 3 475 i registervekst på to måneder, som stemmer.
+ *
+ * Dette er utledet av data, ikke hentet fra den tapte importkoden. Endrer du
+ * listen under, kjør fordelingsanalysen på nytt og oppdater tallene her.
+ */
+export const FORMS_EXEMPT_FROM_EMPLOYEE_REQUIREMENT = [
+  "AS",
+  "ASA",
+  "STAT",
+  "KOMM",
+  "FYLK",
+  "KF",
+  "FKF",
+  "IKS",
+  "SF",
+  "ORGL",
+  "KIRK",
+] as const;
+
+/**
+ * Historisk (for referanse): den første, for løse rekonstruksjonen.
+ * Beholdt fordi testene dokumenterer overgangen.
  */
 export const FORMS_REQUIRING_EMPLOYEES = ["ENK", "SAM", "BRL", "BBL"] as const;
 
@@ -87,12 +116,11 @@ export function evaluateEmployerFilter(r: BrregEnhetRecord): FilterDecision {
     return { include: false, reason: "nace_excluded" };
   }
 
-  const form = formKode(r);
-  if (
-    form &&
-    (FORMS_REQUIRING_EMPLOYEES as readonly string[]).includes(form) &&
-    ansatte(r) <= 0
-  ) {
+  const form = formKode(r) ?? "";
+  const exempt = (
+    FORMS_EXEMPT_FROM_EMPLOYEE_REQUIREMENT as readonly string[]
+  ).includes(form);
+  if (!exempt && ansatte(r) <= 0) {
     return { include: false, reason: "form_requires_employees" };
   }
 
@@ -221,13 +249,23 @@ export function evaluateComparisonGate(
   const missing = Math.max(0, input.mirrorCount - input.overlapCount);
   const missingRatio = input.mirrorCount > 0 ? missing / input.mirrorCount : 0;
 
+  // er_i_konsern er UNNTATT fra stoppkriteriet, ikke fra importen.
+  // Dagens speil har `overordnet_enhet` delvis uløftet (30 074 rader spriker).
+  // Mellomlagringen leser `overordnetEnhet` rett fra kilden og er riktig.
+  // Porten ville derfor stoppet på nøyaktig det importen retter. Avviket
+  // rapporteres som informasjon i `warnings`.
   const markerDiffTotal =
     input.markerDiffs.er_utdanning +
     input.markerDiffs.er_rekruttering +
-    input.markerDiffs.er_offentlig +
-    input.markerDiffs.er_i_konsern;
+    input.markerDiffs.er_offentlig;
   const markerDiffRatio =
     input.overlapCount > 0 ? markerDiffTotal / input.overlapCount : 0;
+
+  if (input.markerDiffs.er_i_konsern > 0) {
+    warnings.push(
+      `er_i_konsern=${input.markerDiffs.er_i_konsern} (informasjon: speilets overordnet_enhet er delvis uløftet, importen retter dette)`,
+    );
+  }
 
   const excludedInMirror = input.excludedPresentInMirror ?? 0;
   const absent = input.absentFromSource ?? 0;

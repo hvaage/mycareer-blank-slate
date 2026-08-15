@@ -409,9 +409,32 @@ async function phase3(admin: Admin, runId: number, dryRun: boolean) {
   }
 
 
-  const merged = await rpc<{ upserted: number; missing: number }>(admin, "brreg_full_merge", {
-    p_run_id: runId,
-  });
+  // Skrivingen går i porsjoner: én samlet upsert på ~443 000 rader sprenger
+  // tidsgrensen. Hver porsjon merkes i mellomlagringen, så kallet kan gjentas
+  // uten å skrive noe om igjen. Telleren for manglende rader settes i siste
+  // porsjon.
+  const MERGE_BATCH = 50_000;
+  const merged = { upserted: 0, missing: 0, batches: 0 };
+  for (let i = 0; i < 40; i++) {
+    const step = await rpc<{
+      upserted: number;
+      missing: number;
+      remaining: number;
+      done: boolean;
+    }>(admin, "brreg_full_merge", { p_run_id: runId, p_batch: MERGE_BATCH });
+    merged.upserted += step.upserted;
+    merged.batches += 1;
+    if (step.done) {
+      merged.missing = step.missing;
+      break;
+    }
+    if (step.upserted === 0) {
+      return json(
+        { ok: false, phase: 3, error: "merge stoppet uten fremdrift", merged, gate, metrics: m },
+        500,
+      );
+    }
+  }
   // Mellomlagringen beholdes med vilje: den er dokumentasjonen for hva kjøringen skrev.
   const patched = await rpc<RunRow>(admin, "brreg_full_patch_run", {
     p_run_id: runId,

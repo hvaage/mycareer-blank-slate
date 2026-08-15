@@ -1,0 +1,1 @@
+UPDATE reg.brreg_full_sync_runs SET strict_gate = false WHERE id = 1;
