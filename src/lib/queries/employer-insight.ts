@@ -430,3 +430,25 @@ export function hasNextPage(
   if (totalCount !== null) return page * pageSize < totalCount;
   return rows.length === pageSize;
 }
+
+// ---------- get_employer_formaal ----------
+
+/**
+ * Vedtektsfestet formål ligger i `reg.enheter`, ikke i `employer_search_v1`,
+ * og hentes derfor med et eget SECURITY DEFINER-oppslag.
+ */
+export async function loadEmployerFormaal(orgnr: string): Promise<string | null> {
+  const { data, error } = await sb.rpc("get_employer_formaal", {
+    p_organisasjonsnummer: orgnr,
+  });
+  if (error) return null;
+  return typeof data === "string" && data.trim() !== "" ? data : null;
+}
+
+export function employerFormaalQuery(orgnr: string) {
+  return queryOptions({
+    queryKey: ["employer-formaal", orgnr],
+    queryFn: () => loadEmployerFormaal(orgnr),
+    staleTime: 300_000,
+  });
+}
