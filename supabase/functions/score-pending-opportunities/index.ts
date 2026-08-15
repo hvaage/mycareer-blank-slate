@@ -629,7 +629,10 @@ async function sha256(value: unknown): Promise<string> {
   ).join("");
 }
 
-function requirementSummary(result: FinalEvaluation): Record<string, unknown> {
+function requirementSummary(
+  result: FinalEvaluation,
+  evidenceCount: number,
+): Record<string, unknown> {
   const mandatory = result.requirements.filter((item) =>
     item.level === "mandatory"
   );
@@ -645,8 +648,15 @@ function requirementSummary(result: FinalEvaluation): Record<string, unknown> {
         item.met === false || item.matched_evidence_refs.length === 0
       ).length,
     requirements: result.requirements,
+    // En scoring uten evidensgrunnlag skal ikke se ut som en scoring med grunnlag.
+    evidence_basis: {
+      status: evidenceCount === 0 ? "empty" : "present",
+      items_used: evidenceCount,
+      source: "career_atoms",
+    },
   };
 }
+
 
 async function callAi(
   profileAi: Record<string, unknown>,
