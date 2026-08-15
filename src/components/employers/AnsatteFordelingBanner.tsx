@@ -23,10 +23,14 @@ export function AnsatteFordelingBanner({
   fordeling,
   laster,
   ansatteFilterAktivt,
+  totalTreff = null,
+  totalErTak = false,
 }: {
   fordeling: AnsatteFordelingResult | undefined;
   laster?: boolean;
   ansatteFilterAktivt: boolean;
+  totalTreff?: number | null;
+  totalErTak?: boolean;
 }) {
   if (!fordeling && laster) {
     return (
@@ -64,10 +68,22 @@ export function AnsatteFordelingBanner({
   return (
     <Ramme>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-foreground">Ansattetall i utvalget</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold text-foreground">
+            Ansattetall {erUtvalg ? "i et utsnitt av treffene" : "i utvalget"}
+          </h2>
+          {erUtvalg && (
+            <span className="rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-foreground">
+              Utsnitt: {fmtAntall(fordeling.total)}
+              {typeof totalTreff === "number"
+                ? ` av ${totalErTak ? "over " : ""}${fmtAntall(totalTreff)} treff`
+                : " treff"}
+            </span>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">
           {erUtvalg
-            ? `Utvalg: talt over de første ${fmtAntall(fordeling.total)} treffene, ikke hele trefflisten.`
+            ? `Talt over de første ${fmtAntall(fordeling.total)} treffene, ikke hele trefflisten.`
             : fordeling.capped
               ? `Talt over de første ${fmtAntall(fordeling.total)} treffene.`
               : `Alle ${fmtAntall(fordeling.total)} treff, uten ansattefilter.`}
@@ -93,10 +109,17 @@ export function AnsatteFordelingBanner({
       <p className="mt-2 text-xs leading-snug text-muted-foreground">{ANSATTE_KILDEFORKLARING}</p>
 
       {erUtvalg && (
-        <p className="mt-2 rounded-md border border-dashed border-border p-2 text-xs leading-snug text-foreground">
-          Tallene er et utvalg. Når du filtrerer, telles høyst {fmtAntall(fordeling.total)} treff, slik
-          at fordelingen alltid rekker fram. Andelene kan avvike fra hele trefflisten.
-
+        <p className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-xs leading-snug text-foreground">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+          <span>
+            <span className="font-semibold">Tallene gjelder ikke hele trefflisten.</span> Når du
+            filtrerer, telles høyst {fmtAntall(fordeling.total)} treff
+            {typeof totalTreff === "number"
+              ? ` av ${totalErTak ? "over " : ""}${fmtAntall(totalTreff)}`
+              : ""}
+            , slik at fordelingen alltid rekker fram innen tidsgrensen. Andelene og prosentene over
+            beskriver dette utsnittet, ikke markedet.
+          </span>
         </p>
       )}
 
