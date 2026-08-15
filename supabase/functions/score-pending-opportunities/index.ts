@@ -517,7 +517,9 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
   profileAi: Record<string, unknown>;
   evidence: EvidenceItem[];
 }> {
-  const [profileResult, careerResult, evidenceResult, cvResult] = await Promise
+  // Karriereontologi v4, fase 2.1: career_atoms er eneste evidenskilde.
+  // user_evidence_atoms og cv_evidence_atoms leses ikke lenger her.
+  const [profileResult, careerResult, atomResult] = await Promise
     .all([
       admin.from("profiles")
         .select(
@@ -529,21 +531,15 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
           "career_stage, leadership_level, years_experience, desired_role_types, desired_industries, preferred_locations, preferred_work_styles, remote_preference",
         )
         .eq("user_id", userId).maybeSingle(),
-      admin.from("user_evidence_atoms")
+      admin.from("career_atoms")
         .select(
-          "id, category, label, description, evidence_type, strength_score, confidence_score",
-        )
-        .eq("user_id", userId).eq("is_active", true)
-        .order("strength_score", { ascending: false, nullsFirst: false }).limit(
-          EVIDENCE_LIMIT,
-        ),
-      admin.from("cv_evidence_atoms")
-        .select(
-          "id, atom_type, content_no, content_en, source_quote, structured_data, confidence, user_confirmed, relevance_score",
+          "id, atom_type, atom_class, content_no, content_en, source_quote, confidence, attestation, user_confirmed, created_at",
         )
         .eq("user_id", userId)
+        .eq("atom_kind", "evidens")
+        .eq("is_active", true)
         .order("user_confirmed", { ascending: false })
-        .order("relevance_score", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
         .limit(EVIDENCE_LIMIT),
     ]);
   if (profileResult.error || !profileResult.data) {
@@ -554,11 +550,8 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
       `career_profile_select_failed:${careerResult.error.message}`,
     );
   }
-  if (evidenceResult.error) {
-    throw new Error(`evidence_select_failed:${evidenceResult.error.message}`);
-  }
-  if (cvResult.error) {
-    throw new Error(`cv_evidence_select_failed:${cvResult.error.message}`);
+  if (atomResult.error) {
+    throw new Error(`career_atoms_select_failed:${atomResult.error.message}`);
   }
   const p = profileResult.data;
   const c = careerResult.data ?? {};
@@ -573,23 +566,15 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
   ]);
 
   const evidence: EvidenceItem[] = [];
-  for (const item of evidenceResult.data ?? []) {
-    evidence.push({
-      ref: `ue:${item.id}`,
-      category: cleanText(item.category, 80),
-      label: cleanText(item.label, 240),
-      description: cleanText(item.description, 500) || null,
-    });
-  }
-  for (const item of cvResult.data ?? []) {
+  for (const item of atomResult.data ?? []) {
     const content = cleanText(
       item.content_no || item.content_en || item.source_quote,
       500,
     );
     if (!content) continue;
     evidence.push({
-      ref: `cv:${item.id}`,
-      category: cleanText(item.atom_type, 80),
+      ref: `ca:${item.id}`,
+      category: cleanText(item.atom_class ?? item.atom_type, 80),
       label: content.slice(0, 240),
       description: cleanText(item.source_quote, 500) || null,
     });
@@ -682,7 +667,7 @@ async function callAi(
   const systemPrompt = `Du er en streng kvalifikasjons- og jobbmatchmotor.
 
 Svar KUN med gyldig JSON i denne formen:
-{"results":[{"id":"uuid","score":0,"reasoning":"...","match_highlights":"...","concerns":"...","requirements":[{"type":"education|license|certification|language|experience|skill|other","level":"mandatory|preferred|context","label":"...","evidence_quote":"ordrett sitat fra annonsen","met":true|false|null,"matched_evidence_refs":["ue:uuid|cv:uuid"]}]}]}
+{"results":[{"id":"uuid","score":0,"reasoning":"...","match_highlights":"...","concerns":"...","requirements":[{"type":"education|license|certification|language|experience|skill|other","level":"mandatory|preferred|context","label":"...","evidence_quote":"ordrett sitat fra annonsen","met":true|false|null,"matched_evidence_refs":["ca:uuid"]}]}]}
 
 Regler:
 1. Inkluder nøyaktig én rad for hver mottatt jobb-id.
