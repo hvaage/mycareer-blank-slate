@@ -696,6 +696,8 @@ export function generateEvidenceAtomsFromUserCompanyRatings(ratings: UserCompany
   ];
 }
 
+export type ExistingCareerAtom = Tables<"career_atoms">;
+
 export type BuildUserAtomRefreshPlanInput = {
   careerProfile: UserCareerProfileRow | null;
   profile: UserProfileRow | null;
@@ -703,8 +705,8 @@ export type BuildUserAtomRefreshPlanInput = {
   cvImports: CvImportRow[];
   cvEvidenceAtomCount: number;
   userCompanyRatings: UserCompanyRatingRow[];
-  existingPreferenceAtoms: Tables<"user_preference_atoms">[];
-  existingEvidenceAtoms: Tables<"user_evidence_atoms">[];
+  /** Karriereontologi v4 — én tabell for alle seks kinds. */
+  existingAtoms: ExistingCareerAtom[];
 };
 
 function dedupePreferences(rows: PlannedPreferenceAtom[]): PlannedPreferenceAtom[] {
@@ -721,6 +723,10 @@ function dedupeEvidence(rows: PlannedEvidenceAtom[]): PlannedEvidenceAtom[] {
     m.set(r.logicalKey, r);
   }
   return [...m.values()];
+}
+
+function sourceTypeOf(row: ExistingCareerAtom): string | null {
+  return row.source_type ?? null;
 }
 
 export function buildUserAtomRefreshPlan(input: BuildUserAtomRefreshPlanInput): UserAtomRefreshPlan {
@@ -744,43 +750,37 @@ export function buildUserAtomRefreshPlan(input: BuildUserAtomRefreshPlanInput): 
     warnings.push("Mangler både karriereprofil og Sokrates-profil — begrenset datagrunnlag.");
   }
 
-  const prefByHash = new Map<string, Tables<"user_preference_atoms">>();
-  const prefByKey = new Map<string, Tables<"user_preference_atoms">>();
-  for (const row of input.existingPreferenceAtoms) {
-    if (row.source_hash) prefByHash.set(row.source_hash, row);
-    prefByKey.set(preferenceLogicalKeyFromRow(row), row);
-  }
+  const prefRows = input.existingAtoms.filter((r) => r.atom_kind !== "evidens");
+  const evRows = input.existingAtoms.filter((r) => r.atom_kind === "evidens");
+
+  const byKey = (rows: ExistingCareerAtom[]) => {
+    const m = new Map<string, ExistingCareerAtom>();
+    for (const row of rows) m.set(storedOrDerivedLogicalKey(row), row);
+    return m;
+  };
+
+  const prefByKey = byKey(prefRows);
   for (const p of generatedPrefs) {
-    const hit = prefByHash.get(p.source_hash) ?? prefByKey.get(p.logicalKey);
-    if (hit && isSystemRefreshSource(hit.source)) {
-      p.existingId = hit.id;
-    }
+    const hit = prefByKey.get(p.logicalKey);
+    if (hit && isSystemRefreshSource(sourceTypeOf(hit))) p.existingId = hit.id;
   }
 
-  const evByHash = new Map<string, Tables<"user_evidence_atoms">>();
-  const evByKey = new Map<string, Tables<"user_evidence_atoms">>();
-  for (const row of input.existingEvidenceAtoms) {
-    if (row.source_hash) evByHash.set(row.source_hash, row);
-    evByKey.set(evidenceLogicalKeyFromRow(row), row);
-  }
+  const evByKey = byKey(evRows);
   for (const e of generatedEv) {
-    const hit = evByHash.get(e.source_hash) ?? evByKey.get(e.logicalKey);
-    if (hit && isSystemRefreshSource(hit.source)) {
-      e.existingId = hit.id;
-    }
+    const hit = evByKey.get(e.logicalKey);
+    if (hit && isSystemRefreshSource(sourceTypeOf(hit))) e.existingId = hit.id;
   }
 
   const newPrefKeys = new Set(generatedPrefs.map((p) => p.logicalKey));
   const newEvKeys = new Set(generatedEv.map((e) => e.logicalKey));
 
   const systemAtomsToDeactivate: AtomDeactivateTarget[] = [];
+  const evidenceMissingFromSource: AtomDeactivateTarget[] = [];
 
-  for (const row of input.existingPreferenceAtoms) {
-    if (!row.is_active) continue;
-    if (row.source === "manual") continue;
-    if (!isSystemRefreshSource(row.source)) continue;
-    const key = preferenceLogicalKeyFromRow(row);
-    if (!newPrefKeys.has(key)) {
+  for (const row of prefRows) {
+    if (!row.is_active || row.user_locked) continue;
+    if (!isSystemRefreshSource(sourceTypeOf(row))) continue;
+    if (!newPrefKeys.has(storedOrDerivedLogicalKey(row))) {
       systemAtomsToDeactivate.push({
         kind: "preference",
         id: row.id,
@@ -789,31 +789,45 @@ export function buildUserAtomRefreshPlan(input: BuildUserAtomRefreshPlanInput): 
     }
   }
 
-  for (const row of input.existingEvidenceAtoms) {
-    if (!row.is_active) continue;
-    if (row.source === "manual") continue;
-    if (!isSystemRefreshSource(row.source)) continue;
-    const key = evidenceLogicalKeyFromRow(row);
-    if (!newEvKeys.has(key)) {
-      systemAtomsToDeactivate.push({
+  /**
+   * Evidens deaktiveres ALDRI av at kilden forsvinner. At et dokument slettes
+   * betyr ikke at du mister sertifikatet. Vi markerer bare at kilden er borte.
+   */
+  for (const row of evRows) {
+    if (!row.is_active || row.user_locked) continue;
+    if (!isSystemRefreshSource(sourceTypeOf(row))) continue;
+    if (!newEvKeys.has(storedOrDerivedLogicalKey(row))) {
+      evidenceMissingFromSource.push({
         kind: "evidence",
         id: row.id,
-        reason: "Finnes ikke lenger i deterministisk uttrekk fra kildedata",
+        reason: "Kilden finnes ikke lenger — atomet beholdes, men merkes",
       });
     }
   }
 
+  /** Begrensninger med passert `valid_to` er den eneste automatiske deaktiveringen. */
+  const expiredConstraints: AtomDeactivateTarget[] = input.existingAtoms
+    .filter((r) => r.is_active && !r.user_locked && freshnessFor(r).autoDeactivate)
+    .map((r) => ({
+      kind: "preference" as const,
+      id: r.id,
+      reason: "Begrensningen har passert sluttdatoen sin",
+    }));
+
   const summary = [
     `${generatedPrefs.length} preferanse-atom(er) i plan`,
     `${generatedEv.length} evidens-atom(er) i plan`,
-    `${systemAtomsToDeactivate.length} system-atom(er) merket for deaktivering`,
+    `${systemAtomsToDeactivate.length + expiredConstraints.length} atom(er) merket for deaktivering`,
+    `${evidenceMissingFromSource.length} evidens uten kilde (beholdes)`,
   ].join(" · ");
 
   return {
     preferenceAtomsToUpsert: generatedPrefs,
     evidenceAtomsToUpsert: generatedEv,
-    systemAtomsToDeactivate,
+    systemAtomsToDeactivate: [...systemAtomsToDeactivate, ...expiredConstraints],
+    evidenceMissingFromSource,
     warnings,
     summary,
   };
 }
+
