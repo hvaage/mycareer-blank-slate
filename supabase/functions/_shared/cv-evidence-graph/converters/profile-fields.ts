@@ -22,6 +22,7 @@ import {
   createSummaryFragmentDraft,
   suggestAtomTypeFromCategory,
 } from "../types.ts";
+import { lookupNameSuggestion } from "../name-lexicon.ts";
 
 // ---------------------------------------------------------------------------
 // Profile-skjema vi forventer (subset av profiles-tabellen)
