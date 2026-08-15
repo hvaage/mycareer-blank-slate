@@ -472,6 +472,116 @@ export type Database = {
         }
         Relationships: []
       }
+      career_atoms: {
+        Row: {
+          atom_class: string | null
+          atom_kind: string
+          atom_type: string | null
+          attestation: string | null
+          confidence: string
+          content_en: string | null
+          content_no: string | null
+          created_at: string
+          due_at: string | null
+          evidence_atom_ids: string[]
+          id: string
+          is_active: boolean
+          last_seen_at: string | null
+          mangel_state: string | null
+          parent_atom_id: string | null
+          refreshed_at: string | null
+          source_quote: string | null
+          source_ref: string | null
+          source_type: string
+          stale_at: string | null
+          state: string | null
+          structured_data: Json
+          target_position_id: string | null
+          target_requirement_id: string | null
+          updated_at: string
+          user_confirmed: boolean
+          user_id: string
+          user_locked: boolean
+          valid_from: string | null
+          valid_to: string | null
+          viktighet: number | null
+        }
+        Insert: {
+          atom_class?: string | null
+          atom_kind: string
+          atom_type?: string | null
+          attestation?: string | null
+          confidence?: string
+          content_en?: string | null
+          content_no?: string | null
+          created_at?: string
+          due_at?: string | null
+          evidence_atom_ids?: string[]
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string | null
+          mangel_state?: string | null
+          parent_atom_id?: string | null
+          refreshed_at?: string | null
+          source_quote?: string | null
+          source_ref?: string | null
+          source_type: string
+          stale_at?: string | null
+          state?: string | null
+          structured_data?: Json
+          target_position_id?: string | null
+          target_requirement_id?: string | null
+          updated_at?: string
+          user_confirmed?: boolean
+          user_id: string
+          user_locked?: boolean
+          valid_from?: string | null
+          valid_to?: string | null
+          viktighet?: number | null
+        }
+        Update: {
+          atom_class?: string | null
+          atom_kind?: string
+          atom_type?: string | null
+          attestation?: string | null
+          confidence?: string
+          content_en?: string | null
+          content_no?: string | null
+          created_at?: string
+          due_at?: string | null
+          evidence_atom_ids?: string[]
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string | null
+          mangel_state?: string | null
+          parent_atom_id?: string | null
+          refreshed_at?: string | null
+          source_quote?: string | null
+          source_ref?: string | null
+          source_type?: string
+          stale_at?: string | null
+          state?: string | null
+          structured_data?: Json
+          target_position_id?: string | null
+          target_requirement_id?: string | null
+          updated_at?: string
+          user_confirmed?: boolean
+          user_id?: string
+          user_locked?: boolean
+          valid_from?: string | null
+          valid_to?: string | null
+          viktighet?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_atoms_parent_atom_id_fkey"
+            columns: ["parent_atom_id"]
+            isOneToOne: false
+            referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       careerjet_identity_audit: {
         Row: {
           action: string
