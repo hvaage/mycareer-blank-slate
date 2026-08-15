@@ -48,7 +48,10 @@ export type EmployerSearchRow = {
   naeringskode1_beskrivelse?: string | null;
   // Ansatte og økonomi
   antall_ansatte?: number | null;
+  /** false = Brreg har ikke tallet (ukjent), ikke "null ansatte". */
+  har_registrert_antall_ansatte?: boolean | null;
   ansatte_bucket?: string | null;
+
   driftsinntekter?: number | null;
   omsetning_bucket?: string | null;
   driftsmargin_prosent?: number | null;
@@ -130,7 +133,10 @@ export type EmployerDetail = {
   gjeldsgrad?: number | null;
   omsetning_per_ansatt?: number | null;
   antall_ansatte?: number | null;
+  /** false = Brreg har ikke tallet (ukjent), ikke "null ansatte". */
+  har_registrert_antall_ansatte?: boolean | null;
   ansatte_bucket?: string | null;
+
   omsetning_bucket?: string | null;
   valuta?: string | null;
   // 6-dim AI
@@ -282,6 +288,77 @@ export function searchEmployersQuery(filters: EmployerSearchFilters) {
     staleTime: 30_000,
   });
 }
+
+// ---------- employer_ansatte_distribution ----------
+
+/**
+ * Tre-delt ansattefordeling for gjeldende søk og filtre. Ansatteintervallet
+ * holdes bevisst utenfor: dette er grunnlaget for å si hvor mange treff som
+ * faller bort fordi ansattetallet er ukjent.
+ */
+export type AnsatteFordelingResult = {
+  fem_eller_flere: number;
+  null_til_fire: number;
+  ukjent: number;
+  total: number;
+  capped: boolean;
+  available: boolean;
+};
+
+export async function loadAnsatteFordeling(
+  filters: EmployerSearchFilters,
+): Promise<AnsatteFordelingResult> {
+  const { data, error } = await sb.rpc("employer_ansatte_distribution", {
+    p_query: filters.q?.trim() || null,
+    p_fylkesnummer: filters.fylke || null,
+    p_kommunenummer: filters.kommune || null,
+    p_naeringskode_prefix: filters.nace || null,
+    p_kommune_query: filters.kommuneQuery?.trim() || null,
+    p_bransje_query: filters.bransjeQuery?.trim() || null,
+    p_min_omsetning: filters.omsMin ?? null,
+    p_max_omsetning: filters.omsMaks ?? null,
+    p_arbeidsgiver_type: filters.type || null,
+  });
+
+  const tom: AnsatteFordelingResult = {
+    fem_eller_flere: 0,
+    null_til_fire: 0,
+    ukjent: 0,
+    total: 0,
+    capped: false,
+    available: false,
+  };
+
+  if (error || !data || typeof data !== "object") {
+    if (error && !isMissingRpcOrView(error)) {
+      // eslint-disable-next-line no-console
+      console.warn("[employer-insight] employer_ansatte_distribution feilet:", error);
+    }
+    return tom;
+  }
+
+  const d = data as Record<string, unknown>;
+  const num = (k: string) => (typeof d[k] === "number" ? (d[k] as number) : 0);
+  return {
+    fem_eller_flere: num("fem_eller_flere"),
+    null_til_fire: num("null_til_fire"),
+    ukjent: num("ukjent"),
+    total: num("total"),
+    capped: d.capped === true,
+    available: true,
+  };
+}
+
+export function ansatteFordelingQuery(filters: EmployerSearchFilters) {
+  const { page: _page, pageSize: _pageSize, ansatteMin: _min, ansatteMaks: _maks, ...rest } = filters;
+  return queryOptions({
+    queryKey: ["employer-ansatte-fordeling", rest],
+    queryFn: () => loadAnsatteFordeling(filters),
+    staleTime: 60_000,
+  });
+}
+
+
 
 // ---------- get_employer_detail (detail) ----------
 

@@ -2,6 +2,14 @@ import { useMemo } from "react";
 import type { EmployerSearchRow } from "@/lib/queries/employer-insight";
 import { ARBEIDSGIVER_TYPER } from "@/lib/employers/no-regions";
 import { fmtNumber, fmtNok } from "./MetricTile";
+import {
+  ANSATTE_KATEGORI_LABEL,
+  ANSATTE_KATEGORI_REKKEFOELGE,
+  ANSATTE_KILDEFORKLARING,
+  ansatteKategori,
+  fordelingFraRader,
+  formatAnsatte,
+} from "@/lib/employers/ansatte";
 
 /**
  * Client-side aggregater over kun de paginerte radene. Tydelig merket
@@ -19,6 +27,7 @@ export function SelectionInsights({
   hasAnyFilter: boolean;
 }) {
   const buckets = useMemo(() => computeBuckets(rows), [rows]);
+  const ansatteFordeling = useMemo(() => fordelingFraRader(rows), [rows]);
   if (!hasAnyFilter || rows.length === 0) return null;
 
   return (
@@ -39,18 +48,27 @@ export function SelectionInsights({
             ARBEIDSGIVER_TYPER.find((t) => t.value === v)?.label ?? humanize(v)
           }
         />
-        <DistributionCard title="Ansatte-bucket" entries={buckets.ansatte} />
+        <DistributionCard
+          title="Ansatte (viste treff)"
+          entries={ANSATTE_KATEGORI_REKKEFOELGE.map((k) => [
+            ANSATTE_KATEGORI_LABEL[k],
+            ansatteFordeling[k],
+          ])}
+          footnote={ANSATTE_KILDEFORKLARING}
+          alwaysShowAll
+        />
         <DistributionCard title="Omsetningsbucket" entries={buckets.omsetning} />
         <TopList
           title="Toppliste — flest ansatte (viste treff)"
+          footnote={`Kun de ${fmtNumber(ansatteFordeling.fem_eller_flere) ?? "0"} radene med fem eller flere ansatte kan rangeres. ${fmtNumber(ansatteFordeling.null_til_fire) ?? "0"} har null til fire, ${fmtNumber(ansatteFordeling.ukjent) ?? "0"} er ukjent.`}
           items={[...rows]
-            .filter((r) => typeof r.antall_ansatte === "number")
+            .filter((r) => ansatteKategori(r) === "fem_eller_flere")
             .sort((a, b) => (b.antall_ansatte ?? 0) - (a.antall_ansatte ?? 0))
             .slice(0, 5)
             .map((r) => ({
               key: r.organisasjonsnummer,
               label: r.navn,
-              value: fmtNumber(r.antall_ansatte) ?? "—",
+              value: formatAnsatte(r),
             }))}
         />
         <TopList
@@ -90,7 +108,6 @@ export function SelectionInsights({
 
 type BucketSet = {
   type: Array<[string, number]>;
-  ansatte: Array<[string, number]>;
   omsetning: Array<[string, number]>;
 };
 
@@ -108,7 +125,6 @@ function computeBuckets(rows: EmployerSearchRow[]): BucketSet {
     [...m.entries()].sort((a, b) => b[1] - a[1]);
   return {
     type: sort(tally("arbeidsgiver_type")),
-    ansatte: sort(tally("ansatte_bucket")),
     omsetning: sort(tally("omsetning_bucket")),
   };
 }
@@ -117,10 +133,14 @@ function DistributionCard({
   title,
   entries,
   formatLabel,
+  footnote,
+  alwaysShowAll,
 }: {
   title: string;
   entries: Array<[string, number]>;
   formatLabel?: (v: string) => string;
+  footnote?: string;
+  alwaysShowAll?: boolean;
 }) {
   if (entries.length === 0) {
     return (
@@ -135,17 +155,20 @@ function DistributionCard({
     <div className="rounded-md border border-border p-3">
       <div className="text-xs font-medium text-muted-foreground">{title}</div>
       <ul className="mt-2 space-y-1">
-        {entries.slice(0, 6).map(([k, n]) => (
+        {(alwaysShowAll ? entries : entries.slice(0, 6)).map(([k, n]) => (
           <li key={k} className="flex items-center justify-between gap-2 text-sm">
             <span className="truncate text-foreground">
               {formatLabel ? formatLabel(k) : humanize(k)}
             </span>
             <span className="tabular-nums text-muted-foreground">
-              {n} ({Math.round((n / total) * 100)}%)
+              {n} ({total > 0 ? Math.round((n / total) * 100) : 0}%)
             </span>
           </li>
         ))}
       </ul>
+      {footnote ? (
+        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{footnote}</p>
+      ) : null}
     </div>
   );
 }
@@ -153,15 +176,20 @@ function DistributionCard({
 function TopList({
   title,
   items,
+  footnote,
 }: {
   title: string;
   items: Array<{ key: string; label: string; value: string }>;
+  footnote?: string;
 }) {
   if (items.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-border p-3">
         <div className="text-xs font-medium text-muted-foreground">{title}</div>
         <div className="mt-1 text-sm text-muted-foreground">Ingen data i viste treff.</div>
+        {footnote ? (
+          <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{footnote}</p>
+        ) : null}
       </div>
     );
   }
@@ -176,6 +204,9 @@ function TopList({
           </li>
         ))}
       </ol>
+      {footnote ? (
+        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{footnote}</p>
+      ) : null}
     </div>
   );
 }

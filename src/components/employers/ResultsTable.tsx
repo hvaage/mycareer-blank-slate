@@ -4,8 +4,9 @@ import type { EmployerSearchRow } from "@/lib/queries/employer-insight";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { RiskBadges, DataQualityBadges, TypeBadge } from "./Badges";
-import { fmtNumber, fmtNok, fmtPercent } from "./MetricTile";
+import { fmtNok, fmtPercent } from "./MetricTile";
 import { fylkesnavn } from "@/lib/employers/no-regions";
+import { formatAnsatte, ansatteErUkjent, ANSATTE_KILDEFORKLARING } from "@/lib/employers/ansatte";
 
 function stedFra(r: EmployerSearchRow): string {
   return [
@@ -120,7 +121,12 @@ export function ResultsTable({
                   <td className="px-3 py-2 text-muted-foreground">{sted || "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground">{bransje || "—"}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {fmtNumber(r.antall_ansatte) ?? "—"}
+                    <span
+                      className={ansatteErUkjent(r) ? "text-muted-foreground italic" : undefined}
+                      title={ansatteErUkjent(r) ? ANSATTE_KILDEFORKLARING : undefined}
+                    >
+                      {formatAnsatte(r)}
+                    </span>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {fmtNok(r.driftsinntekter) ?? "—"}
@@ -183,7 +189,7 @@ export function ResultsTable({
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-muted-foreground">Ansatte: </span>
-                    <span className="tabular-nums">{fmtNumber(r.antall_ansatte) ?? "—"}</span>
+                    <span className={ansatteErUkjent(r) ? "italic text-muted-foreground" : "tabular-nums"}>{formatAnsatte(r)}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Omsetning: </span>

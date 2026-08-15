@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/employers/SearchBar";
 import { FilterPanel } from "@/components/employers/FilterPanel";
 import { SelectionInsights } from "@/components/employers/SelectionInsights";
+import { AnsatteFordelingBanner } from "@/components/employers/AnsatteFordelingBanner";
 import { ResultsTable } from "@/components/employers/ResultsTable";
 import {
   searchEmployersQuery,
+  ansatteFordelingQuery,
   hasNextPage,
   type EmployerSearchFilters,
 } from "@/lib/queries/employer-insight";
@@ -42,6 +44,21 @@ function asNum(v: unknown): number | undefined {
     if (Number.isFinite(n)) return n;
   }
   return undefined;
+}
+
+/** Fordelingen hentes bare når søket faktisk avgrenser noe. */
+function sokErAktivt(f: EmployerSearchFilters): boolean {
+  if ((f.q?.trim().length ?? 0) >= 3) return true;
+  return Boolean(
+    f.kommuneQuery ||
+      f.bransjeQuery ||
+      f.fylke ||
+      f.kommune ||
+      f.nace ||
+      f.type ||
+      typeof f.omsMin === "number" ||
+      typeof f.omsMaks === "number",
+  );
 }
 
 export const Route = createFileRoute("/arbeidsgivere/")({
@@ -104,6 +121,12 @@ function ArbeidsgivereIndex() {
   );
 
   const { data, isFetching } = useQuery(searchEmployersQuery(filters));
+  const ansatteFilterAktivt =
+    typeof search.ansatteMin === "number" || typeof search.ansatteMaks === "number";
+  const { data: ansatteFordeling } = useQuery({
+    ...ansatteFordelingQuery(filters),
+    enabled: sokErAktivt(filters),
+  });
 
   const update = (patch: Partial<SearchState>) => {
     navigate({
@@ -204,6 +227,11 @@ function ArbeidsgivereIndex() {
               />
             </div>
           </div>
+
+          <AnsatteFordelingBanner
+            fordeling={ansatteFordeling}
+            ansatteFilterAktivt={ansatteFilterAktivt}
+          />
 
           <SelectionInsights
             rows={rows}

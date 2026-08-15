@@ -1,5 +1,6 @@
 import type { EmployerDetail } from "@/lib/queries/employer-insight";
-import { MetricTile, fmtNumber, fmtNok, fmtPercent, fmtRatio } from "./MetricTile";
+import { MetricTile, fmtNok, fmtPercent, fmtRatio } from "./MetricTile";
+import { ANSATTE_KILDEFORKLARING, ansatteErUkjent, formatAnsatte } from "@/lib/employers/ansatte";
 
 export function OverviewPanel({ d }: { d: EmployerDetail }) {
   const aar = d.regnskapsaar ?? null;
@@ -11,7 +12,11 @@ export function OverviewPanel({ d }: { d: EmployerDetail }) {
         </p>
       )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <MetricTile label="Ansatte" value={fmtNumber(d.antall_ansatte)} hint={d.ansatte_bucket ?? undefined} />
+        <MetricTile
+          label="Ansatte"
+          value={formatAnsatte(d)}
+          hint={ansatteErUkjent(d) ? "Registeret har ikke tallet" : undefined}
+        />
         <MetricTile label="Omsetning" value={fmtNok(d.driftsinntekter)} hint={d.omsetning_bucket ?? undefined} />
         <MetricTile label="Driftsresultat" value={fmtNok(d.driftsresultat)} />
         <MetricTile label="Årsresultat" value={fmtNok(d.aarsresultat)} />
@@ -24,6 +29,9 @@ export function OverviewPanel({ d }: { d: EmployerDetail }) {
           hint={d.stiftelsesdato ?? undefined}
         />
       </div>
+      {ansatteErUkjent(d) && (
+        <p className="text-xs text-muted-foreground">{ANSATTE_KILDEFORKLARING}</p>
+      )}
     </div>
   );
 }
