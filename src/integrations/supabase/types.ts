@@ -5380,6 +5380,28 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: Json
       }
+      brreg_full_clear_staging: {
+        Args: { p_run_id: number }
+        Returns: undefined
+      }
+      brreg_full_gate_metrics: { Args: { p_run_id: number }; Returns: Json }
+      brreg_full_get_run: { Args: { p_run_id?: number }; Returns: Json }
+      brreg_full_merge: { Args: { p_run_id: number }; Returns: Json }
+      brreg_full_patch_run: {
+        Args: { p_patch: Json; p_run_id: number }
+        Returns: Json
+      }
+      brreg_full_stage_batch: {
+        Args: {
+          p_excluded: Json
+          p_row_cursor: number
+          p_rows: Json
+          p_rows_seen: number
+          p_run_id: number
+        }
+        Returns: Json
+      }
+      brreg_full_start_run: { Args: { p_strict?: boolean }; Returns: Json }
       careerjet_canonical_has_visible: {
         Args: { p_canonical: string }
         Returns: boolean
