@@ -646,11 +646,14 @@ export async function insertLocalDevSamplePendingProposal(userId: string): Promi
   const batchId = batch!.id as string;
 
   const proposalPayload: Json = {
-    dimension: "arbeidsform",
-    label: "Hybrid (2–3 dager kontor)",
-    value: "Ønsker hovedsakelig hjemmekontor med planlagte kontordager.",
-    importance_score: 5,
-    source: "enrichment",
+    atom_kind: "onske",
+    content_no: "Ønsker hovedsakelig hjemmekontor med planlagte kontordager.",
+    structured_data: { dimensjon: "arbeidsform", etikett: "Hybrid (2–3 dager kontor)" },
+    // Opprinnelsesakse, ikke styrke. Skal ikke utledes av forslagets confidence-tall.
+    confidence: "inferred",
+    viktighet: 5,
+    source_type: "dev_seed",
+    evidence_atom_ids: [],
   };
 
   const { data: prop, error: pErr } = await supabase
@@ -659,7 +662,7 @@ export async function insertLocalDevSamplePendingProposal(userId: string): Promi
       user_id: userId,
       batch_id: batchId,
       proposal_action: "create_atom",
-      target_atom_type: "user_preference_atom",
+      target_atom_type: "career_atom",
       source_type: "dev_seed",
       proposal_payload: proposalPayload,
       rationale: "Dette er et kunstig testforslag for utviklere — ikke ekte brukerdata.",
