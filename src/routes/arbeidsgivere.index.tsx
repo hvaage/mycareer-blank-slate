@@ -212,18 +212,24 @@ function ArbeidsgivereIndex() {
             hasAnyFilter={hasAnyFilter}
           />
 
-          <ResultsTable
-            rows={rows}
-            loading={isFetching}
-            available={data?.available ?? true}
-            errorMessage={data?.errorMessage ?? null}
-          />
+          {data?.emptyReason === "min_query_length" ? (
+            <div className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">
+              Skriv minst tre tegn for å søke.
+            </div>
+          ) : (
+            <ResultsTable
+              rows={rows}
+              loading={isFetching}
+              available={data?.available ?? true}
+              errorMessage={data?.errorMessage ?? null}
+            />
+          )}
 
           {(rows.length > 0 || search.page > 1) && (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs text-muted-foreground">
                 {typeof data?.totalCount === "number"
-                  ? `${data.totalIsEstimate ? "Omtrent " : ""}${data.totalCount.toLocaleString("nb-NO")} treff`
+                  ? `${data.totalIsCapped ? "Over " : ""}${data.totalCount.toLocaleString("nb-NO")} treff`
                   : "Treffantall ikke tilgjengelig"}
               </span>
               <div className="flex items-center justify-between gap-2">
@@ -238,9 +244,10 @@ function ArbeidsgivereIndex() {
                 <span className="text-xs text-muted-foreground">
                   Side <span className="tabular-nums">{search.page}</span>
                   {typeof data?.totalCount === "number"
-                    ? ` av ${Math.max(1, Math.ceil(data.totalCount / PAGE_SIZE))}`
+                    ? ` av ${data.totalIsCapped ? "over " : ""}${Math.max(1, Math.ceil(data.totalCount / PAGE_SIZE))}`
                     : ""}
                 </span>
+
                 <Button
                   variant="outline"
                   size="sm"
