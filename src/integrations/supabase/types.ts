@@ -5376,6 +5376,22 @@ export type Database = {
         Args: { p_group: string; p_weights: Json }
         Returns: boolean
       }
+      _employer_filter_sql: {
+        Args: {
+          p_arbeidsgiver_type?: string
+          p_bransje_query?: string
+          p_fylkesnummer?: string
+          p_kommune_query?: string
+          p_kommunenummer?: string
+          p_max_ansatte?: number
+          p_max_omsetning?: number
+          p_min_ansatte?: number
+          p_min_omsetning?: number
+          p_naeringskode_prefix?: string
+          p_query?: string
+        }
+        Returns: Json
+      }
       _refresh_company_analysis_atoms: {
         Args: { p_company_id: string }
         Returns: Json
@@ -5384,7 +5400,15 @@ export type Database = {
         Args: { p_run_id: number }
         Returns: undefined
       }
+      brreg_full_gate_absent: { Args: { p_run_id: number }; Returns: Json }
+      brreg_full_gate_counts: { Args: { p_run_id: number }; Returns: Json }
+      brreg_full_gate_excluded_in_mirror: {
+        Args: { p_run_id: number }
+        Returns: Json
+      }
+      brreg_full_gate_markers: { Args: { p_run_id: number }; Returns: Json }
       brreg_full_gate_metrics: { Args: { p_run_id: number }; Returns: Json }
+      brreg_full_gate_overlap: { Args: { p_run_id: number }; Returns: Json }
       brreg_full_get_run: { Args: { p_run_id?: number }; Returns: Json }
       brreg_full_merge: { Args: { p_run_id: number }; Returns: Json }
       brreg_full_patch_run: {
@@ -5513,6 +5537,23 @@ export type Database = {
         }[]
       }
       careerjet_sync_vault_has_secret: { Args: never; Returns: boolean }
+      count_employers: {
+        Args: {
+          p_arbeidsgiver_type?: string
+          p_bransje_query?: string
+          p_cap?: number
+          p_fylkesnummer?: string
+          p_kommune_query?: string
+          p_kommunenummer?: string
+          p_max_ansatte?: number
+          p_max_omsetning?: number
+          p_min_ansatte?: number
+          p_min_omsetning?: number
+          p_naeringskode_prefix?: string
+          p_query?: string
+        }
+        Returns: Json
+      }
       cron_job_run_details_health: {
         Args: never
         Returns: {

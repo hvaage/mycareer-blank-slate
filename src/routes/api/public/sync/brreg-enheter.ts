@@ -300,12 +300,75 @@ interface GateMetrics {
   samples: Record<string, string[]>;
 }
 
+/**
+ * Hver delport kjøres som SITT EGET kall. Den samlede porten er én spørring på
+ * ~60 sekunder og treffer statement timeout; delt opp er ingen del over ~20 s,
+ * og hver del får sin egen varighet i svaret. `excluded_present_in_mirror` kan
+ * dermed også kjøres og leses alene — den er beviset på om rekonstruksjonen av
+ * filteret er ufullstendig.
+ */
+async function runGatePart<T>(
+  admin: Admin,
+  fn: string,
+  runId: number,
+  timings: Record<string, number>,
+): Promise<T> {
+  const t = Date.now();
+  const out = await rpc<T>(admin, fn, { p_run_id: runId });
+  timings[fn.replace("brreg_full_gate_", "")] = Date.now() - t;
+  return out;
+}
+
 async function phase3(admin: Admin, runId: number, dryRun: boolean) {
   const run = await rpc<RunRow>(admin, "brreg_full_get_run", { p_run_id: runId });
   if (!run) return json({ ok: false, error: "unknown run" }, 404);
   if (!run.parse_complete) return json({ ok: false, error: "fase 2 er ikke fullført" }, 409);
 
-  const m = await rpc<GateMetrics>(admin, "brreg_full_gate_metrics", { p_run_id: runId });
+  const gate_ms: Record<string, number> = {};
+  const counts = await runGatePart<{
+    filtered_count: number;
+    excluded_count: number;
+    mirror_count: number;
+  }>(admin, "brreg_full_gate_counts", runId, gate_ms);
+  const overlap = await runGatePart<{
+    overlap_count: number;
+    new_rows: number;
+    new_rows_samples: string[];
+  }>(admin, "brreg_full_gate_overlap", runId, gate_ms);
+  const markers = await runGatePart<MarkerDiffCounts>(
+    admin,
+    "brreg_full_gate_markers",
+    runId,
+    gate_ms,
+  );
+  const excluded = await runGatePart<{
+    excluded_present_in_mirror: number;
+    by_reason: Record<string, number>;
+    samples: string[];
+  }>(admin, "brreg_full_gate_excluded_in_mirror", runId, gate_ms);
+  const absent = await runGatePart<{ absent_from_source: number; samples: string[] }>(
+    admin,
+    "brreg_full_gate_absent",
+    runId,
+    gate_ms,
+  );
+
+  const m: GateMetrics = {
+    filtered_count: counts.filtered_count,
+    excluded_count: counts.excluded_count,
+    mirror_count: counts.mirror_count,
+    overlap_count: overlap.overlap_count,
+    new_rows: overlap.new_rows,
+    marker_diffs: markers,
+    excluded_present_in_mirror: excluded.excluded_present_in_mirror,
+    absent_from_source: absent.absent_from_source,
+    samples: {
+      new_rows: overlap.new_rows_samples,
+      excluded_present_in_mirror: excluded.samples,
+      absent_from_source: absent.samples,
+    },
+  };
+
   const gate = evaluateComparisonGate({
     filteredCount: m.filtered_count,
     mirrorCount: m.mirror_count,
@@ -318,7 +381,11 @@ async function phase3(admin: Admin, runId: number, dryRun: boolean) {
 
   await rpc(admin, "brreg_full_patch_run", {
     p_run_id: runId,
-    p_patch: { gate: { ...m, ...gate }, gate_pass: gate.pass, phase: "phase3_gate" },
+    p_patch: {
+      gate: { ...m, ...gate, excluded_by_reason: excluded.by_reason, gate_ms },
+      gate_pass: gate.pass,
+      phase: "phase3_gate",
+    },
   });
 
   if (!gate.pass || dryRun) {
@@ -329,8 +396,18 @@ async function phase3(admin: Admin, runId: number, dryRun: boolean) {
         ? { status: "gate_ok_dry_run" }
         : { status: "gate_failed", error: gate.failures.join("; "), finished: true },
     });
-    return json({ ok: gate.pass, phase: 3, merged: false, dry_run: dryRun, gate, metrics: m });
+    return json({
+      ok: gate.pass,
+      phase: 3,
+      merged: false,
+      dry_run: dryRun,
+      gate,
+      gate_ms,
+      metrics: m,
+      excluded_by_reason: excluded.by_reason,
+    });
   }
+
 
   const merged = await rpc<{ upserted: number; missing: number }>(admin, "brreg_full_merge", {
     p_run_id: runId,
