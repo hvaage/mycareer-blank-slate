@@ -717,8 +717,23 @@ function AtomReviewPage() {
               const mode: ProposalCardMode =
                 t === "pending" ? "pending" : t === "needs_more_context" ? "needs" : "readonly";
               const showCb = t === "pending" || t === "needs_more_context";
+              const rawCount =
+                t === "needs_more_context"
+                  ? (needsQ.data ?? []).length
+                  : t === "approved"
+                    ? (approvedQ.data ?? []).length
+                    : t === "rejected"
+                      ? (rejectedQ.data ?? []).length
+                      : 0;
+              const isTruncated = t !== "pending" && rawCount >= ATOM_ENRICHMENT_PROPOSAL_LIST_LIMIT;
               return (
                 <TabsContent key={t} value={t} className="mt-0 space-y-4">
+                  {isTruncated && t === tab ? (
+                    <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                      Listen er avkortet: viser de {ATOM_ENRICHMENT_PROPOSAL_LIST_LIMIT} nyeste
+                      forslagene i denne fanen. Det kan finnes flere som ikke vises her.
+                    </p>
+                  ) : null}
                   {tabLoading && t === tab ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
                       <Loader2 className="h-4 w-4 animate-spin" /> Laster…
