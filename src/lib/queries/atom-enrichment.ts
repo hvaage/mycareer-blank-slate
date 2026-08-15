@@ -122,8 +122,9 @@ export const atomEnrichmentProposalsByStatusQuery = (
         .eq("user_id", userId)
         .eq("status", status)
         .order("created_at", { ascending: false })
-        // NB: taket kutter stille ved mer enn 80. Listen er da et utsnitt, ikke alt.
-        .limit(80);
+        // NB: taket kutter ved ATOM_ENRICHMENT_PROPOSAL_LIST_LIMIT. Listen er da
+        // et utsnitt, ikke alt — merkes i UI til paginering finnes.
+        .limit(ATOM_ENRICHMENT_PROPOSAL_LIST_LIMIT);
       if (error) throw error;
       return (data ?? []) as AtomEnrichmentProposalRow[];
     },
