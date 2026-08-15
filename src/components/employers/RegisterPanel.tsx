@@ -1,5 +1,4 @@
 import type { EmployerDetail } from "@/lib/queries/employer-insight";
-import { MetricTile, fmtNok, fmtPercent, fmtRatio } from "./MetricTile";
 
 export function RegisterPanel({ d }: { d: EmployerDetail }) {
   const naceListe: string[] = [];
@@ -65,36 +64,6 @@ export function RegisterPanel({ d }: { d: EmployerDetail }) {
         )}
       </section>
 
-      <section>
-        <h3 className="text-sm font-semibold text-foreground">
-          Siste regnskapsår{" "}
-          {d.regnskapsaar ? (
-            <span className="tabular-nums font-normal text-muted-foreground">
-              ({d.regnskapsaar})
-            </span>
-          ) : null}
-        </h3>
-        {d.regnskapsaar === null || d.regnskapsaar === undefined ? (
-          <p className="mt-2 text-sm text-muted-foreground">Ingen regnskapsdata tilgjengelig ennå.</p>
-        ) : (
-          <>
-            <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
-              <MetricTile label="Driftsinntekter" value={fmtNok(d.driftsinntekter)} />
-              <MetricTile label="Driftsresultat" value={fmtNok(d.driftsresultat)} />
-              <MetricTile label="Årsresultat" value={fmtNok(d.aarsresultat)} />
-              <MetricTile label="Egenkapital" value={fmtNok(d.sum_egenkapital)} />
-              <MetricTile label="Gjeld" value={fmtNok(d.sum_gjeld)} />
-              <MetricTile label="Eiendeler" value={fmtNok(d.sum_eiendeler)} />
-              <MetricTile label="Driftsmargin" value={fmtPercent(d.driftsmargin_prosent)} />
-              <MetricTile label="EK-andel" value={fmtPercent(d.egenkapitalandel_prosent)} />
-              <MetricTile label="Gjeldsgrad" value={fmtRatio(d.gjeldsgrad)} />
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Historisk regnskapstabell kommer når egen history-RPC/view er på plass.
-            </p>
-          </>
-        )}
-      </section>
     </div>
   );
 }

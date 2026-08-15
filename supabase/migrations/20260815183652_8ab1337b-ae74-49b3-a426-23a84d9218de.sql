@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.get_employer_analysis_view(text) TO anon;

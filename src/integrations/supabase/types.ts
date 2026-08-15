@@ -5784,6 +5784,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_employer_formaal: {
+        Args: { p_organisasjonsnummer: string }
+        Returns: string
+      }
       get_nav_repair_cron_info: {
         Args: never
         Returns: {

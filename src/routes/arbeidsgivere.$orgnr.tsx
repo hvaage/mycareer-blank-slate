@@ -1,15 +1,25 @@
 import { createFileRoute, useRouter, notFound, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { employerDetailQuery } from "@/lib/queries/employer-insight";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  employerDetailQuery,
+  employerFormaalQuery,
+} from "@/lib/queries/employer-insight";
 import { employerAnalysisViewQuery } from "@/lib/queries/employer-analysis-view";
 import { useAuth } from "@/lib/auth-context";
 import { fylkesnavn } from "@/lib/employers/no-regions";
-import { TypeBadge, RiskBadges, DataQualityBadges } from "@/components/employers/Badges";
+import { TypeBadge, DataQualityBadges } from "@/components/employers/Badges";
+import { NokkeltallPanel } from "@/components/employers/NokkeltallPanel";
+import { OkonomiPanel } from "@/components/employers/OkonomiPanel";
 import { RegisterPanel } from "@/components/employers/RegisterPanel";
 import { EmployeeRatingsPanel } from "@/components/employers/EmployeeRatingsPanel";
 import { JobseekerProcessPanel } from "@/components/employers/JobseekerProcessPanel";
@@ -26,8 +36,15 @@ export const Route = createFileRoute("/arbeidsgivere/$orgnr")({
       { title: `Arbeidsgiver ${params.orgnr} — Karrierenmin` },
       {
         name: "description",
-        content: `Register-, regnskaps- og analyseinnsikt for organisasjonsnummer ${params.orgnr}.`,
+        content: `Ansatte, økonomi og registerdata for organisasjonsnummer ${params.orgnr}, samlet på én side.`,
       },
+      { property: "og:title", content: `Arbeidsgiver ${params.orgnr} — Karrierenmin` },
+      {
+        property: "og:description",
+        content: `Ansatte, økonomi og registerdata for organisasjonsnummer ${params.orgnr}.`,
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
     links: [
       {
@@ -46,6 +63,7 @@ function DetailPage() {
   const { data: res } = useSuspenseQuery(employerDetailQuery(orgnr));
   const { user } = useAuth();
   const userKey = user?.id ?? "anon";
+  const { data: formaal } = useQuery(employerFormaalQuery(orgnr));
   const {
     data: envelope,
     isPending: envelopePending,
@@ -81,6 +99,7 @@ function DetailPage() {
     .filter(Boolean)
     .join(", ");
   const bransje = d.naeringskode1_beskrivelse ?? d.naeringskode1_kode ?? null;
+  const harAnalyse = Boolean(envelope?.analysis);
 
   return (
     <Shell>
@@ -103,6 +122,7 @@ function DetailPage() {
         </Link>
       </div>
 
+      {/* 1. Overskrift */}
       <header className="space-y-2">
         <div className="flex flex-wrap items-baseline gap-2">
           <h1 className="text-2xl font-semibold text-foreground">{d.navn}</h1>
@@ -125,71 +145,105 @@ function DetailPage() {
             </Badge>
           )}
         </div>
-        <div className="flex flex-col gap-1">
-          <RiskBadges flags={d.risiko_flags} />
-          <DataQualityBadges flags={d.datakvalitet_flags} />
-        </div>
-        {envelope?.company?.analysis_rated_at ? (
-          <p className="text-xs text-muted-foreground">
-            Analyse oppdatert{" "}
-            {new Date(envelope.company.analysis_rated_at).toLocaleDateString(
-              "nb-NO",
-              { day: "2-digit", month: "long", year: "numeric" },
-            )}
-          </p>
-        ) : null}
+        <DataQualityBadges flags={d.datakvalitet_flags} />
       </header>
 
-      <div className="mt-8">
-        {envelopeError ? (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6">
-            <p className="text-sm font-medium text-foreground">
-              Kunne ikke hente arbeidsgiveranalysen
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {envelopeErrorObj instanceof Error
-                ? envelopeErrorObj.message
-                : "Ukjent feil"}
-            </p>
-            <div className="mt-3">
-              <Button size="sm" variant="outline" onClick={() => envelopeRefetch()}>
-                Prøv igjen
-              </Button>
-            </div>
-          </div>
-        ) : envelope ? (
-          <EmployerAnalysisReportV2
-            envelope={envelope}
-            mode="public"
-            showCompanyHeader={false}
-          />
-        ) : envelopePending ? (
-          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
-            Henter arbeidsgiveranalyse…
-          </div>
-        ) : null}
-      </div>
+      {/* 2. Nøkkeltall */}
+      <section className="mt-6">
+        <h2 className="mb-3 text-lg font-display font-semibold tracking-tight text-foreground">
+          Nøkkeltall om arbeidsgiveren
+        </h2>
+        <NokkeltallPanel d={d} />
+        {formaal && (
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            <span className="font-medium text-foreground">Vedtektsfestet formål: </span>
+            {formaal}
+          </p>
+        )}
+      </section>
 
-      <div className="mt-12 space-y-8">
-        <section>
-          <h2 className="text-xl font-display font-semibold tracking-tight text-foreground mb-3">
-            Register og regnskap
-          </h2>
-          <RegisterPanel d={d} />
-        </section>
-        <section>
-          <h2 className="text-xl font-display font-semibold tracking-tight text-foreground mb-3">
-            Ansattes vurderinger
-          </h2>
+      {/* 3. Økonomisk bilde */}
+      <section className="mt-10">
+        <h2 className="mb-3 text-lg font-display font-semibold tracking-tight text-foreground">
+          Økonomisk bilde
+        </h2>
+        <OkonomiPanel d={d} />
+      </section>
+
+      {/* 4. Registerdetaljer, kollapset */}
+      <section className="mt-10">
+        <Collapsible>
+          <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left">
+            <span className="text-sm font-semibold text-foreground">
+              Registerdetaljer fra Enhetsregisteret
+            </span>
+            <ChevronDown
+              className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+              aria-hidden
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="rounded-b-lg border-x border-b border-border bg-card px-4 py-4">
+            <RegisterPanel d={d} />
+          </CollapsibleContent>
+        </Collapsible>
+      </section>
+
+      {/* 5. Vurderinger */}
+      <section className="mt-10 space-y-8">
+        <h2 className="text-lg font-display font-semibold tracking-tight text-foreground">
+          Vurderinger
+        </h2>
+
+        {envelopeError ? (
+          <p className="text-sm text-muted-foreground">
+            Arbeidsgiveranalysen kunne ikke hentes
+            {envelopeErrorObj instanceof Error ? `: ${envelopeErrorObj.message}` : ""}.{" "}
+            <Button
+              size="sm"
+              variant="link"
+              className="h-auto p-0 align-baseline"
+              onClick={() => envelopeRefetch()}
+            >
+              Prøv igjen
+            </Button>
+          </p>
+        ) : envelopePending ? (
+          <p className="text-sm text-muted-foreground">Henter arbeidsgiveranalyse…</p>
+        ) : harAnalyse && envelope ? (
+          <div>
+            <EmployerAnalysisReportV2
+              envelope={envelope}
+              mode="public"
+              showCompanyHeader={false}
+            />
+            {envelope.company?.analysis_rated_at ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Analyse oppdatert{" "}
+                {new Date(envelope.company.analysis_rated_at).toLocaleDateString("nb-NO", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Ingen KI-analyse av denne arbeidsgiveren ennå.
+          </p>
+        )}
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-foreground">Ansattes vurderinger</h3>
           <EmployeeRatingsPanel d={d} orgnr={d.organisasjonsnummer} />
-        </section>
-        <section>
-          <h2 className="text-xl font-display font-semibold tracking-tight text-foreground mb-3">
+        </div>
+        <div>
+          <h3 className="mb-3 text-sm font-semibold text-foreground">
             Søkeres vurdering av jobbprosessen
-          </h2>
+          </h3>
           <JobseekerProcessPanel d={d} orgnr={d.organisasjonsnummer} />
-        </section>
-      </div>
+        </div>
+      </section>
     </Shell>
   );
 }
