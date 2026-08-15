@@ -386,63 +386,6 @@ export type Database = {
           },
         ]
       }
-      atom_evidence_links: {
-        Row: {
-          ai_generated: boolean
-          atom_id: string
-          created_at: string
-          evidence_id: string
-          evidence_label: string | null
-          evidence_type: string
-          id: string
-          manually_verified: boolean
-          strength_score: number | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          ai_generated?: boolean
-          atom_id: string
-          created_at?: string
-          evidence_id: string
-          evidence_label?: string | null
-          evidence_type: string
-          id?: string
-          manually_verified?: boolean
-          strength_score?: number | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          ai_generated?: boolean
-          atom_id?: string
-          created_at?: string
-          evidence_id?: string
-          evidence_label?: string | null
-          evidence_type?: string
-          id?: string
-          manually_verified?: boolean
-          strength_score?: number | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "atom_evidence_links_atom_id_fkey"
-            columns: ["atom_id"]
-            isOneToOne: false
-            referencedRelation: "career_atoms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "atom_evidence_links_atom_id_fkey"
-            columns: ["atom_id"]
-            isOneToOne: false
-            referencedRelation: "cv_evidence_atoms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       attachments: {
         Row: {
           application_id: string | null
@@ -1461,48 +1404,6 @@ export type Database = {
           },
         ]
       }
-      cv_consent_log: {
-        Row: {
-          consent_given: boolean
-          consent_type: string
-          context: string | null
-          created_at: string
-          granted_at: string
-          id: string
-          ip_address: string | null
-          revoked_at: string | null
-          updated_at: string
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          consent_given?: boolean
-          consent_type: string
-          context?: string | null
-          created_at?: string
-          granted_at?: string
-          id?: string
-          ip_address?: string | null
-          revoked_at?: string | null
-          updated_at?: string
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          consent_given?: boolean
-          consent_type?: string
-          context?: string | null
-          created_at?: string
-          granted_at?: string
-          id?: string
-          ip_address?: string | null
-          revoked_at?: string | null
-          updated_at?: string
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       cv_evidence_atoms: {
         Row: {
           atom_type: string
@@ -1581,21 +1482,7 @@ export type Database = {
             foreignKeyName: "cv_evidence_atoms_canonical_atom_id_fkey"
             columns: ["canonical_atom_id"]
             isOneToOne: false
-            referencedRelation: "career_atoms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cv_evidence_atoms_canonical_atom_id_fkey"
-            columns: ["canonical_atom_id"]
-            isOneToOne: false
             referencedRelation: "cv_evidence_atoms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cv_evidence_atoms_parent_atom_id_fkey"
-            columns: ["parent_atom_id"]
-            isOneToOne: false
-            referencedRelation: "career_atoms"
             referencedColumns: ["id"]
           },
           {
@@ -1660,56 +1547,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      documentation_package_items: {
-        Row: {
-          created_at: string
-          display_order: number | null
-          id: string
-          included: boolean
-          item_id: string
-          item_type: string
-          notes: string | null
-          package_id: string
-          title_override: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          display_order?: number | null
-          id?: string
-          included?: boolean
-          item_id: string
-          item_type: string
-          notes?: string | null
-          package_id: string
-          title_override?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          display_order?: number | null
-          id?: string
-          included?: boolean
-          item_id?: string
-          item_type?: string
-          notes?: string | null
-          package_id?: string
-          title_override?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "documentation_package_items_package_id_fkey"
-            columns: ["package_id"]
-            isOneToOne: false
-            referencedRelation: "documentation_packages"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       documentation_packages: {
         Row: {
@@ -5159,110 +4996,6 @@ export type Database = {
           work_type?: string | null
         }
         Relationships: []
-      }
-      career_atoms: {
-        Row: {
-          atom_type: string | null
-          canonical_atom_id: string | null
-          career_stage_relevance: string[] | null
-          confidence: string | null
-          content_en: string | null
-          content_no: string | null
-          created_at: string | null
-          dedupe_key: string | null
-          evidence_scope: string | null
-          id: string | null
-          last_seen_at: string | null
-          parent_atom_id: string | null
-          relevance_score: number | null
-          role_relevance_tags: string[] | null
-          source_quote: string | null
-          source_ref: string | null
-          source_type: string | null
-          structured_data: Json | null
-          updated_at: string | null
-          user_confirmed: boolean | null
-          user_id: string | null
-          user_locked: boolean | null
-        }
-        Insert: {
-          atom_type?: string | null
-          canonical_atom_id?: string | null
-          career_stage_relevance?: string[] | null
-          confidence?: string | null
-          content_en?: string | null
-          content_no?: string | null
-          created_at?: string | null
-          dedupe_key?: string | null
-          evidence_scope?: string | null
-          id?: string | null
-          last_seen_at?: string | null
-          parent_atom_id?: string | null
-          relevance_score?: number | null
-          role_relevance_tags?: string[] | null
-          source_quote?: string | null
-          source_ref?: string | null
-          source_type?: string | null
-          structured_data?: Json | null
-          updated_at?: string | null
-          user_confirmed?: boolean | null
-          user_id?: string | null
-          user_locked?: boolean | null
-        }
-        Update: {
-          atom_type?: string | null
-          canonical_atom_id?: string | null
-          career_stage_relevance?: string[] | null
-          confidence?: string | null
-          content_en?: string | null
-          content_no?: string | null
-          created_at?: string | null
-          dedupe_key?: string | null
-          evidence_scope?: string | null
-          id?: string | null
-          last_seen_at?: string | null
-          parent_atom_id?: string | null
-          relevance_score?: number | null
-          role_relevance_tags?: string[] | null
-          source_quote?: string | null
-          source_ref?: string | null
-          source_type?: string | null
-          structured_data?: Json | null
-          updated_at?: string | null
-          user_confirmed?: boolean | null
-          user_id?: string | null
-          user_locked?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cv_evidence_atoms_canonical_atom_id_fkey"
-            columns: ["canonical_atom_id"]
-            isOneToOne: false
-            referencedRelation: "career_atoms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cv_evidence_atoms_canonical_atom_id_fkey"
-            columns: ["canonical_atom_id"]
-            isOneToOne: false
-            referencedRelation: "cv_evidence_atoms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cv_evidence_atoms_parent_atom_id_fkey"
-            columns: ["parent_atom_id"]
-            isOneToOne: false
-            referencedRelation: "career_atoms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cv_evidence_atoms_parent_atom_id_fkey"
-            columns: ["parent_atom_id"]
-            isOneToOne: false
-            referencedRelation: "cv_evidence_atoms"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       employer_search_v1: {
         Row: {
