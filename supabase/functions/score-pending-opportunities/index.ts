@@ -952,7 +952,7 @@ Deno.serve(async (req: Request) => {
         final.concerns = final.reasons.map((reason) => reason.label).join(" ")
           .slice(0, 1000);
       }
-      const summary = requirementSummary(final);
+      const summary = requirementSummary(final, evidence.length);
       const jobInputHash = await sha256({
         title: candidate.title,
         company: candidate.company,
