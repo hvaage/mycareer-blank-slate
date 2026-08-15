@@ -5788,6 +5788,10 @@ export type Database = {
         Args: { p_organisasjonsnummer: string }
         Returns: string
       }
+      get_employer_regnskap_history: {
+        Args: { p_organisasjonsnummer: string }
+        Returns: Json
+      }
       get_nav_repair_cron_info: {
         Args: never
         Returns: {

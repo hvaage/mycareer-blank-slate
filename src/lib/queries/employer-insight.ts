@@ -452,3 +452,35 @@ export function employerFormaalQuery(orgnr: string) {
     staleTime: 300_000,
   });
 }
+
+// ---------- get_employer_regnskap_history ----------
+
+/**
+ * Ett år per innsendt regnskap. Registeret leverer bare siste innsendte år,
+ * så historikken bygges opp over tid — antall rader vokser av seg selv.
+ */
+export type RegnskapAar = {
+  regnskapsaar: number;
+  regnskapstype: string | null;
+  driftsinntekter: number | null;
+  driftsresultat: number | null;
+  aarsresultat: number | null;
+  sum_egenkapital: number | null;
+  valuta: string | null;
+};
+
+export async function loadEmployerRegnskapHistory(orgnr: string): Promise<RegnskapAar[]> {
+  const { data, error } = await sb.rpc("get_employer_regnskap_history", {
+    p_organisasjonsnummer: orgnr,
+  });
+  if (error) return [];
+  return Array.isArray(data) ? (data as unknown as RegnskapAar[]) : [];
+}
+
+export function employerRegnskapHistoryQuery(orgnr: string) {
+  return queryOptions({
+    queryKey: ["employer-regnskap-history", orgnr],
+    queryFn: () => loadEmployerRegnskapHistory(orgnr),
+    staleTime: 300_000,
+  });
+}
