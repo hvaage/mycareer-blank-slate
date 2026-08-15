@@ -342,7 +342,8 @@ export function convertOldCv(
         content_en: known.canonical,
         structured_data: {
           language: known.canonical,
-          level: null,
+          // Nivå er ukjent når språket kom fra ferdighetslisten; brukeren setter det.
+          level: langLevel(null),
           cefr: null,
           suggested_from_name_lexicon: true,
         } as LanguageStructuredData,
