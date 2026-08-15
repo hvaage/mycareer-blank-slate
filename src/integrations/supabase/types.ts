@@ -5396,6 +5396,10 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: Json
       }
+      brreg_full_apply_refined_filter: {
+        Args: { p_run_id: number }
+        Returns: Json
+      }
       brreg_full_clear_staging: {
         Args: { p_run_id: number }
         Returns: undefined
@@ -5410,7 +5414,9 @@ export type Database = {
       brreg_full_gate_metrics: { Args: { p_run_id: number }; Returns: Json }
       brreg_full_gate_overlap: { Args: { p_run_id: number }; Returns: Json }
       brreg_full_get_run: { Args: { p_run_id?: number }; Returns: Json }
-      brreg_full_merge: { Args: { p_run_id: number }; Returns: Json }
+      brreg_full_merge:
+        | { Args: { p_run_id: number }; Returns: Json }
+        | { Args: { p_batch?: number; p_run_id: number }; Returns: Json }
       brreg_full_patch_run: {
         Args: { p_patch: Json; p_run_id: number }
         Returns: Json

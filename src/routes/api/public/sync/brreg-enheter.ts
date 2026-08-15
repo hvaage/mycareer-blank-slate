@@ -319,6 +319,39 @@ async function runGatePart<T>(
   return out;
 }
 
+/**
+ * Skriving alene, uten porten. Porten er allerede kjørt og godkjent for
+ * kjøringen; å kjøre den om igjen for hver porsjon koster to minutter og
+ * sprenger tidsbudsjettet til gatewayen. Kallet er trygt å gjenta: hver
+ * porsjon merkes i mellomlagringen.
+ */
+async function mergeOnly(admin: Admin, runId: number) {
+  const budgetMs = 100_000;
+  const t0 = Date.now();
+  const out = { upserted: 0, missing: 0, batches: 0, remaining: -1, done: false };
+  while (Date.now() - t0 < budgetMs) {
+    const step = await rpc<{ upserted: number; missing: number; remaining: number; done: boolean }>(
+      admin,
+      "brreg_full_merge",
+      { p_run_id: runId, p_batch: 25_000 },
+    );
+    out.upserted += step.upserted;
+    out.batches += 1;
+    out.remaining = step.remaining;
+    if (step.done) {
+      out.missing = step.missing;
+      out.done = true;
+      await rpc(admin, "brreg_full_patch_run", {
+        p_run_id: runId,
+        p_patch: { phase: "phase3_done", status: "ok", finished: true },
+      });
+      break;
+    }
+    if (step.upserted === 0) return json({ ok: false, phase: "merge", error: "ingen fremdrift", ...out }, 500);
+  }
+  return json({ ok: true, phase: "merge", ...out });
+}
+
 async function phase3(admin: Admin, runId: number, dryRun: boolean) {
   const run = await rpc<RunRow>(admin, "brreg_full_get_run", { p_run_id: runId });
   if (!run) return json({ ok: false, error: "unknown run" }, 404);
@@ -409,9 +442,32 @@ async function phase3(admin: Admin, runId: number, dryRun: boolean) {
   }
 
 
-  const merged = await rpc<{ upserted: number; missing: number }>(admin, "brreg_full_merge", {
-    p_run_id: runId,
-  });
+  // Skrivingen går i porsjoner: én samlet upsert på ~443 000 rader sprenger
+  // tidsgrensen. Hver porsjon merkes i mellomlagringen, så kallet kan gjentas
+  // uten å skrive noe om igjen. Telleren for manglende rader settes i siste
+  // porsjon.
+  const MERGE_BATCH = 50_000;
+  const merged = { upserted: 0, missing: 0, batches: 0 };
+  for (let i = 0; i < 40; i++) {
+    const step = await rpc<{
+      upserted: number;
+      missing: number;
+      remaining: number;
+      done: boolean;
+    }>(admin, "brreg_full_merge", { p_run_id: runId, p_batch: MERGE_BATCH });
+    merged.upserted += step.upserted;
+    merged.batches += 1;
+    if (step.done) {
+      merged.missing = step.missing;
+      break;
+    }
+    if (step.upserted === 0) {
+      return json(
+        { ok: false, phase: 3, error: "merge stoppet uten fremdrift", merged, gate, metrics: m },
+        500,
+      );
+    }
+  }
   // Mellomlagringen beholdes med vilje: den er dokumentasjonen for hva kjøringen skrev.
   const patched = await rpc<RunRow>(admin, "brreg_full_patch_run", {
     p_run_id: runId,
@@ -442,6 +498,7 @@ export const Route = createFileRoute("/api/public/sync/brreg-enheter")({
               runId,
               Number(url.searchParams.get("max_rows") ?? 0) || null,
             );
+          if (phase === "merge") return await mergeOnly(supabaseAdmin, runId);
           if (phase === "3")
             return await phase3(supabaseAdmin, runId, url.searchParams.get("dry_run") === "1");
           if (phase === "status")
