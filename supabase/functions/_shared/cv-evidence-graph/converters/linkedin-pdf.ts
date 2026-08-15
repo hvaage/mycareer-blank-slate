@@ -1,8 +1,8 @@
-// cv-evidence-graph — Converter: LinkedIn PDF (manuelt eksport) → atoms
+// cv-evidence-graph — Converter: LinkedIn PDF (manuell eksport) → parsekandidater
 // Stub-fil. Fylles ut når Modul 4 (LinkedIn PDF-import) implementeres.
 //
 // Forventet input: parset JSON fra Claude som har ekstrahert struktur fra PDF-en.
-// Output: AtomInsert[]
+// Output: CandidateDraft[]
 //
 // Forskjell fra ZIP-import:
 // - PDF-strukturen er mer flytende (ikke faste kolonner)
@@ -10,7 +10,7 @@
 // - Datoformatene mer varierte
 // - Kvaliteten på output avhenger av Claude's PDF-parsing (Modul 4 håndterer)
 
-import type { AtomInsert } from "../types.ts";
+import type { CandidateDraft } from "../types.ts";
 
 export interface ParsedLinkedInPdf {
   name?: string;
