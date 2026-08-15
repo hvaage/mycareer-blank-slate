@@ -231,7 +231,10 @@ function ArbeidsgivereIndex() {
             fordeling={ansatteFordeling}
             laster={fordelingLaster}
             ansatteFilterAktivt={ansatteFilterAktivt}
+            totalTreff={typeof data?.totalCount === "number" ? data.totalCount : null}
+            totalErTak={data?.totalIsCapped ?? false}
           />
+
 
 
           {data?.emptyReason === "min_query_length" ? (
