@@ -11,16 +11,9 @@
 //   Certifications.csv  — sertifikater
 //   Projects.csv        — prosjekter (om aktivert)
 //
-// Output: AtomInsert[] klar til insertAtoms() etter validering.
+// Output: CandidateDraft[] klar til insertCandidates() etter validering.
 
-import type {
-  AtomInsert,
-  RoleStructuredData,
-  EducationStructuredData,
-  SkillStructuredData,
-  LanguageStructuredData,
-  CertificationStructuredData,
-} from "../types.ts";
+import type { CandidateDraft } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // LinkedIn CSV-rad-typer
@@ -67,28 +60,27 @@ export interface LinkedInCertificationRow {
 // ---------------------------------------------------------------------------
 
 export interface LinkedInZipConversionResult {
-  roles: { role: AtomInsert; achievements: AtomInsert[] }[];
-  educations: AtomInsert[];
-  skills: AtomInsert[];
-  languages: AtomInsert[];
-  certifications: AtomInsert[];
+  /** Flat liste med kandidater. Hierarkiet ligger i parent_local_ref. */
+  candidates: CandidateDraft[];
   notes: string[];
 }
 
 /**
- * Konverter parsede LinkedIn ZIP-rader til atoms.
+ * Konverter parsede LinkedIn ZIP-rader til parsekandidater.
  *
  * IKKE IMPLEMENTERT — stub. Fylles ut i Modul 3 (LinkedIn ZIP-import).
  *
  * Implementasjons-notater:
  * - Datoformat fra LinkedIn varierer ("Jan 2019", "2019", "2019-01"). Konverter til YYYY-MM.
  * - Description-feltet i Positions.csv inneholder ofte fritekst med linjeskift eller •.
- *   Splitt til separate achievement-atoms basert på linjeskift, deretter sanere.
- * - Skills.csv inneholder kun navn. Bruk samme inferSkillCategory() som i profile-fields.ts.
+ *   Splitt til separate achievement-kandidater basert på linjeskift, deretter sanere.
+ * - Skills.csv inneholder kun navn. Bruk samme inferSkillCategory() som i profile-fields.ts,
+ *   og sett suggested_from_category slik at korrigeringsraten kan måles.
  * - Languages.csv har "Proficiency" som ord ("Native or bilingual proficiency",
  *   "Professional working proficiency", etc.). Map til language.level-enum.
- * - Sett source_type='linkedin_zip', source_ref=import_id (fra cv_imports),
- *   confidence='imported' på alle atoms.
+ * - Sett source_type='linkedin_zip', source_ref=import_id (fra cv_imports) og
+ *   parse_confidence. Verken confidence eller attestation settes her — kandidater
+ *   er ikke evidens før brukeren har bekreftet dem.
  */
 export function convertLinkedInZip(
   parsed: {

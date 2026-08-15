@@ -1,11 +1,24 @@
 // cv-evidence-graph — TypeScript types
-// Skjema-versjon: 1.0
-// Disse typene er kanoniske. Edge-funksjoner og frontend skal importere herfra.
+// Skjema-versjon: 4.0 (karriereontologi v4, fase 2.3)
+//
+// VIKTIG: Denne filen er en kopi av Claude-skillen `cv-evidence-graph`.
+// Se docs/delt-kode-cv-evidence-graph.md. Endring her krever samme endring
+// i skillen, i samme leveranse.
+//
+// Modulen beskriver PARSELAGET, ikke evidenslaget. Radene den produserer
+// havner i `public.cv_parse_candidates` og er maskinlesning som venter på
+// brukerens avgjørelse. Evidens finnes kun i `public.career_atoms`, og
+// oppstår først når brukeren har bekreftet en kandidat i gjennomgangen.
+//
+// Derfor finnes ikke lenger her: `confidence` (v4s opprinnelsesakse),
+// `attestation`, `user_confirmed`, `user_locked`, `parent_atom_id` og
+// `evidence_atom_ids`. De hører til career_atoms.
 
 // ---------------------------------------------------------------------------
 // Felles enums
 // ---------------------------------------------------------------------------
 
+/** v4-vokabularet for evidens. `domain` er ny i 4.0 og er eksponering, ikke kompetanse. */
 export type AtomType =
   | "role"
   | "achievement"
@@ -14,13 +27,28 @@ export type AtomType =
   | "tool"
   | "education"
   | "skill"
+  | "domain"
   | "language"
   | "certification"
   | "project"
   | "volunteer"
   | "summary_fragment";
 
-export type Confidence = "verified" | "imported" | "inferred";
+export const ATOM_TYPES: AtomType[] = [
+  "role",
+  "achievement",
+  "metric",
+  "context",
+  "tool",
+  "education",
+  "skill",
+  "domain",
+  "language",
+  "certification",
+  "project",
+  "volunteer",
+  "summary_fragment",
+];
 
 export type SourceType =
   | "linkedin_oauth"
@@ -33,25 +61,110 @@ export type SourceType =
   | "about_me_profile"
   | "onboarding";
 
+/** Behandlingstilstand for en kandidat i gjennomgangen. */
+export type CandidateStatus =
+  | "ubehandlet"
+  | "bekreftet"
+  | "avvist"
+  | "ble_sporsmal";
+
 // ---------------------------------------------------------------------------
-// Base-atom — felles felter for alle typer
+// Parserens grovkategori → forslag til atom_type
+//
+// De åtte verdiene blander tre akser: hva slags ferdighet (technical/soft),
+// hvilket instrument (tool), og hvilket felt (domain). Kartet under er et
+// FORSLAG. Gjennomgangen lar brukeren korrigere, og korrigeringsraten per
+// kategori er det som avgjør om kartet skal endres.
+// ---------------------------------------------------------------------------
+
+export type ParserSkillCategory =
+  | "technical"
+  | "leadership"
+  | "language"
+  | "tool"
+  | "methodology"
+  | "domain"
+  | "soft"
+  | "other";
+
+export const PARSER_SKILL_CATEGORIES: ParserSkillCategory[] = [
+  "technical",
+  "leadership",
+  "language",
+  "tool",
+  "methodology",
+  "domain",
+  "soft",
+  "other",
+];
+
+/**
+ * Forslag til atom_type ut fra parserens grovkategori.
+ * `null` betyr at parseren ikke kan gjette — det blir et spørsmål til brukeren.
+ *
+ * `leadership` foreslås som skill, men er ofte egentlig et rolleforhold.
+ * Gjennomgangen skal vise personalansvar fra rollen der det finnes.
+ */
+export function suggestAtomTypeFromCategory(
+  category: ParserSkillCategory | null | undefined,
+): AtomType | null {
+  switch (category) {
+    case "technical":
+    case "soft":
+    case "methodology":
+    case "leadership":
+      return "skill";
+    case "tool":
+      return "tool";
+    case "language":
+      return "language";
+    case "domain":
+      return "domain";
+    case "other":
+    default:
+      return null;
+  }
+}
+
+/** Krever kandidaten et valg av rolle før den kan bli et atom? */
+export function requiresRoleParent(atomType: AtomType): boolean {
+  return atomType === "domain";
+}
+
+/** Krever kandidaten minst én evidenspeker for å kunne bli verifisert? */
+export function requiresEvidencePointer(atomType: AtomType): boolean {
+  return atomType === "skill";
+}
+
+// ---------------------------------------------------------------------------
+// Base — felles felter for alle kandidater
 // Generic S = structured_data shape; spesifiseres per atom-type nedenfor.
 // ---------------------------------------------------------------------------
 
-export interface AtomBase<S = unknown> {
+export interface CandidateBase<S = unknown> {
   id: string;
   user_id: string;
-  atom_type: AtomType;
-  parent_atom_id: string | null;
+  import_id: string;
+  /** Parserens egen id innenfor importen. Struktur uten atomgraf. */
+  local_ref: string;
+  parent_local_ref: string | null;
+  suggested_atom_type: AtomType;
+  resolved_atom_type: AtomType | null;
+  suggested_from_category: ParserSkillCategory | null;
   content_no: string | null;
   content_en: string | null;
   structured_data: S | null;
+  dedupe_key: string | null;
   source_type: SourceType;
   source_ref: string | null;
   source_quote: string | null;
-  confidence: Confidence;
-  user_confirmed: boolean;
-  user_locked: boolean;
+  /** 0–1, parserens egen sikkerhet. Ikke v4s confidence-akse. */
+  parse_confidence: number | null;
+  status: CandidateStatus;
+  promoted_atom_id: string | null;
+  question_ref: string | null;
+  rejected_reason: string | null;
+  reviewed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +191,8 @@ export interface RoleStructuredData {
   employer_size: "startup" | "sme" | "large" | "enterprise" | null;
   employer_description: string | null;
   is_current: boolean;
+  /** Antall direkterapporterende, når CV-en oppgir det. Vises ved leadership-vurdering. */
+  direct_reports: number | null;
 }
 
 export interface AchievementStructuredData {
@@ -132,13 +247,7 @@ export interface ContextStructuredData {
 
 export interface ToolStructuredData {
   name: string;
-  category:
-    | "crm"
-    | "methodology"
-    | "language"
-    | "platform"
-    | "framework"
-    | "other";
+  tool_kind: "crm" | "methodology" | "platform" | "framework" | "other";
   proficiency: "expert" | "proficient" | "familiar" | null;
   years_used: number | null;
 }
@@ -158,18 +267,20 @@ export interface EducationStructuredData {
 export interface SkillStructuredData {
   name: string;
   name_normalized?: string;
-  category:
-    | "technical"
-    | "leadership"
-    | "language"
-    | "tool"
-    | "methodology"
-    | "domain"
-    | "soft"
-    | "other";
+  /**
+   * Parserens grovkategori — kun et forslagsgrunnlag. Den er IKKE en klasse.
+   * atom_class settes av databasen ut fra resolved_atom_type.
+   */
+  source_category: ParserSkillCategory;
   proficiency: "expert" | "proficient" | "familiar" | null;
   years_used: number | null;
-  evidence_atom_ids: string[];
+}
+
+/** Eksponering: felt eller bransje brukeren har vært borti gjennom en rolle. */
+export interface DomainStructuredData {
+  name: string;
+  name_normalized?: string;
+  years_exposed: number | null;
 }
 
 export interface LanguageStructuredData {
@@ -216,76 +327,6 @@ export interface SummaryFragmentStructuredData {
   weight: number;
 }
 
-// ---------------------------------------------------------------------------
-// Diskriminerte unioner — gir typesikker tilgang til structured_data per type
-// ---------------------------------------------------------------------------
-
-export interface RoleAtom extends AtomBase<RoleStructuredData> {
-  atom_type: "role";
-}
-
-export interface AchievementAtom extends AtomBase<AchievementStructuredData> {
-  atom_type: "achievement";
-}
-
-export interface MetricAtom extends AtomBase<MetricStructuredData> {
-  atom_type: "metric";
-}
-
-export interface ContextAtom extends AtomBase<ContextStructuredData> {
-  atom_type: "context";
-}
-
-export interface ToolAtom extends AtomBase<ToolStructuredData> {
-  atom_type: "tool";
-}
-
-export interface EducationAtom extends AtomBase<EducationStructuredData> {
-  atom_type: "education";
-}
-
-export interface SkillAtom extends AtomBase<SkillStructuredData> {
-  atom_type: "skill";
-}
-
-export interface LanguageAtom extends AtomBase<LanguageStructuredData> {
-  atom_type: "language";
-}
-
-export interface CertificationAtom extends AtomBase<CertificationStructuredData> {
-  atom_type: "certification";
-}
-
-export interface ProjectAtom extends AtomBase<ProjectStructuredData> {
-  atom_type: "project";
-}
-
-export interface VolunteerAtom extends AtomBase<VolunteerStructuredData> {
-  atom_type: "volunteer";
-}
-
-export interface SummaryFragmentAtom extends AtomBase<SummaryFragmentStructuredData> {
-  atom_type: "summary_fragment";
-}
-
-export type CvAtom =
-  | RoleAtom
-  | AchievementAtom
-  | MetricAtom
-  | ContextAtom
-  | ToolAtom
-  | EducationAtom
-  | SkillAtom
-  | LanguageAtom
-  | CertificationAtom
-  | ProjectAtom
-  | VolunteerAtom
-  | SummaryFragmentAtom;
-
-// ---------------------------------------------------------------------------
-// Input-typer — partial, brukes ved opprettelse
-// ---------------------------------------------------------------------------
-
 export type AnyStructuredData =
   | RoleStructuredData
   | AchievementStructuredData
@@ -294,223 +335,150 @@ export type AnyStructuredData =
   | ToolStructuredData
   | EducationStructuredData
   | SkillStructuredData
+  | DomainStructuredData
   | LanguageStructuredData
   | CertificationStructuredData
   | ProjectStructuredData
   | VolunteerStructuredData
   | SummaryFragmentStructuredData;
 
-export type AtomInsert = Omit<
-  AtomBase<AnyStructuredData>,
-  "id" | "created_at" | "updated_at" | "user_confirmed" | "user_locked" | "confidence"
-> & {
-  confidence?: Confidence;
-  user_confirmed?: boolean;
-  user_locked?: boolean;
+export type CvParseCandidate = CandidateBase<AnyStructuredData>;
+
+// ---------------------------------------------------------------------------
+// Utkast fra konvertererne — før import_id og user_id er kjent
+// ---------------------------------------------------------------------------
+
+export interface CandidateDraft {
+  local_ref: string;
+  parent_local_ref: string | null;
+  suggested_atom_type: AtomType;
+  suggested_from_category: ParserSkillCategory | null;
+  content_no: string | null;
+  content_en: string | null;
+  structured_data: AnyStructuredData;
+  dedupe_key: string | null;
+  source_type: SourceType;
+  source_ref: string | null;
+  source_quote: string | null;
+  parse_confidence: number | null;
+}
+
+/** Rad klar for innsetting i cv_parse_candidates. */
+export type CandidateInsert = CandidateDraft & {
+  user_id: string;
+  import_id: string;
 };
 
-// ---------------------------------------------------------------------------
-// Type-guards
-// ---------------------------------------------------------------------------
-
-export function isRoleAtom(atom: CvAtom): atom is RoleAtom {
-  return atom.atom_type === "role";
-}
-export function isAchievementAtom(atom: CvAtom): atom is AchievementAtom {
-  return atom.atom_type === "achievement";
-}
-export function isMetricAtom(atom: CvAtom): atom is MetricAtom {
-  return atom.atom_type === "metric";
-}
-export function isEducationAtom(atom: CvAtom): atom is EducationAtom {
-  return atom.atom_type === "education";
-}
-export function isSkillAtom(atom: CvAtom): atom is SkillAtom {
-  return atom.atom_type === "skill";
-}
-export function isLanguageAtom(atom: CvAtom): atom is LanguageAtom {
-  return atom.atom_type === "language";
-}
-export function isCertificationAtom(atom: CvAtom): atom is CertificationAtom {
-  return atom.atom_type === "certification";
-}
-export function isProjectAtom(atom: CvAtom): atom is ProjectAtom {
-  return atom.atom_type === "project";
-}
-export function isVolunteerAtom(atom: CvAtom): atom is VolunteerAtom {
-  return atom.atom_type === "volunteer";
-}
-export function isContextAtom(atom: CvAtom): atom is ContextAtom {
-  return atom.atom_type === "context";
-}
-export function isToolAtom(atom: CvAtom): atom is ToolAtom {
-  return atom.atom_type === "tool";
-}
-export function isSummaryFragmentAtom(atom: CvAtom): atom is SummaryFragmentAtom {
-  return atom.atom_type === "summary_fragment";
+export function toCandidateInsert(
+  draft: CandidateDraft,
+  ctx: { user_id: string; import_id: string },
+): CandidateInsert {
+  return { ...draft, user_id: ctx.user_id, import_id: ctx.import_id };
 }
 
 // ---------------------------------------------------------------------------
-// Parsing fra databaserader (Supabase returnerer structured_data som unknown JSON)
+// Type-guards på foreslått type
+// ---------------------------------------------------------------------------
+
+export function isSuggested<T extends AtomType>(
+  c: { suggested_atom_type: AtomType },
+  type: T,
+): boolean {
+  return c.suggested_atom_type === type;
+}
+
+/** Typen kandidaten faktisk skal bli: brukerens valg om det finnes, ellers forslaget. */
+export function effectiveAtomType(c: {
+  suggested_atom_type: AtomType;
+  resolved_atom_type?: AtomType | null;
+}): AtomType {
+  return c.resolved_atom_type ?? c.suggested_atom_type;
+}
+
+// ---------------------------------------------------------------------------
+// Parsing fra databaserader
 // ---------------------------------------------------------------------------
 
 /**
- * Konverter en rad fra cv_evidence_atoms-tabellen til en typesikker CvAtom.
- * Kaster hvis raden mangler påkrevde felt eller atom_type er ukjent.
+ * Konverter en rad fra cv_parse_candidates til en typesikker kandidat.
+ * Kaster hvis raden mangler påkrevde felt.
  */
-export function parseAtomRow(row: Record<string, unknown>): CvAtom {
+export function parseCandidateRow(row: Record<string, unknown>): CvParseCandidate {
   if (!row.id || typeof row.id !== "string") {
-    throw new Error("parseAtomRow: missing id");
+    throw new Error("parseCandidateRow: missing id");
   }
-  if (!row.atom_type || typeof row.atom_type !== "string") {
-    throw new Error("parseAtomRow: missing atom_type");
+  if (!row.suggested_atom_type || typeof row.suggested_atom_type !== "string") {
+    throw new Error("parseCandidateRow: missing suggested_atom_type");
   }
-  return row as unknown as CvAtom;
+  if (!row.local_ref || typeof row.local_ref !== "string") {
+    throw new Error("parseCandidateRow: missing local_ref");
+  }
+  return row as unknown as CvParseCandidate;
 }
 
 // ---------------------------------------------------------------------------
-// Hjelpefunksjoner for opprettelse — sikrer riktig type på structured_data
+// Hjelpefunksjoner for opprettelse
 // ---------------------------------------------------------------------------
 
-export interface CreateAtomInput<T extends AtomType, S> {
-  user_id: string;
-  source_type: SourceType;
+export interface CreateDraftInput<S> {
+  local_ref: string;
   structured_data: S;
+  source_type: SourceType;
+  parent_local_ref?: string | null;
   content_no?: string | null;
   content_en?: string | null;
-  parent_atom_id?: string | null;
   source_ref?: string | null;
   source_quote?: string | null;
-  confidence?: Confidence;
-  user_confirmed?: boolean;
+  dedupe_key?: string | null;
+  parse_confidence?: number | null;
+  suggested_from_category?: ParserSkillCategory | null;
 }
 
-export function createRoleAtom(
-  input: CreateAtomInput<"role", RoleStructuredData>,
-): AtomInsert {
+function draft<S extends AnyStructuredData>(
+  atomType: AtomType,
+  input: CreateDraftInput<S>,
+): CandidateDraft {
   return {
-    atom_type: "role",
-    user_id: input.user_id,
-    parent_atom_id: input.parent_atom_id ?? null,
+    local_ref: input.local_ref,
+    parent_local_ref: input.parent_local_ref ?? null,
+    suggested_atom_type: atomType,
+    suggested_from_category: input.suggested_from_category ?? null,
     content_no: input.content_no ?? null,
     content_en: input.content_en ?? null,
     structured_data: input.structured_data,
+    dedupe_key: input.dedupe_key ?? null,
     source_type: input.source_type,
     source_ref: input.source_ref ?? null,
     source_quote: input.source_quote ?? null,
-    confidence: input.confidence ?? "verified",
-    user_confirmed: input.user_confirmed ?? false,
+    parse_confidence: input.parse_confidence ?? null,
   };
 }
 
-export function createAchievementAtom(
-  input: CreateAtomInput<"achievement", AchievementStructuredData> & {
-    parent_atom_id: string;
-  },
-): AtomInsert {
-  return {
-    atom_type: "achievement",
-    user_id: input.user_id,
-    parent_atom_id: input.parent_atom_id,
-    content_no: input.content_no ?? null,
-    content_en: input.content_en ?? null,
-    structured_data: input.structured_data,
-    source_type: input.source_type,
-    source_ref: input.source_ref ?? null,
-    source_quote: input.source_quote ?? null,
-    confidence: input.confidence ?? "verified",
-    user_confirmed: input.user_confirmed ?? false,
-  };
-}
-
-export function createMetricAtom(
-  input: CreateAtomInput<"metric", MetricStructuredData> & {
-    parent_atom_id: string;
-  },
-): AtomInsert {
-  return {
-    atom_type: "metric",
-    user_id: input.user_id,
-    parent_atom_id: input.parent_atom_id,
-    content_no: input.content_no ?? null,
-    content_en: input.content_en ?? null,
-    structured_data: input.structured_data,
-    source_type: input.source_type,
-    source_ref: input.source_ref ?? null,
-    source_quote: input.source_quote ?? null,
-    confidence: input.confidence ?? "verified",
-    user_confirmed: input.user_confirmed ?? false,
-  };
-}
-
-export function createEducationAtom(
-  input: CreateAtomInput<"education", EducationStructuredData>,
-): AtomInsert {
-  return {
-    atom_type: "education",
-    user_id: input.user_id,
-    parent_atom_id: null,
-    content_no: input.content_no ?? null,
-    content_en: input.content_en ?? null,
-    structured_data: input.structured_data,
-    source_type: input.source_type,
-    source_ref: input.source_ref ?? null,
-    source_quote: input.source_quote ?? null,
-    confidence: input.confidence ?? "verified",
-    user_confirmed: input.user_confirmed ?? false,
-  };
-}
-
-export function createSkillAtom(
-  input: CreateAtomInput<"skill", SkillStructuredData>,
-): AtomInsert {
-  return {
-    atom_type: "skill",
-    user_id: input.user_id,
-    parent_atom_id: null,
-    content_no: input.content_no ?? null,
-    content_en: input.content_en ?? null,
-    structured_data: input.structured_data,
-    source_type: input.source_type,
-    source_ref: input.source_ref ?? null,
-    source_quote: input.source_quote ?? null,
-    confidence: input.confidence ?? "verified",
-    user_confirmed: input.user_confirmed ?? false,
-  };
-}
-
-export function createLanguageAtom(
-  input: CreateAtomInput<"language", LanguageStructuredData>,
-): AtomInsert {
-  return {
-    atom_type: "language",
-    user_id: input.user_id,
-    parent_atom_id: null,
-    content_no: input.content_no ?? null,
-    content_en: input.content_en ?? null,
-    structured_data: input.structured_data,
-    source_type: input.source_type,
-    source_ref: input.source_ref ?? null,
-    source_quote: input.source_quote ?? null,
-    confidence: input.confidence ?? "verified",
-    user_confirmed: input.user_confirmed ?? false,
-  };
-}
-
-export function createCertificationAtom(
-  input: CreateAtomInput<"certification", CertificationStructuredData>,
-): AtomInsert {
-  return {
-    atom_type: "certification",
-    user_id: input.user_id,
-    parent_atom_id: null,
-    content_no: input.content_no ?? null,
-    content_en: input.content_en ?? null,
-    structured_data: input.structured_data,
-    source_type: input.source_type,
-    source_ref: input.source_ref ?? null,
-    source_quote: input.source_quote ?? null,
-    confidence: input.confidence ?? "verified",
-    user_confirmed: input.user_confirmed ?? false,
-  };
-}
+export const createRoleDraft = (i: CreateDraftInput<RoleStructuredData>) =>
+  draft("role", i);
+export const createAchievementDraft = (
+  i: CreateDraftInput<AchievementStructuredData> & { parent_local_ref: string },
+) => draft("achievement", i);
+export const createMetricDraft = (
+  i: CreateDraftInput<MetricStructuredData> & { parent_local_ref: string },
+) => draft("metric", i);
+export const createEducationDraft = (i: CreateDraftInput<EducationStructuredData>) =>
+  draft("education", i);
+export const createSkillDraft = (i: CreateDraftInput<SkillStructuredData>) =>
+  draft("skill", i);
+export const createDomainDraft = (i: CreateDraftInput<DomainStructuredData>) =>
+  draft("domain", i);
+export const createToolDraft = (i: CreateDraftInput<ToolStructuredData>) =>
+  draft("tool", i);
+export const createLanguageDraft = (i: CreateDraftInput<LanguageStructuredData>) =>
+  draft("language", i);
+export const createCertificationDraft = (
+  i: CreateDraftInput<CertificationStructuredData>,
+) => draft("certification", i);
+export const createProjectDraft = (i: CreateDraftInput<ProjectStructuredData>) =>
+  draft("project", i);
+export const createVolunteerDraft = (i: CreateDraftInput<VolunteerStructuredData>) =>
+  draft("volunteer", i);
+export const createSummaryFragmentDraft = (
+  i: CreateDraftInput<SummaryFragmentStructuredData>,
+) => draft("summary_fragment", i);

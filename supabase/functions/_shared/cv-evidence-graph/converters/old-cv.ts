@@ -1,12 +1,12 @@
-// cv-evidence-graph — Converter: gammel CV (PDF eller DOCX) → atoms
+// cv-evidence-graph — Converter: gammel CV (PDF eller DOCX) → parsekandidater
+// Skjema-versjon: 4.0
 //
-// Tar parset JSON fra Claude (parse-uploaded-cv) og produserer AtomInsert-er
-// klare for skriving til cv_evidence_atoms. Parent_atom_id for achievements
-// settes ikke her — caller (commit-cv-import) håndterer 2-pass innsetting via
-// `role_trees`-strukturen i ConvertOldCvResult.
+// Tar parset JSON fra Claude (parse-uploaded-cv) og produserer CandidateDraft-er
+// klare for skriving til cv_parse_candidates. Hierarkiet mellom rolle og
+// achievement bæres av local_ref/parent_local_ref, ikke av en atomgraf.
 
 import type {
-  AtomInsert,
+  CandidateDraft,
   RoleStructuredData,
   AchievementStructuredData,
   EducationStructuredData,
@@ -16,9 +16,9 @@ import type {
   ProjectStructuredData,
   VolunteerStructuredData,
   SummaryFragmentStructuredData,
-  Confidence,
   SourceType,
 } from "../types.ts";
+import { suggestAtomTypeFromCategory } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // Input — utvidet form av basistypen for å matche skjemaet parse-uploaded-cv
@@ -105,11 +105,8 @@ export interface ParsedOldCv {
 // ---------------------------------------------------------------------------
 
 export interface ConvertOldCvResult {
-  standalone_atoms: AtomInsert[];
-  role_trees: {
-    role: AtomInsert;
-    achievements: Omit<AtomInsert, "parent_atom_id">[];
-  }[];
+  /** Flat liste. Hierarkiet ligger i parent_local_ref. */
+  candidates: CandidateDraft[];
   skipped: { reason: string; context: string }[];
 }
 
@@ -216,16 +213,18 @@ export function convertOldCv(
     context.source_format === "pdf" ? "old_cv_pdf" : "old_cv_docx";
 
   const baseFields = {
-    user_id: context.user_id,
     source_type: sourceType,
     source_ref: context.import_id,
-    confidence: "imported" as Confidence,
-    user_confirmed: false,
+    parent_local_ref: null,
+    suggested_from_category: null,
+    dedupe_key: null,
+    parse_confidence: 0.9,
   };
 
-  const standalone: AtomInsert[] = [];
-  const roleTrees: ConvertOldCvResult["role_trees"] = [];
+  const candidates: CandidateDraft[] = [];
   const skipped: { reason: string; context: string }[] = [];
+  let seq = 0;
+  const ref = (prefix: string) => `${prefix}-${seq++}`;
 
   // -----------------------------------------------------------------------
   // Summary fragments — headline + summary
@@ -235,10 +234,10 @@ export function convertOldCv(
       fragment_type: "value_proposition",
       weight: 9,
     };
-    standalone.push({
+    candidates.push({
       ...baseFields,
-      atom_type: "summary_fragment",
-      parent_atom_id: null,
+      local_ref: ref("summary"),
+      suggested_atom_type: "summary_fragment",
       content_no: parsed.headline.trim(),
       content_en: null,
       structured_data: sd,
@@ -251,10 +250,10 @@ export function convertOldCv(
       fragment_type: "experience_summary",
       weight: 7,
     };
-    standalone.push({
+    candidates.push({
       ...baseFields,
-      atom_type: "summary_fragment",
-      parent_atom_id: null,
+      local_ref: ref("summary"),
+      suggested_atom_type: "summary_fragment",
       content_no: parsed.summary.trim(),
       content_en: null,
       structured_data: sd,
@@ -285,15 +284,15 @@ export function convertOldCv(
       honors: nonEmpty(e.honors) ? e.honors.trim() : null,
       grade: null,
     };
-    standalone.push({
+    candidates.push({
       ...baseFields,
-      atom_type: "education",
-      parent_atom_id: null,
+      local_ref: ref("education"),
+      suggested_atom_type: "education",
       content_no: `${sd.degree}${sd.field ? `, ${sd.field}` : ""}`,
       content_en: null,
       structured_data: sd,
       source_quote: null,
-      confidence: startYearMissing ? "inferred" : "imported",
+      parse_confidence: startYearMissing ? 0.6 : 0.9,
     });
   }
 
@@ -303,18 +302,21 @@ export function convertOldCv(
   for (const skillName of parsed.skills ?? []) {
     if (!nonEmpty(skillName)) continue;
     const name = skillName.trim();
+    // Fritekst-CV gir ingen sikker kategori. "other" betyr eksplisitt ukjent
+    // akse: gjennomgangen må spørre brukeren hva dette faktisk er.
+    const skillCategory = "other" as const;
     const sd: SkillStructuredData = {
       name,
       name_normalized: name.toLowerCase(),
-      category: "other",
+      source_category: skillCategory,
       proficiency: null,
       years_used: null,
-      evidence_atom_ids: [],
     };
-    standalone.push({
+    candidates.push({
       ...baseFields,
-      atom_type: "skill",
-      parent_atom_id: null,
+      local_ref: ref("skill"),
+      suggested_atom_type: suggestAtomTypeFromCategory(skillCategory) ?? "skill",
+      suggested_from_category: skillCategory,
       content_no: name,
       content_en: name,
       structured_data: sd,
@@ -332,10 +334,10 @@ export function convertOldCv(
       level: langLevel(lang.level),
       cefr: null,
     };
-    standalone.push({
+    candidates.push({
       ...baseFields,
-      atom_type: "language",
-      parent_atom_id: null,
+      local_ref: ref("language"),
+      suggested_atom_type: "language",
       content_no: lang.name.trim(),
       content_en: lang.name.trim(),
       structured_data: sd,
@@ -362,10 +364,10 @@ export function convertOldCv(
       credential_id: null,
       credential_url: null,
     };
-    standalone.push({
+    candidates.push({
       ...baseFields,
-      atom_type: "certification",
-      parent_atom_id: null,
+      local_ref: ref("certification"),
+      suggested_atom_type: "certification",
       content_no: `${sd.name} (${sd.issuer})`,
       content_en: null,
       structured_data: sd,
@@ -396,10 +398,10 @@ export function convertOldCv(
         : [],
       outcomes: [],
     };
-    standalone.push({
+    candidates.push({
       ...baseFields,
-      atom_type: "project",
-      parent_atom_id: null,
+      local_ref: ref("project"),
+      suggested_atom_type: "project",
       content_no: sd.description,
       content_en: null,
       structured_data: sd,
@@ -433,10 +435,10 @@ export function convertOldCv(
       end_date: normalizeYearMonth(v.end),
       cause: null,
     };
-    standalone.push({
+    candidates.push({
       ...baseFields,
-      atom_type: "volunteer",
-      parent_atom_id: null,
+      local_ref: ref("volunteer"),
+      suggested_atom_type: "volunteer",
       content_no: nonEmpty(v.description)
         ? v.description.trim()
         : `${sd.role} hos ${sd.organization}`,
@@ -516,6 +518,7 @@ export function convertOldCv(
       employer_size: null,
       employer_description: employerDescription,
       is_current: isCurrent,
+      direct_reports: null,
     };
 
     // C.2 — velg content_no smartere: role_summary > description > fallback.
@@ -545,18 +548,20 @@ export function convertOldCv(
       });
     }
 
-    const role: AtomInsert = {
+    const roleRef = ref("role");
+    const role: CandidateDraft = {
       ...baseFields,
-      atom_type: "role",
-      parent_atom_id: null,
+      local_ref: roleRef,
+      suggested_atom_type: "role",
       content_no: roleContent,
       content_en: null,
       structured_data: roleSd,
       source_quote: null,
-      confidence: startMissing ? "inferred" : "imported",
+      parse_confidence: startMissing ? 0.6 : 0.9,
     };
+    candidates.push(role);
 
-    const achievements: Omit<AtomInsert, "parent_atom_id">[] = [];
+    let achSeq = 0;
     for (const text of realBullets) {
       const sd: AchievementStructuredData = {
         what: text,
@@ -571,22 +576,21 @@ export function convertOldCv(
         date_period: null,
         is_team_achievement: false,
       };
-      achievements.push({
+      candidates.push({
         ...baseFields,
-        atom_type: "achievement",
+        local_ref: `${roleRef}-ach-${achSeq++}`,
+        parent_local_ref: roleRef,
+        suggested_atom_type: "achievement",
         content_no: text,
         content_en: null,
         structured_data: sd,
         source_quote: text,
       });
     }
-
-    roleTrees.push({ role, achievements });
   }
 
   return {
-    standalone_atoms: standalone,
-    role_trees: roleTrees,
+    candidates,
     skipped,
   };
 }

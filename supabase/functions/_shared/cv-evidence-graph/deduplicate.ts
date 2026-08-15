@@ -1,10 +1,13 @@
 // cv-evidence-graph — Deduplication
-// Finner og slår sammen duplikater mellom inkommende og eksisterende atoms.
-// Brukes når brukeren importerer fra LinkedIn ZIP, gammel CV, eller flere kilder.
+// Skjema-versjon: 4.0 (parselaget)
+//
+// Finner duplikater mellom nye parsekandidater og kandidater som allerede
+// ligger i importen. Dedup skjer FØR brukeren har sett noe, og slår aldri
+// sammen bekreftet evidens — det hører til career_atoms.
 
 import type {
-  CvAtom,
-  AtomInsert,
+  CvParseCandidate,
+  CandidateDraft,
   RoleStructuredData,
   AchievementStructuredData,
   EducationStructuredData,
@@ -13,6 +16,16 @@ import type {
   CertificationStructuredData,
   ProjectStructuredData,
 } from "./types.ts";
+
+type IncomingCandidate = CandidateDraft | CvParseCandidate;
+type ExistingCandidate = CvParseCandidate;
+
+function typeOf(c: IncomingCandidate | ExistingCandidate): string {
+  return (
+    ("resolved_atom_type" in c ? c.resolved_atom_type : null) ??
+    c.suggested_atom_type
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -26,19 +39,19 @@ export interface DuplicatePair<TIncoming, TExisting> {
 }
 
 /**
- * Finn duplikater mellom inkommende atoms og brukerens eksisterende atoms.
- * Returner kun par hvor begge atoms har samme atom_type.
+ * Finn duplikater mellom nye kandidater og kandidater som allerede finnes.
+ * Returnerer kun par hvor begge har samme effektive type.
  */
 export function findDuplicates(
-  incoming: AtomInsert[],
-  existing: CvAtom[],
-): DuplicatePair<AtomInsert, CvAtom>[] {
-  const pairs: DuplicatePair<AtomInsert, CvAtom>[] = [];
+  incoming: IncomingCandidate[],
+  existing: ExistingCandidate[],
+): DuplicatePair<IncomingCandidate, ExistingCandidate>[] {
+  const pairs: DuplicatePair<IncomingCandidate, ExistingCandidate>[] = [];
 
   for (const inc of incoming) {
     for (const ex of existing) {
-      if (inc.atom_type !== ex.atom_type) continue;
-      const match = compareAtoms(inc, ex);
+      if (typeOf(inc) !== typeOf(ex)) continue;
+      const match = compareCandidates(inc, ex);
       if (match) {
         pairs.push({ incoming: inc, existing: ex, ...match });
         break; // én eksisterende match per inkommende — første treff vinner
@@ -50,13 +63,14 @@ export function findDuplicates(
 }
 
 /**
- * Slå sammen to atoms — beholder mest detaljert structured_data og lengste content.
- * Resultatet er en oppdatering klar for Supabase update.
+ * Slå sammen to kandidater — behold mest detaljert structured_data og lengste
+ * innhold. Parserens sikkerhet blir den høyeste av de to; ingen andre akser
+ * røres, fordi parselaget ikke eier evidensstatus.
  */
-export function mergeAtoms(
-  existing: CvAtom,
-  incoming: AtomInsert,
-): Partial<CvAtom> {
+export function mergeCandidates(
+  existing: ExistingCandidate,
+  incoming: IncomingCandidate,
+): Partial<CvParseCandidate> {
   const merged = {
     content_no: pickLonger(existing.content_no, incoming.content_no),
     content_en: pickLonger(existing.content_en, incoming.content_en),
@@ -64,25 +78,24 @@ export function mergeAtoms(
       existing.structured_data as unknown as Record<string, unknown>,
       incoming.structured_data as unknown as Record<string, unknown>,
     ),
-    confidence: pickHigherConfidence(
-      existing.confidence,
-      incoming.confidence ?? "imported",
+    parse_confidence: Math.max(
+      existing.parse_confidence ?? 0,
+      incoming.parse_confidence ?? 0,
     ),
     source_ref: existing.source_ref ?? incoming.source_ref,
   };
-  // Cast til Partial<CvAtom> — vi vet structured_data matcher existing.atom_type fordi vi sjekket det i compareAtoms
-  return merged as unknown as Partial<CvAtom>;
+  return merged as unknown as Partial<CvParseCandidate>;
 }
 
 // ---------------------------------------------------------------------------
 // Per-type comparators
 // ---------------------------------------------------------------------------
 
-function compareAtoms(
-  inc: AtomInsert,
-  ex: CvAtom,
+function compareCandidates(
+  inc: IncomingCandidate,
+  ex: ExistingCandidate,
 ): { reason: string; confidence: number } | null {
-  switch (inc.atom_type) {
+  switch (typeOf(inc)) {
     case "role":
       return compareRoles(
         inc.structured_data as Partial<RoleStructuredData>,
@@ -151,11 +164,11 @@ function compareRoles(
 }
 
 function compareAchievements(
-  inc: AtomInsert,
-  ex: CvAtom,
+  inc: IncomingCandidate,
+  ex: ExistingCandidate,
 ): { reason: string; confidence: number } | null {
-  // Achievement-dedup kun hvis samme parent_atom_id (samme rolle)
-  if (inc.parent_atom_id !== ex.parent_atom_id) return null;
+  // Achievement-dedup kun innenfor samme rolle (samme parent_local_ref)
+  if (inc.parent_local_ref !== ex.parent_local_ref) return null;
 
   const aWhat = (inc.structured_data as Partial<AchievementStructuredData>)?.what;
   const bWhat = (ex.structured_data as AchievementStructuredData)?.what;
@@ -316,12 +329,4 @@ function mergeStructuredData(
     // Ellers: behold eksisterende
   }
   return merged;
-}
-
-function pickHigherConfidence(
-  a: "verified" | "imported" | "inferred",
-  b: "verified" | "imported" | "inferred",
-): "verified" | "imported" | "inferred" {
-  const rank = { verified: 3, imported: 2, inferred: 1 };
-  return rank[a] >= rank[b] ? a : b;
 }

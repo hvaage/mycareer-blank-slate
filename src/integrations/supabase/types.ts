@@ -1514,96 +1514,6 @@ export type Database = {
           },
         ]
       }
-      cv_evidence_atoms: {
-        Row: {
-          atom_type: string
-          canonical_atom_id: string | null
-          career_stage_relevance: string[] | null
-          confidence: string
-          content_en: string | null
-          content_no: string | null
-          created_at: string
-          dedupe_key: string | null
-          evidence_scope: string | null
-          id: string
-          last_seen_at: string | null
-          parent_atom_id: string | null
-          relevance_score: number | null
-          role_relevance_tags: string[] | null
-          source_quote: string | null
-          source_ref: string | null
-          source_type: string
-          structured_data: Json | null
-          updated_at: string
-          user_confirmed: boolean
-          user_id: string
-          user_locked: boolean
-        }
-        Insert: {
-          atom_type: string
-          canonical_atom_id?: string | null
-          career_stage_relevance?: string[] | null
-          confidence?: string
-          content_en?: string | null
-          content_no?: string | null
-          created_at?: string
-          dedupe_key?: string | null
-          evidence_scope?: string | null
-          id?: string
-          last_seen_at?: string | null
-          parent_atom_id?: string | null
-          relevance_score?: number | null
-          role_relevance_tags?: string[] | null
-          source_quote?: string | null
-          source_ref?: string | null
-          source_type: string
-          structured_data?: Json | null
-          updated_at?: string
-          user_confirmed?: boolean
-          user_id: string
-          user_locked?: boolean
-        }
-        Update: {
-          atom_type?: string
-          canonical_atom_id?: string | null
-          career_stage_relevance?: string[] | null
-          confidence?: string
-          content_en?: string | null
-          content_no?: string | null
-          created_at?: string
-          dedupe_key?: string | null
-          evidence_scope?: string | null
-          id?: string
-          last_seen_at?: string | null
-          parent_atom_id?: string | null
-          relevance_score?: number | null
-          role_relevance_tags?: string[] | null
-          source_quote?: string | null
-          source_ref?: string | null
-          source_type?: string
-          structured_data?: Json | null
-          updated_at?: string
-          user_confirmed?: boolean
-          user_id?: string
-          user_locked?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cv_evidence_atoms_canonical_atom_id_fkey"
-            columns: ["canonical_atom_id"]
-            isOneToOne: false
-            referencedRelation: "cv_evidence_atoms"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cv_evidence_atoms_parent_atom_id_fkey"
-            columns: ["parent_atom_id"]
-            isOneToOne: false
-            referencedRelation: "cv_evidence_atoms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       cv_imports: {
         Row: {
           atoms_committed_count: number
@@ -1657,6 +1567,99 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      cv_parse_candidates: {
+        Row: {
+          content_en: string | null
+          content_no: string | null
+          created_at: string
+          dedupe_key: string | null
+          id: string
+          import_id: string
+          local_ref: string
+          parent_local_ref: string | null
+          parse_confidence: number | null
+          promoted_atom_id: string | null
+          question_ref: string | null
+          rejected_reason: string | null
+          resolved_atom_type: string | null
+          reviewed_at: string | null
+          source_quote: string | null
+          source_ref: string | null
+          source_type: string
+          status: string
+          structured_data: Json
+          suggested_atom_type: string
+          suggested_from_category: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content_en?: string | null
+          content_no?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          id?: string
+          import_id: string
+          local_ref: string
+          parent_local_ref?: string | null
+          parse_confidence?: number | null
+          promoted_atom_id?: string | null
+          question_ref?: string | null
+          rejected_reason?: string | null
+          resolved_atom_type?: string | null
+          reviewed_at?: string | null
+          source_quote?: string | null
+          source_ref?: string | null
+          source_type: string
+          status?: string
+          structured_data?: Json
+          suggested_atom_type: string
+          suggested_from_category?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content_en?: string | null
+          content_no?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          id?: string
+          import_id?: string
+          local_ref?: string
+          parent_local_ref?: string | null
+          parse_confidence?: number | null
+          promoted_atom_id?: string | null
+          question_ref?: string | null
+          rejected_reason?: string | null
+          resolved_atom_type?: string | null
+          reviewed_at?: string | null
+          source_quote?: string | null
+          source_ref?: string | null
+          source_type?: string
+          status?: string
+          structured_data?: Json
+          suggested_atom_type?: string
+          suggested_from_category?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_parse_candidates_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "cv_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cv_parse_candidates_promoted_atom_id_fkey"
+            columns: ["promoted_atom_id"]
+            isOneToOne: false
+            referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documentation_packages: {
         Row: {
