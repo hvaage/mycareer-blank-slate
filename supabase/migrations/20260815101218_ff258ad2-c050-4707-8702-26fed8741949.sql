@@ -1,0 +1,1 @@
+ALTER FUNCTION public.count_employers(text,text,text,text,integer,integer,numeric,numeric,text,text,text,integer) VOLATILE;
