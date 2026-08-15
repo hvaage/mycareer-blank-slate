@@ -17,6 +17,7 @@ import type {
 import {
   createRoleDraft,
   createSkillDraft,
+  createToolDraft,
   createLanguageDraft,
   createSummaryFragmentDraft,
   suggestAtomTypeFromCategory,
