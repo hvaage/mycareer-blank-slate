@@ -13,6 +13,7 @@ import {
 import {
   employerDetailQuery,
   employerFormaalQuery,
+  employerRegnskapHistoryQuery,
 } from "@/lib/queries/employer-insight";
 import { employerAnalysisViewQuery } from "@/lib/queries/employer-analysis-view";
 import { useAuth } from "@/lib/auth-context";
@@ -20,6 +21,7 @@ import { fylkesnavn } from "@/lib/employers/no-regions";
 import { TypeBadge, DataQualityBadges } from "@/components/employers/Badges";
 import { NokkeltallPanel } from "@/components/employers/NokkeltallPanel";
 import { OkonomiPanel } from "@/components/employers/OkonomiPanel";
+import { RegnskapHistorikk } from "@/components/employers/RegnskapHistorikk";
 import { RegisterPanel } from "@/components/employers/RegisterPanel";
 import { EmployeeRatingsPanel } from "@/components/employers/EmployeeRatingsPanel";
 import { JobseekerProcessPanel } from "@/components/employers/JobseekerProcessPanel";
@@ -64,6 +66,7 @@ function DetailPage() {
   const { user } = useAuth();
   const userKey = user?.id ?? "anon";
   const { data: formaal } = useQuery(employerFormaalQuery(orgnr));
+  const { data: regnskapsaar } = useQuery(employerRegnskapHistoryQuery(orgnr));
   const {
     data: envelope,
     isPending: envelopePending,
@@ -169,6 +172,9 @@ function DetailPage() {
         </h2>
         <OkonomiPanel d={d} />
       </section>
+
+      {/* 3b. Utvikling over tid — skjuler seg selv med færre enn to år */}
+      <RegnskapHistorikk rader={regnskapsaar} />
 
       {/* 4. Registerdetaljer, kollapset */}
       <section className="mt-10">

@@ -98,8 +98,7 @@ export function OkonomiPanel({ d }: { d: EmployerDetail }) {
 
       <p className="text-xs text-muted-foreground">
         Tallene er hentet fra innsendt årsregnskap for {d.regnskapsaar}
-        {d.regnskapstype ? ` (${d.regnskapstype.toLowerCase()})` : ""}. Under to prosent av
-        selskapene i registerspeilet har mer enn ett regnskapsår, så utviklingslinjer vises ikke.
+        {d.regnskapstype ? ` (${d.regnskapstype.toLowerCase()})` : ""}.
       </p>
     </div>
   );
