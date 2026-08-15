@@ -180,6 +180,10 @@ export function employerAnalysisViewQuery(
     queryKey: ["employer-analysis-view", orgnr ?? null, userKey] as const,
     enabled: !!orgnr,
     staleTime: 30_000,
+    // Manglende tilgang (401/403) er et svar, ikke en midlertidig feil:
+    // uten dette blir siden stående på «henter …» gjennom hele retry-kjeden.
+    retry: false,
     queryFn: () => fetchEmployerAnalysisView(orgnr as string),
+
   });
 }
