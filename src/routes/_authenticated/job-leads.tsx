@@ -1101,6 +1101,12 @@ function LeadCard({
 
         <ScreeningReasonsBlock lead={lead} />
         <RequirementSummarySection summary={lead.requirementSummary ?? null} />
+        {isLegacyScoreVersion(lead.matchScoreVersion) && (
+          <div className="text-[11px] text-muted-foreground mt-1">
+            Vurdert mot et eldre evidensgrunnlag ({MATCH_SCORE_VERSION_LEGACY}). Kjør ny
+            vurdering for å score mot karriereatomene dine.
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
           {actionUrl && (
