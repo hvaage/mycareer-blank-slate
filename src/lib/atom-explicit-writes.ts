@@ -1,12 +1,18 @@
-// @ts-nocheck
 /**
  * Module 5.1.2 — safe automatic structuring of explicit user-owned profile/document
- * data into durable preference/evidence rows (no review queue).
+ * data into durable atoms (no review queue).
+ * Karriereontologi v4: skriver til `career_atoms`.
  */
 
 import { supabase } from "@/lib/supabase";
-import type { TablesInsert } from "@/integrations/supabase/types";
+import type { Json, TablesInsert } from "@/integrations/supabase/types";
 import type { PlannedEvidenceAtom, PlannedPreferenceAtom } from "@/lib/career-atom-refresh";
+import {
+  evidencePlanToCareerAtom,
+  preferencePlanToCareerAtom,
+  type CareerAtomFields,
+  type CareerAtomType,
+} from "@/lib/career-atom-v4-mapping";
 
 const SLIDER_OR_SCALE_FIELDS = new Set([
   "mission_importance",
