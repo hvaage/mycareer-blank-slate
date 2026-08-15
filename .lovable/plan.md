@@ -1,61 +1,79 @@
-# Etter nullmålingen: oppfølging av registerspeilet
+# Karriereontologi v4 — første leveranse (1.1 og plan for 1.3)
 
-Prosjekt: `miwzhbludgwvskmsfqnq`. Nullmålingen er godkjent. Denne planen er revidert etter beslutningene om fullnedlasting, varslingsprioritet og rekkefølge. Ingenting er endret i koden ennå — hvert punkt kjøres som egen godkjent oppgave, med måling før og etter mot tallene i nullmålingen.
+Prosjektreferanse bekreftet: `miwzhbludgwvskmsfqnq` (`current_database()` = `postgres`). Alle tall under er lest fra denne referansen nå. Ingen migrasjoner kjøres før denne planen er gjennomgått.
 
-## 1. Enhetsspeil med fullnedlasting hver 14. dag
+## 1.1 Levninger — hva som fjernes, med radtall og kodetreff
 
-Inkrementell synk mot oppdateringsstrømmen bygges **ikke**. Beslutningen er tatt: enhetsspeilet oppdateres med fullnedlasting fra Brreg hver 14. dag. Ingen markør, ingen cap-håndtering, ingen opprydding av kjøringer som ikke fullfører. 14 dagers ferskhet er tilstrekkelig for arbeidsgiveranalyse.
+| Objekt | Rader | Kodetreff (utenom `types.ts` og migrasjoner) | Vurdering |
+|---|---|---|---|
+| `user_evidence_atoms` | 17 | `atom-enrichment.ts`, `atom-explicit-writes.ts`, `career-atoms.ts`, `career-atom-refresh.ts`, `queries/career-atoms.ts`, `atom-proposal-generation.ts`, `score-pending-opportunities` | Fjernes i 1.2/1.3 — men først etter at fase 2.1/2.2 har fått ny modell å lese. Tabellen kan ikke slippes samtidig som koden fortsatt leser den. |
+| `user_preference_atoms` | 35 | samme seks filer | Samme rekkefølgeavhengighet. Erstattes av `onske`/`verdi`/`begrensning`. |
+| `atom_evidence_links` | 0 | ingen | Slippes nå. |
+| `career_atoms` (view) | – | ingen | Slippes nå. |
+| `job_applications` | 0 | ingen | Slippes nå. |
+| `cv_consent_log` | 0 | ingen | Slippes nå. Samtykkelogging tas opp igjen når gjennomgangsflyten (2.3) definerer hva som faktisk samtykkes til. |
+| `documentation_package_items` | 0 | ingen | Slippes nå. |
+| `documentation_packages` | 0 | `queries/documentation.ts` | **Lar stå** i 1.1. Den har en aktiv spørring; fjerning hører til opprydding av dokumentasjonsflaten, ikke til ontologifundamentet. |
+| `positioning_recommendations` | 0 | `queries/match-assessments.ts`, `match-assessment-model.ts` | **Lar stå** i 1.1. Erstattes av anbefalingslaget i 3.5; å slippe den nå etterlater to ødelagte filer uten gevinst. |
+| `professional_cases` / `professional_results` | 0 / 0 | `queries/documentation.ts` | **Lar stå** til 1.3 er i drift, da innholdet mappes inn i atommodellen (se punkt 3). |
 
-Rammer som gjelder uansett detaljinstruks:
-- **Upsert-only.** Ingen `DELETE`, ingen `TRUNCATE`. Rader som forsvinner fra Brreg-filen skal spores, ikke fjernes.
-- **Sporing av manglende rader.** Enheter som finnes lokalt men ikke i siste fil registreres som fravær med tidspunkt, slik at sletting kan besluttes senere som egen sak.
-- **Kjøringslogg.** Hver kjøring skriver rad i `reg.sync_log` med `status` = ok/partial/failed, etter samme mønster som `regnskap_sync_runs`, som fungerer i dag.
-- **Porter.** Kjøringen avbrytes før skriving hvis filen avviker unormalt i størrelse eller radantall mot forrige kjøring.
+Kolonner som fjernes fra `cv_evidence_atoms` i 1.3 (alle uten adferd, verifisert mot kodetreff):
+`relevance_score` (default 0, settes aldri), `evidence_scope`, `career_stage_relevance`, `role_relevance_tags`, `dedupe_key`, `canonical_atom_id`. Ingen av dem har treff utenfor `types.ts` og migrasjonene.
 
-Utgangspunkt: 439 773 rader lokalt, ferskeste `oppdatert_tidspunkt` 15. juni 2026, ca. 380 700 Brreg-oppdateringer siden da. Detaljinstruks kommer separat.
+`applications.dedupe_key` og `relevance_score` i jobbsøk-/markedskoden er andre kolonner på andre tabeller og røres ikke.
 
-## 2. Varsling om uteblitt eller feilet kjøring
+## 1.2 Sletting av brukerdata
 
-Flyttet opp fordi punkt 1 avhenger av den. Med to ukers intervall tar en jobb som stopper svært lang tid å oppdage.
+Nøyaktig omfang, per nå: 4 brukere i auth, 17 rader `user_evidence_atoms`, 35 rader `user_preference_atoms`, 1 rad `cv_imports`, 0 rader `cv_evidence_atoms`, 2 rader `applications`, 2 rader `atom_enrichment_proposals`.
 
-I dag varsler ingen kode ved feilet eller uteblitt synk. E-postinfrastrukturen (`enqueue_email`, `email_send_log`) brukes kun til brukerkommunikasjon og selskapsanalyse-leads.
+Forslag: `applications` (2 rader) beholdes — de er dimensjon G og ikke del av ontologien som bygges om. Bekreft om de likevel skal med.
 
-Tiltak: en daglig vaktjobb som varsler når en kilde mangler vellykket kjøring innen sitt forventede vindu. Vinduer per kilde: enheter 14 dager + margin, regnskap kvartersvis, NAV 30 min, Careerjet 6 timer.
+Sletting skjer først etter at brukerne er informert og du har godkjent listen over.
 
-## 3. Totalantall og LIMIT 300
+## 1.3 Skjemaforslag — ny atommodell
 
-Ren funksjonell feil, ikke ytelse. To ting:
-- `search_employers` returnerer ikke `total_count`. Frontend leser `arr[0].total_count`, får `undefined`, setter `totalCount = null`. Brukeren ser aldri treffantall.
-- Kandidat-CTE-en kapper på `LIMIT 300`. Ved 11 603 treff på «bygg» når brukeren maksimalt tolv sider. Det meste av resultatene er utilgjengelige.
+Én tabell, `career_atoms_v4` (navn kan settes til `career_atoms` etter at viewet er sluppet).
 
-Tiltak: eksakt antall under en terskel, estimat over, og paginering som faktisk når hele treffmengden.
+**Identitet og innhold**
+`id uuid pk`, `user_id uuid not null`, `atom_kind text not null` (`evidens`, `mangel`, `onske`, `maal`, `begrensning`, `verdi`), `atom_type text` (kun for evidens: role, achievement, metric, context, tool, education, skill, domain, language, certification, project, volunteer), `atom_class text generated always as (...) stored` avledet av `atom_type` — kan ikke settes fra applikasjonen, `parent_atom_id uuid references career_atoms_v4(id) on delete cascade`, `content_no text`, `content_en text`, `structured_data jsonb not null default '{}'`.
 
-## 4. Søkeytelse
+**Kilde og sporbarhet**
+`source_type text not null`, `source_ref text`, `source_quote text`, `evidence_atom_ids uuid[] not null default '{}'`.
 
-Samme problem som Suverra hadde, og Suverras løsning brukes som utgangspunkt i stedet for å utledes på nytt: normalisert kolonne, hevet likhetsterskel, rangert flernivåsøk med btree for eksakt treff og prefiks, FTS og trigram som fallback. Suverra gikk fra 5 602 ms til under 1 ms.
+**De tre aksene**
+`confidence text not null default 'imported'` (`imported`, `inferred`, `verified`), `attestation text` (`selvrapportert`, `dokumentert`, `bekreftet_av_leder`, `bekreftet_tredjepart`) — kun evidens, `viktighet smallint` 1–6 — kun `onske`, `verdi`, `begrensning`.
 
-Målt utgangspunkt her: «consulting» 3 717 ms, «bygg» 3 456 ms, «e» 1 119 ms, med ~200 000 rader forkastet i filter. Årsaken er at `ORDER BY similarity(...)` ikke kan betjenes av GIN-trigram, så planleggeren faller til parallell seq scan på brede ord.
+**Tilstand og ferskhet**
+`user_confirmed boolean not null default false`, `user_locked boolean not null default false`, `is_active boolean not null default true`, `refreshed_at timestamptz`, `stale_at timestamptz`, `last_seen_at timestamptz`, `created_at`, `updated_at` med trigger.
 
-## 5. Ansatte-visning med ukjent som egen kategori
+**Mål og gyldighet**
+`due_at timestamptz` og `state text` for `maal` (`planlagt`, `i_arbeid`, `oppnadd`, `forkastet`). `valid_from date` / `valid_to date` for `begrensning`. `mangel_state text` (`identifisert`, `i_arbeid`, `lukket`, `forkastet`) pluss `target_position_id` og `target_requirement_id` — begge NOT NULL for `mangel`, lagt til først i 3.1/3.3 slik at ingen felt står uten adferd.
 
-283 048 av 439 773 enheter (64 %) har `har_registrert_antall_ansatte = false`. Visningen skiller ikke ukjent fra null. Andelen er lavere enn Suverras 85 % fordi arbeidsgiverfilteret fjernet mange av de minste, men høy nok til at punktet er reelt.
+**Constraints (håndheves i databasen)**
+1. `atom_type` er NOT NULL når `atom_kind='evidens'`, og NULL ellers.
+2. `attestation` kun når `evidens`; `viktighet` kun for `onske`/`verdi`/`begrensning`, verdiområde 1–6.
+3. `parent_atom_id` kun tillatt når `atom_kind='evidens'`.
+4. `atom_class='kompetanse' and confidence='verified'` krever `array_length(evidence_atom_ids,1) >= 1`.
+5. `atom_class='eksponering'` krever `parent_atom_id` som peker på et atom med `atom_type='role'` — håndheves med trigger, ikke CHECK, siden den slår opp en annen rad.
+6. `atom_kind='maal'` krever `state`; `atom_kind='mangel'` krever målposisjon og krav (fra 3.1).
+7. Ingen tallakse uten betydning: `relevance_score` finnes ikke i skjemaet.
 
-Tiltak: «ukjent» som egen, synlig kategori i tabell og innsiktspanel.
+**Indekser**
+`(user_id, atom_kind, is_active)`, `(user_id, atom_class)` partial på evidens, `(parent_atom_id)`, GIN på `evidence_atom_ids`, `(user_id, stale_at)` partial på aktive.
 
-## 6. NAV-datakvalitet: logg hvilket felt som mangler
+**Tilgang**
+GRANT select/insert/update/delete til `authenticated`, ALL til `service_role`, ingen `anon`. RLS: alle policyer scopet til `auth.uid() = user_id`.
 
-`missing required field` utløses når `external_id`, `title` eller `company_name` mangler, men loggen sier ikke hvilket. Tiltak: logg feltnavnet.
+## Åpne punkter — mitt standpunkt
 
-## 7. Toaster-gjennomgang
+**`professional_cases` / `professional_results` inn i atommodellen.** Casen blir ett atom med `atom_type='project'`: `title` → `content_no`, `summary`/`situation`/`responsibility`/`actions_taken` → STAR-felter i `structured_data`, `company_name`/`industry`/`role_context`/`time_period` → `structured_data`, `status` → `user_confirmed` pluss `is_active`, `visibility` faller bort (RLS dekker det). `results` (fritekst) blir ikke med som felt — den splittes til barneatomer med `atom_type='achievement'`, og tall som lar seg kvantifisere blir `metric`. `career_stage_relevance` faller bort. Begge tabellene er tomme, så dette er en skjemabeslutning, ikke en datamigrasjon.
 
-`<Toaster />` er montert. Gjennomgang av feil som fanges i `catch` uten å nå brukeren, med `src/lib/queries/atom-enrichment.ts` og `src/lib/queries/cv-imports.ts` som første kandidater — begge berører CV-modulen der ontologiarbeidet kommer.
+**Styreverv.** `employment_type` utvides med `styreleder`, `styremedlem`, `varamedlem`, `nestleder`, `observator`, `radsmedlem`. Valgperiode og honorar i `structured_data`: `valgt_fra`, `valgt_til`, `valgperiode_ar`, `gjenvalg` (bool), `honorar_belop`, `honorar_valuta`, `honorar_periode`. Vervet er et `role`-atom som alle andre roller, med `orgnr` i `structured_data`.
 
-## Kosmetisk
+**Årlig påminnelse på `begrensning`.** Enkleste form nå: `valid_to` settes til ett år fram ved opprettelse, og en daglig jobb i den eksisterende driftsvarslingen finner begrensninger som nærmer seg `valid_to` og oppretter et forslag i beslutningsloggen — ikke en automatisk endring. Brukeren bekrefter, forlenger eller fjerner. Full hendelsesbasert påminnelse hører til 3.6 og bygges ikke nå.
 
-Døp om `regnskap-sync-nightly`, som kjører `13,28,43,58 * * * *` — fire ganger i timen. Samme navnefeil som hos Suverra, der den bidro til to gigabyte kjøringslogg uten at noen la merke til det.
+## Hva jeg trenger svar på før migrasjonen skrives
 
-## Ikke funnet her — ingen tiltak
-
-- Avledede markører er korrekte: `er_utdanning` 93, `er_rekruttering` 2 361, `er_offentlig` 4 205 — alle stemmer med forventet.
-- Kjøringsloggen er ryddig: `cron.job_run_details` 1,4 MB / 933 rader, `rydd-cron-logg` kjører daglig.
-- Én-strategi-søket som skjulte treff finnes ikke: «telenor» gir 41 treff.
+1. Skal `applications` (2 rader) også slettes, eller beholdes?
+2. Tabellnavn: `career_atoms_v4` med senere omdøping, eller nytt navn direkte etter at viewet `career_atoms` er sluppet?
+3. Godkjenner du at `documentation_packages` og `positioning_recommendations` står urørt i 1.1?
