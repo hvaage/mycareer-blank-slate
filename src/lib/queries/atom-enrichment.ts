@@ -43,8 +43,10 @@ export const ATOM_ENRICHMENT_PROPOSAL_STATUS_LABELS: Record<AtomEnrichmentPropos
   };
 
 export const TARGET_ATOM_TYPE_LABELS: Record<string, string> = {
-  user_preference_atom: "Preferanseatom",
-  user_evidence_atom: "Evidensatom",
+  career_atom: "Karriereatom",
+  // Utfaset modell. Beholdes bare så gamle forslag kan vises og avvises forståelig.
+  user_preference_atom: "Preferanseatom (utfaset modell)",
+  user_evidence_atom: "Evidensatom (utfaset modell)",
   opportunity_requirement_atom: "Stillingskrav-atom",
   company_profile_atom: "Selskapsprofil-atom",
   company_signal_atom: "Selskapssignal-atom",
