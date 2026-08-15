@@ -25,7 +25,7 @@ function baseExp(over: Record<string, unknown> = {}) {
 const roles = (cs: CandidateDraft[]) => cs.filter((c) => c.suggested_atom_type === "role");
 const childrenOf = (cs: CandidateDraft[], ref: string) =>
   cs.filter((c) => c.parent_local_ref === ref);
-const sd = (c: CandidateDraft) => c.structured_data as Record<string, unknown>;
+const sd = (c: CandidateDraft) => c.structured_data as unknown as Record<string, unknown>;
 
 Deno.test("C.3 — bullet 'Merged with X' flyttes til employer_description", () => {
   const parsed = {
