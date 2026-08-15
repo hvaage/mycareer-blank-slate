@@ -43,14 +43,14 @@ export interface ParsedLinkedInPdf {
 }
 
 /**
- * Konverter parset LinkedIn PDF til atoms.
+ * Konverter parset LinkedIn PDF til parsekandidater.
  *
  * IKKE IMPLEMENTERT — stub. Fylles ut i Modul 4 (LinkedIn PDF-import).
  */
 export function convertLinkedInPdf(
   parsed: ParsedLinkedInPdf,
   context: { user_id: string; import_id: string },
-): AtomInsert[] {
+): CandidateDraft[] {
   // TODO: implementer i Modul 4
   throw new Error(
     "convertLinkedInPdf er ikke implementert ennå. Bygges i Modul 4 (LinkedIn PDF-import).",
