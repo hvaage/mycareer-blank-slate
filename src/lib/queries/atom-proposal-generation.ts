@@ -154,15 +154,14 @@ function norm(s: string | null | undefined): string {
   return (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function hasLeadershipEvidenceEvidence(
-  rows: Pick<Tables<"user_evidence_atoms">, "category" | "label" | "is_active">[],
-): boolean {
+type CareerAtomRow = Tables<"career_atoms">;
+
+function hasLeadershipEvidenceEvidence(rows: CareerAtomRow[]): boolean {
   for (const r of rows) {
-    if (!r.is_active) continue;
-    const cat = norm(r.category);
-    const lab = norm(r.label);
+    if (!r.is_active || r.atom_kind !== "evidens") continue;
+    const lab = norm(r.content_no);
     if (
-      cat === "leadership" ||
+      r.atom_type === "role" ||
       lab.includes("leder") ||
       lab.includes("ledelse") ||
       lab.includes("manager")
@@ -172,6 +171,7 @@ function hasLeadershipEvidenceEvidence(
   }
   return false;
 }
+
 
 export type GenerateAtomEnrichmentProposalsResult = {
   batchId: string | null;
