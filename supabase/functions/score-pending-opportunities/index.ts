@@ -963,6 +963,8 @@ Deno.serve(async (req: Request) => {
         description_complete: candidate.description_complete,
       });
       const resultPayload = {
+        evidence_basis_status: evidence.length === 0 ? "empty" : "present",
+        evidence_items_used: evidence.length,
         screening_status: final.status,
         screening_reasons: final.reasons,
         requirement_summary: summary,
