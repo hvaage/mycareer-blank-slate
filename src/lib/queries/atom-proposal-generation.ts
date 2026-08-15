@@ -423,36 +423,51 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     toInsert.push(row);
   };
 
+  /**
+   * Bygger forslagets payload i career_atoms-format. `confidence_score` er forslagets
+   * egen sikkerhet og legges i beslutningsloggen — aldri i atomfeltene.
+   */
+  const atomProposalPayload = (
+    fields: CareerAtomFields,
+    decisionLog: Record<string, unknown>,
+  ): Json =>
+    ({
+      atom_kind: fields.atom_kind,
+      atom_type: fields.atom_type,
+      parent_atom_id: fields.parent_atom_id,
+      content_no: fields.content_no,
+      structured_data: fields.structured_data,
+      source_type: fields.source_type,
+      source_ref: fields.source_ref,
+      source_quote: fields.source_quote,
+      evidence_atom_ids: fields.evidence_atom_ids,
+      confidence: fields.confidence,
+      viktighet: fields.viktighet,
+      decision_log: decisionLog,
+    }) as Json;
+
   const runPrefCreates = () => {
     for (const pl of plannedPrefs) {
       if (isExplicitStructuredPreference(pl)) continue;
-      const exists = activePrefs.some((ap) => preferenceLogicalKeyFromRow(ap) === pl.logicalKey);
-      if (exists) continue;
+      if (hasLogicalKey(pl.logicalKey)) continue;
       const isCareer = pl.source === "career_profile";
-      const payload: Record<string, unknown> = {
-        dimension: pl.dimension,
-        label: pl.label,
-        value: pl.value,
-        importance_score: pl.importance_score,
-        confidence_score: pl.confidence_score,
-        source: pl.source,
-        source_field: pl.source_field,
-        source_hash: pl.source_hash,
-        career_profile_id: pl.career_profile_id,
-        reasoning: pl.reasoning,
-      };
+      const fields = preferencePlanToCareerAtom(pl);
       const copy = preferenceProposalCopy(pl);
       pushProposal({
         user_id: userId,
         batch_id: "",
         proposal_action: "create_atom",
-        target_atom_type: "user_preference_atom",
+        target_atom_type: "career_atom",
         source_type: "deterministic_module_5_1",
         source_id: pl.source_field,
         source_hash: pl.source_hash,
         source_table: isCareer ? "user_career_profiles" : "profiles",
         source_record_id: isCareer ? (careerProfile?.id ?? null) : (profile?.id ?? null),
-        proposal_payload: payload as Json,
+        proposal_payload: atomProposalPayload(fields, {
+          generator: "deterministic_module_5_1",
+          confidence_score: pl.confidence_score,
+          reasoning: pl.reasoning,
+        }),
         rationale: copy.rationale,
         explanation: copy.explanation,
         confidence: 0.85,
@@ -462,53 +477,54 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     }
   };
 
+  const evidenceSourceRefs = (ev: PlannedEvidenceAtom) => {
+    const srcTable =
+      ev.source === "document"
+        ? "documents"
+        : ev.source === "cv_import"
+          ? "cv_imports"
+          : ev.source === "profile" || ev.source === "linkedin"
+            ? "profiles"
+            : null;
+    let srcRec: string | null = null;
+    if (ev.source === "document" && ev.source_document_id) srcRec = ev.source_document_id;
+    else if (ev.source === "cv_import") {
+      const m = /^cv_import:([^:]+)/.exec(ev.source_field);
+      srcRec = m?.[1] ?? null;
+    } else if (ev.source === "profile" || ev.source === "linkedin") srcRec = profile?.id ?? null;
+    return { srcTable, srcRec };
+  };
+
   const runEvCreates = () => {
     for (const ev of plannedEvidenceEff) {
+      const { atomType, ids, parent } = resolvePointers(ev);
+      if (!atomType) continue;
+      // Uten pekere kan kompetanse/eksponering aldri bli et gyldig atom — håndteres som spørsmål.
+      if (INDIRECT_ATOM_TYPES.has(atomType) && ids.length === 0) continue;
       if (isAutoStructurableEvidence(ev, { skipCvEvidenceSummary: hasActiveCvImport })) continue;
-      const exists = activeEvidence.some((ae) => evidenceLogicalKeyFromRow(ae) === ev.logicalKey);
-      if (exists) continue;
-      const srcTable =
-        ev.source === "document"
-          ? "documents"
-          : ev.source === "cv_import"
-            ? "cv_imports"
-            : ev.source === "profile"
-              ? "profiles"
-              : ev.source === "linkedin"
-                ? "profiles"
-                : null;
-      let srcRec: string | null = null;
-      if (ev.source === "document" && ev.source_document_id) srcRec = ev.source_document_id;
-      else if (ev.source === "cv_import") {
-        const m = /^cv_import:([^:]+)/.exec(ev.source_field);
-        srcRec = m?.[1] ?? null;
-      } else if (ev.source === "profile" || ev.source === "linkedin") srcRec = profile?.id ?? null;
-
-      const payload: Record<string, unknown> = {
-        category: ev.category,
-        label: ev.label,
-        description: ev.description,
-        strength_score: ev.strength_score,
-        confidence_score: ev.confidence_score,
-        source: ev.source,
-        source_field: ev.source_field,
-        source_document_id: ev.source_document_id,
-        source_profile_field: ev.source_profile_field,
-        source_hash: ev.source_hash,
-        evidence_type: ev.evidence_type,
-        reasoning: ev.reasoning,
-      };
+      if (hasLogicalKey(ev.logicalKey)) continue;
+      const { srcTable, srcRec } = evidenceSourceRefs(ev);
+      const fields = evidencePlanToCareerAtom(ev, {
+        atomType,
+        evidenceAtomIds: ids,
+        parentAtomId: parent,
+      });
       pushProposal({
         user_id: userId,
         batch_id: "",
         proposal_action: "create_atom",
-        target_atom_type: "user_evidence_atom",
+        target_atom_type: "career_atom",
         source_type: "deterministic_module_5_1",
         source_id: ev.source_field,
         source_hash: ev.source_hash,
         source_table: srcTable,
         source_record_id: srcRec,
-        proposal_payload: payload as Json,
+        proposal_payload: atomProposalPayload(fields, {
+          generator: "deterministic_module_5_1",
+          confidence_score: ev.confidence_score,
+          strength_score: ev.strength_score,
+          reasoning: ev.reasoning,
+        }),
         rationale: "Funnet i dokument eller profilfelt du har lagret.",
         explanation: "Godkjenn for å vise dette som dokumentert erfaring i karriereprofilen.",
         confidence: 0.8,
@@ -517,6 +533,61 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
       });
     }
   };
+
+  /**
+   * Kompetanse (og eksponering) uten belegg foreslås ikke som atom. Den blir et
+   * spørsmål til brukeren — samme mønster som kompetansekandidater ved CV-import.
+   */
+  const runPointerGapQuestions = () => {
+    for (const gap of pointerGaps) {
+      const term = bareTermFromLabel(gap.plan.label);
+      const sh = stableAtomHash([
+        "m51",
+        "pointer_gap",
+        gap.atomType,
+        gap.plan.source_field,
+        gap.plan.label,
+      ]);
+      const { srcTable, srcRec } = evidenceSourceRefs(gap.plan);
+      pushProposal({
+        user_id: userId,
+        batch_id: "",
+        proposal_action: "suggest_evidence",
+        target_atom_type: "career_atom",
+        source_type: "deterministic_module_5_1",
+        source_id: `pointer_gap:${gap.plan.source_field}`,
+        source_hash: sh,
+        source_table: srcTable,
+        source_record_id: srcRec,
+        proposal_payload: {
+          question_kind: gap.atomType === "skill" ? "kompetansekandidat" : "eksponeringskandidat",
+          term,
+          candidate_atom_type: gap.atomType,
+          missing: "evidence_atom_ids",
+          reason: gap.reason,
+          prompt:
+            gap.atomType === "skill"
+              ? `Hvor har du brukt «${term}»? Knytt kompetansen til en rolle, utdanning eller et resultat, så kan den belegges.`
+              : `Hvilken rolle ga deg erfaring med «${term}»?`,
+          decision_log: {
+            generator: "deterministic_module_5_1",
+            confidence_score: gap.plan.confidence_score,
+            source_field: gap.plan.source_field,
+          },
+        } as Json,
+        rationale:
+          gap.atomType === "skill"
+            ? "Kompetanse kan bare belegges indirekte, gjennom kvalifikasjon, resultat eller rolle."
+            : "Eksponering må henge på en rolle.",
+        explanation:
+          "Godkjenning lagrer ikke et atom. Den bekrefter at du har sett spørsmålet — svaret gir grunnlaget som mangler.",
+        confidence: 0.6,
+        inferred: true,
+        status: "pending_review",
+      });
+    }
+  };
+
 
   const runHeuristics = () => {
     if (
