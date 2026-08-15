@@ -18,6 +18,8 @@ const RENOTIFY_MS = 24 * 60 * 60 * 1000
 const PARTIAL_STREAK_LIMIT = 3
 /** Uvanlig vekst i brreg_full_missing_count tyder på ufullstendig fullfil. */
 const MISSING_RATIO_ALARM = 0.02
+/** En startet enhetsimport som ikke har flyttet seg på to timer regnes som stanset. */
+const BRREG_STALL_MIN = 120
 
 export interface SourceConfig {
   key: string
@@ -246,6 +248,41 @@ export async function runWatchdog(opts: { dryRun?: boolean; override?: WindowOve
         details: { run_id: brreg.run_id, gate },
       })
     }
+    // ---- 5b. Startet, men står stille. Dette er hullet i alle de andre
+    // kontrollene: de måler uteblitt kjøring, ikke stillestående kjøring.
+    // Importen kjøres i to jobber (start 1. og 15., driver hvert 5. minutt).
+    // Står driveren, blir kjøringen liggende halvferdig uten at noe feiler.
+    const terminal = brreg.status === 'ok' || brreg.status === 'failed' || brreg.status === 'gate_failed'
+    const sisteBevegelse = brreg.updated_at ?? brreg.started_at
+    const stilleMin = minutesSince(sisteBevegelse, now)
+    if (!terminal && !brreg.finished_at && stilleMin !== null && stilleMin > BRREG_STALL_MIN) {
+      issues.push({
+        key: 'brreg_enheter:stalled',
+        source: 'brreg_enheter',
+        severity: 'critical',
+        title: 'Enhetsimport: startet, men står stille',
+        body:
+          `Kjøring: ${brreg.run_id}\nFase: ${brreg.phase}\nStatus: ${brreg.status}\n` +
+          `Startet: ${fmt(brreg.started_at)}\nSiste bevegelse: ${fmt(sisteBevegelse)} (${stilleMin} minutter siden)\n` +
+          `Grense: ${BRREG_STALL_MIN} minutter\n` +
+          `Rader sett: ${brreg.rows_seen ?? 0}, mellomlagret: ${brreg.rows_staged ?? 0}, skrevet: ${brreg.rows_upserted ?? 0}\n\n` +
+          `Importen kjøres i to jobber: startjobben oppretter kjøringen, driverjobben ` +
+          `'brreg-enheter-full-driver' flytter den ett steg om gangen. Startjobben rapporterer ` +
+          `suksess selv om driveren står, så en stanset driver gir ingen feilet kjøring.\n\n` +
+          `Neste steg: kontroller at cron-jobben 'brreg-enheter-full-driver' er aktiv og at ` +
+          `siste leveranse svarer 200. Ingenting er skrevet feil — kjøringen fortsetter der den slapp ` +
+          `så snart driveren går igjen.\n` +
+          `Admin: ${link('/admin/ingestion')}`,
+        details: {
+          run_id: brreg.run_id,
+          phase: brreg.phase,
+          status: brreg.status,
+          stille_minutter: stilleMin,
+          grense: BRREG_STALL_MIN,
+        },
+      })
+    }
+
     const upserted = Number(brreg.rows_upserted ?? 0)
     const missing = Number(brreg.rows_missing ?? 0)
     if (upserted > 0 && missing / upserted > MISSING_RATIO_ALARM) {
