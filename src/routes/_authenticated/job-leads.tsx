@@ -940,9 +940,19 @@ function JobLeadsPage() {
   );
 }
 
+function EvidenceBasisNotice({ summary }: { summary: RequirementSummary }) {
+  if (!hasEmptyEvidenceBasis(summary)) return null;
+  return (
+    <div className="text-xs mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-amber-900 dark:text-amber-100">
+      Ingen karrieredata lastet opp ennå. Vurderingen er gjort uten evidensgrunnlag —
+      poengsummen sier derfor ikke noe om hvor godt du passer.
+    </div>
+  );
+}
+
 function RequirementSummarySection({ summary }: { summary: RequirementSummary }) {
   const items = Array.isArray(summary?.requirements) ? summary!.requirements! : [];
-  if (items.length === 0) return null;
+  if (items.length === 0) return <EvidenceBasisNotice summary={summary} />;
 
   const groups: Array<{ key: "mandatory" | "preferred" | "context"; title: string; items: RequirementItem[] }> = [
     { key: "mandatory", title: "Obligatoriske krav", items: items.filter((r) => r.level === "mandatory") },
