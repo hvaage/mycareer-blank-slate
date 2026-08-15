@@ -2,6 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DRIFTSVARSLING_VERIFISERT, DRIFT_KILDER } from "@/lib/ops/status";
 
+type Varsel = {
+  alert_key: string;
+  source: string;
+  severity: string;
+  title: string;
+  first_seen_at: string | null;
+  last_notified_at: string | null;
+  notify_count: number;
+  resolved_at: string | null;
+};
+
 function fmt(dt: string | null | undefined): string {
   if (!dt) return "—";
   try {
@@ -25,7 +36,10 @@ export function DriftPanel() {
       ]);
       if (state.error) throw state.error;
       if (heartbeat.error) throw heartbeat.error;
-      return { varsler: state.data ?? [], hjerteslag: heartbeat.data };
+      return {
+        varsler: (state.data ?? []) as unknown as Varsel[],
+        hjerteslag: heartbeat.data as { last_beat_at: string | null } | null,
+      };
     },
     refetchInterval: 60_000,
   });
