@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RiskBadges, DataQualityBadges, TypeBadge } from "@/components/employers/Badges";
+import { ANSATTE_KILDEFORKLARING, ansatteErUkjent, formatAnsatte } from "@/lib/employers/ansatte";
 import {
   searchEmployersQuery,
   type EmployerSearchRow,
@@ -253,9 +254,7 @@ function SearchStep({
                     {(row.naeringskode1_beskrivelse || row.naeringskode1_kode) && (
                       <span>· {row.naeringskode1_beskrivelse ?? row.naeringskode1_kode}</span>
                     )}
-                    {typeof row.antall_ansatte === "number" && (
-                      <span>· {row.antall_ansatte} ansatte</span>
-                    )}
+                    <span>· {formatAnsatte(row)} ansatte</span>
                   </div>
                 </div>
                 <div className="shrink-0">
@@ -332,12 +331,12 @@ function ConfirmStep({
                 <dd><TypeBadge value={row.arbeidsgiver_type} /></dd>
               </div>
             )}
-            {typeof row.antall_ansatte === "number" && (
-              <div>
-                <dt className="text-xs text-muted-foreground">Ansatte</dt>
-                <dd>{row.antall_ansatte}</dd>
-              </div>
-            )}
+            <div>
+              <dt className="text-xs text-muted-foreground">Ansatte</dt>
+              <dd title={ansatteErUkjent(row) ? ANSATTE_KILDEFORKLARING : undefined}>
+                {formatAnsatte(row)}
+              </dd>
+            </div>
           </dl>
           <div className="flex flex-col gap-1">
             <RiskBadges flags={row.risiko_flags} />

@@ -5636,6 +5636,21 @@ export type Database = {
         Returns: boolean
       }
       email_queue_dispatch: { Args: never; Returns: undefined }
+      employer_ansatte_distribution: {
+        Args: {
+          p_arbeidsgiver_type?: string
+          p_bransje_query?: string
+          p_cap?: number
+          p_fylkesnummer?: string
+          p_kommune_query?: string
+          p_kommunenummer?: string
+          p_max_omsetning?: number
+          p_min_omsetning?: number
+          p_naeringskode_prefix?: string
+          p_query?: string
+        }
+        Returns: Json
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
