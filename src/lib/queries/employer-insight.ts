@@ -132,6 +132,10 @@ export type EmployerDetail = {
   egenkapitalandel_prosent?: number | null;
   gjeldsgrad?: number | null;
   omsetning_per_ansatt?: number | null;
+  driftsresultat_per_ansatt?: number | null;
+  sum_finansinntekter?: number | null;
+  sum_finanskostnad?: number | null;
+
   antall_ansatte?: number | null;
   /** false = Brreg har ikke tallet (ukjent), ikke "null ansatte". */
   har_registrert_antall_ansatte?: boolean | null;
