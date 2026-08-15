@@ -1,11 +1,21 @@
 /**
  * Inkrementell splitter for et stort JSON-array som kommer som en strøm.
  * Fullfilen fra Brreg er ~209 MB komprimert og kan ikke leses inn i minnet i
- * én operasjon i en Worker. Denne funksjonen finner toppnivåobjektene ett og
- * ett ved å telle klammer, med strenger og escapes håndtert.
+ * én operasjon. Denne funksjonen finner toppnivåobjektene ett og ett ved å
+ * telle klammer, med strenger og escapes håndtert.
+ *
+ * TO INVARIANTER SOM MÅ HOLDE (begge ble brutt i første versjon):
+ *  1. Hvert tegn skannes nøyaktig én gang. Skanningen starter der forrige
+ *     bit sluttet, ikke på posisjon null. Uten dette blir kostnaden
+ *     kvadratisk med filstørrelsen.
+ *  2. En beholdt hale skannes ikke om igjen. Tilstandsflaggene (depth,
+ *     inString, escaped) lever på tvers av bitene, så en ny skanning av
+ *     samme tegn ville telt klammene to ganger og ødelagt oppdelingen.
  */
 export function createJsonArrayScanner() {
   let buf = "";
+  /** Neste uskannede posisjon i buf. Invariant 1. */
+  let pos = 0;
   let depth = 0;
   let start = -1;
   let inString = false;
@@ -17,7 +27,7 @@ export function createJsonArrayScanner() {
     push(chunk: string): string[] {
       buf += chunk;
       const out: string[] = [];
-      for (let i = 0; i < buf.length; i++) {
+      for (let i = pos; i < buf.length; i++) {
         const c = buf[i];
         if (inString) {
           if (escaped) escaped = false;
@@ -46,13 +56,15 @@ export function createJsonArrayScanner() {
           }
         }
       }
-      // Behold bare halen som ennå ikke er ferdig lest.
-      if (depth > 0 && start >= 0) {
-        buf = buf.slice(start);
-        start = 0;
-      } else {
-        buf = "";
-        start = -1;
+      pos = buf.length;
+
+      // Behold bare halen som ennå ikke er ferdig lest, og flytt markørene
+      // med samme forskyvning. Invariant 2.
+      const keepFrom = depth > 0 && start >= 0 ? start : pos;
+      if (keepFrom > 0) {
+        buf = buf.slice(keepFrom);
+        pos -= keepFrom;
+        if (start >= 0) start -= keepFrom;
       }
       return out;
     },

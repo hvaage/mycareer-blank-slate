@@ -28,9 +28,14 @@ import { createJsonArrayScanner } from "@/lib/brreg/json-array-stream";
 const BUCKET = "brreg-full";
 const BRREG_URL = "https://data.brreg.no/enhetsregisteret/api/enheter/lastned";
 const BRREG_ACCEPT = "application/vnd.brreg.enhetsregisteret.enhet.v2+gzip";
-const BATCH_ROWS = 500;
-/** Hvert fase 2-kall stopper her og returnerer markøren, slik at neste kall fortsetter. */
-const PHASE2_BUDGET_MS = 50_000;
+const BATCH_ROWS = 2000;
+/**
+ * Hvert fase 2-kall stopper her og returnerer markøren, slik at neste kall
+ * fortsetter. Godt under plattformens 150 sekunder: en kontrollert stopp er
+ * normal drift, en drept prosess er en feil, og de to må kunne skilles.
+ */
+const PHASE2_BUDGET_MS = 110_000;
+
 
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { "Content-Type": "application/json" } });
@@ -134,7 +139,7 @@ async function phase1(admin: Admin, strict: boolean) {
 // ---------------------------------------------------------------------------
 // Fase 2 — strøm, filtrer, mellomlagre. Fortsetter fra radmarkøren.
 // ---------------------------------------------------------------------------
-async function phase2(admin: Admin, runId: number) {
+async function phase2(admin: Admin, runId: number, maxRows: number | null) {
   const run = await rpc<RunRow>(admin, "brreg_full_get_run", { p_run_id: runId });
   if (!run) return json({ ok: false, error: "unknown run" }, 404);
   if (run.integrity_ok !== true) {
@@ -169,11 +174,15 @@ async function phase2(admin: Admin, runId: number) {
   const scanner = createJsonArrayScanner();
 
   const skip = Number(run.row_cursor ?? 0);
+  const stopAt = maxRows && maxRows > 0 ? skip + maxRows : null;
   let seen = 0;
+  let processed = 0;
   let rows: Record<string, unknown>[] = [];
   let excluded: { organisasjonsnummer: string; reason: string }[] = [];
   const t0 = Date.now();
   let done = false;
+  /** "done" = filen er lest ut. "budget"/"max_rows" = kontrollert stopp. */
+  let stopReason: "done" | "budget" | "max_rows" = "done";
 
   const flush = async () => {
     if (!rows.length && !excluded.length) return;
@@ -193,6 +202,7 @@ async function phase2(admin: Admin, runId: number) {
       const { value, done: rdone } = await reader.read();
       if (rdone) {
         done = true;
+        stopReason = "done";
         break;
       }
       for (const raw of scanner.push(value)) {
@@ -211,11 +221,23 @@ async function phase2(admin: Admin, runId: number) {
             organisasjonsnummer: rec.organisasjonsnummer,
             reason: decision.reason ?? "unknown",
           });
+        processed++;
 
-        if (rows.length + excluded.length >= BATCH_ROWS) {
-          await flush();
-          if (Date.now() - t0 > PHASE2_BUDGET_MS) break outer;
+        if (stopAt !== null && seen >= stopAt) {
+          stopReason = "max_rows";
+          break outer;
         }
+        if (rows.length + excluded.length >= BATCH_ROWS && Date.now() - t0 > PHASE2_BUDGET_MS) {
+          stopReason = "budget";
+          break outer;
+        }
+        if (rows.length + excluded.length >= BATCH_ROWS) await flush();
+      }
+      // Tidsbudsjettet sjekkes også mellom bitene, ikke bare på hel batch,
+      // slik at et parti med bare hoppede rader også avsluttes kontrollert.
+      if (Date.now() - t0 > PHASE2_BUDGET_MS) {
+        stopReason = "budget";
+        break;
       }
     }
     await flush();
@@ -234,14 +256,34 @@ async function phase2(admin: Admin, runId: number) {
     p_run_id: runId,
     p_patch: {
       phase: done ? "phase2_done" : "phase2_parse",
-      status: done ? "awaiting_phase3" : "running",
+      // Kontrollert stopp har sin egen status. Uten den ville hver eneste
+      // normale kjøring sett ut som en avbrutt kjøring.
+      status: done ? "awaiting_phase3" : "awaiting_next_batch",
       parse_complete: done,
       row_cursor: seen,
       rows_seen: seen,
+      error: null,
     },
   });
-  return json({ ok: true, phase: 2, done, run: patched });
+  const elapsed = Date.now() - t0;
+  return json({
+    ok: true,
+    phase: 2,
+    done,
+    stop_reason: stopReason,
+    progress: {
+      row_cursor: patched.row_cursor,
+      rows_staged: patched.rows_staged,
+      rows_excluded: patched.rows_excluded,
+      rows_this_call: processed,
+      elapsed_ms: elapsed,
+      rows_per_s: processed > 0 ? Math.round((processed / elapsed) * 1000) : 0,
+    },
+    run: patched,
+  });
 }
+
+
 
 // ---------------------------------------------------------------------------
 // Fase 3 — sammenligningsport, deretter upsert-only merge
@@ -317,7 +359,12 @@ export const Route = createFileRoute("/api/public/sync/brreg-enheter")({
 
         try {
           if (phase === "1") return await phase1(supabaseAdmin, url.searchParams.get("strict") === "1");
-          if (phase === "2") return await phase2(supabaseAdmin, runId);
+          if (phase === "2")
+            return await phase2(
+              supabaseAdmin,
+              runId,
+              Number(url.searchParams.get("max_rows") ?? 0) || null,
+            );
           if (phase === "3")
             return await phase3(supabaseAdmin, runId, url.searchParams.get("dry_run") === "1");
           if (phase === "status")
