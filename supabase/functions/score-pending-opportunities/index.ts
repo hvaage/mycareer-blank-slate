@@ -1047,6 +1047,7 @@ Deno.serve(async (req: Request) => {
       mode: input.mode,
       status_counts: statusCounts,
       evidence_items_used: evidence.length,
+      evidence_basis: evidence.length === 0 ? "empty" : "present",
       results: resultRows,
       failures,
     }, resultStatus === "failed" ? 500 : 200);
