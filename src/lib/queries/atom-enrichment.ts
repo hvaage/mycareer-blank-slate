@@ -1,4 +1,5 @@
-// @ts-nocheck
+// Karriereontologi v4, fase 2.2. @ts-nocheck er fjernet med vilje: typekontrollen er
+// det som fanger feil måltabell, feil felttype og manglende peker-ID-er.
 import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type {
