@@ -94,9 +94,9 @@ export function AnsatteFordelingBanner({
 
       {erUtvalg && (
         <p className="mt-2 rounded-md border border-dashed border-border p-2 text-xs leading-snug text-foreground">
-          Tallene er et utvalg. Hele trefflisten var for stor til å telles innen tidsgrensen, så
-          fordelingen er regnet over de første {fmtAntall(fordeling.total)} treffene. Andelene kan
-          avvike fra hele trefflisten.
+          Tallene er et utvalg. Når du filtrerer, telles høyst {fmtAntall(fordeling.total)} treff, slik
+          at fordelingen alltid rekker fram. Andelene kan avvike fra hele trefflisten.
+
         </p>
       )}
 
