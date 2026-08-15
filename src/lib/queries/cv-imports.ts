@@ -9,6 +9,27 @@ import type {
   RegisterUploadResponse,
 } from "@/types/cv-upload";
 
+/**
+ * Sant bare når svaret har minst én av de forventede listene. Et parse-resultat
+ * uten noen av dem er ikke «en tom CV», det er et svar vi ikke klarte å lese —
+ * og de to skal aldri se like ut for brukeren.
+ */
+export function parsedShapeIsReadable(raw: any): boolean {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+  const keys = [
+    "experience",
+    "work_experience",
+    "education",
+    "skills",
+    "languages",
+    "certifications",
+    "projects",
+    "achievements",
+    "awards",
+  ];
+  return keys.some((k) => Array.isArray(raw[k]));
+}
+
 export function countsFromParsed(raw: any): PreviewCounts {
   const c = (k: string) => (Array.isArray(raw?.[k]) ? raw[k].length : 0);
   const experience = c("experience") + c("work_experience");
@@ -57,7 +78,11 @@ export function useUserAtomCounts(userId: string | undefined) {
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId!);
       if (error) throw error;
-      return count ?? 0;
+      if (typeof count !== "number") {
+        // Null telling er ikke «null atomer» — det er en telling vi ikke fikk.
+        throw new Error("Kunne ikke telle elementene i karriereoversikten.");
+      }
+      return count;
     },
   });
 }
@@ -82,26 +107,25 @@ async function invokeParseWithTimeout(importId: string): Promise<ParseResponse> 
       reject(err);
     }, PARSE_INVOKE_MS);
   });
-  let data: ParseResponse | null = null;
-  let error: Error | null = null;
-  try {
-    const res = (await Promise.race([invokePromise, timeoutPromise])) as Awaited<typeof invokePromise>;
-    data = res.data;
-    error = res.error as Error | null;
-  } catch (e: any) {
-    if (e?.code === "parse_failed") throw e;
-    throw e;
-  }
+  const res = (await Promise.race([invokePromise, timeoutPromise])) as Awaited<typeof invokePromise>;
+  const data: ParseResponse | null = res.data;
+  const error: Error | null = res.error as Error | null;
   if (error) {
     const ctx = (error as any).context;
     let code = "parse_failed";
     let message = error.message;
+    let detaljerLest = false;
     try {
       const body = ctx ? await ctx.json() : null;
       if (body?.error) code = body.error;
       if (body?.message) message = body.message;
-    } catch {
-      /* ignore */
+      detaljerLest = !!body;
+    } catch (bodyErr) {
+      console.warn("[cv-imports] Kunne ikke lese feilkroppen fra parse-uploaded-cv", bodyErr);
+    }
+    if (!detaljerLest) {
+      // Brukeren skal ikke få en naken «non-2xx»-melding uten å vite at årsaken mangler.
+      message = `${message} (vi fikk ikke lest årsaken fra tjenesten)`;
     }
     const err: any = new Error(normalizeAiErrorMessage(message, { kind: "generic" }));
     err.code = code;
@@ -203,14 +227,18 @@ export function useCommitImport(userId: string) {
         const ctx = (error as any).context;
         let code = "database_error";
         let message = error.message;
+        let detaljerLest = false;
         try {
           const body = ctx ? await ctx.json() : null;
           if (body?.error) code = body.error;
           if (body?.message) message = body.message;
-        } catch {
-          /* ignore */
+          detaljerLest = !!body;
+        } catch (bodyErr) {
+          console.warn("[cv-imports] Kunne ikke lese feilkroppen fra commit-cv-import", bodyErr);
         }
-        const err: any = new Error(message);
+        const err: any = new Error(
+          detaljerLest ? message : `${message} (vi fikk ikke lest årsaken fra tjenesten)`,
+        );
         err.code = code;
         throw err;
       }
@@ -228,6 +256,12 @@ export function useCommitImport(userId: string) {
   });
 }
 
+/**
+ * Avbryter en import. Merk: statusen `failed` deles med ekte feil fordi
+ * `cv_imports.status` ikke har en `cancelled`-verdi; `error_message` skiller dem.
+ * Kaster ved feil — kallstedet må vise det, ellers ser en mislykket avbrytelse
+ * ut som en vellykket.
+ */
 export async function cancelImport(importId: string) {
   const { error } = await (supabase.from("cv_imports") as any)
     .update({ status: "failed", error_message: "cancelled_by_user" })
