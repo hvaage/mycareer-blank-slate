@@ -164,11 +164,11 @@ function compareRoles(
 }
 
 function compareAchievements(
-  inc: AtomInsert,
-  ex: CvAtom,
+  inc: IncomingCandidate,
+  ex: ExistingCandidate,
 ): { reason: string; confidence: number } | null {
-  // Achievement-dedup kun hvis samme parent_atom_id (samme rolle)
-  if (inc.parent_atom_id !== ex.parent_atom_id) return null;
+  // Achievement-dedup kun innenfor samme rolle (samme parent_local_ref)
+  if (inc.parent_local_ref !== ex.parent_local_ref) return null;
 
   const aWhat = (inc.structured_data as Partial<AchievementStructuredData>)?.what;
   const bWhat = (ex.structured_data as AchievementStructuredData)?.what;
