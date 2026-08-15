@@ -180,6 +180,20 @@ export interface ComparisonGateInput {
   overlapCount: number;
   /** Antall markøravvik innenfor overlappet, per markør. */
   markerDiffs: MarkerDiffCounts;
+  /**
+   * Streng modus: brukes på FØRSTE kjøring. Da stopper porten ved ethvert
+   * avvik, ikke ved terskelen. Poenget er at rekonstruksjonen skal bevise seg
+   * selv én gang mot dagens 439 773 rader før terskelene overtar.
+   */
+  strict?: boolean;
+  /**
+   * Rader speilet har i dag som filteret ville forkastet. Dette er beviset på
+   * at rekonstruksjonen er ufullstendig. De skal RAPPORTERES, aldri slettes
+   * fra reg.enheter.
+   */
+  excludedPresentInMirror?: number;
+  /** Rader speilet har som ikke finnes i fullfilen i det hele tatt. */
+  absentFromSource?: number;
 }
 
 export interface ComparisonGateResult {
@@ -215,9 +229,33 @@ export function evaluateComparisonGate(
   const markerDiffRatio =
     input.overlapCount > 0 ? markerDiffTotal / input.overlapCount : 0;
 
+  const excludedInMirror = input.excludedPresentInMirror ?? 0;
+  const absent = input.absentFromSource ?? 0;
+
   if (input.filteredCount <= 0) {
     failures.push("filteredCount=0: fullfilen ga ingen rader gjennom filteret");
   }
+
+  if (input.strict) {
+    // Første kjøring: ethvert avvik stopper, uansett terskel.
+    if (excludedInMirror > 0) {
+      failures.push(
+        `strict: ${excludedInMirror} rader i speilet ville blitt forkastet av filteret — rekonstruksjonen er ufullstendig`,
+      );
+    }
+    if (absent > 0) {
+      failures.push(`strict: ${absent} rader i speilet finnes ikke i fullfilen`);
+    }
+    if (markerDiffTotal > 0) {
+      failures.push(`strict: ${markerDiffTotal} markøravvik innenfor overlappet`);
+    }
+    return { pass: failures.length === 0, failures, warnings, missingRatio, markerDiffRatio };
+  }
+
+  if (excludedInMirror > 0) {
+    warnings.push(`excluded_present_in_mirror=${excludedInMirror}`);
+  }
+
   if (missingRatio > GATE_MISSING_RATIO_FAIL) {
     failures.push(
       `missing_ratio=${(missingRatio * 100).toFixed(2)}% over grense ${(GATE_MISSING_RATIO_FAIL * 100).toFixed(2)}%`,
