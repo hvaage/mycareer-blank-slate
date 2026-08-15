@@ -960,10 +960,11 @@ function RequirementSummarySection({ summary }: { summary: RequirementSummary })
     { key: "context", title: "Annen kontekst", items: items.filter((r) => r.level === "context") },
   ].filter((g) => g.items.length > 0);
 
-  if (groups.length === 0) return null;
+  if (groups.length === 0) return <EvidenceBasisNotice summary={summary} />;
 
   return (
     <div className="text-xs border-t border-border/60 pt-2 mt-2 space-y-2">
+      <EvidenceBasisNotice summary={summary} />
       {groups.map((g) => (
         <div key={g.key} className="space-y-1">
           <div className="font-medium text-foreground/90">{g.title}</div>
