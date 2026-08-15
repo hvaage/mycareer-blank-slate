@@ -83,47 +83,47 @@ export function isAutoStructurableEvidence(
   return false;
 }
 
+/** Felles innsetting. `atom_class` og `attestation` settes aldri her — databasen eier dem. */
+export async function insertCareerAtomFields(
+  userId: string,
+  fields: CareerAtomFields,
+): Promise<string> {
+  const insert: TablesInsert<"career_atoms"> = {
+    user_id: userId,
+    atom_kind: fields.atom_kind,
+    atom_type: fields.atom_type,
+    parent_atom_id: fields.parent_atom_id,
+    content_no: fields.content_no,
+    structured_data: fields.structured_data as Json,
+    source_type: fields.source_type,
+    source_ref: fields.source_ref,
+    source_quote: fields.source_quote,
+    evidence_atom_ids: fields.evidence_atom_ids,
+    confidence: fields.confidence,
+    viktighet: fields.viktighet,
+    is_active: true,
+  };
+  const { data, error } = await supabase
+    .from("career_atoms")
+    .insert(insert)
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data.id;
+}
+
 export async function insertExplicitPreferenceFromPlan(
   userId: string,
   pl: PlannedPreferenceAtom,
-): Promise<void> {
-  const insert: TablesInsert<"user_preference_atoms"> = {
-    user_id: userId,
-    career_profile_id: pl.career_profile_id,
-    dimension: pl.dimension.trim(),
-    label: pl.label.trim(),
-    value: pl.value,
-    importance_score: pl.importance_score,
-    confidence_score: pl.confidence_score ?? 1,
-    source: pl.source,
-    source_field: pl.source_field,
-    source_hash: pl.source_hash,
-    reasoning: pl.reasoning,
-    is_active: true,
-  };
-  const { error } = await supabase.from("user_preference_atoms").insert(insert);
-  if (error) throw error;
+): Promise<string> {
+  return insertCareerAtomFields(userId, preferencePlanToCareerAtom(pl));
 }
 
 export async function insertExplicitEvidenceFromPlan(
   userId: string,
   ev: PlannedEvidenceAtom,
-): Promise<void> {
-  const insert: TablesInsert<"user_evidence_atoms"> = {
-    user_id: userId,
-    category: ev.category.trim(),
-    label: ev.label.trim(),
-    description: ev.description,
-    evidence_type: ev.evidence_type,
-    source: ev.source,
-    source_document_id: ev.source_document_id,
-    source_profile_field: ev.source_profile_field,
-    source_hash: ev.source_hash,
-    strength_score: ev.strength_score,
-    confidence_score: ev.confidence_score ?? 1,
-    reasoning: ev.reasoning,
-    is_active: true,
-  };
-  const { error } = await supabase.from("user_evidence_atoms").insert(insert);
-  if (error) throw error;
+  opts: { atomType: CareerAtomType; evidenceAtomIds: string[]; parentAtomId: string | null },
+): Promise<string> {
+  return insertCareerAtomFields(userId, evidencePlanToCareerAtom(ev, opts));
 }
+
