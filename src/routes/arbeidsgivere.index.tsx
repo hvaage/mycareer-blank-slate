@@ -7,7 +7,6 @@ import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/employers/SearchBar";
 import { FilterPanel } from "@/components/employers/FilterPanel";
-import { SelectionInsights } from "@/components/employers/SelectionInsights";
 import { AnsatteFordelingBanner } from "@/components/employers/AnsatteFordelingBanner";
 import { ResultsTable } from "@/components/employers/ResultsTable";
 import {
@@ -153,7 +152,7 @@ function ArbeidsgivereIndex() {
     });
   };
 
-  const hasAnyFilter = Boolean(
+  const _hasAnyFilter = Boolean(
     search.kommuneQuery ||
       search.bransjeQuery ||
       search.fylke ||
@@ -234,12 +233,6 @@ function ArbeidsgivereIndex() {
             ansatteFilterAktivt={ansatteFilterAktivt}
           />
 
-          <SelectionInsights
-            rows={rows}
-            page={search.page}
-            pageSize={PAGE_SIZE}
-            hasAnyFilter={hasAnyFilter}
-          />
 
           {data?.emptyReason === "min_query_length" ? (
             <div className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">

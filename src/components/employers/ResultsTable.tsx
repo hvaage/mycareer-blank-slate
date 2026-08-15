@@ -1,8 +1,10 @@
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import type { EmployerSearchRow } from "@/lib/queries/employer-insight";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RiskBadges, DataQualityBadges, TypeBadge } from "./Badges";
 import { fmtNok, fmtPercent } from "./MetricTile";
 import { fylkesnavn } from "@/lib/employers/no-regions";
@@ -23,7 +25,7 @@ function bransjeFra(r: EmployerSearchRow): string {
 
 
 export function ResultsTable({
-  rows,
+  rows: alleRader,
   loading,
   available,
   errorMessage,
@@ -33,6 +35,18 @@ export function ResultsTable({
   available: boolean;
   errorMessage: string | null;
 }) {
+  const navigate = useNavigate();
+  const [kunFlagg, setKunFlagg] = useState(false);
+
+  const medFlagg = useMemo(
+    () =>
+      alleRader.filter(
+        (r) => (r.risiko_flags?.length ?? 0) > 0 || (r.datakvalitet_flags?.length ?? 0) > 0,
+      ),
+    [alleRader],
+  );
+  const rows = kunFlagg ? medFlagg : alleRader;
+
   if (!available) {
     return (
       <EmptyState
@@ -62,13 +76,34 @@ export function ResultsTable({
     );
   }
 
-  const navigate = useNavigate();
   const goTo = (orgnr: string) => {
     navigate({ to: "/arbeidsgivere/$orgnr", params: { orgnr } });
   };
 
+  const verktoylinje = (
+    <div className="flex items-center justify-between gap-3">
+      <label className="flex items-center gap-2 text-sm text-foreground">
+        <Checkbox
+          checked={kunFlagg}
+          onCheckedChange={(v) => setKunFlagg(v === true)}
+          aria-label="Vis kun selskaper med flagg"
+        />
+        Vis kun selskaper med flagg
+      </label>
+      <span className="text-xs text-muted-foreground">
+        {medFlagg.length} av {alleRader.length} på denne siden har flagg
+      </span>
+    </div>
+  );
+
   return (
-    <>
+    <div className="space-y-3">
+      {verktoylinje}
+      {rows.length === 0 && (
+        <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+          Ingen av selskapene på denne siden har flagg.
+        </p>
+      )}
       {/* Desktop-tabell */}
       <div className="hidden md:block overflow-x-auto rounded-lg border border-border bg-card">
         <table className="w-full text-sm">
@@ -215,6 +250,6 @@ export function ResultsTable({
           );
         })}
       </ul>
-    </>
+    </div>
   );
 }
