@@ -7,6 +7,7 @@ import { ChevronDown, ClipboardList, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
   approveAtomEnrichmentProposal,
+  ATOM_ENRICHMENT_PROPOSAL_LIST_LIMIT,
   atomEnrichmentBatchesQuery,
   atomEnrichmentProposalsByStatusQuery,
   bulkApproveAtomEnrichmentProposals,
