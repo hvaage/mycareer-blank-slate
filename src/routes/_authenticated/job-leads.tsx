@@ -62,9 +62,21 @@ type RequirementItem = {
   matched_evidence_refs?: string[] | null;
 };
 
+type EvidenceBasis = {
+  status?: "empty" | "present" | null;
+  items_used?: number | null;
+  source?: string | null;
+} | null;
+
 type RequirementSummary = {
   requirements?: RequirementItem[];
+  evidence_basis?: EvidenceBasis;
 } | null;
+
+/** Tomt evidensgrunnlag skal vises eksplisitt, ikke som et lavt tall uten forklaring. */
+function hasEmptyEvidenceBasis(summary: RequirementSummary): boolean {
+  return summary?.evidence_basis?.status === "empty";
+}
 
 type Lead = {
   id: string;
