@@ -5396,6 +5396,7 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: Json
       }
+      brreg_full_apply_missing: { Args: { p_run_id: number }; Returns: Json }
       brreg_full_apply_refined_filter: {
         Args: { p_run_id: number }
         Returns: Json
