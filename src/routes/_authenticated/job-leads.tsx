@@ -124,7 +124,11 @@ function reasonLabelNb(r: ScreeningReason): string {
 }
 
 function isV2EvaluatedRaw(version: string | null | undefined, status: ScreeningStatus): boolean {
-  return version === MATCH_SCORE_VERSION && status != null;
+  return !!version && ACCEPTED_MATCH_SCORE_VERSIONS.has(version) && status != null;
+}
+
+function isLegacyScoreVersion(version: string | null | undefined): boolean {
+  return version === MATCH_SCORE_VERSION_LEGACY;
 }
 
 function relevanceBadge(score: number | null) {
