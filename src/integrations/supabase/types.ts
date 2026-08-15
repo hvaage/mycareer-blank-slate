@@ -3575,6 +3575,66 @@ export type Database = {
           },
         ]
       }
+      ops_alert_state: {
+        Row: {
+          alert_key: string
+          details: Json
+          first_seen_at: string
+          last_notified_at: string | null
+          last_seen_at: string
+          notify_count: number
+          resolved_at: string | null
+          severity: string
+          source: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          alert_key: string
+          details?: Json
+          first_seen_at?: string
+          last_notified_at?: string | null
+          last_seen_at?: string
+          notify_count?: number
+          resolved_at?: string | null
+          severity?: string
+          source: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          alert_key?: string
+          details?: Json
+          first_seen_at?: string
+          last_notified_at?: string | null
+          last_seen_at?: string
+          notify_count?: number
+          resolved_at?: string | null
+          severity?: string
+          source?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ops_heartbeat: {
+        Row: {
+          details: Json
+          last_beat_at: string
+          name: string
+        }
+        Insert: {
+          details?: Json
+          last_beat_at?: string
+          name: string
+        }
+        Update: {
+          details?: Json
+          last_beat_at?: string
+          name?: string
+        }
+        Relationships: []
+      }
       positioning_recommendations: {
         Row: {
           assessment_id: string
@@ -5949,6 +6009,22 @@ export type Database = {
         Args: { p_company: string; p_location: string; p_title: string }
         Returns: string
       }
+      ops_reap_stuck_runs: {
+        Args: { p_older_than_minutes: number; p_source: string }
+        Returns: Json
+      }
+      ops_sync_runs_unified: {
+        Args: never
+        Returns: {
+          error: string
+          finished_at: string
+          run_id: string
+          source: string
+          started_at: string
+          status: string
+        }[]
+      }
+      ops_watchdog_snapshot: { Args: never; Returns: Json }
       prune_cron_job_run_details: {
         Args: {
           p_batch_size?: number

@@ -15,20 +15,22 @@ import {
   type TriggerCareerjetSyncResult,
 } from "@/lib/careerjet-sync.functions";
 import { IngestionPanel } from "@/components/admin/IngestionPanel";
+import { DriftPanel } from "@/components/admin/DriftPanel";
 
-type TabKey = "nav" | "careerjet" | "ingestion";
+type TabKey = "nav" | "careerjet" | "ingestion" | "drift";
 
 const TAB_LABELS: Record<TabKey, string> = {
   nav: "NAV",
   careerjet: "Careerjet",
   ingestion: "Datainntak",
+  drift: "Drift",
 };
 
 export const Route = createFileRoute("/_authenticated/admin/sync")({
   validateSearch: (s: Record<string, unknown>) => {
     const t = s.tab;
     const tab: TabKey =
-      t === "careerjet" || t === "ingestion" || t === "nav" ? t : "nav";
+      t === "careerjet" || t === "ingestion" || t === "drift" || t === "nav" ? t : "nav";
     return { tab };
   },
   head: () => ({
@@ -68,7 +70,7 @@ function AdminSync() {
         </p>
 
         <div className="mt-6 flex gap-2 border-b border-border">
-          {(["nav", "careerjet", "ingestion"] as TabKey[]).map((t) => (
+          {(["nav", "careerjet", "ingestion", "drift"] as TabKey[]).map((t) => (
             <button
               key={t}
               onClick={() => navigate({ to: "/admin/sync", search: { tab: t } })}
@@ -86,6 +88,7 @@ function AdminSync() {
         {tab === "nav" && <NavTab />}
         {tab === "careerjet" && <CareerjetTab />}
         {tab === "ingestion" && <IngestionPanel />}
+        {tab === "drift" && <DriftPanel />}
       </main>
       <Footer />
     </div>

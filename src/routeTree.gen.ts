@@ -77,6 +77,7 @@ import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/e
 import { Route as ApiPublicSyncBrregEnheterRouteImport } from './routes/api/public/sync/brreg-enheter'
 import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './routes/api/public/selskapsanalyse/preview-email'
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
+import { Route as ApiPublicOpsWatchdogRouteImport } from './routes/api/public/ops/watchdog'
 
 const UnsubscribeRoute = UnsubscribeRouteImport.update({
   id: '/unsubscribe',
@@ -457,6 +458,11 @@ const ApiPublicSelskapsanalyseDownloadRoute =
     path: '/api/public/selskapsanalyse/download',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicOpsWatchdogRoute = ApiPublicOpsWatchdogRouteImport.update({
+  id: '/api/public/ops/watchdog',
+  path: '/api/public/ops/watchdog',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -520,6 +526,7 @@ export interface FileRoutesByFullPath {
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
+  '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/api/public/sync/brreg-enheter': typeof ApiPublicSyncBrregEnheterRoute
@@ -586,6 +593,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
   '/rekruttererundersokelse/resultater': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
+  '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/api/public/sync/brreg-enheter': typeof ApiPublicSyncBrregEnheterRoute
@@ -657,6 +665,7 @@ export interface FileRoutesById {
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
+  '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/api/public/sync/brreg-enheter': typeof ApiPublicSyncBrregEnheterRoute
@@ -728,6 +737,7 @@ export interface FileRouteTypes {
     | '/onboarding/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
+    | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
     | '/api/public/sync/brreg-enheter'
@@ -794,6 +804,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/rekruttererundersokelse/resultater'
     | '/selskapsanalyse/analysedatabase'
+    | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
     | '/api/public/sync/brreg-enheter'
@@ -864,6 +875,7 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
+    | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
     | '/api/public/sync/brreg-enheter'
@@ -889,6 +901,7 @@ export interface RootRouteChildren {
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
+  ApiPublicOpsWatchdogRoute: typeof ApiPublicOpsWatchdogRoute
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
   ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
   ApiPublicSyncBrregEnheterRoute: typeof ApiPublicSyncBrregEnheterRoute
@@ -1375,6 +1388,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSelskapsanalyseDownloadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ops/watchdog': {
+      id: '/api/public/ops/watchdog'
+      path: '/api/public/ops/watchdog'
+      fullPath: '/api/public/ops/watchdog'
+      preLoaderRoute: typeof ApiPublicOpsWatchdogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1535,6 +1555,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
+  ApiPublicOpsWatchdogRoute: ApiPublicOpsWatchdogRoute,
   ApiPublicSelskapsanalyseDownloadRoute: ApiPublicSelskapsanalyseDownloadRoute,
   ApiPublicSelskapsanalysePreviewEmailRoute:
     ApiPublicSelskapsanalysePreviewEmailRoute,
