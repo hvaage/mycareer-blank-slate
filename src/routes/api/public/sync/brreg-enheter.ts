@@ -324,13 +324,18 @@ async function runGatePart<T>(
  * kjøringen; å kjøre den om igjen for hver porsjon koster to minutter og
  * sprenger tidsbudsjettet til gatewayen. Kallet er trygt å gjenta: hver
  * porsjon merkes i mellomlagringen.
+ *
+ * Telleren for «manglet i fullfilen» settes IKKE her. Den er et eget steg
+ * (?phase=missing) som først kjører når alle porsjoner er bekreftet ferdige,
+ * og som er idempotent. Ellers ville en feilet eller gjentatt siste porsjon
+ * gi feil teller.
  */
 async function mergeOnly(admin: Admin, runId: number) {
   const budgetMs = 100_000;
   const t0 = Date.now();
-  const out = { upserted: 0, missing: 0, batches: 0, remaining: -1, done: false };
+  const out = { upserted: 0, batches: 0, remaining: -1, done: false };
   while (Date.now() - t0 < budgetMs) {
-    const step = await rpc<{ upserted: number; missing: number; remaining: number; done: boolean }>(
+    const step = await rpc<{ upserted: number; remaining: number; done: boolean }>(
       admin,
       "brreg_full_merge",
       { p_run_id: runId, p_batch: 25_000 },
@@ -339,11 +344,10 @@ async function mergeOnly(admin: Admin, runId: number) {
     out.batches += 1;
     out.remaining = step.remaining;
     if (step.done) {
-      out.missing = step.missing;
       out.done = true;
       await rpc(admin, "brreg_full_patch_run", {
         p_run_id: runId,
-        p_patch: { phase: "phase3_done", status: "ok", finished: true },
+        p_patch: { phase: "phase3_merged", status: "awaiting_missing_count" },
       });
       break;
     }
@@ -351,6 +355,25 @@ async function mergeOnly(admin: Admin, runId: number) {
   }
   return json({ ok: true, phase: "merge", ...out });
 }
+
+/**
+ * Eget steg etter siste porsjon. Idempotent i databasen: gjentatt kall
+ * dobbelttelller ikke, det svarer already_applied.
+ */
+async function applyMissing(admin: Admin, runId: number) {
+  const res = await rpc<{ ok: boolean; missing?: number; already_applied?: boolean; reason?: string }>(
+    admin,
+    "brreg_full_apply_missing",
+    { p_run_id: runId },
+  );
+  if (!res.ok) return json({ ...res, ok: false, phase: "missing" }, 409);
+  await rpc(admin, "brreg_full_patch_run", {
+    p_run_id: runId,
+    p_patch: { phase: "phase3_done", status: "ok", finished: true },
+  });
+  return json({ ...res, ok: true, phase: "missing" });
+}
+
 
 async function phase3(admin: Admin, runId: number, dryRun: boolean) {
   const run = await rpc<RunRow>(admin, "brreg_full_get_run", { p_run_id: runId });
@@ -444,21 +467,20 @@ async function phase3(admin: Admin, runId: number, dryRun: boolean) {
 
   // Skrivingen går i porsjoner: én samlet upsert på ~443 000 rader sprenger
   // tidsgrensen. Hver porsjon merkes i mellomlagringen, så kallet kan gjentas
-  // uten å skrive noe om igjen. Telleren for manglende rader settes i siste
-  // porsjon.
+  // uten å skrive noe om igjen. Telleren for manglende rader settes IKKE her,
+  // men i ?phase=missing etter at alle porsjoner er bekreftet ferdige.
   const MERGE_BATCH = 50_000;
-  const merged = { upserted: 0, missing: 0, batches: 0 };
+  const merged = { upserted: 0, batches: 0, done: false };
   for (let i = 0; i < 40; i++) {
     const step = await rpc<{
       upserted: number;
-      missing: number;
       remaining: number;
       done: boolean;
     }>(admin, "brreg_full_merge", { p_run_id: runId, p_batch: MERGE_BATCH });
     merged.upserted += step.upserted;
     merged.batches += 1;
     if (step.done) {
-      merged.missing = step.missing;
+      merged.done = true;
       break;
     }
     if (step.upserted === 0) {
@@ -471,9 +493,20 @@ async function phase3(admin: Admin, runId: number, dryRun: boolean) {
   // Mellomlagringen beholdes med vilje: den er dokumentasjonen for hva kjøringen skrev.
   const patched = await rpc<RunRow>(admin, "brreg_full_patch_run", {
     p_run_id: runId,
-    p_patch: { phase: "phase3_done", status: "ok", finished: true },
+    p_patch: merged.done
+      ? { phase: "phase3_merged", status: "awaiting_missing_count" }
+      : { phase: "phase3_merge", status: "awaiting_next_merge_batch" },
   });
-  return json({ ok: true, phase: 3, merged: true, gate, metrics: m, result: merged, run: patched });
+  return json({
+    ok: true,
+    phase: 3,
+    merged: merged.done,
+    next: merged.done ? "phase=missing" : "phase=merge",
+    gate,
+    metrics: m,
+    result: merged,
+    run: patched,
+  });
 }
 
 export const Route = createFileRoute("/api/public/sync/brreg-enheter")({
@@ -499,6 +532,7 @@ export const Route = createFileRoute("/api/public/sync/brreg-enheter")({
               Number(url.searchParams.get("max_rows") ?? 0) || null,
             );
           if (phase === "merge") return await mergeOnly(supabaseAdmin, runId);
+          if (phase === "missing") return await applyMissing(supabaseAdmin, runId);
           if (phase === "3")
             return await phase3(supabaseAdmin, runId, url.searchParams.get("dry_run") === "1");
           if (phase === "status")
