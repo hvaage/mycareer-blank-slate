@@ -23,7 +23,6 @@ import {
   type CareerAtomFields,
 } from "@/lib/career-atom-v4-mapping";
 import {
-  evidenceLogicalKeyFromRow,
   generateEvidenceAtomsFromCvEvidenceAtoms,
   generateEvidenceAtomsFromCvImports,
   generateEvidenceAtomsFromDocuments,
@@ -31,7 +30,6 @@ import {
   generateEvidenceAtomsFromProfile,
   generatePreferenceAtomsFromCareerProfile,
   generatePreferenceAtomsFromProfile,
-  preferenceLogicalKeyFromRow,
   stableAtomHash,
   type CvImportRow,
   type DocumentRow,

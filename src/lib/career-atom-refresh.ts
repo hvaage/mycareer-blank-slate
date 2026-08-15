@@ -94,6 +94,11 @@ export type UserAtomRefreshPlan = {
  */
 export const CAREER_ATOM_LOGICAL_KEY_PREFIX = "v4";
 
+function clampImportance(n: number | null | undefined): number | null {
+  if (n == null || Number.isNaN(n)) return null;
+  return Math.min(6, Math.max(1, Math.round(Number(n))));
+}
+
 /** Ønske/verdi/begrensning: dimensjon + etikett. Kilden inngår ikke. */
 function prefKey(
   _source: string,
