@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Module 4 — deterministic preference/evidence atom generation from existing user data.
  * Pure helpers + plan builder; no DB I/O, no AI.
@@ -83,30 +82,235 @@ export type UserAtomRefreshPlan = {
   preferenceAtomsToUpsert: PlannedPreferenceAtom[];
   evidenceAtomsToUpsert: PlannedEvidenceAtom[];
   systemAtomsToDeactivate: AtomDeactivateTarget[];
+  /** Evidens hvis kilde er borte. Beholdes aktiv — merkes bare. */
+  evidenceMissingFromSource: AtomDeactivateTarget[];
   warnings: string[];
   summary: string;
 };
 
-function prefKey(source: string, sourceField: string, dimension: string, label: string, value: string | null): string {
-  return `pref|${source}|${sourceField}|${dimension}|${norm(label)}|${norm(value)}`;
-}
-
-function evKey(source: string, sourceField: string, category: string, label: string): string {
-  return `ev|${source}|${sourceField}|${category}|${norm(label)}`;
-}
+/**
+ * Karriereontologi v4 — logisk nøkkel.
+ * Første ledd er alltid `atom_kind`, slik at ulike kinds aldri kolliderer.
+ * Et ønske og en evidens om samme emne er derfor ikke duplikat.
+ */
+export const CAREER_ATOM_LOGICAL_KEY_PREFIX = "v4";
 
 function clampImportance(n: number | null | undefined): number | null {
   if (n == null || Number.isNaN(n)) return null;
   return Math.min(6, Math.max(1, Math.round(Number(n))));
 }
 
-export function preferenceLogicalKeyFromRow(row: Pick<Tables<"user_preference_atoms">, "source" | "source_field" | "dimension" | "label" | "value">): string {
-  return prefKey(row.source ?? "", row.source_field ?? "", row.dimension, row.label, row.value);
+/** Ønske/verdi/begrensning: dimensjon + etikett. Kilden inngår ikke. */
+function prefKey(
+  _source: string,
+  _sourceField: string,
+  dimension: string,
+  label: string,
+  _value: string | null,
+): string {
+  return `${CAREER_ATOM_LOGICAL_KEY_PREFIX}|onske|${norm(dimension)}|${norm(label)}`;
 }
 
-export function evidenceLogicalKeyFromRow(row: Pick<Tables<"user_evidence_atoms">, "source" | "source_profile_field" | "category" | "label">): string {
-  return evKey(row.source ?? "", row.source_profile_field ?? "", row.category, row.label);
+/**
+ * Evidens: type + påstandens innhold. `source_ref` inngår IKKE — samme CV lastet
+ * opp to ganger med ulikt filnavn skal ikke gi to atomer. To ulike dokumenter som
+ * hevder nøyaktig det samme er også én påstand; belegget ligger i evidence_atom_ids.
+ */
+function evKey(_source: string, _sourceField: string, category: string, label: string): string {
+  return `${CAREER_ATOM_LOGICAL_KEY_PREFIX}|evidens|${norm(category)}|${norm(label)}`;
 }
+
+type CareerAtomKeyInput = {
+  atom_kind: string;
+  atom_type?: string | null;
+  content_no?: string | null;
+  structured_data?: unknown;
+  target_requirement_id?: string | null;
+};
+
+function structuredField(structured: unknown, key: string): string | null {
+  if (structured == null || typeof structured !== "object" || Array.isArray(structured)) return null;
+  const v = (structured as Record<string, unknown>)[key];
+  return typeof v === "string" ? v : null;
+}
+
+/** Én nøkkelstrategi for alle seks kinds. */
+export function careerAtomLogicalKey(atom: CareerAtomKeyInput): string {
+  const p = CAREER_ATOM_LOGICAL_KEY_PREFIX;
+  const kind = norm(atom.atom_kind);
+  const content = norm(atom.content_no);
+  switch (kind) {
+    case "onske":
+    case "verdi":
+    case "begrensning": {
+      const dim = norm(
+        structuredField(atom.structured_data, "dimensjon") ??
+          structuredField(atom.structured_data, "dimension") ??
+          "",
+      );
+      const label = norm(structuredField(atom.structured_data, "etikett") ?? "") || content;
+      return `${p}|${kind}|${dim}|${label}`;
+    }
+    case "evidens": {
+      const kategori = norm(
+        atom.atom_type ?? structuredField(atom.structured_data, "kategori") ?? "",
+      );
+      const label = norm(structuredField(atom.structured_data, "etikett") ?? "") || content;
+      return `${p}|evidens|${kategori}|${label}`;
+    }
+    case "mangel":
+      return `${p}|mangel|${atom.target_requirement_id ?? content}`;
+    default:
+      return `${p}|${kind}|${content}`;
+  }
+}
+
+/** Nøkkelen som ble lagret ved innsetting, med utledet nøkkel som fallback. */
+export function storedOrDerivedLogicalKey(atom: CareerAtomKeyInput): string {
+  return structuredField(atom.structured_data, "logical_key") ?? careerAtomLogicalKey(atom);
+}
+
+// ---------------------------------------------------------------------------
+// Ferskhet
+// ---------------------------------------------------------------------------
+
+export type CareerAtomKindName =
+  | "evidens"
+  | "onske"
+  | "verdi"
+  | "maal"
+  | "begrensning"
+  | "mangel";
+
+const MONTH_MS = 30 * 864e5;
+
+/**
+ * Hvor lenge et atom er ferskt, per kind. `null` betyr at atomet aldri forfaller.
+ * Evidens forfaller aldri: et resultat fra 2019 er gammelt, ikke utdatert.
+ */
+export const STALE_HORIZON_MS: Record<CareerAtomKindName, number | null> = {
+  evidens: null,
+  onske: 12 * MONTH_MS,
+  verdi: 24 * MONTH_MS,
+  maal: 6 * MONTH_MS,
+  begrensning: 12 * MONTH_MS,
+  mangel: 3 * MONTH_MS,
+};
+
+/**
+ * Regner ut `stale_at` for et atom.
+ * - `maal` bruker `due_at` når den finnes.
+ * - `begrensning` bruker `valid_to`, og får alltid en dato: settes den ikke,
+ *   legges den ett år frem, slik at brukeren blir spurt årlig om den fortsatt gjelder.
+ */
+export function computeStaleAt(
+  kind: string,
+  opts: { refreshedAt?: string | Date | null; dueAt?: string | null; validTo?: string | null } = {},
+): string | null {
+  const k = kind as CareerAtomKindName;
+  const base = opts.refreshedAt ? new Date(opts.refreshedAt) : new Date();
+  const horizon = STALE_HORIZON_MS[k];
+  if (k === "evidens") return null;
+  if (k === "maal" && opts.dueAt) return new Date(opts.dueAt).toISOString();
+  if (k === "begrensning") {
+    if (opts.validTo) return new Date(opts.validTo).toISOString();
+    return new Date(base.getTime() + (horizon ?? 12 * MONTH_MS)).toISOString();
+  }
+  if (horizon == null) return null;
+  return new Date(base.getTime() + horizon).toISOString();
+}
+
+/** Begrensninger får alltid en sluttdato — ellers utløses aldri den årlige påminnelsen. */
+export function defaultValidToForBegrensning(from: Date = new Date()): string {
+  const d = new Date(from.getTime());
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Ferskhetstilstanden lagres ikke. Den avledes av `stale_at` og `now()`.
+ * `state` forblir måltilstanden alene (planlagt/i_arbeid/oppnadd/forkastet).
+ */
+export type FreshnessStatus = "fersk" | "uten_forfall" | "passert";
+
+export type FreshnessView = {
+  status: FreshnessStatus;
+  /** Hva som skal skje når fristen er passert. Ingen av dem er automatisk, unntatt begrensning. */
+  action: "ingen" | "bekreft" | "revurder_maal" | "deaktiver" | "reevaluer_mangel";
+  autoDeactivate: boolean;
+  promptNo: string | null;
+};
+
+export function freshnessFor(
+  atom: { atom_kind: string; stale_at?: string | null; user_locked?: boolean | null },
+  now: Date = new Date(),
+): FreshnessView {
+  const kind = atom.atom_kind as CareerAtomKindName;
+  if (kind === "evidens" || !atom.stale_at) {
+    return { status: "uten_forfall", action: "ingen", autoDeactivate: false, promptNo: null };
+  }
+  if (new Date(atom.stale_at).getTime() > now.getTime()) {
+    return { status: "fersk", action: "ingen", autoDeactivate: false, promptNo: null };
+  }
+  if (atom.user_locked) {
+    return { status: "passert", action: "ingen", autoDeactivate: false, promptNo: null };
+  }
+  switch (kind) {
+    case "onske":
+      return {
+        status: "passert",
+        action: "bekreft",
+        autoDeactivate: false,
+        promptNo: "Gjelder dette ønsket fortsatt?",
+      };
+    case "verdi":
+      return {
+        status: "passert",
+        action: "bekreft",
+        autoDeactivate: false,
+        promptNo: "Står denne verdien seg fortsatt?",
+      };
+    case "maal":
+      return {
+        status: "passert",
+        action: "revurder_maal",
+        autoDeactivate: false,
+        promptNo: "Ble målet nådd, skal det utsettes, eller er det forlatt?",
+      };
+    case "begrensning":
+      return {
+        status: "passert",
+        action: "deaktiver",
+        autoDeactivate: true,
+        promptNo: "Begrensningen har utløpt. Forleng den hvis den fortsatt gjelder.",
+      };
+    case "mangel":
+      return {
+        status: "passert",
+        action: "reevaluer_mangel",
+        autoDeactivate: false,
+        promptNo: null,
+      };
+    default:
+      return { status: "passert", action: "ingen", autoDeactivate: false, promptNo: null };
+  }
+}
+
+/**
+ * Alder på evidens, til visning. Påvirker verken `is_active` eller `stale_at`.
+ * Et resultat fra 2019 er gammelt — ikke utdatert.
+ */
+export function evidenceAgeYears(
+  atom: { valid_to?: string | null; valid_from?: string | null; created_at?: string | null },
+  now: Date = new Date(),
+): number | null {
+  const ref = atom.valid_to ?? atom.valid_from ?? atom.created_at;
+  if (!ref) return null;
+  const ms = now.getTime() - new Date(ref).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return 0;
+  return Math.floor(ms / (365.25 * 864e5));
+}
+
 
 export function generatePreferenceAtomsFromCareerProfile(profile: UserCareerProfileRow | null): PlannedPreferenceAtom[] {
   if (!profile) return [];
@@ -493,6 +697,8 @@ export function generateEvidenceAtomsFromUserCompanyRatings(ratings: UserCompany
   ];
 }
 
+export type ExistingCareerAtom = Tables<"career_atoms">;
+
 export type BuildUserAtomRefreshPlanInput = {
   careerProfile: UserCareerProfileRow | null;
   profile: UserProfileRow | null;
@@ -500,8 +706,8 @@ export type BuildUserAtomRefreshPlanInput = {
   cvImports: CvImportRow[];
   cvEvidenceAtomCount: number;
   userCompanyRatings: UserCompanyRatingRow[];
-  existingPreferenceAtoms: Tables<"user_preference_atoms">[];
-  existingEvidenceAtoms: Tables<"user_evidence_atoms">[];
+  /** Karriereontologi v4 — én tabell for alle seks kinds. */
+  existingAtoms: ExistingCareerAtom[];
 };
 
 function dedupePreferences(rows: PlannedPreferenceAtom[]): PlannedPreferenceAtom[] {
@@ -518,6 +724,10 @@ function dedupeEvidence(rows: PlannedEvidenceAtom[]): PlannedEvidenceAtom[] {
     m.set(r.logicalKey, r);
   }
   return [...m.values()];
+}
+
+function sourceTypeOf(row: ExistingCareerAtom): string | null {
+  return row.source_type ?? null;
 }
 
 export function buildUserAtomRefreshPlan(input: BuildUserAtomRefreshPlanInput): UserAtomRefreshPlan {
@@ -541,43 +751,37 @@ export function buildUserAtomRefreshPlan(input: BuildUserAtomRefreshPlanInput): 
     warnings.push("Mangler både karriereprofil og Sokrates-profil — begrenset datagrunnlag.");
   }
 
-  const prefByHash = new Map<string, Tables<"user_preference_atoms">>();
-  const prefByKey = new Map<string, Tables<"user_preference_atoms">>();
-  for (const row of input.existingPreferenceAtoms) {
-    if (row.source_hash) prefByHash.set(row.source_hash, row);
-    prefByKey.set(preferenceLogicalKeyFromRow(row), row);
-  }
+  const prefRows = input.existingAtoms.filter((r) => r.atom_kind !== "evidens");
+  const evRows = input.existingAtoms.filter((r) => r.atom_kind === "evidens");
+
+  const byKey = (rows: ExistingCareerAtom[]) => {
+    const m = new Map<string, ExistingCareerAtom>();
+    for (const row of rows) m.set(storedOrDerivedLogicalKey(row), row);
+    return m;
+  };
+
+  const prefByKey = byKey(prefRows);
   for (const p of generatedPrefs) {
-    const hit = prefByHash.get(p.source_hash) ?? prefByKey.get(p.logicalKey);
-    if (hit && isSystemRefreshSource(hit.source)) {
-      p.existingId = hit.id;
-    }
+    const hit = prefByKey.get(p.logicalKey);
+    if (hit && isSystemRefreshSource(sourceTypeOf(hit))) p.existingId = hit.id;
   }
 
-  const evByHash = new Map<string, Tables<"user_evidence_atoms">>();
-  const evByKey = new Map<string, Tables<"user_evidence_atoms">>();
-  for (const row of input.existingEvidenceAtoms) {
-    if (row.source_hash) evByHash.set(row.source_hash, row);
-    evByKey.set(evidenceLogicalKeyFromRow(row), row);
-  }
+  const evByKey = byKey(evRows);
   for (const e of generatedEv) {
-    const hit = evByHash.get(e.source_hash) ?? evByKey.get(e.logicalKey);
-    if (hit && isSystemRefreshSource(hit.source)) {
-      e.existingId = hit.id;
-    }
+    const hit = evByKey.get(e.logicalKey);
+    if (hit && isSystemRefreshSource(sourceTypeOf(hit))) e.existingId = hit.id;
   }
 
   const newPrefKeys = new Set(generatedPrefs.map((p) => p.logicalKey));
   const newEvKeys = new Set(generatedEv.map((e) => e.logicalKey));
 
   const systemAtomsToDeactivate: AtomDeactivateTarget[] = [];
+  const evidenceMissingFromSource: AtomDeactivateTarget[] = [];
 
-  for (const row of input.existingPreferenceAtoms) {
-    if (!row.is_active) continue;
-    if (row.source === "manual") continue;
-    if (!isSystemRefreshSource(row.source)) continue;
-    const key = preferenceLogicalKeyFromRow(row);
-    if (!newPrefKeys.has(key)) {
+  for (const row of prefRows) {
+    if (!row.is_active || row.user_locked) continue;
+    if (!isSystemRefreshSource(sourceTypeOf(row))) continue;
+    if (!newPrefKeys.has(storedOrDerivedLogicalKey(row))) {
       systemAtomsToDeactivate.push({
         kind: "preference",
         id: row.id,
@@ -586,31 +790,45 @@ export function buildUserAtomRefreshPlan(input: BuildUserAtomRefreshPlanInput): 
     }
   }
 
-  for (const row of input.existingEvidenceAtoms) {
-    if (!row.is_active) continue;
-    if (row.source === "manual") continue;
-    if (!isSystemRefreshSource(row.source)) continue;
-    const key = evidenceLogicalKeyFromRow(row);
-    if (!newEvKeys.has(key)) {
-      systemAtomsToDeactivate.push({
+  /**
+   * Evidens deaktiveres ALDRI av at kilden forsvinner. At et dokument slettes
+   * betyr ikke at du mister sertifikatet. Vi markerer bare at kilden er borte.
+   */
+  for (const row of evRows) {
+    if (!row.is_active || row.user_locked) continue;
+    if (!isSystemRefreshSource(sourceTypeOf(row))) continue;
+    if (!newEvKeys.has(storedOrDerivedLogicalKey(row))) {
+      evidenceMissingFromSource.push({
         kind: "evidence",
         id: row.id,
-        reason: "Finnes ikke lenger i deterministisk uttrekk fra kildedata",
+        reason: "Kilden finnes ikke lenger — atomet beholdes, men merkes",
       });
     }
   }
 
+  /** Begrensninger med passert `valid_to` er den eneste automatiske deaktiveringen. */
+  const expiredConstraints: AtomDeactivateTarget[] = input.existingAtoms
+    .filter((r) => r.is_active && !r.user_locked && freshnessFor(r).autoDeactivate)
+    .map((r) => ({
+      kind: "preference" as const,
+      id: r.id,
+      reason: "Begrensningen har passert sluttdatoen sin",
+    }));
+
   const summary = [
     `${generatedPrefs.length} preferanse-atom(er) i plan`,
     `${generatedEv.length} evidens-atom(er) i plan`,
-    `${systemAtomsToDeactivate.length} system-atom(er) merket for deaktivering`,
+    `${systemAtomsToDeactivate.length + expiredConstraints.length} atom(er) merket for deaktivering`,
+    `${evidenceMissingFromSource.length} evidens uten kilde (beholdes)`,
   ].join(" · ");
 
   return {
     preferenceAtomsToUpsert: generatedPrefs,
     evidenceAtomsToUpsert: generatedEv,
-    systemAtomsToDeactivate,
+    systemAtomsToDeactivate: [...systemAtomsToDeactivate, ...expiredConstraints],
+    evidenceMissingFromSource,
     warnings,
     summary,
   };
 }
+
