@@ -199,14 +199,14 @@ function SearchStep({
           />
         </form>
         <p className="mt-1 text-xs text-muted-foreground">
-          Minimum 2 tegn. Enter utfører bare søket.
+          Minimum 3 tegn. Enter utfører bare søket.
         </p>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-3">
         {tooShort ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
-            Skriv minst 2 tegn for å søke.
+            Skriv minst 3 tegn for å søke.
           </p>
         ) : !available ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
