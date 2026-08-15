@@ -239,22 +239,24 @@ export async function searchEmployers(filters: EmployerSearchFilters): Promise<E
     if (isMissingRpcOrView(error)) {
       // eslint-disable-next-line no-console
       console.warn("[employer-insight] search_employers ikke tilgjengelig:", error);
-      return { rows: [], totalCount: null, totalIsEstimate: false, available: false, errorMessage: null };
+      return { rows: [], totalCount: null, totalIsEstimate: false, totalIsCapped: false, emptyReason: null, available: false, errorMessage: null };
     }
     const msg = (error as { message?: string }).message ?? "Ukjent feil";
-    return { rows: [], totalCount: null, totalIsEstimate: false, available: true, errorMessage: msg };
+    return { rows: [], totalCount: null, totalIsEstimate: false, totalIsCapped: false, emptyReason: null, available: true, errorMessage: msg };
   }
 
   const arr = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
 
   let totalCount: number | null = null;
-  let totalIsEstimate = false;
+  let totalIsCapped = false;
+  let emptyReason: string | null = null;
   if (!countRes.error && countRes.data && typeof countRes.data === "object") {
-    const c = countRes.data as { total_count?: number; is_estimate?: boolean };
+    const c = countRes.data as { total_count?: number; capped?: boolean; reason?: string | null };
     if (typeof c.total_count === "number") {
       totalCount = c.total_count;
-      totalIsEstimate = c.is_estimate === true;
+      totalIsCapped = c.capped === true;
     }
+    emptyReason = typeof c.reason === "string" ? c.reason : null;
   } else if (countRes.error) {
     // eslint-disable-next-line no-console
     console.warn("[employer-insight] count_employers feilet:", countRes.error);
@@ -263,9 +265,12 @@ export async function searchEmployers(filters: EmployerSearchFilters): Promise<E
   return {
     rows: arr as EmployerSearchRow[],
     totalCount,
-    totalIsEstimate,
+    totalIsEstimate: false,
+    totalIsCapped,
+    emptyReason,
     available: true,
     errorMessage: null,
+
   };
 }
 
