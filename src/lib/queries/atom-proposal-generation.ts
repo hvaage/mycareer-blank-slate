@@ -398,7 +398,7 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     );
   }
   const rejectFp = new Set(
-    (rejectRows ?? []).map((r) =>
+    (rejectRows ?? []).map((r: (typeof dedupeRows extends null ? never : NonNullable<typeof rejectRows>)[number]) =>
       proposalDedupeFingerprint({
         source_hash: r.source_hash,
         proposal_action: r.proposal_action,
@@ -593,7 +593,7 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     if (
       careerProfile &&
       (careerProfile.leadership_ambition ?? 0) >= 5 &&
-      !hasLeadershipEvidenceEvidence(activeEvidence)
+      !hasLeadershipEvidenceEvidence(activeAtomRows)
     ) {
       const payload: Record<string, unknown> = {
         gap: "leadership",
@@ -731,6 +731,7 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
 
   runPrefCreates();
   runEvCreates();
+  runPointerGapQuestions();
   runHeuristics();
 
   if (toInsert.length === 0) {
