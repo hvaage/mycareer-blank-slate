@@ -8,22 +8,20 @@ create table public.career_atoms (
   atom_kind text not null check (atom_kind in ('evidens','mangel','onske','maal','begrensning','verdi')),
   atom_type text check (atom_type in (
     'role','achievement','metric','context','tool','education','skill',
-    'domain','language','certification','project','volunteer'
+    'domain','language','certification','project','volunteer','summary_fragment'
   )),
   atom_class text generated always as (
     case atom_type
+      when 'skill' then 'kompetanse'
       when 'education' then 'kvalifikasjon'
       when 'certification' then 'kvalifikasjon'
       when 'language' then 'kvalifikasjon'
+      when 'domain' then 'eksponering'
+      when 'tool' then 'instrument'
       when 'achievement' then 'resultat'
       when 'metric' then 'resultat'
-      when 'role' then 'rolle'
-      when 'project' then 'rolle'
-      when 'volunteer' then 'rolle'
-      when 'skill' then 'kompetanse'
-      when 'tool' then 'kompetanse'
-      when 'domain' then 'kompetanse'
-      when 'context' then 'eksponering'
+      when 'project' then 'resultat'
+      when 'volunteer' then 'resultat'
       else null
     end
   ) stored,
@@ -80,7 +78,7 @@ create table public.career_atoms (
   ),
   -- 5. kompetanse + verified krever minst én peker
   constraint career_atoms_kompetanse_verified_ck check (
-    not (atom_type in ('skill','tool','domain') and confidence = 'verified')
+    not (atom_type = 'skill' and confidence = 'verified')
     or array_length(evidence_atom_ids, 1) >= 1
   ),
   -- 7. maal krever state, mangel krever mangel_state
@@ -115,15 +113,15 @@ security definer
 set search_path = public
 as $$
 begin
-  if new.atom_type = 'context' then
+  if new.atom_type = 'domain' then
     if new.parent_atom_id is null then
-      raise exception 'eksponering (atom_type=context) krever parent_atom_id som peker på et role-atom';
+      raise exception 'eksponering (atom_type=domain) krever parent_atom_id som peker på et role-atom';
     end if;
     if not exists (
       select 1 from public.career_atoms p
       where p.id = new.parent_atom_id and p.atom_type = 'role'
     ) then
-      raise exception 'eksponering (atom_type=context) krever at parent_atom_id peker på et atom med atom_type=role';
+      raise exception 'eksponering (atom_type=domain) krever at parent_atom_id peker på et atom med atom_type=role';
     end if;
   end if;
   return new;
