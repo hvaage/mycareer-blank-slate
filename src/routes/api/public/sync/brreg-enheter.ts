@@ -509,14 +509,59 @@ async function phase3(admin: Admin, runId: number, dryRun: boolean) {
   });
 }
 
+/**
+ * ?phase=auto — ETT steg per kall, drevet av kjøringens egen tilstand.
+ *
+ * Cron kan ikke kjøre hele importen i ett kall: hvert steg har eget
+ * tidsbudsjett under gatewayens grense. Startjobben (1. og 15.) kaller med
+ * start=1 og oppretter en ny kjøring; driverjobben kaller uten start og
+ * flytter en pågående kjøring ett steg videre. Ingen kjøring i arbeid gir
+ * `idle`, ikke feil — det er normaltilstanden mellom importene.
+ */
+async function auto(admin: Admin, start: boolean) {
+  const run = await rpc<RunRow & { finished?: boolean; error?: string | null } | null>(
+    admin,
+    "brreg_full_get_run",
+    { p_run_id: null },
+  );
+  const active = run && run.status !== "ok" && run.status !== "failed" && !run.finished;
+
+  if (!active) {
+    if (!start) return json({ ok: true, phase: "auto", step: "idle", run });
+    return await phase1(admin, false);
+  }
+
+  switch (run!.status) {
+    case "awaiting_phase2":
+    case "awaiting_next_batch":
+      return await phase2(admin, run!.id, null);
+    case "awaiting_phase3":
+      return await phase3(admin, run!.id, false);
+    case "awaiting_next_merge_batch":
+      return await mergeOnly(admin, run!.id);
+    case "awaiting_missing_count":
+      return await applyMissing(admin, run!.id);
+    default:
+      return json({ ok: false, phase: "auto", step: "ukjent tilstand", run }, 409);
+  }
+}
+
 export const Route = createFileRoute("/api/public/sync/brreg-enheter")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // To likeverdige kallere: manuelt kall med delt hemmelighet, eller
+        // pg_cron som sender tjenestenøkkelen fra vault som Bearer.
         const secret = process.env["BRREG_SYNC_SECRET"];
+        const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? "";
         const provided = request.headers.get("x-cron-secret") ?? "";
+        const bearer = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
         if (!secret) return json({ ok: false, error: "BRREG_SYNC_SECRET mangler" }, 503);
-        if (!timingSafeEqualStr(secret, provided)) return json({ ok: false, error: "unauthorized" }, 401);
+        const authorized =
+          (provided !== "" && timingSafeEqualStr(secret, provided)) ||
+          (bearer !== "" && serviceKey !== "" && timingSafeEqualStr(bearer, serviceKey));
+        if (!authorized) return json({ ok: false, error: "unauthorized" }, 401);
+
 
         const url = new URL(request.url);
         const phase = url.searchParams.get("phase") ?? "1";
@@ -524,7 +569,9 @@ export const Route = createFileRoute("/api/public/sync/brreg-enheter")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         try {
+          if (phase === "auto") return await auto(supabaseAdmin, url.searchParams.get("start") === "1");
           if (phase === "1") return await phase1(supabaseAdmin, url.searchParams.get("strict") === "1");
+
           if (phase === "2")
             return await phase2(
               supabaseAdmin,
