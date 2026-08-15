@@ -101,6 +101,12 @@ export const pendingAtomEnrichmentProposalsQuery = (userId: string) =>
     },
   });
 
+/**
+ * Taket på hvor mange forslag en statusliste henter. Listen er et utsnitt når
+ * antallet treffer taket, og UI-et MÅ merke det til paginering er bygget.
+ */
+export const ATOM_ENRICHMENT_PROPOSAL_LIST_LIMIT = 80;
+
 export const atomEnrichmentProposalsByStatusQuery = (
   userId: string,
   status: AtomEnrichmentProposalStatus,
