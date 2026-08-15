@@ -330,11 +330,3 @@ function mergeStructuredData(
   }
   return merged;
 }
-
-function pickHigherConfidence(
-  a: "verified" | "imported" | "inferred",
-  b: "verified" | "imported" | "inferred",
-): "verified" | "imported" | "inferred" {
-  const rank = { verified: 3, imported: 2, inferred: 1 };
-  return rank[a] >= rank[b] ? a : b;
-}
