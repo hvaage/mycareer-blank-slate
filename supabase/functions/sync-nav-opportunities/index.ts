@@ -383,8 +383,15 @@ async function processRow(
     const title = row.title;
     const company = row.company_name;
     if (!row.external_id || !title || !company) {
-      return { outcome: "data_issue", reason: "missing required field" };
+      // Feltnavnet må med: uten det sier loggen bare at noe manglet.
+      const missing = [
+        !row.external_id ? "external_id" : null,
+        !title ? "title" : null,
+        !company ? "company_name" : null,
+      ].filter(Boolean).join(", ");
+      return { outcome: "data_issue", reason: `missing required field: ${missing}` };
     }
+
 
     // Fetch existing
     const { data: existingSp } = await admin
