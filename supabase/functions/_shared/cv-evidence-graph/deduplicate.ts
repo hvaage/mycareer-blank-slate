@@ -1,10 +1,13 @@
 // cv-evidence-graph — Deduplication
-// Finner og slår sammen duplikater mellom inkommende og eksisterende atoms.
-// Brukes når brukeren importerer fra LinkedIn ZIP, gammel CV, eller flere kilder.
+// Skjema-versjon: 4.0 (parselaget)
+//
+// Finner duplikater mellom nye parsekandidater og kandidater som allerede
+// ligger i importen. Dedup skjer FØR brukeren har sett noe, og slår aldri
+// sammen bekreftet evidens — det hører til career_atoms.
 
 import type {
-  CvAtom,
-  AtomInsert,
+  CvParseCandidate,
+  CandidateDraft,
   RoleStructuredData,
   AchievementStructuredData,
   EducationStructuredData,
@@ -13,6 +16,16 @@ import type {
   CertificationStructuredData,
   ProjectStructuredData,
 } from "./types.ts";
+
+type IncomingCandidate = CandidateDraft | CvParseCandidate;
+type ExistingCandidate = CvParseCandidate;
+
+function typeOf(c: IncomingCandidate | ExistingCandidate): string {
+  return (
+    ("resolved_atom_type" in c ? c.resolved_atom_type : null) ??
+    c.suggested_atom_type
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Public API
