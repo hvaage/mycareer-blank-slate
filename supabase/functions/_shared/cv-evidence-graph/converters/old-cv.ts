@@ -14,10 +14,12 @@ import type {
   LanguageStructuredData,
   CertificationStructuredData,
   ProjectStructuredData,
+  ToolStructuredData,
   VolunteerStructuredData,
   SummaryFragmentStructuredData,
   SourceType,
 } from "../types.ts";
+import { lookupNameSuggestion } from "../name-lexicon.ts";
 import { suggestAtomTypeFromCategory } from "../types.ts";
 
 // ---------------------------------------------------------------------------
@@ -303,8 +305,54 @@ export function convertOldCv(
     if (!nonEmpty(skillName)) continue;
     const name = skillName.trim();
     // Fritekst-CV gir ingen sikker kategori. "other" betyr eksplisitt ukjent
-    // akse: gjennomgangen må spørre brukeren hva dette faktisk er.
-    const skillCategory = "other" as const;
+    // akse. Navneleksikonet kan likevel gi et trygt forhåndsvalg for de mest
+    // kjente navnene — forslaget bæres av suggested_atom_type, valget av
+    // resolved_atom_type i gjennomgangen.
+    const known = lookupNameSuggestion(name);
+    const skillCategory = known?.category ?? ("other" as const);
+
+    if (known?.atom_type === "tool") {
+      candidates.push({
+        ...baseFields,
+        local_ref: ref("skill"),
+        suggested_atom_type: "tool",
+        suggested_from_category: skillCategory,
+        content_no: known.canonical,
+        content_en: known.canonical,
+        structured_data: {
+          name: known.canonical,
+          tool_kind: "other",
+          proficiency: null,
+          years_used: null,
+          suggested_from_name_lexicon: true,
+        } as ToolStructuredData,
+        source_quote: null,
+        parse_confidence: known.parse_confidence,
+      });
+      continue;
+    }
+
+    if (known?.atom_type === "language") {
+      candidates.push({
+        ...baseFields,
+        local_ref: ref("skill"),
+        suggested_atom_type: "language",
+        suggested_from_category: skillCategory,
+        content_no: known.canonical,
+        content_en: known.canonical,
+        structured_data: {
+          language: known.canonical,
+          // Nivå er ukjent når språket kom fra ferdighetslisten; brukeren setter det.
+          level: langLevel(null),
+          cefr: null,
+          suggested_from_name_lexicon: true,
+        } as LanguageStructuredData,
+        source_quote: null,
+        parse_confidence: known.parse_confidence,
+      });
+      continue;
+    }
+
     const sd: SkillStructuredData = {
       name,
       name_normalized: name.toLowerCase(),
@@ -323,6 +371,7 @@ export function convertOldCv(
       source_quote: null,
     });
   }
+
 
   // -----------------------------------------------------------------------
   // Languages
