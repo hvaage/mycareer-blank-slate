@@ -98,3 +98,29 @@ Målt etter endringen (kald og varm, sekunder):
 
 Fordelingstallene for rene navnesøk er uendret av grepet; de telles fortsatt
 eksakt. Bare filtrerte søk regnes over et utvalg, og det fremgår i visningen.
+
+## Regnskapshistorikk — dekningsgraden er tidsavhengig
+
+Målt 15. august 2026: **1,64 %** av selskapene i `reg.regnskap` har mer enn ett
+regnskapsår (6 456 av ~394 000 med regnskap).
+
+Dette tallet er **ikke** en egenskap ved produktet og skal ikke brukes som fast
+premiss. Speilet begynte å samle regnskap i juni 2026, og Regnskapsregisteret
+leverer kun siste innsendte år per selskap. Historikk kan derfor bare akkumuleres
+over tid: til sommeren 2027 vil de fleste selskapene ha to år, året etter tre.
+
+Til sammenligning lå Suverra på rundt 1,4 % ved tilsvarende måling og ligger
+høyere nå etter to ukers backfill.
+
+**Skal måles på nytt om en måned** (rundt 15. september 2026). Andelen stiger
+raskest akkurat nå, siden 2025-regnskapene kommer inn i denne perioden.
+
+```sql
+SELECT count(*) FILTER (WHERE n > 1)::numeric / count(*) * 100 AS andel_flere_aar
+FROM (SELECT count(DISTINCT regnskapsaar) AS n FROM reg.regnskap GROUP BY organisasjonsnummer) t;
+```
+
+Historikkpanelet på arbeidsgiversiden (`RegnskapHistorikk.tsx`) er bygget for
+dette: med færre enn to år viser det ingenting — ingen tom tabell og ingen
+fotnote — og slår seg på av seg selv når det andre året kommer inn. Utvikling
+beregnes bare innenfor samme regnskapstype, og hull i årsrekken merkes eksplisitt.
