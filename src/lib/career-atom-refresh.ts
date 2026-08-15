@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Module 4 — deterministic preference/evidence atom generation from existing user data.
  * Pure helpers + plan builder; no DB I/O, no AI.
@@ -83,6 +82,8 @@ export type UserAtomRefreshPlan = {
   preferenceAtomsToUpsert: PlannedPreferenceAtom[];
   evidenceAtomsToUpsert: PlannedEvidenceAtom[];
   systemAtomsToDeactivate: AtomDeactivateTarget[];
+  /** Evidens hvis kilde er borte. Beholdes aktiv — merkes bare. */
+  evidenceMissingFromSource: AtomDeactivateTarget[];
   warnings: string[];
   summary: string;
 };
