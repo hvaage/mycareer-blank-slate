@@ -11,16 +11,9 @@
 //   Certifications.csv  — sertifikater
 //   Projects.csv        — prosjekter (om aktivert)
 //
-// Output: AtomInsert[] klar til insertAtoms() etter validering.
+// Output: CandidateDraft[] klar til insertCandidates() etter validering.
 
-import type {
-  AtomInsert,
-  RoleStructuredData,
-  EducationStructuredData,
-  SkillStructuredData,
-  LanguageStructuredData,
-  CertificationStructuredData,
-} from "../types.ts";
+import type { CandidateDraft } from "../types.ts";
 
 // ---------------------------------------------------------------------------
 // LinkedIn CSV-rad-typer
