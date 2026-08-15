@@ -123,7 +123,7 @@ function ArbeidsgivereIndex() {
   const { data, isFetching } = useQuery(searchEmployersQuery(filters));
   const ansatteFilterAktivt =
     typeof search.ansatteMin === "number" || typeof search.ansatteMaks === "number";
-  const { data: ansatteFordeling } = useQuery({
+  const { data: ansatteFordeling, isFetching: fordelingLaster } = useQuery({
     ...ansatteFordelingQuery(filters),
     enabled: sokErAktivt(filters),
   });
@@ -230,6 +230,7 @@ function ArbeidsgivereIndex() {
 
           <AnsatteFordelingBanner
             fordeling={ansatteFordeling}
+            laster={fordelingLaster}
             ansatteFilterAktivt={ansatteFilterAktivt}
           />
 

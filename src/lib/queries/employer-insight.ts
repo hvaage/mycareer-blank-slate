@@ -296,13 +296,20 @@ export function searchEmployersQuery(filters: EmployerSearchFilters) {
  * holdes bevisst utenfor: dette er grunnlaget for å si hvor mange treff som
  * faller bort fordi ansattetallet er ukjent.
  */
+export type AnsatteFordelingStatus = "ok" | "utvalg" | "utilgjengelig";
+
 export type AnsatteFordelingResult = {
   fem_eller_flere: number;
   null_til_fire: number;
   ukjent: number;
   total: number;
   capped: boolean;
+  /** "utvalg" = tallene er talt over de første N treffene, ikke hele mengden. */
+  status: AnsatteFordelingStatus;
+  utvalgStorrelse: number | null;
+  /** false = kallet nådde ikke fram i det hele tatt (nett/RPC). */
   available: boolean;
+  reason: string | null;
 };
 
 export async function loadAnsatteFordeling(
@@ -320,24 +327,34 @@ export async function loadAnsatteFordeling(
     p_arbeidsgiver_type: filters.type || null,
   });
 
-  const tom: AnsatteFordelingResult = {
+  // Et banner som forsvinner ser ut som "ingenting å vise". Derfor skiller vi
+  // eksplisitt mellom "kunne ikke beregnes" og "null treff".
+  const utilgjengelig = (reason: string): AnsatteFordelingResult => ({
     fem_eller_flere: 0,
     null_til_fire: 0,
     ukjent: 0,
     total: 0,
     capped: false,
+    status: "utilgjengelig",
+    utvalgStorrelse: null,
     available: false,
-  };
+    reason,
+  });
 
   if (error || !data || typeof data !== "object") {
     if (error && !isMissingRpcOrView(error)) {
       // eslint-disable-next-line no-console
       console.warn("[employer-insight] employer_ansatte_distribution feilet:", error);
     }
-    return tom;
+    return utilgjengelig(error ? ((error as { code?: string }).code ?? "rpc_error") : "tomt_svar");
   }
 
   const d = data as Record<string, unknown>;
+  const rawStatus = typeof d.status === "string" ? d.status : "ok";
+  if (rawStatus === "utilgjengelig") {
+    return { ...utilgjengelig(typeof d.reason === "string" ? d.reason : "ukjent"), available: true };
+  }
+
   const num = (k: string) => (typeof d[k] === "number" ? (d[k] as number) : 0);
   return {
     fem_eller_flere: num("fem_eller_flere"),
@@ -345,7 +362,10 @@ export async function loadAnsatteFordeling(
     ukjent: num("ukjent"),
     total: num("total"),
     capped: d.capped === true,
+    status: rawStatus === "utvalg" ? "utvalg" : "ok",
+    utvalgStorrelse: typeof d.utvalg_storrelse === "number" ? (d.utvalg_storrelse as number) : null,
     available: true,
+    reason: typeof d.reason === "string" ? d.reason : null,
   };
 }
 
@@ -355,6 +375,7 @@ export function ansatteFordelingQuery(filters: EmployerSearchFilters) {
     queryKey: ["employer-ansatte-fordeling", rest],
     queryFn: () => loadAnsatteFordeling(filters),
     staleTime: 60_000,
+    retry: 1,
   });
 }
 
