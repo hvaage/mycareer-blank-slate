@@ -27,8 +27,14 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
 });
 
-/** Locked contract: only NAV/Careerjet rows with this version + non-null screening_status are V2-evaluated. */
-const MATCH_SCORE_VERSION = "job_match_v2_2026_06_24";
+/** Locked contract: only NAV/Careerjet rows with an accepted version + non-null screening_status are V2-evaluated. */
+const MATCH_SCORE_VERSION = "job_match_v3_2026_08_15";
+/** Eldre scoringer mot et annet evidensgrunnlag (user_evidence_atoms). Vises, men merkes. */
+const MATCH_SCORE_VERSION_LEGACY = "job_match_v2_2026_06_24";
+const ACCEPTED_MATCH_SCORE_VERSIONS = new Set<string>([
+  MATCH_SCORE_VERSION,
+  MATCH_SCORE_VERSION_LEGACY,
+]);
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
