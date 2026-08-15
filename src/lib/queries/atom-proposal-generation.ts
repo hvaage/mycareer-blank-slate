@@ -1,6 +1,6 @@
-// @ts-nocheck
 /**
  * Module 5.1 — deterministic, user-triggered atom proposal generation (no AI, no Edge).
+ * Karriereontologi v4: alle forslag genereres mot `career_atoms`.
  * Inserts rows into atom_enrichment_batches / atom_enrichment_proposals only.
  */
 
@@ -12,6 +12,16 @@ import {
   isAutoStructurableEvidence,
   isExplicitStructuredPreference,
 } from "@/lib/atom-explicit-writes";
+import {
+  bareTermFromLabel,
+  evidenceAtomTypeFor,
+  evidencePlanToCareerAtom,
+  findEvidencePointersForSkill,
+  INDIRECT_ATOM_TYPES,
+  logicalKeyFromCareerAtom,
+  preferencePlanToCareerAtom,
+  type CareerAtomFields,
+} from "@/lib/career-atom-v4-mapping";
 import {
   evidenceLogicalKeyFromRow,
   generateEvidenceAtomsFromCvEvidenceAtoms,
@@ -144,15 +154,14 @@ function norm(s: string | null | undefined): string {
   return (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function hasLeadershipEvidenceEvidence(
-  rows: Pick<Tables<"user_evidence_atoms">, "category" | "label" | "is_active">[],
-): boolean {
+type CareerAtomRow = Tables<"career_atoms">;
+
+function hasLeadershipEvidenceEvidence(rows: CareerAtomRow[]): boolean {
   for (const r of rows) {
-    if (!r.is_active) continue;
-    const cat = norm(r.category);
-    const lab = norm(r.label);
+    if (!r.is_active || r.atom_kind !== "evidens") continue;
+    const lab = norm(r.content_no);
     if (
-      cat === "leadership" ||
+      r.atom_type === "role" ||
       lab.includes("leder") ||
       lab.includes("ledelse") ||
       lab.includes("manager")
@@ -162,6 +171,7 @@ function hasLeadershipEvidenceEvidence(
   }
   return false;
 }
+
 
 export type GenerateAtomEnrichmentProposalsResult = {
   batchId: string | null;
@@ -182,36 +192,31 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
   const userId = auth.user?.id;
   if (!userId) throw new Error("Du må være innlogget.");
 
-  const [careerRes, profileRes, prefRes, evRes, docsRes, cvImportsRes, cvEvCountRes] =
-    await Promise.all([
-      supabase.from("user_career_profiles").select("*").eq("user_id", userId).maybeSingle(),
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase.from("user_preference_atoms").select("*").eq("user_id", userId),
-      supabase.from("user_evidence_atoms").select("*").eq("user_id", userId),
-      supabase
-        .from("documents")
-        .select("id, title, document_type, deleted_at")
-        .eq("user_id", userId)
-        .is("deleted_at", null),
-      supabase.from("cv_imports").select("id, status, source_filename").eq("user_id", userId),
-      supabase
-        .from("cv_evidence_atoms")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId),
-    ]);
+  const [careerRes, profileRes, atomsRes, docsRes, cvImportsRes, cvEvCountRes] = await Promise.all([
+    supabase.from("user_career_profiles").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+    supabase.from("career_atoms").select("*").eq("user_id", userId),
+    supabase
+      .from("documents")
+      .select("id, title, document_type, deleted_at")
+      .eq("user_id", userId)
+      .is("deleted_at", null),
+    supabase.from("cv_imports").select("id, status, source_filename").eq("user_id", userId),
+    supabase
+      .from("cv_evidence_atoms")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+  ]);
 
   if (careerRes.error) throw careerRes.error;
   if (profileRes.error) throw profileRes.error;
-  if (prefRes.error) throw prefRes.error;
-  if (evRes.error) throw evRes.error;
+  if (atomsRes.error) throw atomsRes.error;
   if (docsRes.error) throw docsRes.error;
   if (cvImportsRes.error) throw cvImportsRes.error;
   if (cvEvCountRes.error) throw cvEvCountRes.error;
 
   const careerProfile = careerRes.data as Tables<"user_career_profiles"> | null;
   const profile = profileRes.data as Tables<"profiles"> | null;
-  const prefs = (prefRes.data ?? []) as Tables<"user_preference_atoms">[];
-  const evidence = (evRes.data ?? []) as Tables<"user_evidence_atoms">[];
   const documents = (docsRes.data ?? []) as DocumentRow[];
   const cvImports = (cvImportsRes.data ?? []) as CvImportRow[];
   const cvEvidenceCount = cvEvCountRes.count ?? 0;
@@ -239,68 +244,125 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     );
   }
 
-  let prefsReload = [...prefs];
-  let evidenceReload = [...evidence];
+  let atoms = (atomsRes.data ?? []) as CareerAtomRow[];
   let preferencesAutoStructured = 0;
   let evidenceAutoStructured = 0;
 
-  const activePrefsNow = () => prefsReload.filter((p) => p.is_active);
-  const activeEvidenceNow = () => evidenceReload.filter((e) => e.is_active);
+  const activeAtoms = () => atoms.filter((a) => a.is_active);
+  const hasLogicalKey = (key: string) =>
+    activeAtoms().some((a) => logicalKeyFromCareerAtom(a.structured_data) === key);
+
+  /** Kandidater som kan belegge en kompetanse indirekte. */
+  const pointerCandidates = () =>
+    activeAtoms()
+      .filter((a) => a.atom_kind === "evidens")
+      .map((a) => ({
+        id: a.id,
+        atom_class: a.atom_class,
+        atom_type: a.atom_type,
+        content_no: a.content_no,
+      }));
+
+  const latestRoleAtomId = (): string | null => {
+    const roles = activeAtoms().filter((a) => a.atom_type === "role");
+    if (roles.length === 0) return null;
+    roles.sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+    return roles[0]!.id;
+  };
 
   for (const pl of plannedPrefs) {
     if (!isExplicitStructuredPreference(pl)) continue;
-    if (activePrefsNow().some((ap) => preferenceLogicalKeyFromRow(ap) === pl.logicalKey)) continue;
+    if (hasLogicalKey(pl.logicalKey)) continue;
     try {
-      await insertExplicitPreferenceFromPlan(userId, pl);
+      const id = await insertExplicitPreferenceFromPlan(userId, pl);
       preferencesAutoStructured += 1;
-      prefsReload.push({
-        id: `__local__${pl.logicalKey}`,
+      atoms.push({
+        ...(preferencePlanToCareerAtom(pl) as unknown as CareerAtomRow),
+        id,
         user_id: userId,
         is_active: true,
-        source: pl.source,
-        source_field: pl.source_field,
-        dimension: pl.dimension,
-        label: pl.label,
-        value: pl.value,
-      } as Tables<"user_preference_atoms">);
+        atom_class: null,
+        created_at: new Date().toISOString(),
+      });
     } catch {
       /* RLS eller unikhetskonflikt — hopp over enkeltforsøk */
     }
   }
 
+  /**
+   * Kompetanse og eksponering som mangler pekere blir ikke skrevet automatisk.
+   * De faller ned til forslagsløypa og blir spørsmål til brukeren.
+   */
+  type PointerGap = { plan: PlannedEvidenceAtom; atomType: "skill" | "domain"; reason: string };
+  const pointerGaps: PointerGap[] = [];
+
+  const resolvePointers = (
+    ev: PlannedEvidenceAtom,
+  ): { atomType: ReturnType<typeof evidenceAtomTypeFor>; ids: string[]; parent: string | null } => {
+    const atomType = evidenceAtomTypeFor(ev.category);
+    if (!atomType) return { atomType: null, ids: [], parent: null };
+    if (atomType === "skill") {
+      return {
+        atomType,
+        ids: findEvidencePointersForSkill(bareTermFromLabel(ev.label), pointerCandidates()),
+        parent: null,
+      };
+    }
+    if (atomType === "domain") {
+      const role = latestRoleAtomId();
+      return { atomType, ids: role ? [role] : [], parent: role };
+    }
+    return { atomType, ids: [], parent: null };
+  };
+
   for (const ev of plannedEvidenceEff) {
+    const { atomType, ids, parent } = resolvePointers(ev);
+    if (!atomType) continue;
+    if (INDIRECT_ATOM_TYPES.has(atomType) && ids.length === 0) {
+      pointerGaps.push({
+        plan: ev,
+        atomType: atomType as "skill" | "domain",
+        reason:
+          atomType === "skill"
+            ? "Ingen kvalifikasjon, resultat eller rolle i karriereprofilen nevner denne kompetansen."
+            : "Ingen rolle å knytte eksponeringen til.",
+      });
+      continue;
+    }
     if (!isAutoStructurableEvidence(ev, { skipCvEvidenceSummary: hasActiveCvImport })) continue;
-    if (activeEvidenceNow().some((ae) => evidenceLogicalKeyFromRow(ae) === ev.logicalKey)) continue;
+    if (hasLogicalKey(ev.logicalKey)) continue;
     try {
-      await insertExplicitEvidenceFromPlan(userId, ev);
+      const id = await insertExplicitEvidenceFromPlan(userId, ev, {
+        atomType,
+        evidenceAtomIds: ids,
+        parentAtomId: parent,
+      });
       evidenceAutoStructured += 1;
-      evidenceReload.push({
-        id: `__local__${ev.logicalKey}`,
+      atoms.push({
+        ...(evidencePlanToCareerAtom(ev, {
+          atomType,
+          evidenceAtomIds: ids,
+          parentAtomId: parent,
+        }) as unknown as CareerAtomRow),
+        id,
         user_id: userId,
         is_active: true,
-        category: ev.category,
-        label: ev.label,
-        source: ev.source,
-        source_field: ev.source_field,
-      } as Tables<"user_evidence_atoms">);
+        atom_class: null,
+        created_at: new Date().toISOString(),
+      });
     } catch {
       /* RLS eller unikhetskonflikt */
     }
   }
 
   if (preferencesAutoStructured > 0 || evidenceAutoStructured > 0) {
-    const [prefReloadRes, evReloadRes] = await Promise.all([
-      supabase.from("user_preference_atoms").select("*").eq("user_id", userId),
-      supabase.from("user_evidence_atoms").select("*").eq("user_id", userId),
-    ]);
-    if (prefReloadRes.error) throw prefReloadRes.error;
-    if (evReloadRes.error) throw evReloadRes.error;
-    prefsReload = (prefReloadRes.data ?? []) as Tables<"user_preference_atoms">[];
-    evidenceReload = (evReloadRes.data ?? []) as Tables<"user_evidence_atoms">[];
+    const reloadRes = await supabase.from("career_atoms").select("*").eq("user_id", userId);
+    if (reloadRes.error) throw reloadRes.error;
+    atoms = (reloadRes.data ?? []) as CareerAtomRow[];
   }
 
-  const activePrefs = prefsReload.filter((p) => p.is_active);
-  const activeEvidence = evidenceReload.filter((e) => e.is_active);
+  const activeAtomRows = atoms.filter((a) => a.is_active);
+
 
   const rejectCutoff = new Date(Date.now() - 7 * 864e5).toISOString();
   const { data: dedupeRows, error: dedupeErr } = await supabase
@@ -322,6 +384,13 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     .limit(200);
   if (rejErr) throw rejErr;
 
+  type DedupeRow = {
+    source_hash: string;
+    proposal_action: string;
+    target_atom_type: string;
+    proposal_payload: unknown;
+  };
+
   let skippedDuplicate = 0;
   const toInsert: ProposalInsert[] = [];
   const fpSeen = new Set<string>();
@@ -336,7 +405,7 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     );
   }
   const rejectFp = new Set(
-    (rejectRows ?? []).map((r) =>
+    (rejectRows ?? []).map((r: DedupeRow) =>
       proposalDedupeFingerprint({
         source_hash: r.source_hash,
         proposal_action: r.proposal_action,
@@ -361,36 +430,51 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     toInsert.push(row);
   };
 
+  /**
+   * Bygger forslagets payload i career_atoms-format. `confidence_score` er forslagets
+   * egen sikkerhet og legges i beslutningsloggen — aldri i atomfeltene.
+   */
+  const atomProposalPayload = (
+    fields: CareerAtomFields,
+    decisionLog: Record<string, unknown>,
+  ): Json =>
+    ({
+      atom_kind: fields.atom_kind,
+      atom_type: fields.atom_type,
+      parent_atom_id: fields.parent_atom_id,
+      content_no: fields.content_no,
+      structured_data: fields.structured_data,
+      source_type: fields.source_type,
+      source_ref: fields.source_ref,
+      source_quote: fields.source_quote,
+      evidence_atom_ids: fields.evidence_atom_ids,
+      confidence: fields.confidence,
+      viktighet: fields.viktighet,
+      decision_log: decisionLog,
+    }) as Json;
+
   const runPrefCreates = () => {
     for (const pl of plannedPrefs) {
       if (isExplicitStructuredPreference(pl)) continue;
-      const exists = activePrefs.some((ap) => preferenceLogicalKeyFromRow(ap) === pl.logicalKey);
-      if (exists) continue;
+      if (hasLogicalKey(pl.logicalKey)) continue;
       const isCareer = pl.source === "career_profile";
-      const payload: Record<string, unknown> = {
-        dimension: pl.dimension,
-        label: pl.label,
-        value: pl.value,
-        importance_score: pl.importance_score,
-        confidence_score: pl.confidence_score,
-        source: pl.source,
-        source_field: pl.source_field,
-        source_hash: pl.source_hash,
-        career_profile_id: pl.career_profile_id,
-        reasoning: pl.reasoning,
-      };
+      const fields = preferencePlanToCareerAtom(pl);
       const copy = preferenceProposalCopy(pl);
       pushProposal({
         user_id: userId,
         batch_id: "",
         proposal_action: "create_atom",
-        target_atom_type: "user_preference_atom",
+        target_atom_type: "career_atom",
         source_type: "deterministic_module_5_1",
         source_id: pl.source_field,
         source_hash: pl.source_hash,
         source_table: isCareer ? "user_career_profiles" : "profiles",
         source_record_id: isCareer ? (careerProfile?.id ?? null) : (profile?.id ?? null),
-        proposal_payload: payload as Json,
+        proposal_payload: atomProposalPayload(fields, {
+          generator: "deterministic_module_5_1",
+          confidence_score: pl.confidence_score,
+          reasoning: pl.reasoning,
+        }),
         rationale: copy.rationale,
         explanation: copy.explanation,
         confidence: 0.85,
@@ -400,53 +484,54 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     }
   };
 
+  const evidenceSourceRefs = (ev: PlannedEvidenceAtom) => {
+    const srcTable =
+      ev.source === "document"
+        ? "documents"
+        : ev.source === "cv_import"
+          ? "cv_imports"
+          : ev.source === "profile" || ev.source === "linkedin"
+            ? "profiles"
+            : null;
+    let srcRec: string | null = null;
+    if (ev.source === "document" && ev.source_document_id) srcRec = ev.source_document_id;
+    else if (ev.source === "cv_import") {
+      const m = /^cv_import:([^:]+)/.exec(ev.source_field);
+      srcRec = m?.[1] ?? null;
+    } else if (ev.source === "profile" || ev.source === "linkedin") srcRec = profile?.id ?? null;
+    return { srcTable, srcRec };
+  };
+
   const runEvCreates = () => {
     for (const ev of plannedEvidenceEff) {
+      const { atomType, ids, parent } = resolvePointers(ev);
+      if (!atomType) continue;
+      // Uten pekere kan kompetanse/eksponering aldri bli et gyldig atom — håndteres som spørsmål.
+      if (INDIRECT_ATOM_TYPES.has(atomType) && ids.length === 0) continue;
       if (isAutoStructurableEvidence(ev, { skipCvEvidenceSummary: hasActiveCvImport })) continue;
-      const exists = activeEvidence.some((ae) => evidenceLogicalKeyFromRow(ae) === ev.logicalKey);
-      if (exists) continue;
-      const srcTable =
-        ev.source === "document"
-          ? "documents"
-          : ev.source === "cv_import"
-            ? "cv_imports"
-            : ev.source === "profile"
-              ? "profiles"
-              : ev.source === "linkedin"
-                ? "profiles"
-                : null;
-      let srcRec: string | null = null;
-      if (ev.source === "document" && ev.source_document_id) srcRec = ev.source_document_id;
-      else if (ev.source === "cv_import") {
-        const m = /^cv_import:([^:]+)/.exec(ev.source_field);
-        srcRec = m?.[1] ?? null;
-      } else if (ev.source === "profile" || ev.source === "linkedin") srcRec = profile?.id ?? null;
-
-      const payload: Record<string, unknown> = {
-        category: ev.category,
-        label: ev.label,
-        description: ev.description,
-        strength_score: ev.strength_score,
-        confidence_score: ev.confidence_score,
-        source: ev.source,
-        source_field: ev.source_field,
-        source_document_id: ev.source_document_id,
-        source_profile_field: ev.source_profile_field,
-        source_hash: ev.source_hash,
-        evidence_type: ev.evidence_type,
-        reasoning: ev.reasoning,
-      };
+      if (hasLogicalKey(ev.logicalKey)) continue;
+      const { srcTable, srcRec } = evidenceSourceRefs(ev);
+      const fields = evidencePlanToCareerAtom(ev, {
+        atomType,
+        evidenceAtomIds: ids,
+        parentAtomId: parent,
+      });
       pushProposal({
         user_id: userId,
         batch_id: "",
         proposal_action: "create_atom",
-        target_atom_type: "user_evidence_atom",
+        target_atom_type: "career_atom",
         source_type: "deterministic_module_5_1",
         source_id: ev.source_field,
         source_hash: ev.source_hash,
         source_table: srcTable,
         source_record_id: srcRec,
-        proposal_payload: payload as Json,
+        proposal_payload: atomProposalPayload(fields, {
+          generator: "deterministic_module_5_1",
+          confidence_score: ev.confidence_score,
+          strength_score: ev.strength_score,
+          reasoning: ev.reasoning,
+        }),
         rationale: "Funnet i dokument eller profilfelt du har lagret.",
         explanation: "Godkjenn for å vise dette som dokumentert erfaring i karriereprofilen.",
         confidence: 0.8,
@@ -456,11 +541,66 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
     }
   };
 
+  /**
+   * Kompetanse (og eksponering) uten belegg foreslås ikke som atom. Den blir et
+   * spørsmål til brukeren — samme mønster som kompetansekandidater ved CV-import.
+   */
+  const runPointerGapQuestions = () => {
+    for (const gap of pointerGaps) {
+      const term = bareTermFromLabel(gap.plan.label);
+      const sh = stableAtomHash([
+        "m51",
+        "pointer_gap",
+        gap.atomType,
+        gap.plan.source_field,
+        gap.plan.label,
+      ]);
+      const { srcTable, srcRec } = evidenceSourceRefs(gap.plan);
+      pushProposal({
+        user_id: userId,
+        batch_id: "",
+        proposal_action: "suggest_evidence",
+        target_atom_type: "career_atom",
+        source_type: "deterministic_module_5_1",
+        source_id: `pointer_gap:${gap.plan.source_field}`,
+        source_hash: sh,
+        source_table: srcTable,
+        source_record_id: srcRec,
+        proposal_payload: {
+          question_kind: gap.atomType === "skill" ? "kompetansekandidat" : "eksponeringskandidat",
+          term,
+          candidate_atom_type: gap.atomType,
+          missing: "evidence_atom_ids",
+          reason: gap.reason,
+          prompt:
+            gap.atomType === "skill"
+              ? `Hvor har du brukt «${term}»? Knytt kompetansen til en rolle, utdanning eller et resultat, så kan den belegges.`
+              : `Hvilken rolle ga deg erfaring med «${term}»?`,
+          decision_log: {
+            generator: "deterministic_module_5_1",
+            confidence_score: gap.plan.confidence_score,
+            source_field: gap.plan.source_field,
+          },
+        } as Json,
+        rationale:
+          gap.atomType === "skill"
+            ? "Kompetanse kan bare belegges indirekte, gjennom kvalifikasjon, resultat eller rolle."
+            : "Eksponering må henge på en rolle.",
+        explanation:
+          "Godkjenning lagrer ikke et atom. Den bekrefter at du har sett spørsmålet — svaret gir grunnlaget som mangler.",
+        confidence: 0.6,
+        inferred: true,
+        status: "pending_review",
+      });
+    }
+  };
+
+
   const runHeuristics = () => {
     if (
       careerProfile &&
       (careerProfile.leadership_ambition ?? 0) >= 5 &&
-      !hasLeadershipEvidenceEvidence(activeEvidence)
+      !hasLeadershipEvidenceEvidence(activeAtomRows)
     ) {
       const payload: Record<string, unknown> = {
         gap: "leadership",
@@ -598,6 +738,7 @@ export async function generateAtomEnrichmentProposals(): Promise<GenerateAtomEnr
 
   runPrefCreates();
   runEvCreates();
+  runPointerGapQuestions();
   runHeuristics();
 
   if (toInsert.length === 0) {
