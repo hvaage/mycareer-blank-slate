@@ -268,7 +268,7 @@ function CronDeliverySection() {
   const rows = q.data?.rows ?? [];
   return (
     <section className="mb-8">
-      <h2 className="mb-2 text-lg font-semibold">Cron delivery — regnskap-sync-nightly</h2>
+      <h2 className="mb-2 text-lg font-semibold">Cron delivery — regnskap-sync-15min</h2>
       <p className="mb-2 text-xs text-muted-foreground">
         Leveranse-status fra pg_cron (HTTP request fra cron til Edge Function). Skill mellom dette og faktisk sync-run-status under.
       </p>

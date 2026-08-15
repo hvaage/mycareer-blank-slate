@@ -25,9 +25,9 @@ BEGIN
   SELECT jobid, schedule, active, command
   INTO v_jobid, v_schedule, v_active, v_command
   FROM cron.job
-  WHERE jobname = 'regnskap-sync-nightly';
+  WHERE jobname = 'regnskap-sync-15min';
 
-  PERFORM pg_temp.must('regnskap-sync-nightly exists', v_jobid IS NOT NULL);
+  PERFORM pg_temp.must('regnskap-sync-15min exists', v_jobid IS NOT NULL);
   PERFORM pg_temp.must('catchup schedule every 15 minutes, offset from NAV/Careerjet', v_schedule = '13,28,43,58 * * * *');
   PERFORM pg_temp.must('cron is active', v_active IS TRUE);
   PERFORM pg_temp.must('calls regnskap-sync edge function', v_command LIKE '%/functions/v1/regnskap-sync%');
