@@ -74,6 +74,7 @@ import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authe
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
+import { Route as ApiPublicSyncBrregEnheterRouteImport } from './routes/api/public/sync/brreg-enheter'
 import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './routes/api/public/selskapsanalyse/preview-email'
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
 
@@ -438,6 +439,12 @@ const LovableEmailQueueProcessRoute =
     path: '/lovable/email/queue/process',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSyncBrregEnheterRoute =
+  ApiPublicSyncBrregEnheterRouteImport.update({
+    id: '/api/public/sync/brreg-enheter',
+    path: '/api/public/sync/brreg-enheter',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSelskapsanalysePreviewEmailRoute =
   ApiPublicSelskapsanalysePreviewEmailRouteImport.update({
     id: '/api/public/selskapsanalyse/preview-email',
@@ -515,6 +522,7 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
+  '/api/public/sync/brreg-enheter': typeof ApiPublicSyncBrregEnheterRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
@@ -580,6 +588,7 @@ export interface FileRoutesByTo {
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
+  '/api/public/sync/brreg-enheter': typeof ApiPublicSyncBrregEnheterRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
@@ -650,6 +659,7 @@ export interface FileRoutesById {
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
+  '/api/public/sync/brreg-enheter': typeof ApiPublicSyncBrregEnheterRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
@@ -720,6 +730,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/analysedatabase/'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
+    | '/api/public/sync/brreg-enheter'
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
@@ -785,6 +796,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/analysedatabase'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
+    | '/api/public/sync/brreg-enheter'
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
@@ -854,6 +866,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/analysedatabase/'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
+    | '/api/public/sync/brreg-enheter'
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
@@ -878,6 +891,7 @@ export interface RootRouteChildren {
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
   ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
+  ApiPublicSyncBrregEnheterRoute: typeof ApiPublicSyncBrregEnheterRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
   LovableEmailTransactionalSendRoute: typeof LovableEmailTransactionalSendRoute
@@ -1340,6 +1354,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sync/brreg-enheter': {
+      id: '/api/public/sync/brreg-enheter'
+      path: '/api/public/sync/brreg-enheter'
+      fullPath: '/api/public/sync/brreg-enheter'
+      preLoaderRoute: typeof ApiPublicSyncBrregEnheterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/selskapsanalyse/preview-email': {
       id: '/api/public/selskapsanalyse/preview-email'
       path: '/api/public/selskapsanalyse/preview-email'
@@ -1517,6 +1538,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSelskapsanalyseDownloadRoute: ApiPublicSelskapsanalyseDownloadRoute,
   ApiPublicSelskapsanalysePreviewEmailRoute:
     ApiPublicSelskapsanalysePreviewEmailRoute,
+  ApiPublicSyncBrregEnheterRoute: ApiPublicSyncBrregEnheterRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
   LovableEmailTransactionalSendRoute: LovableEmailTransactionalSendRoute,
