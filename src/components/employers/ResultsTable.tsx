@@ -6,7 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RiskBadges, DataQualityBadges, TypeBadge } from "./Badges";
-import { fmtNok, fmtPercent } from "./MetricTile";
+import { fmtPercent } from "./MetricTile";
+import { fmtBelop } from "@/lib/employers/okonomi";
 import { fylkesnavn } from "@/lib/employers/no-regions";
 import { formatAnsatte, ansatteErUkjent, ANSATTE_KILDEFORKLARING } from "@/lib/employers/ansatte";
 
@@ -164,7 +165,7 @@ export function ResultsTable({
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {fmtNok(r.driftsinntekter) ?? "—"}
+                    {fmtBelop(r.driftsinntekter) ?? "—"}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {fmtPercent(r.driftsmargin_prosent) ?? "—"}
@@ -228,7 +229,7 @@ export function ResultsTable({
                   </div>
                   <div>
                     <span className="text-muted-foreground">Omsetning: </span>
-                    <span className="tabular-nums">{fmtNok(r.driftsinntekter) ?? "—"}</span>
+                    <span className="tabular-nums">{fmtBelop(r.driftsinntekter) ?? "—"}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Margin: </span>
