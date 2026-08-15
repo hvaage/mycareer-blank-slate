@@ -38,3 +38,31 @@ Etasjer (høyest først):
 Innenfor hver etasje: `antall_ansatte DESC NULLS LAST`, deretter `similarity`, deretter navn.
 Similarity er tredje signal, ikke filter og ikke eneste rangering: den måler navnelengde og
 straffer lange, gyldige navn.
+
+## Tidsgrense (statement_timeout)
+
+`search_employers` og `count_employers` har begge `statement_timeout = 10s`.
+
+Valget: tre ganger verste observerte kalde måling (`bygg`, 3,58 s), lavt nok til at en
+spørring som løper løpsk stoppes som en tydelig databasefeil. Uten grense ville en
+fremtidig regresjon henge til gatewayen kutter, og feilen ville se ut som nettverksfeil
+i stedet for en treg spørring.
+
+Kontrollmåling etter endringen (15. august, ende til ende over HTTP, ett kall per ord):
+alle ti ordene fra del 1 ligger på 0,23–2,74 s for søk og 0,12–0,24 s for telling.
+Ingen treffer 10-sekundersgrensen.
+
+## Det som gjenstår
+
+`bygg` er fortsatt det tregeste ordet: 3,58 s kaldt, over akseptansekravet på 500 ms
+samlet responstid. Årsak:
+
+- Speilet dekker kun rene navnesøk uten filtre. Søk med fylke, kommune, næring eller
+  ansatteintervall går fortsatt mot `reg.enheter`.
+- `bygg` har flest kandidater av de målte ordene, og hele kandidatmengden må rangeres
+  før første side kan returneres.
+
+Neste grep, hvis dette blir merkbart i bruk, er å **begrense kandidatmengden før
+rangering** (for eksempel topp N per etasje før sortering), ikke å optimalisere videre
+på indeks. Indeksene dekker allerede oppslaget; kostnaden ligger i mengden rader som
+rangeres.

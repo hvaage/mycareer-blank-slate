@@ -1,0 +1,2 @@
+ALTER FUNCTION public.search_employers(text,text,text,text,integer,integer,numeric,numeric,text,integer,integer,text,text) SET statement_timeout = '10s';
+ALTER FUNCTION public.count_employers(text,text,text,text,integer,integer,numeric,numeric,text,text,text,integer) SET statement_timeout = '10s';
