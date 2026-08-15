@@ -116,6 +116,7 @@ export const atomEnrichmentProposalsByStatusQuery = (
         .eq("user_id", userId)
         .eq("status", status)
         .order("created_at", { ascending: false })
+        // NB: taket kutter stille ved mer enn 80. Listen er da et utsnitt, ikke alt.
         .limit(80);
       if (error) throw error;
       return (data ?? []) as AtomEnrichmentProposalRow[];
@@ -536,7 +537,7 @@ export async function supersedeAtomEnrichmentProposal(
   proposalId: string,
   supersededByProposalId: string,
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("atom_enrichment_proposals")
     .update({
       status: "superseded",
@@ -546,8 +547,12 @@ export async function supersedeAtomEnrichmentProposal(
     })
     .eq("id", proposalId)
     .eq("user_id", userId)
-    .eq("status", "pending_review");
+    .eq("status", "pending_review")
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
+  if (!data)
+    throw new Error("Fant ikke forslaget, eller det er ikke lenger til vurdering.");
 }
 
 /**
@@ -558,7 +563,10 @@ export async function insertLocalDevSamplePendingProposal(userId: string): Promi
   batchId: string;
   proposalId: string;
 } | null> {
-  if (!import.meta.env.DEV) return null;
+  if (!import.meta.env.DEV) {
+    // Stille null her ga en «Testforslag opprettet»-toast uten at noe ble opprettet.
+    throw new Error("Testforslag kan bare opprettes i utviklingsmiljø.");
+  }
 
   const { data: batch, error: bErr } = await supabase
     .from("atom_enrichment_batches")

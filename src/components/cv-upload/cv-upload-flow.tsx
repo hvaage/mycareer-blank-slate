@@ -10,6 +10,7 @@ import { messageFor } from "./error-messages";
 import {
   cancelImport,
   countsFromParsed,
+  parsedShapeIsReadable,
   useCommitImport,
   useRegisterCvUpload,
   useRunCvParse,
@@ -134,7 +135,18 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
       if (error || !row?.raw_parsed_data) {
         dispatch({
           type: "parse_failed",
-          message: "Kunne ikke hente analyseresultat fra databasen.",
+          message: error
+            ? `Kunne ikke hente analyseresultat fra databasen: ${error.message}`
+            : "Analysen lagret ingen data for denne filen.",
+        });
+        return;
+      }
+      if (!parsedShapeIsReadable(row.raw_parsed_data)) {
+        // Uleselig svar ga tidligere «0 elementer funnet», som så ut som en tom CV.
+        dispatch({
+          type: "parse_failed",
+          message:
+            "Vi fikk et svar vi ikke klarte å lese. Dette er ikke det samme som at CV-en er tom — prøv analysen på nytt.",
         });
         return;
       }
@@ -174,8 +186,11 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
   const onCancelAwaitOrPreview = async (importId: string) => {
     try {
       await cancelImport(importId);
-    } catch {
-      /* best effort */
+    } catch (e: any) {
+      // Avbrytelsen feilet: raden blir liggende og dukker opp igjen i listen.
+      toast.error(
+        `Vi fikk ikke avbrutt importen: ${e?.message ?? "ukjent årsak"}. Den kan fortsatt ligge i listen.`,
+      );
     }
     dispatch({ type: "reset" });
   };
