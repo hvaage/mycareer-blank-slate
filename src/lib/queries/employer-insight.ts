@@ -61,11 +61,19 @@ export type EmployerSearchRow = {
 export type EmployerSearchResult = {
   rows: EmployerSearchRow[];
   totalCount: number | null;
-  /** true = totalCount er et estimat (over tellegrensen), ikke et eksakt antall. */
+  /**
+   * @deprecated Backend gir ikke lenger estimater. Alltid false.
+   * Over taket brukes `totalIsCapped` og teksten "over N treff".
+   */
   totalIsEstimate: boolean;
+  /** true = flere treff enn tellegrensen (`totalCount` = grensen, ikke et faktisk antall). */
+  totalIsCapped: boolean;
+  /** Satt når søket ble avvist uten å telle, f.eks. "min_query_length". */
+  emptyReason: string | null;
   available: boolean;
   errorMessage: string | null;
 };
+
 
 
 /**
