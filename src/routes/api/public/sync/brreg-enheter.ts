@@ -82,14 +82,27 @@ async function phase1(admin: Admin, strict: boolean) {
     if (!res.ok || !res.body) throw new Error(`brreg http ${res.status}`);
     const expected = Number(res.headers.get("content-length") ?? 0) || null;
 
-    // Ingen dekomprimering her: filen lagres byte for byte slik den kom.
-    const buf = new Uint8Array(await res.arrayBuffer());
-    const actual = buf.byteLength;
+    // Filen er ~209 MB og kan ikke holdes i minnet. Den strømmes rett til
+    // Storage, byte for byte, mens bytene telles for integritetskontrollen.
+    let actual = 0;
+    const counted = res.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, ctrl) {
+          actual += chunk.byteLength;
+          ctrl.enqueue(chunk);
+        },
+      }),
+    );
 
     const up = await admin.storage
       .from(BUCKET)
-      .upload(path, buf, { contentType: "application/gzip", upsert: true });
+      .upload(path, counted as unknown as Blob, {
+        contentType: "application/gzip",
+        upsert: true,
+        duplex: "half",
+      } as never);
     if (up.error) throw new Error(`storage: ${up.error.message}`);
+
 
     const integrity = verifyDownloadIntegrity({ expectedBytes: expected, actualBytes: actual });
     const patched = await rpc<RunRow>(admin, "brreg_full_patch_run", {
