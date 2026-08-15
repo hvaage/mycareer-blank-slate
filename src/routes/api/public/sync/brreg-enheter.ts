@@ -145,14 +145,27 @@ async function phase2(admin: Admin, runId: number) {
   }
   if (run.parse_complete) return json({ ok: true, phase: 2, done: true, run });
 
-  const dl = await admin.storage.from(BUCKET).download(run.storage_path!);
-  if (dl.error || !dl.data) return json({ ok: false, error: `storage: ${dl.error?.message}` }, 500);
-  if (dl.data.size !== run.actual_bytes) {
-    return json({ ok: false, error: "lagret fil avviker fra registrert størrelse" }, 409);
+  // Signert URL + strømmende fetch. `storage.download()` bufrer hele blobben
+  // (209 MB) i minnet før første byte kan leses, og henger i praksis.
+  const signed = await admin.storage.from(BUCKET).createSignedUrl(run.storage_path!, 3600);
+  if (signed.error || !signed.data) {
+    return json({ ok: false, error: `storage: ${signed.error?.message}` }, 500);
+  }
+  const fileRes = await fetch(signed.data.signedUrl);
+  if (!fileRes.ok || !fileRes.body) {
+    return json({ ok: false, error: `storage http ${fileRes.status}` }, 500);
+  }
+  const storedBytes = Number(fileRes.headers.get("content-length") ?? 0) || null;
+  if (storedBytes !== null && storedBytes !== Number(run.actual_bytes)) {
+    return json(
+      { ok: false, error: "lagret fil avviker fra registrert størrelse", storedBytes, run },
+      409,
+    );
   }
 
-  const stream = dl.data.stream().pipeThrough(new DecompressionStream("gzip"));
+  const stream = fileRes.body.pipeThrough(new DecompressionStream("gzip"));
   const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
+
   const scanner = createJsonArrayScanner();
 
   const skip = Number(run.row_cursor ?? 0);
