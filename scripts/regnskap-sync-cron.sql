@@ -1,7 +1,7 @@
 -- regnskap-sync cron schedule — RUNBOOK / REFERENCE.
 --
 -- Live schedule:
---   Aktivert i Supabase pg_cron som jobben 'regnskap-sync-nightly'
+--   Aktivert i Supabase pg_cron som jobben 'regnskap-sync-15min'
 --   med catchup-profil hvert 15. minutt, forskjøvet fra NAV/Careerjet
 --   (13,28,43,58 * * * *) via migrasjonen
 --   20260805184332_regnskap_sync_cron_delivery_relief.sql. Cron-secret hentes
@@ -16,7 +16,7 @@
 
 -- Manuell (re)schedule — kjør kun ved behov:
 -- SELECT cron.schedule(
---   'regnskap-sync-nightly',
+--   'regnskap-sync-15min',
 --   '13,28,43,58 * * * *',
 --   $$
 --   SELECT net.http_post(
@@ -44,7 +44,7 @@
 -- );
 
 -- Avregistrering ved behov:
--- SELECT cron.unschedule('regnskap-sync-nightly');
+-- SELECT cron.unschedule('regnskap-sync-15min');
 
 -- Inspisere leveranser (admin-only RPC):
 -- SELECT * FROM public.list_regnskap_cron_runs(20);
