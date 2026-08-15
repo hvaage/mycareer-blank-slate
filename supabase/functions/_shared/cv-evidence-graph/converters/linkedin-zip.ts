@@ -60,11 +60,8 @@ export interface LinkedInCertificationRow {
 // ---------------------------------------------------------------------------
 
 export interface LinkedInZipConversionResult {
-  roles: { role: AtomInsert; achievements: AtomInsert[] }[];
-  educations: AtomInsert[];
-  skills: AtomInsert[];
-  languages: AtomInsert[];
-  certifications: AtomInsert[];
+  /** Flat liste med kandidater. Hierarkiet ligger i parent_local_ref. */
+  candidates: CandidateDraft[];
   notes: string[];
 }
 
