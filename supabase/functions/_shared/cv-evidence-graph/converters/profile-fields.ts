@@ -117,35 +117,57 @@ export function profileToCandidates(
     notes.push("Ingen nåværende stilling i profilen — hopper over rolle-kandidat.");
   }
 
-  // 2. Skills
+  // 2. Skills — kategorien avgjør hvilken kandidattype forslaget får.
   if (profile.skills && profile.skills.length > 0) {
     let added = 0;
+    let unresolved = 0;
     for (const name of profile.skills) {
       const trimmed = name.trim();
       if (!trimmed) continue;
       const category = inferSkillCategory(trimmed);
-      const data: SkillStructuredData = {
-        name: trimmed,
-        name_normalized: trimmed.toLowerCase(),
-        source_category: category,
-        proficiency: null,
-        years_used: null,
-      };
-      const draft = createSkillDraft({
+      const suggested = suggestAtomTypeFromCategory(category);
+      const base = {
         local_ref: ref("skill"),
-        source_type: "about_me_profile",
-        structured_data: data,
+        source_type: "about_me_profile" as const,
         content_no: trimmed,
         content_en: trimmed,
         suggested_from_category: category,
-        parse_confidence: category === "other" ? 0.3 : 0.6,
-      });
-      // Kategorien avgjør hvilken type dette faktisk foreslås som.
-      draft.suggested_atom_type = suggestAtomTypeFromCategory(category) ?? "skill";
-      candidates.push(draft);
+        parse_confidence: suggested === null ? 0.3 : 0.6,
+      };
+
+      if (suggested === "tool") {
+        candidates.push(
+          createToolDraft({
+            ...base,
+            structured_data: {
+              name: trimmed,
+              tool_kind: "other",
+              proficiency: null,
+              years_used: null,
+            },
+          }),
+        );
+      } else {
+        // Både `skill` og uavklart (`other`) bæres som kompetanse-kandidat.
+        // Uavklarte blir et spørsmål til brukeren i gjennomgangen.
+        const data: SkillStructuredData = {
+          name: trimmed,
+          name_normalized: trimmed.toLowerCase(),
+          source_category: category,
+          proficiency: null,
+          years_used: null,
+        };
+        candidates.push(createSkillDraft({ ...base, structured_data: data }));
+        if (suggested === null) unresolved++;
+      }
       added++;
     }
-    notes.push(`Opprettet ${added} kompetanse-kandidater fra profile.skills[].`);
+    notes.push(
+      `Opprettet ${added} kompetanse-kandidater fra profile.skills[]` +
+        (unresolved > 0
+          ? `, hvorav ${unresolved} uten typeforslag — brukeren må avklare disse.`
+          : "."),
+    );
   }
 
   // 3. Languages
