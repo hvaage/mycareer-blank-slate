@@ -1,14 +1,20 @@
 // cv-evidence-graph — Supabase CRUD wrappers
-// Tynne wrappers rundt Supabase-spørringer for cv_evidence_atoms-tabellen.
-// Bruker generic Supabase client-type for å fungere både i Edge-funksjon og frontend.
+// Skjema-versjon: 4.0 (parselaget)
+//
+// Tynne wrappers rundt `public.cv_parse_candidates`. Dette laget skriver ALDRI
+// til career_atoms: en kandidat blir evidens først når brukeren bekrefter den
+// i gjennomgangen, og den promoteringen eies av applikasjonslaget.
 
 import type {
-  CvAtom,
-  AtomInsert,
+  CvParseCandidate,
+  CandidateInsert,
+  CandidateStatus,
   AtomType,
 } from "./types.ts";
-import { parseAtomRow } from "./types.ts";
-import { validateAtom, type ValidationResult } from "./validators.ts";
+import { parseCandidateRow } from "./types.ts";
+import { validateCandidate, type ValidationResult } from "./validators.ts";
+
+const TABLE = "cv_parse_candidates";
 
 // ---------------------------------------------------------------------------
 // Generic Supabase client interface — fungerer med både @supabase/supabase-js
@@ -16,114 +22,94 @@ import { validateAtom, type ValidationResult } from "./validators.ts";
 // frontend sender bruker-scoped klient.
 // ---------------------------------------------------------------------------
 
-type SupabaseLike = {
-  from: (table: string) => {
-    select: (columns?: string) => {
-      eq: (column: string, value: unknown) => {
-        eq?: (column: string, value: unknown) => unknown;
-        in?: (column: string, values: unknown[]) => unknown;
-        order?: (column: string, opts?: { ascending?: boolean }) => unknown;
-      };
-      in?: (column: string, values: unknown[]) => unknown;
-      order?: (column: string, opts?: { ascending?: boolean }) => unknown;
-    };
-    insert: (rows: unknown) => {
-      select: () => unknown;
-    };
-    update: (row: unknown) => {
-      eq: (column: string, value: unknown) => unknown;
-    };
-    delete: () => {
-      eq: (column: string, value: unknown) => unknown;
-    };
-  };
+export type SupabaseLike = {
+  from: (table: string) => unknown;
+};
+
+type Chain = {
+  select: (columns?: string) => Chain;
+  insert: (rows: unknown) => Chain;
+  update: (row: unknown) => Chain;
+  delete: () => Chain;
+  eq: (column: string, value: unknown) => Chain;
+  in: (column: string, values: unknown[]) => Chain;
+  order: (column: string, opts?: { ascending?: boolean }) => Chain;
+};
+
+function table(supabase: SupabaseLike): Chain {
+  return (supabase as { from: (t: string) => Chain }).from(TABLE);
+}
+
+type QueryResult = {
+  data: Record<string, unknown>[] | null;
+  error: { message: string } | null;
 };
 
 // ---------------------------------------------------------------------------
 // Read operations
 // ---------------------------------------------------------------------------
 
-/**
- * Hent alle atoms for en bruker. Default: kun confirmed atoms.
- */
-export async function fetchUserAtoms(
+/** Hent kandidatene i én import. Default: hele importen, uansett status. */
+export async function fetchImportCandidates(
   supabase: SupabaseLike,
-  user_id: string,
-  opts: { onlyConfirmed?: boolean; types?: AtomType[] } = {},
-): Promise<CvAtom[]> {
-  const onlyConfirmed = opts.onlyConfirmed ?? true;
+  import_id: string,
+  opts: { status?: CandidateStatus[] } = {},
+): Promise<CvParseCandidate[]> {
+  let query = table(supabase).select("*").eq("import_id", import_id);
 
-  let query = (supabase as unknown as {
-    from: (t: string) => {
-      select: (c: string) => {
-        eq: (col: string, v: unknown) => unknown;
-      };
-    };
-  }).from("cv_evidence_atoms").select("*").eq("user_id", user_id);
-
-  if (onlyConfirmed) {
-    query = (query as { eq: (col: string, v: unknown) => unknown }).eq(
-      "user_confirmed",
-      true,
-    );
+  if (opts.status && opts.status.length > 0) {
+    query = query.in("status", opts.status);
   }
 
-  if (opts.types && opts.types.length > 0) {
-    query = (query as { in: (col: string, v: unknown[]) => unknown }).in(
-      "atom_type",
-      opts.types,
-    );
-  }
+  const { data, error } = (await query.order("local_ref", {
+    ascending: true,
+  })) as unknown as QueryResult;
 
-  const { data, error } = (await query) as {
-    data: Record<string, unknown>[] | null;
-    error: { message: string } | null;
-  };
-
-  if (error) throw new Error(`fetchUserAtoms: ${error.message}`);
-  return (data ?? []).map(parseAtomRow);
+  if (error) throw new Error(`fetchImportCandidates: ${error.message}`);
+  return (data ?? []).map(parseCandidateRow);
 }
 
-/**
- * Hent atoms for en spesifikk parent (f.eks. alle achievements under en role).
- */
-export async function fetchChildAtoms(
+/** Hent alle ubehandlede kandidater for en bruker — arbeidskøen i gjennomgangen. */
+export async function fetchPendingCandidates(
   supabase: SupabaseLike,
-  parent_atom_id: string,
-): Promise<CvAtom[]> {
-  const { data, error } = (await (supabase as unknown as {
-    from: (t: string) => {
-      select: (c: string) => {
-        eq: (col: string, v: unknown) => unknown;
-      };
-    };
-  })
-    .from("cv_evidence_atoms")
+  user_id: string,
+): Promise<CvParseCandidate[]> {
+  const { data, error } = (await table(supabase)
     .select("*")
-    .eq("parent_atom_id", parent_atom_id)) as {
-    data: Record<string, unknown>[] | null;
-    error: { message: string } | null;
-  };
+    .eq("user_id", user_id)
+    .eq("status", "ubehandlet")
+    .order("created_at", { ascending: true })) as unknown as QueryResult;
 
-  if (error) throw new Error(`fetchChildAtoms: ${error.message}`);
-  return (data ?? []).map(parseAtomRow);
+  if (error) throw new Error(`fetchPendingCandidates: ${error.message}`);
+  return (data ?? []).map(parseCandidateRow);
 }
 
-/**
- * Hent atoms gruppert etter type for hurtig oppslag i UI eller komposisjon.
- */
-export async function fetchAtomsGroupedByType(
+/** Hent kandidatene som henger under en gitt rolle-kandidat i samme import. */
+export async function fetchChildCandidates(
   supabase: SupabaseLike,
-  user_id: string,
-  opts: { onlyConfirmed?: boolean } = {},
-): Promise<Record<AtomType, CvAtom[]>> {
-  const all = await fetchUserAtoms(supabase, user_id, opts);
-  const grouped: Partial<Record<AtomType, CvAtom[]>> = {};
-  for (const atom of all) {
-    grouped[atom.atom_type] ??= [];
-    grouped[atom.atom_type]!.push(atom);
+  import_id: string,
+  parent_local_ref: string,
+): Promise<CvParseCandidate[]> {
+  const { data, error } = (await table(supabase)
+    .select("*")
+    .eq("import_id", import_id)
+    .eq("parent_local_ref", parent_local_ref)) as unknown as QueryResult;
+
+  if (error) throw new Error(`fetchChildCandidates: ${error.message}`);
+  return (data ?? []).map(parseCandidateRow);
+}
+
+/** Grupper kandidatene på den typen de faktisk skal bli (resolved ?? suggested). */
+export function groupByEffectiveType(
+  candidates: CvParseCandidate[],
+): Record<AtomType, CvParseCandidate[]> {
+  const grouped: Partial<Record<AtomType, CvParseCandidate[]>> = {};
+  for (const c of candidates) {
+    const t = (c.resolved_atom_type ?? c.suggested_atom_type) as AtomType;
+    grouped[t] ??= [];
+    grouped[t]!.push(c);
   }
-  return grouped as Record<AtomType, CvAtom[]>;
+  return grouped as Record<AtomType, CvParseCandidate[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -131,176 +117,171 @@ export async function fetchAtomsGroupedByType(
 // ---------------------------------------------------------------------------
 
 export interface InsertResult {
-  inserted: CvAtom[];
-  rejected: { atom: AtomInsert; error: string }[];
+  inserted: CvParseCandidate[];
+  rejected: { candidate: CandidateInsert; error: string }[];
 }
 
 /**
- * Sett inn atoms etter validering. Avvist atoms kommer tilbake med feilmelding.
- * Caller må bestemme hva som skal skje med rejected (logge, vise i UI, eller stoppe).
+ * Sett inn kandidater etter validering. Avviste rader kommer tilbake med
+ * feilmelding — de skal aldri forsvinne stille; caller må rapportere dem.
  */
-export async function insertAtoms(
+export async function insertCandidates(
   supabase: SupabaseLike,
-  atoms: AtomInsert[],
+  candidates: CandidateInsert[],
 ): Promise<InsertResult> {
-  const valid: AtomInsert[] = [];
-  const rejected: { atom: AtomInsert; error: string }[] = [];
+  const valid: CandidateInsert[] = [];
+  const rejected: { candidate: CandidateInsert; error: string }[] = [];
 
-  for (const atom of atoms) {
-    const result: ValidationResult = validateAtom(atom);
-    if (result.ok) {
-      valid.push(atom);
-    } else {
-      rejected.push({ atom, error: result.error ?? "ukjent validation-feil" });
+  const seenRefs = new Set<string>();
+  for (const candidate of candidates) {
+    const result: ValidationResult = validateCandidate(candidate);
+    if (!result.ok) {
+      rejected.push({ candidate, error: result.error ?? "ukjent valideringsfeil" });
+      continue;
     }
+    const refKey = `${candidate.import_id}::${candidate.local_ref}`;
+    if (seenRefs.has(refKey)) {
+      rejected.push({ candidate, error: `duplikat local_ref: ${candidate.local_ref}` });
+      continue;
+    }
+    seenRefs.add(refKey);
+    valid.push(candidate);
   }
 
   if (valid.length === 0) {
     return { inserted: [], rejected };
   }
 
-  const { data, error } = (await (supabase as unknown as {
-    from: (t: string) => {
-      insert: (rows: unknown) => { select: () => unknown };
-    };
-  })
-    .from("cv_evidence_atoms")
+  const { data, error } = (await table(supabase)
     .insert(valid)
-    .select()) as {
-    data: Record<string, unknown>[] | null;
-    error: { message: string } | null;
-  };
+    .select()) as unknown as QueryResult;
 
   if (error) {
-    // DB-feil: returner alle som rejected
     return {
       inserted: [],
       rejected: [
         ...rejected,
-        ...valid.map((a) => ({ atom: a, error: `DB: ${error.message}` })),
+        ...valid.map((c) => ({ candidate: c, error: `DB: ${error.message}` })),
       ],
     };
   }
 
-  return {
-    inserted: (data ?? []).map(parseAtomRow),
-    rejected,
-  };
+  return { inserted: (data ?? []).map(parseCandidateRow), rejected };
 }
 
-/**
- * Sett inn et atom-tre i riktig rekkefølge: parent først, så children.
- * Brukes for import: en role + dets achievements + dets metrics.
- */
-export async function insertAtomTree(
-  supabase: SupabaseLike,
-  parent: AtomInsert,
-  children: AtomInsert[],
-): Promise<{ parent: CvAtom; children: CvAtom[] }> {
-  // Sett inn parent først for å få ID
-  const parentResult = await insertAtoms(supabase, [parent]);
-  if (parentResult.inserted.length === 0) {
-    throw new Error(
-      `insertAtomTree: parent rejected: ${parentResult.rejected[0]?.error ?? "ukjent"}`,
-    );
-  }
-  const parentAtom = parentResult.inserted[0];
-
-  // Oppdater children med riktig parent_atom_id
-  const childrenWithParent = children.map((c) => ({
-    ...c,
-    parent_atom_id: parentAtom.id,
-  }));
-
-  const childResult = await insertAtoms(supabase, childrenWithParent);
-  return { parent: parentAtom, children: childResult.inserted };
-}
-
-/**
- * Oppdater et atom. Bruk for endringer fra editor eller etter dedup-merge.
- */
-export async function updateAtom(
+/** Oppdater en kandidat (f.eks. brukerens korrigering av type). */
+export async function updateCandidate(
   supabase: SupabaseLike,
   id: string,
-  patch: Partial<CvAtom>,
-): Promise<CvAtom> {
-  const { data, error } = (await (supabase as unknown as {
-    from: (t: string) => {
-      update: (row: unknown) => {
-        eq: (col: string, v: unknown) => unknown;
-      };
-    };
-  })
-    .from("cv_evidence_atoms")
+  patch: Partial<CvParseCandidate>,
+): Promise<CvParseCandidate> {
+  const { data, error } = (await table(supabase)
     .update(patch)
-    .eq("id", id)) as {
-    data: Record<string, unknown>[] | null;
-    error: { message: string } | null;
-  };
+    .eq("id", id)
+    .select()) as unknown as QueryResult;
 
-  if (error) throw new Error(`updateAtom: ${error.message}`);
-  if (!data || data.length === 0) throw new Error(`updateAtom: atom ${id} ikke funnet`);
-  return parseAtomRow(data[0]);
-}
-
-/**
- * Bekreft et atom — sett user_confirmed=true og confidence='verified'.
- */
-export async function confirmAtom(
-  supabase: SupabaseLike,
-  id: string,
-): Promise<CvAtom> {
-  return updateAtom(supabase, id, {
-    user_confirmed: true,
-    confidence: "verified",
-  });
-}
-
-/**
- * Bekreft flere atoms i batch. Brukes etter import-review-steget.
- */
-export async function confirmAtoms(
-  supabase: SupabaseLike,
-  ids: string[],
-): Promise<{ confirmed: number; failed: { id: string; error: string }[] }> {
-  let confirmed = 0;
-  const failed: { id: string; error: string }[] = [];
-  for (const id of ids) {
-    try {
-      await confirmAtom(supabase, id);
-      confirmed++;
-    } catch (e) {
-      failed.push({ id, error: (e as Error).message });
-    }
+  if (error) throw new Error(`updateCandidate: ${error.message}`);
+  if (!data || data.length === 0) {
+    throw new Error(`updateCandidate: kandidat ${id} ikke funnet`);
   }
-  return { confirmed, failed };
+  return parseCandidateRow(data[0]);
 }
 
 /**
- * Lås et atom — brukeren har endret ordlyden manuelt og vil ikke at AI skal omformulere.
+ * Brukeren bekreftet kandidaten, og den er promotert til et career_atom.
+ * `promoted_atom_id` er påkrevd: en bekreftet kandidat uten atom er et brudd
+ * på evidensprinsippet og skal ikke kunne oppstå.
  */
-export async function lockAtom(
+export async function markCandidateConfirmed(
   supabase: SupabaseLike,
   id: string,
-): Promise<CvAtom> {
-  return updateAtom(supabase, id, { user_locked: true });
+  promoted_atom_id: string,
+  resolved_atom_type?: AtomType,
+): Promise<CvParseCandidate> {
+  return updateCandidate(supabase, id, {
+    status: "bekreftet",
+    promoted_atom_id,
+    ...(resolved_atom_type ? { resolved_atom_type } : {}),
+    reviewed_at: new Date().toISOString(),
+  } as Partial<CvParseCandidate>);
+}
+
+/** Brukeren avviste kandidaten. Grunnen lagres — den er læringsdata. */
+export async function markCandidateRejected(
+  supabase: SupabaseLike,
+  id: string,
+  rejected_reason: string | null = null,
+): Promise<CvParseCandidate> {
+  return updateCandidate(supabase, id, {
+    status: "avvist",
+    rejected_reason,
+    reviewed_at: new Date().toISOString(),
+  } as Partial<CvParseCandidate>);
 }
 
 /**
- * Slett et atom. Cascade-delete håndterer children (definert i migration).
+ * Kandidaten kunne ikke belegges (typisk: kompetanse uten evidens) og ble
+ * gjort om til et spørsmål til brukeren.
  */
-export async function deleteAtom(
+export async function markCandidateAsQuestion(
+  supabase: SupabaseLike,
+  id: string,
+  question_ref: string,
+): Promise<CvParseCandidate> {
+  return updateCandidate(supabase, id, {
+    status: "ble_sporsmal",
+    question_ref,
+    reviewed_at: new Date().toISOString(),
+  } as Partial<CvParseCandidate>);
+}
+
+/** Slett en kandidat. Rører ikke career_atoms. */
+export async function deleteCandidate(
   supabase: SupabaseLike,
   id: string,
 ): Promise<void> {
-  const { error } = (await (supabase as unknown as {
-    from: (t: string) => {
-      delete: () => { eq: (col: string, v: unknown) => unknown };
-    };
-  })
-    .from("cv_evidence_atoms")
+  const { error } = (await table(supabase)
     .delete()
-    .eq("id", id)) as { error: { message: string } | null };
+    .eq("id", id)) as unknown as QueryResult;
 
-  if (error) throw new Error(`deleteAtom: ${error.message}`);
+  if (error) throw new Error(`deleteCandidate: ${error.message}`);
+}
+
+// ---------------------------------------------------------------------------
+// Korrigeringsrate — måltallet som avgjør om kategorikartet skal endres
+// ---------------------------------------------------------------------------
+
+export interface CorrectionRate {
+  reviewed: number;
+  corrected: number;
+  rate: number;
+  by_suggested_type: Record<string, { reviewed: number; corrected: number }>;
+}
+
+/** Regn ut hvor ofte brukeren måtte overstyre parserens forslag. */
+export function computeCorrectionRate(
+  candidates: CvParseCandidate[],
+): CorrectionRate {
+  const by: Record<string, { reviewed: number; corrected: number }> = {};
+  let reviewed = 0;
+  let corrected = 0;
+
+  for (const c of candidates) {
+    if (c.status === "ubehandlet") continue;
+    reviewed++;
+    const key = c.suggested_from_category ?? c.suggested_atom_type;
+    by[key] ??= { reviewed: 0, corrected: 0 };
+    by[key].reviewed++;
+    if (c.resolved_atom_type && c.resolved_atom_type !== c.suggested_atom_type) {
+      corrected++;
+      by[key].corrected++;
+    }
+  }
+
+  return {
+    reviewed,
+    corrected,
+    rate: reviewed === 0 ? 0 : corrected / reviewed,
+    by_suggested_type: by,
+  };
 }

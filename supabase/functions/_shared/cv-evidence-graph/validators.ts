@@ -1,16 +1,20 @@
 // cv-evidence-graph — Validators
-// Valideringsregler for atoms før de skrives til databasen.
-// Kjøres i Edge-funksjon eller frontend før Supabase-insert/update.
+// Skjema-versjon: 4.0 (parselaget)
+//
+// Valideringsregler for parsekandidater før de skrives til cv_parse_candidates.
+// Hierarkiet valideres på local_ref/parent_local_ref, ikke på atom-IDer.
 
 import type {
-  AtomBase,
-  AtomInsert,
+  CandidateDraft,
+  CandidateInsert,
   AtomType,
   RoleStructuredData,
   AchievementStructuredData,
   MetricStructuredData,
   EducationStructuredData,
   SkillStructuredData,
+  DomainStructuredData,
+  ToolStructuredData,
   LanguageStructuredData,
   CertificationStructuredData,
   ProjectStructuredData,
@@ -156,9 +160,31 @@ export function validateSkillStructuredData(
   data: Partial<SkillStructuredData>,
 ): ValidationResult {
   if (!nonEmpty(data.name)) return fail("skill.name er påkrevd");
-  if (!nonEmpty(data.category)) return fail("skill.category er påkrevd");
+  if (!nonEmpty(data.source_category)) {
+    return fail("skill.source_category er påkrevd (parserens grovkategori)");
+  }
   if (data.years_used != null && data.years_used < 0) {
     return fail("skill.years_used kan ikke være negativ");
+  }
+  return ok;
+}
+
+export function validateDomainStructuredData(
+  data: Partial<DomainStructuredData>,
+): ValidationResult {
+  if (!nonEmpty(data.name)) return fail("domain.name er påkrevd");
+  if (data.years_exposed != null && data.years_exposed < 0) {
+    return fail("domain.years_exposed kan ikke være negativ");
+  }
+  return ok;
+}
+
+export function validateToolStructuredData(
+  data: Partial<ToolStructuredData>,
+): ValidationResult {
+  if (!nonEmpty(data.name)) return fail("tool.name er påkrevd");
+  if (data.years_used != null && data.years_used < 0) {
+    return fail("tool.years_used kan ikke være negativ");
   }
   return ok;
 }
@@ -218,117 +244,155 @@ export function validateVolunteerStructuredData(
 }
 
 // ---------------------------------------------------------------------------
-// Validate full atom
+// Validate full kandidat
 // ---------------------------------------------------------------------------
 
-export function validateAtom(atom: AtomInsert | AtomBase): ValidationResult {
-  // Felles felter
-  if (!nonEmpty(atom.user_id)) return fail("atom.user_id er påkrevd");
-  if (!atom.atom_type) return fail("atom.atom_type er påkrevd");
+type ValidatableCandidate = CandidateDraft | CandidateInsert;
 
-  // Innhold — enten content_no, content_en eller structured_data må være satt
-  const hasContent =
-    nonEmpty(atom.content_no) ||
-    nonEmpty(atom.content_en) ||
-    (atom.structured_data && Object.keys(atom.structured_data).length > 0);
-  if (!hasContent) {
-    return fail("atom må ha content_no, content_en eller structured_data");
+/** Typer som må henge under en rolle-kandidat i parselaget. */
+const REQUIRES_PARENT: AtomType[] = ["achievement", "metric", "context"];
+/** Typer som aldri kan ha forelder i parselaget. */
+const FORBIDS_PARENT: AtomType[] = ["language", "summary_fragment", "education"];
+
+export function validateCandidate(
+  candidate: ValidatableCandidate,
+): ValidationResult {
+  if (!nonEmpty(candidate.local_ref)) return fail("kandidat.local_ref er påkrevd");
+  if (!candidate.suggested_atom_type) {
+    return fail("kandidat.suggested_atom_type er påkrevd");
+  }
+  if ("user_id" in candidate && !nonEmpty(candidate.user_id)) {
+    return fail("kandidat.user_id er påkrevd");
+  }
+  if ("import_id" in candidate && !nonEmpty(candidate.import_id)) {
+    return fail("kandidat.import_id er påkrevd");
+  }
+  if (candidate.parent_local_ref === candidate.local_ref) {
+    return fail("kandidat.parent_local_ref kan ikke peke på seg selv");
+  }
+  if (
+    candidate.parse_confidence != null &&
+    (candidate.parse_confidence < 0 || candidate.parse_confidence > 1)
+  ) {
+    return fail("kandidat.parse_confidence må være mellom 0 og 1");
   }
 
-  // Lengdebegrensning
+  const hasContent =
+    nonEmpty(candidate.content_no) ||
+    nonEmpty(candidate.content_en) ||
+    (candidate.structured_data &&
+      Object.keys(candidate.structured_data).length > 0);
+  if (!hasContent) {
+    return fail("kandidat må ha content_no, content_en eller structured_data");
+  }
+
   const MAX_CONTENT_LENGTH = 2000;
-  if (atom.content_no && atom.content_no.length > MAX_CONTENT_LENGTH) {
+  if (candidate.content_no && candidate.content_no.length > MAX_CONTENT_LENGTH) {
     return fail(`content_no er for lang (>${MAX_CONTENT_LENGTH} tegn)`);
   }
-  if (atom.content_en && atom.content_en.length > MAX_CONTENT_LENGTH) {
+  if (candidate.content_en && candidate.content_en.length > MAX_CONTENT_LENGTH) {
     return fail(`content_en er for lang (>${MAX_CONTENT_LENGTH} tegn)`);
   }
 
-  // Hierarki-regler
-  const requiresParent: AtomType[] = ["achievement", "metric"];
-  if (requiresParent.includes(atom.atom_type) && !nonEmpty(atom.parent_atom_id)) {
-    return fail(`${atom.atom_type} krever parent_atom_id`);
+  const type = candidate.suggested_atom_type;
+  if (REQUIRES_PARENT.includes(type) && !nonEmpty(candidate.parent_local_ref)) {
+    return fail(`${type} krever parent_local_ref`);
+  }
+  if (FORBIDS_PARENT.includes(type) && candidate.parent_local_ref != null) {
+    return fail(`${type} skal ikke ha parent_local_ref`);
   }
 
-  const noParent: AtomType[] = ["language", "summary_fragment"];
-  if (noParent.includes(atom.atom_type) && atom.parent_atom_id != null) {
-    return fail(`${atom.atom_type} skal ikke ha parent_atom_id`);
-  }
-
-  // Per-type structured_data-validering
-  const sd = atom.structured_data;
-  switch (atom.atom_type) {
+  const sd = candidate.structured_data;
+  switch (type) {
     case "role":
-      return mergeWarnings(
-        validateRoleStructuredData(sd as Partial<RoleStructuredData>),
-      );
+      return validateRoleStructuredData(sd as Partial<RoleStructuredData>);
     case "achievement":
-      return mergeWarnings(
-        validateAchievementStructuredData(sd as Partial<AchievementStructuredData>),
+      return validateAchievementStructuredData(
+        sd as Partial<AchievementStructuredData>,
       );
     case "metric":
-      return mergeWarnings(
-        validateMetricStructuredData(sd as Partial<MetricStructuredData>),
-      );
+      return validateMetricStructuredData(sd as Partial<MetricStructuredData>);
     case "education":
-      return mergeWarnings(
-        validateEducationStructuredData(sd as Partial<EducationStructuredData>),
-      );
+      return validateEducationStructuredData(sd as Partial<EducationStructuredData>);
     case "skill":
-      return mergeWarnings(
-        validateSkillStructuredData(sd as Partial<SkillStructuredData>),
-      );
+      return validateSkillStructuredData(sd as Partial<SkillStructuredData>);
+    case "domain":
+      return validateDomainStructuredData(sd as Partial<DomainStructuredData>);
+    case "tool":
+      return validateToolStructuredData(sd as Partial<ToolStructuredData>);
     case "language":
-      return mergeWarnings(
-        validateLanguageStructuredData(sd as Partial<LanguageStructuredData>),
-      );
+      return validateLanguageStructuredData(sd as Partial<LanguageStructuredData>);
     case "certification":
-      return mergeWarnings(
-        validateCertificationStructuredData(sd as Partial<CertificationStructuredData>),
+      return validateCertificationStructuredData(
+        sd as Partial<CertificationStructuredData>,
       );
     case "project":
-      return mergeWarnings(
-        validateProjectStructuredData(sd as Partial<ProjectStructuredData>),
-      );
+      return validateProjectStructuredData(sd as Partial<ProjectStructuredData>);
     case "volunteer":
-      return mergeWarnings(
-        validateVolunteerStructuredData(sd as Partial<VolunteerStructuredData>),
-      );
+      return validateVolunteerStructuredData(sd as Partial<VolunteerStructuredData>);
     case "context":
-    case "tool":
     case "summary_fragment":
-      // Disse har enklere regler — krever bare at structured_data har innhold
       if (!sd || Object.keys(sd).length === 0) {
-        return fail(`${atom.atom_type} krever structured_data`);
+        return fail(`${type} krever structured_data`);
       }
       return ok;
     default:
-      return fail(`Ukjent atom_type: ${(atom as { atom_type: string }).atom_type}`);
+      return fail(`Ukjent atom_type: ${String(type)}`);
   }
 }
 
-function mergeWarnings(r: ValidationResult): ValidationResult {
-  return r;
+/**
+ * Sjekk at hele importen henger sammen: hver parent_local_ref må finnes i
+ * settet, og pekeren må gå til en rolle. Referanser som ikke går opp er en
+ * feil som skal rapporteres, ikke droppes stille.
+ */
+export function validateCandidateGraph(
+  candidates: ValidatableCandidate[],
+): ValidationResult {
+  const byRef = new Map<string, ValidatableCandidate>();
+  for (const c of candidates) {
+    if (byRef.has(c.local_ref)) {
+      return fail(`duplikat local_ref i importen: ${c.local_ref}`);
+    }
+    byRef.set(c.local_ref, c);
+  }
+  for (const c of candidates) {
+    if (c.parent_local_ref == null) continue;
+    const parent = byRef.get(c.parent_local_ref);
+    if (!parent) {
+      return fail(
+        `${c.local_ref} peker på ukjent parent_local_ref: ${c.parent_local_ref}`,
+      );
+    }
+    if (parent.suggested_atom_type !== "role") {
+      return fail(
+        `${c.local_ref} peker på ${parent.local_ref} som ikke er en rolle`,
+      );
+    }
+  }
+  return ok;
 }
 
 // ---------------------------------------------------------------------------
 // Batch-validation — for bruk under import
 // ---------------------------------------------------------------------------
 
-export interface BatchValidationResult {
-  valid: AtomInsert[];
-  invalid: { atom: AtomInsert; error: string }[];
+export interface BatchValidationResult<T extends ValidatableCandidate> {
+  valid: T[];
+  invalid: { candidate: T; error: string }[];
 }
 
-export function validateBatch(atoms: AtomInsert[]): BatchValidationResult {
-  const valid: AtomInsert[] = [];
-  const invalid: { atom: AtomInsert; error: string }[] = [];
-  for (const atom of atoms) {
-    const result = validateAtom(atom);
+export function validateBatch<T extends ValidatableCandidate>(
+  candidates: T[],
+): BatchValidationResult<T> {
+  const valid: T[] = [];
+  const invalid: { candidate: T; error: string }[] = [];
+  for (const candidate of candidates) {
+    const result = validateCandidate(candidate);
     if (result.ok) {
-      valid.push(atom);
+      valid.push(candidate);
     } else {
-      invalid.push({ atom, error: result.error ?? "ukjent feil" });
+      invalid.push({ candidate, error: result.error ?? "ukjent feil" });
     }
   }
   return { valid, invalid };
