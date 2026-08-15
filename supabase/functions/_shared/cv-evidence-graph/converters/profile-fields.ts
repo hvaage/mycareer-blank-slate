@@ -1,18 +1,25 @@
-// cv-evidence-graph — Converter: profiles-felter → atoms
-// Brukes for å seede evidens-grafen fra eksisterende profile-data
+// cv-evidence-graph — Converter: profiles-felter → parsekandidater
+// Skjema-versjon: 4.0
+//
+// Brukes for å seede gjennomgangen fra eksisterende profildata
 // (about-me-felter, LinkedIn OAuth-headline, onboarding-svar).
+// Resultatet er kandidater, ikke evidens: ingenting herfra er belagt før
+// brukeren har bekreftet det.
 
 import type {
-  AtomInsert,
+  CandidateDraft,
   RoleStructuredData,
   SkillStructuredData,
   LanguageStructuredData,
   SummaryFragmentStructuredData,
+  ParserSkillCategory,
 } from "../types.ts";
 import {
-  createRoleAtom,
-  createSkillAtom,
-  createLanguageAtom,
+  createRoleDraft,
+  createSkillDraft,
+  createLanguageDraft,
+  createSummaryFragmentDraft,
+  suggestAtomTypeFromCategory,
 } from "../types.ts";
 
 // ---------------------------------------------------------------------------
@@ -46,198 +53,171 @@ export interface ProfileFields {
 // Top-level conversion
 // ---------------------------------------------------------------------------
 
-export interface ProfileToAtomsResult {
-  atoms: AtomInsert[];
+export interface ProfileToCandidatesResult {
+  candidates: CandidateDraft[];
   notes: string[];
 }
 
 /**
- * Konverter profiles-felter til atoms.
+ * Konverter profiles-felter til parsekandidater.
  *
- * VIKTIG begrensning: profiles-data alene er IKKE nok til en god CV.
- * Det mangler arbeidshistorikk og utdanning. Resultatet markeres derfor som
- * `imported`-confidence og må kombineres med en CV-import (LinkedIn ZIP/PDF
- * eller gammel CV) eller intervju-flyt før master-CV genereres.
+ * VIKTIG begrensning: profildata alene er IKKE nok til en god CV.
+ * Det mangler arbeidshistorikk og utdanning. Kandidatene må kombineres med en
+ * CV-import (LinkedIn ZIP/PDF eller gammel CV) eller intervjuflyt.
  *
  * Det vi får ut:
- * - Én role-atom for nåværende stilling (hvis current_employer + current_role_title finnes)
- * - Skill-atoms fra skills[]
- * - Language-atoms fra languages[]
+ * - Én rolle-kandidat for nåværende stilling (hvis begge feltene finnes)
+ * - Kompetanse-kandidater fra skills[]
+ * - Språk-kandidater fra languages[]
  * - Summary fragments fra bio + headline
  *
  * Det vi IKKE får (må komme fra annen kilde):
- * - Tidligere roller
- * - Achievements per rolle (achievements-feltet er én lang fritekst, ikke strukturert)
- * - Utdanning
- * - Sertifiseringer
- * - Strukturerte måltall
+ * - Tidligere roller, achievements per rolle, utdanning, sertifiseringer, måltall
  */
-export function profileToAtoms(profile: ProfileFields): ProfileToAtomsResult {
-  const atoms: AtomInsert[] = [];
+export function profileToCandidates(
+  profile: ProfileFields,
+): ProfileToCandidatesResult {
+  const candidates: CandidateDraft[] = [];
   const notes: string[] = [];
-  const userId = profile.id;
+  let seq = 0;
+  const ref = (prefix: string) => `${prefix}-${seq++}`;
 
   // 1. Nåværende rolle
   if (profile.current_employer && profile.current_role_title) {
-    atoms.push(
-      currentRoleToAtom(profile, userId),
+    const data: RoleStructuredData = {
+      employer: profile.current_employer,
+      employer_normalized: profile.current_employer.toLowerCase().trim(),
+      title: profile.current_role_title,
+      start_date: estimateStartDate(),
+      end_date: null,
+      location: null,
+      employment_type: "fulltime",
+      industry: null,
+      employer_size: null,
+      employer_description: null,
+      is_current: true,
+      direct_reports: null,
+    };
+    candidates.push(
+      createRoleDraft({
+        local_ref: ref("role"),
+        source_type: "about_me_profile",
+        structured_data: data,
+        content_no: profile.current_role_title,
+        content_en: profile.current_role_title,
+        source_quote: profile.bio ?? null,
+        // Startdatoen er gjettet — det skal synes.
+        parse_confidence: 0.4,
+      }),
     );
     notes.push(
-      "Opprettet 1 role-atom for nåværende stilling. Tidligere stillinger må importeres separat.",
+      "Opprettet 1 rolle-kandidat for nåværende stilling. Startdato er estimert og må bekreftes. Tidligere stillinger må importeres separat.",
     );
   } else {
-    notes.push(
-      "Ingen nåværende stilling i profilen — hopper over role-atom.",
-    );
+    notes.push("Ingen nåværende stilling i profilen — hopper over rolle-kandidat.");
   }
 
   // 2. Skills
   if (profile.skills && profile.skills.length > 0) {
+    let added = 0;
     for (const name of profile.skills) {
       const trimmed = name.trim();
       if (!trimmed) continue;
-      atoms.push(skillToAtom(trimmed, userId));
+      const category = inferSkillCategory(trimmed);
+      const data: SkillStructuredData = {
+        name: trimmed,
+        name_normalized: trimmed.toLowerCase(),
+        source_category: category,
+        proficiency: null,
+        years_used: null,
+      };
+      const draft = createSkillDraft({
+        local_ref: ref("skill"),
+        source_type: "about_me_profile",
+        structured_data: data,
+        content_no: trimmed,
+        content_en: trimmed,
+        suggested_from_category: category,
+        parse_confidence: category === "other" ? 0.3 : 0.6,
+      });
+      // Kategorien avgjør hvilken type dette faktisk foreslås som.
+      draft.suggested_atom_type = suggestAtomTypeFromCategory(category) ?? "skill";
+      candidates.push(draft);
+      added++;
     }
-    notes.push(
-      `Opprettet ${profile.skills.length} skill-atoms fra profile.skills[].`,
-    );
+    notes.push(`Opprettet ${added} kompetanse-kandidater fra profile.skills[].`);
   }
 
   // 3. Languages
   if (profile.languages && profile.languages.length > 0) {
+    let added = 0;
     for (const langString of profile.languages) {
       const lang = parseLanguageString(langString);
-      if (lang) {
-        atoms.push(
-          createLanguageAtom({
-            user_id: userId,
-            source_type: "about_me_profile",
-            structured_data: lang,
-            content_no: lang.language,
-            content_en: lang.language,
-            confidence: "imported",
-            user_confirmed: false,
-          }),
-        );
-      }
+      if (!lang) continue;
+      candidates.push(
+        createLanguageDraft({
+          local_ref: ref("language"),
+          source_type: "about_me_profile",
+          structured_data: lang,
+          content_no: lang.language,
+          content_en: lang.language,
+          suggested_from_category: "language",
+          parse_confidence: 0.7,
+        }),
+      );
+      added++;
     }
-    notes.push(
-      `Opprettet ${profile.languages.length} language-atoms fra profile.languages[].`,
-    );
+    notes.push(`Opprettet ${added} språk-kandidater fra profile.languages[].`);
   }
 
   // 4. Bio som summary fragment
   if (profile.bio && profile.bio.trim().length > 30) {
-    atoms.push(bioToSummaryFragment(profile.bio.trim(), userId));
-    notes.push("Opprettet 1 summary_fragment-atom fra profile.bio.");
+    const bio = profile.bio.trim();
+    const data: SummaryFragmentStructuredData = {
+      fragment_type: "experience_summary",
+      weight: 8,
+    };
+    candidates.push(
+      createSummaryFragmentDraft({
+        local_ref: ref("summary"),
+        source_type: "about_me_profile",
+        structured_data: data,
+        content_no: bio,
+        content_en: null,
+        source_quote: bio,
+        parse_confidence: 0.8,
+      }),
+    );
+    notes.push("Opprettet 1 summary_fragment-kandidat fra profile.bio.");
   }
 
   // 5. Headline / linkedin_headline
-  const headline = profile.headline ?? profile.linkedin_headline;
-  if (headline && headline.trim().length > 0) {
-    atoms.push(headlineToSummaryFragment(headline.trim(), userId));
-    notes.push("Opprettet 1 summary_fragment-atom fra headline.");
+  const headline = (profile.headline ?? profile.linkedin_headline)?.trim();
+  if (headline) {
+    const data: SummaryFragmentStructuredData = {
+      fragment_type: "value_proposition",
+      weight: 9,
+    };
+    candidates.push(
+      createSummaryFragmentDraft({
+        local_ref: ref("summary"),
+        source_type: "about_me_profile",
+        structured_data: data,
+        content_no: headline,
+        content_en: headline,
+        source_quote: headline,
+        parse_confidence: 0.8,
+      }),
+    );
+    notes.push("Opprettet 1 summary_fragment-kandidat fra headline.");
   }
 
   // 6. Generell advarsel
   notes.push(
-    "MERK: Disse atoms gir ikke nok data til full CV. Brukeren må importere LinkedIn-data eller gammel CV, eller fullføre intervju, før master-CV kan genereres.",
+    "MERK: Disse kandidatene gir ikke nok data til full CV, og de er ikke evidens før brukeren har bekreftet dem i gjennomgangen.",
   );
 
-  return { atoms, notes };
-}
-
-// ---------------------------------------------------------------------------
-// Per-felt-konvertering
-// ---------------------------------------------------------------------------
-
-function currentRoleToAtom(profile: ProfileFields, userId: string): AtomInsert {
-  const data: RoleStructuredData = {
-    employer: profile.current_employer!,
-    title: profile.current_role_title!,
-    start_date: estimateStartDate(profile.years_experience),
-    end_date: null,
-    location: null,
-    employment_type: "fulltime",
-    industry: null,
-    employer_size: null,
-    employer_description: null,
-    is_current: true,
-  };
-
-  return createRoleAtom({
-    user_id: userId,
-    source_type: "about_me_profile",
-    structured_data: data,
-    content_no: profile.current_role_title!,
-    content_en: profile.current_role_title!,
-    confidence: "imported",
-    user_confirmed: false,
-    source_quote: profile.bio ?? undefined,
-  });
-}
-
-function skillToAtom(name: string, userId: string): AtomInsert {
-  const data: SkillStructuredData = {
-    name,
-    name_normalized: name.toLowerCase().trim(),
-    category: inferSkillCategory(name),
-    proficiency: null,
-    years_used: null,
-    evidence_atom_ids: [],
-  };
-
-  return createSkillAtom({
-    user_id: userId,
-    source_type: "about_me_profile",
-    structured_data: data,
-    content_no: name,
-    content_en: name,
-    confidence: "imported",
-    user_confirmed: false,
-  });
-}
-
-function bioToSummaryFragment(bio: string, userId: string): AtomInsert {
-  const data: SummaryFragmentStructuredData = {
-    fragment_type: "experience_summary",
-    weight: 8,
-  };
-
-  return {
-    atom_type: "summary_fragment",
-    user_id: userId,
-    parent_atom_id: null,
-    content_no: bio,
-    content_en: null, // krever oversettelse
-    structured_data: data,
-    source_type: "about_me_profile",
-    source_ref: null,
-    source_quote: bio,
-    confidence: "imported",
-    user_confirmed: false,
-  };
-}
-
-function headlineToSummaryFragment(headline: string, userId: string): AtomInsert {
-  const data: SummaryFragmentStructuredData = {
-    fragment_type: "value_proposition",
-    weight: 9,
-  };
-
-  return {
-    atom_type: "summary_fragment",
-    user_id: userId,
-    parent_atom_id: null,
-    content_no: headline,
-    content_en: headline,
-    structured_data: data,
-    source_type: "about_me_profile",
-    source_ref: null,
-    source_quote: headline,
-    confidence: "imported",
-    user_confirmed: false,
-  };
+  return { candidates, notes };
 }
 
 // ---------------------------------------------------------------------------
@@ -245,15 +225,12 @@ function headlineToSummaryFragment(headline: string, userId: string): AtomInsert
 // ---------------------------------------------------------------------------
 
 /**
- * Estimer startdato for nåværende stilling basert på years_experience.
- * Ikke perfekt — antar at all years_experience er i nåværende rolle hvis
- * vi ikke har bedre data. Markerer som inferred.
+ * Estimer startdato for nåværende stilling. Konservativ default: 1 år tilbake.
+ * Brukeren må selv korrigere — derfor lav parse_confidence på rolle-kandidaten.
  */
-function estimateStartDate(yearsExperience: number | null): string {
+function estimateStartDate(): string {
   const now = new Date();
-  // Konservativ default: 1 år tilbake. Brukeren må selv korrigere.
-  const yearsBack = 1;
-  const startYear = now.getFullYear() - yearsBack;
+  const startYear = now.getFullYear() - 1;
   return `${startYear}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
@@ -299,10 +276,11 @@ function parseLanguageString(s: string): LanguageStructuredData | null {
 }
 
 /**
- * Grov kategorisering av skill basert på navn.
- * Brukerens valg overstyrer dette — funksjonen er bare for å gi en startverdi.
+ * Grov kategorisering av kompetanse basert på navn.
+ * Dette er kun et FORSLAGSGRUNNLAG. Brukerens valg overstyrer, og
+ * korrigeringsraten per kategori er det som avgjør om kartet skal endres.
  */
-function inferSkillCategory(name: string): SkillStructuredData["category"] {
+export function inferSkillCategory(name: string): ParserSkillCategory {
   const lower = name.toLowerCase();
 
   const technical = [
