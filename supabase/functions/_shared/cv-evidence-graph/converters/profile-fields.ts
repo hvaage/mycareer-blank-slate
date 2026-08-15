@@ -159,7 +159,8 @@ export function profileToCandidates(
             ...base,
             structured_data: {
               language: label,
-              level: null,
+              // Nivå er ukjent fra en ren navneliste; brukeren setter det.
+              level: "professional" as const,
               cefr: null,
               suggested_from_name_lexicon: Boolean(known),
             },
