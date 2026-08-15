@@ -1,6 +1,15 @@
 // deno-lint-ignore-file no-explicit-any
-// commit-cv-import — leser cv_imports.raw_parsed_data, konverterer til atoms,
-// dedupliserer mot eksisterende, og skriver til cv_evidence_atoms.
+// commit-cv-import — Skjema-versjon 4.0 (parselaget)
+//
+// Leser cv_imports.raw_parsed_data, konverterer til parsekandidater og skriver
+// dem til public.cv_parse_candidates.
+//
+// VIKTIG: denne funksjonen skriver ALDRI til career_atoms. Importen lander i
+// parselaget. Det er gjennomgangen som promoterer en kandidat til et atom,
+// etter at brukeren har bekreftet den. Ingenting herfra er evidens.
+//
+// Treet bæres av local_ref / parent_local_ref. Går det tapt her, kan
+// gjennomgangen ikke vise achievements under riktig rolle.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
@@ -8,15 +17,21 @@ import {
   type ParsedOldCv,
 } from "../_shared/cv-evidence-graph/converters/old-cv.ts";
 import {
-  fetchUserAtoms,
-  insertAtomTree,
+  fetchImportCandidates,
+  insertCandidates,
 } from "../_shared/cv-evidence-graph/crud.ts";
 import {
   findDuplicates,
-  mergeAtoms,
 } from "../_shared/cv-evidence-graph/deduplicate.ts";
-import { validateAtom } from "../_shared/cv-evidence-graph/validators.ts";
-import type { AtomInsert, CvAtom } from "../_shared/cv-evidence-graph/types.ts";
+import {
+  validateCandidate,
+  validateCandidateGraph,
+} from "../_shared/cv-evidence-graph/validators.ts";
+import {
+  toCandidateInsert,
+  type CandidateDraft,
+  type CandidateInsert,
+} from "../_shared/cv-evidence-graph/types.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,40 +59,31 @@ function jsonError(
   return jsonResponse({ error, message, ...extra }, status);
 }
 
-interface ValidationWarning {
-  atom_type: string;
-  error: string;
-}
-
-interface MergeEvent {
-  atom_type: string;
-  incoming_summary: string;
-  existing_summary: string;
-  existing_id: string;
+interface DroppedCandidate {
+  local_ref: string;
+  suggested_atom_type: string;
+  summary: string;
   reason: string;
-  confidence: number;
-  action: "merged";
 }
 
-function summarizeAtom(a: { atom_type: string; content_no?: string | null; content_en?: string | null; structured_data?: unknown }): string {
-  const sd = (a.structured_data ?? {}) as Record<string, any>;
-  switch (a.atom_type) {
+function summarize(c: CandidateDraft): string {
+  const sd = (c.structured_data ?? {}) as Record<string, any>;
+  switch (c.suggested_atom_type) {
     case "role":
       return `${sd.title ?? "?"} @ ${sd.employer ?? "?"} (${sd.start_date ?? "?"}–${sd.end_date ?? "nå"})`;
     case "education":
       return `${sd.degree ?? "?"} @ ${sd.institution ?? "?"}`;
     case "skill":
-      return sd.name ?? a.content_no ?? a.content_en ?? "?";
+    case "domain":
+    case "tool":
+      return String(sd.name ?? c.content_no ?? c.content_en ?? "?");
     case "language":
-      return `${sd.language ?? "?"}${sd.proficiency ? ` (${sd.proficiency})` : ""}`;
+      return `${sd.language ?? "?"}${sd.level ? ` (${sd.level})` : ""}`;
     case "certification":
       return `${sd.name ?? "?"} — ${sd.issuer ?? "?"}`;
-    case "project":
-      return sd.name ?? a.content_no ?? "?";
-    case "achievement":
-      return (a.content_no ?? a.content_en ?? sd.what ?? "?").toString().slice(0, 120);
     default:
-      return (a.content_no ?? a.content_en ?? JSON.stringify(sd)).toString().slice(0, 120);
+      return String(c.content_no ?? c.content_en ?? sd.what ?? JSON.stringify(sd))
+        .slice(0, 120);
   }
 }
 
@@ -167,7 +173,7 @@ Deno.serve(async (req) => {
     importRow.import_type === "old_cv_pdf" ? "pdf" : "docx";
 
   // -----------------------------------------------------------------------
-  // Convert
+  // Convert → flat kandidatliste med local_ref-tre
   // -----------------------------------------------------------------------
   let conversion;
   try {
@@ -199,178 +205,121 @@ Deno.serve(async (req) => {
     );
   }
 
+  const dropped: DroppedCandidate[] = [];
+  const skippedLog: { reason: string; context: string }[] = conversion.skipped;
+
   // -----------------------------------------------------------------------
-  // Validate
+  // Validate hver kandidat. Faller en rolle bort, faller barna med — men
+  // begge deler rapporteres, ingenting forsvinner stille.
   // -----------------------------------------------------------------------
-  const validationWarnings: ValidationWarning[] = [];
-  const skippedLog: { reason: string; context: string }[] = [];
-  for (const item of conversion.skipped) {
-    validationWarnings.push({ atom_type: "skipped", error: item.reason });
-    skippedLog.push({ reason: item.reason, context: item.context });
+  const perCandidateValid: CandidateDraft[] = [];
+  for (const c of conversion.candidates) {
+    const r = validateCandidate(c);
+    if (r.ok) {
+      perCandidateValid.push(c);
+    } else {
+      dropped.push({
+        local_ref: c.local_ref,
+        suggested_atom_type: c.suggested_atom_type,
+        summary: summarize(c),
+        reason: r.error ?? "ukjent valideringsfeil",
+      });
+    }
   }
 
-  const validStandalone: AtomInsert[] = [];
-  for (const atom of conversion.standalone_atoms) {
-    const r = validateAtom(atom);
-    if (r.ok) validStandalone.push(atom);
-    else validationWarnings.push({ atom_type: atom.atom_type, error: r.error ?? "ukjent" });
-  }
-
-  const validRoleTrees: typeof conversion.role_trees = [];
-  for (const tree of conversion.role_trees) {
-    const roleResult = validateAtom(tree.role);
-    if (!roleResult.ok) {
-      validationWarnings.push({ atom_type: "role", error: roleResult.error ?? "ukjent" });
+  const survivingRefs = new Set(perCandidateValid.map((c) => c.local_ref));
+  const withIntactParents: CandidateDraft[] = [];
+  for (const c of perCandidateValid) {
+    if (c.parent_local_ref != null && !survivingRefs.has(c.parent_local_ref)) {
+      dropped.push({
+        local_ref: c.local_ref,
+        suggested_atom_type: c.suggested_atom_type,
+        summary: summarize(c),
+        reason:
+          `forelderen ${c.parent_local_ref} falt bort i validering — konteksten ville gått tapt`,
+      });
       continue;
     }
-    const validAchievements: Omit<AtomInsert, "parent_atom_id">[] = [];
-    for (const ach of tree.achievements) {
-      // Achievements krever parent_atom_id i validator — bruk midlertidig placeholder
-      const r = validateAtom({
-        ...(ach as AtomInsert),
-        parent_atom_id: "00000000-0000-0000-0000-000000000000",
-      });
-      if (r.ok) validAchievements.push(ach);
-      else validationWarnings.push({ atom_type: "achievement", error: r.error ?? "ukjent" });
-    }
-    validRoleTrees.push({ role: tree.role, achievements: validAchievements });
+    withIntactParents.push(c);
   }
 
-  // -----------------------------------------------------------------------
-  // Fetch existing for dedup
-  // -----------------------------------------------------------------------
-  let existingAtoms: CvAtom[];
-  try {
-    existingAtoms = await fetchUserAtoms(supabase as any, user.id, {
-      onlyConfirmed: false,
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("fetchUserAtoms failed:", msg);
-    return jsonError("database_error", `Kunne ikke hente atoms: ${msg}`, 500, {
-      import_id: importId,
-    });
-  }
-
-  let atomsCreated = 0;
-  let atomsMerged = 0;
-  const mergeLog: MergeEvent[] = [];
-
-  // -----------------------------------------------------------------------
-  // Standalone — dedup + insert/merge one by one
-  // -----------------------------------------------------------------------
-  try {
-    for (const atom of validStandalone) {
-      const dupes = findDuplicates([atom], existingAtoms);
-      if (dupes.length > 0) {
-        const dupe = dupes[0];
-        const merged = mergeAtoms(dupe.existing, atom);
-        const { error: updateError } = await supabase
-          .from("cv_evidence_atoms")
-          .update({ ...merged, updated_at: new Date().toISOString() })
-          .eq("id", dupe.existing.id)
-          .eq("user_id", user.id);
-        if (updateError) throw new Error(`update: ${updateError.message}`);
-        atomsMerged++;
-        mergeLog.push({
-          atom_type: atom.atom_type,
-          incoming_summary: summarizeAtom(atom),
-          existing_summary: summarizeAtom(dupe.existing),
-          existing_id: dupe.existing.id,
-          reason: dupe.reason,
-          confidence: dupe.confidence,
-          action: "merged",
-        });
-      } else {
-        const { data, error: insertError } = await supabase
-          .from("cv_evidence_atoms")
-          .insert(atom)
-          .select("*")
-          .single();
-        if (insertError) throw new Error(`insert: ${insertError.message}`);
-        if (data) {
-          atomsCreated++;
-          existingAtoms.push(data as unknown as CvAtom);
-        }
-      }
-    }
-
-    // ---------------------------------------------------------------------
-    // Role-trees
-    // ---------------------------------------------------------------------
-    for (const tree of validRoleTrees) {
-      const dupes = findDuplicates([tree.role], existingAtoms);
-      let parentId: string;
-
-      if (dupes.length > 0) {
-        const dupe = dupes[0];
-        parentId = dupe.existing.id;
-        const merged = mergeAtoms(dupe.existing, tree.role);
-        const { error: updateError } = await supabase
-          .from("cv_evidence_atoms")
-          .update({ ...merged, updated_at: new Date().toISOString() })
-          .eq("id", parentId)
-          .eq("user_id", user.id);
-        if (updateError) throw new Error(`update role: ${updateError.message}`);
-        atomsMerged++;
-        mergeLog.push({
-          atom_type: "role",
-          incoming_summary: summarizeAtom(tree.role),
-          existing_summary: summarizeAtom(dupe.existing),
-          existing_id: parentId,
-          reason: dupe.reason,
-          confidence: dupe.confidence,
-          action: "merged",
-        });
-
-        // Insert achievements direkte med kjent parent_atom_id
-        if (tree.achievements.length > 0) {
-          const rows = tree.achievements.map((a) => ({
-            ...a,
-            parent_atom_id: parentId,
-          }));
-          const { data, error: insertError } = await supabase
-            .from("cv_evidence_atoms")
-            .insert(rows)
-            .select("id");
-          if (insertError) throw new Error(`insert achievements: ${insertError.message}`);
-          atomsCreated += data?.length ?? 0;
-        }
-      } else {
-        // Bruk insertAtomTree-helperen
-        const result = await insertAtomTree(
-          supabase as any,
-          tree.role,
-          tree.achievements as AtomInsert[],
-        );
-        atomsCreated += 1 + result.children.length;
-        existingAtoms.push(result.parent);
-        for (const child of result.children) existingAtoms.push(child);
-      }
-    }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("Database write failed mid-commit:", msg);
+  // Hele treet må henge sammen før vi skriver noe.
+  const graphResult = validateCandidateGraph(withIntactParents);
+  if (!graphResult.ok) {
     return jsonError(
-      "database_error",
-      `Database-feil under skriving (partiell commit bevart): ${msg}`,
-      500,
-      {
-        import_id: importId,
-        atoms_created_so_far: atomsCreated,
-        atoms_merged_so_far: atomsMerged,
-        merge_log: mergeLog,
-      },
+      "invalid_graph",
+      `Kandidattreet henger ikke sammen: ${graphResult.error}`,
+      422,
+      { import_id: importId, dropped, skipped_log: skippedLog },
     );
   }
 
   // -----------------------------------------------------------------------
-  // Count and finalize
+  // Dedup mot kandidater som allerede ligger i denne importen (re-kjøring).
+  // Vi slår ikke sammen mot andre importer: brukeren skal se hver kilde.
   // -----------------------------------------------------------------------
-  const { count: atomsTotalNow, error: countError } = await supabase
-    .from("cv_evidence_atoms")
+  let existing;
+  try {
+    existing = await fetchImportCandidates(supabase as any, importId);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("fetchImportCandidates failed:", msg);
+    return jsonError("database_error", `Kunne ikke lese kandidater: ${msg}`, 500, {
+      import_id: importId,
+    });
+  }
+
+  const duplicateRefs = new Set<string>();
+  if (existing.length > 0) {
+    for (const pair of findDuplicates(withIntactParents, existing)) {
+      duplicateRefs.add((pair.incoming as CandidateDraft).local_ref);
+    }
+  }
+
+  const toInsert: CandidateInsert[] = withIntactParents
+    .filter((c) => !duplicateRefs.has(c.local_ref))
+    .map((c) => toCandidateInsert(c, { user_id: user.id, import_id: importId }));
+
+  // -----------------------------------------------------------------------
+  // Skriv til parselaget — én batch, slik at treet lander samlet
+  // -----------------------------------------------------------------------
+  let inserted: number;
+  try {
+    const result = await insertCandidates(supabase as any, toInsert);
+    inserted = result.inserted.length;
+    for (const r of result.rejected) {
+      dropped.push({
+        local_ref: r.candidate.local_ref,
+        suggested_atom_type: r.candidate.suggested_atom_type,
+        summary: summarize(r.candidate),
+        reason: r.error,
+      });
+    }
+    if (inserted === 0 && toInsert.length > 0) {
+      return jsonError(
+        "database_error",
+        "Ingen kandidater ble skrevet. Se dropped for årsak.",
+        500,
+        { import_id: importId, dropped, skipped_log: skippedLog },
+      );
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("insertCandidates failed:", msg);
+    return jsonError("database_error", `Kunne ikke skrive kandidater: ${msg}`, 500, {
+      import_id: importId,
+      dropped,
+      skipped_log: skippedLog,
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // Tell og avslutt
+  // -----------------------------------------------------------------------
+  const { count: candidatesTotal, error: countError } = await supabase
+    .from("cv_parse_candidates")
     .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id);
+    .eq("import_id", importId);
 
   if (countError) {
     console.warn("count failed:", countError);
@@ -380,8 +329,8 @@ Deno.serve(async (req) => {
     .from("cv_imports")
     .update({
       status: "committed",
-      atoms_created_count: atomsCreated,
-      atoms_committed_count: atomsCreated,
+      atoms_created_count: inserted,
+      atoms_committed_count: 0, // ingenting er promotert til atomer ennå
       committed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -392,25 +341,28 @@ Deno.serve(async (req) => {
     console.error("Failed to finalize cv_imports row:", finalizeError);
     return jsonError(
       "database_error",
-      `Atoms ble skrevet, men kunne ikke markere import som committed: ${finalizeError.message}`,
+      `Kandidatene ble skrevet, men importen kunne ikke markeres ferdig: ${finalizeError.message}`,
       500,
-      {
-        import_id: importId,
-        atoms_created: atomsCreated,
-        atoms_merged: atomsMerged,
-      },
+      { import_id: importId, candidates_created: inserted, dropped },
     );
   }
+
+  const roleCount = toInsert.filter((c) => c.suggested_atom_type === "role").length;
+  const childCount = toInsert.filter((c) => c.parent_local_ref != null).length;
 
   return jsonResponse({
     import_id: importId,
     status: "committed",
-    atoms_created: atomsCreated,
-    atoms_merged: atomsMerged,
-    atoms_skipped: 0,
-    atoms_total_now: atomsTotalNow ?? 0,
-    validation_warnings: validationWarnings,
-    merge_log: mergeLog,
+    layer: "parse_candidates",
+    candidates_created: inserted,
+    candidates_duplicate_skipped: duplicateRefs.size,
+    candidates_total_in_import: candidatesTotal ?? inserted,
+    roles: roleCount,
+    children_with_parent: childCount,
+    atoms_created: 0,
+    note:
+      "Kandidatene venter på gjennomgang. Ingenting er evidens før brukeren har bekreftet det.",
+    dropped,
     skipped_log: skippedLog,
   });
 });
