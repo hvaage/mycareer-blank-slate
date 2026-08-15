@@ -61,9 +61,12 @@ export type EmployerSearchRow = {
 export type EmployerSearchResult = {
   rows: EmployerSearchRow[];
   totalCount: number | null;
+  /** true = totalCount er et estimat (over tellegrensen), ikke et eksakt antall. */
+  totalIsEstimate: boolean;
   available: boolean;
   errorMessage: string | null;
 };
+
 
 /**
  * Felt fra `employer_search_v1` view. Speilet 1:1 mot Brreg-feltnavn.
