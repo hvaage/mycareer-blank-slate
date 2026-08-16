@@ -16,6 +16,7 @@ import {
   parsedShapeIsReadable,
   useCommitImport,
   useRegisterCvUpload,
+  useResumableImport,
   useRunCvParse,
 } from "@/lib/queries/cv-imports";
 import {
