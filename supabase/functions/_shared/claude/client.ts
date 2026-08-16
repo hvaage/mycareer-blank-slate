@@ -66,7 +66,7 @@ export type ClaudeCallResult =
     }
   | {
       ok: false;
-      outcome: "provider_error" | "timeout";
+      outcome: "provider_error" | "timeout" | "configuration_error";
       errorCode: string;
       status: number | null;
       requestId: string | null;
