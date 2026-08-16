@@ -39,15 +39,22 @@ export type RegisterUploadResponse = {
   source_filename: string;
 };
 
+/**
+ * Svaret fra commit-cv-import (parselaget v4). Elementene lander som
+ * kandidater til gjennomgang — ingenting er lagt i karriereoversikten ennå.
+ */
 export type CommitResponse = {
   import_id: string;
   status: "committed";
+  layer?: "parse_candidates";
+  candidates_created: number;
+  candidates_duplicate_skipped: number;
+  candidates_total_in_import: number;
+  roles: number;
+  children_with_parent: number;
   atoms_created: number;
-  atoms_merged: number;
-  atoms_skipped: number;
-  atoms_total_now: number;
-  validation_warnings?: unknown[];
-  merge_log?: unknown[];
+  note?: string;
+  dropped?: unknown[];
   skipped_log?: unknown[];
 };
 
@@ -59,6 +66,9 @@ export type ErrorResponse = {
 
 export type PreviewCounts = {
   experience: number;
+  /** Resultat- og oppgavepunkter nestet under stillingene. */
+  experienceBullets: number;
+  volunteer: number;
   education: number;
   skills: number;
   languages: number;
