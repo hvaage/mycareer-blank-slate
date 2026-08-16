@@ -158,8 +158,10 @@ function AboutMePage() {
       id: "geografi",
       label: "Geografi og søkeord",
       why: "Styrer hva vi henter inn fra NAV og Careerjet i det hele tatt.",
-      filled: filledCount(p.preferred_locations, p.job_search_keywords, p.target_country, p.willing_to_relocate),
-      total: 4,
+      // «Åpen for flytting» telles ikke: et avkrysset felt som står tomt
+      // er et gyldig svar, ikke en manglende utfylling.
+      filled: filledCount(p.preferred_locations, p.job_search_keywords, p.target_country),
+      total: 3,
     },
     {
       id: "utdypning",
