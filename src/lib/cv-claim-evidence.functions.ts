@@ -8,6 +8,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
+  attestationSurvivesRewrite,
+  classifyUnsupportedElements,
   claimReviewActionsFor,
   evidenceStatusFor,
   isApprovalBlocking,
@@ -15,6 +17,7 @@ import {
   type ClaimEvidence,
   type ClaimVerification,
   type DocumentEvidenceReport,
+  USER_ATTESTED_INTERNAL_NOTE,
 } from "@/lib/cv-skills-contract";
 
 type AttestationRow = {
@@ -26,6 +29,12 @@ type AttestationRow = {
   external_source_name: string | null;
   external_source_year: number | null;
   external_document_available: boolean;
+  withdrawn_at: string | null;
+  invalidated_at: string | null;
+  invalidated_reason: string | null;
+  verification_at_attestation: string | null;
+  attested_claim_version: number | null;
+  document_output_hash: string | null;
 };
 
 async function buildReport(
@@ -41,7 +50,7 @@ async function buildReport(
   const { data: attRows } = await supabase
     .from("cv_claim_attestations")
     .select(
-      "claim_id, attested_at, attested_claim_text, attested_claim_hash, note, external_source_name, external_source_year, external_document_available",
+      "claim_id, attested_at, attested_claim_text, attested_claim_hash, note, external_source_name, external_source_year, external_document_available, withdrawn_at, invalidated_at, invalidated_reason, verification_at_attestation, attested_claim_version, document_output_hash",
     )
     .eq("document_id", documentId)
     .is("withdrawn_at", null)
@@ -153,6 +162,13 @@ export const attestClaim = createServerFn({ method: "POST" })
       external_source_name: data.externalSourceName ?? null,
       external_source_year: data.externalSourceYear ?? null,
       external_document_available: data.externalDocumentAvailable ?? false,
+      provenance: {
+        channel: "user_review_ui",
+        actor: "user",
+        confirmed_text: claim.value,
+        verification_at_attestation: claim.verification,
+      },
+      verification_at_attestation: claim.verification,
     });
     if (insertError) throw new Error("Kunne ikke lagre bekreftelsen.");
 
