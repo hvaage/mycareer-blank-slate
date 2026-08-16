@@ -1,11 +1,13 @@
-// GENERERT FIL — IKKE REDIGER.
+// KANONISK KONTRAKT for CV-skillflyten. Backend eier denne filen.
 //
-// Kilde: supabase/functions/_shared/cv-skills/contract.ts (kanonisk backendkontrakt)
-// Generer på nytt: node scripts/generate-cv-skills-contract.mjs
+// Alt mellom DTO-markørene under er delt med frontend og genereres til
+// src/lib/cv-skills-contract.ts via `node scripts/generate-cv-skills-contract.mjs`.
+// Rediger ALDRI den genererte frontendfilen direkte.
 //
-// Bare DTO-kontrakten deles med frontend. Eligibility og readiness-vurdering
-// er autoritativ backendlogikk og kjøres aldri i nettleseren.
+// Autoritativ logikk (eligibility, readiness-vurdering) ligger utenfor
+// DTO-blokken og skal aldri eksporteres til frontend.
 
+// #region generated-dto-contract
 /** Hvor klar brukerens grunnlag er for CV-generering. */
 export const READINESS_STATUSES = [
   "ready",
@@ -113,3 +115,4 @@ export const STEP_OUTCOMES = [
   "timeout",
 ] as const;
 export type StepOutcome = (typeof STEP_OUTCOMES)[number];
+// #endregion generated-dto-contract

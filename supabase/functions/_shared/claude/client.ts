@@ -15,7 +15,14 @@ const ANTHROPIC_API_VERSION = "2023-06-01";
 export type ModelCapabilities = {
   supportsTemperature: boolean;
   supportsTopP: boolean;
+  /** Sampling med top_k. Ikke støttet sammen med extended thinking. */
+  supportsTopK?: boolean;
+  /** Extended thinking (thinking-blokk i request). */
+  supportsThinking?: boolean;
+  /** Prefill: siste melding kan være en assistant-melding modellen fortsetter på. */
+  supportsPrefill?: boolean;
 };
+
 
 export type ModelProfile = {
   profileId: string;
@@ -73,15 +80,44 @@ export function sanitizeRequestOptions(
   capabilities: ModelCapabilities,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  const thinkingEnabled =
+    capabilities.supportsThinking === true &&
+    typeof options["thinking"] === "object" &&
+    options["thinking"] !== null &&
+    (options["thinking"] as { type?: string }).type === "enabled";
+
   for (const [key, value] of Object.entries(options)) {
     if (value === undefined || value === null) continue;
     if (key === "temperature" && !capabilities.supportsTemperature) continue;
     if (key === "top_p" && !capabilities.supportsTopP) continue;
+    if (key === "top_k" && capabilities.supportsTopK !== true) continue;
+    // top_k kan ikke kombineres med extended thinking.
+    if (key === "top_k" && thinkingEnabled) continue;
+    if (key === "thinking" && capabilities.supportsThinking !== true) continue;
     if (key === "model" || key === "messages" || key === "system" || key === "max_tokens") continue;
     out[key] = value;
   }
   return out;
 }
+
+/**
+ * Prefill = siste melding er en assistant-melding modellen skal fortsette på.
+ * Støtter ikke modellen prefill (eller er extended thinking aktiv), fjernes
+ * meldingen i stedet for å sendes og feile.
+ */
+export function sanitizeMessages(
+  messages: { role: "user" | "assistant"; content: string }[],
+  capabilities: ModelCapabilities,
+  sanitizedOptions: Record<string, unknown> = {},
+): { role: "user" | "assistant"; content: string }[] {
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== "assistant") return messages;
+  const thinkingEnabled =
+    (sanitizedOptions["thinking"] as { type?: string } | undefined)?.type === "enabled";
+  if (capabilities.supportsPrefill === true && !thinkingEnabled) return messages;
+  return messages.slice(0, -1);
+}
+
 
 function isTransient(status: number | null): boolean {
   if (status === null) return true; // nettverksfeil
@@ -129,11 +165,12 @@ export async function callClaude(input: ClaudeCallInput): Promise<ClaudeCallResu
 
   const { profile } = input;
   const options = sanitizeRequestOptions(profile.requestOptions, profile.capabilities);
+  const messages = sanitizeMessages(input.messages, profile.capabilities, options);
   const body = {
     model: profile.modelId,
     max_tokens: profile.maxTokens,
     system: input.system,
-    messages: input.messages,
+    messages,
     ...options,
   };
   const requestOptionsSnapshot = { max_tokens: profile.maxTokens, ...options };
