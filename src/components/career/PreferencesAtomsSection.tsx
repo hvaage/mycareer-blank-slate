@@ -69,7 +69,10 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("linkedin_id, linkedin_vanity_url, cv_no_pdf_path, cv_en_pdf_path")
+        .select(
+          "linkedin_id, linkedin_vanity_url, cv_no_pdf_path, cv_en_pdf_path, target_roles, target_industries, preferred_locations, target_seniority",
+        )
+
         .eq("id", userId)
         .maybeSingle();
       if (error) throw error;
