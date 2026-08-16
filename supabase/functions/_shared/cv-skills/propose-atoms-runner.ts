@@ -16,15 +16,27 @@ import {
 import { NORMALIZER_VERSION } from "./vendor/cv-atom-language-no/scripts/normalizer.ts";
 import {
   buildSegments,
-  computeSourceHash,
+  computeInputSignature,
+  computeSegmentHashes,
   parseNormalizationOutput,
   validateAndDedupe,
   vendorValidate,
+  NORMALIZATION_OUTPUT_CONTRACT_NO,
+  OUTPUT_CONTRACT_VERSION,
   type CandidateInput,
 } from "./atom-proposal-pipeline.ts";
 
 const TASK_KEY = "cv_atom_language_no";
 const CLAUDE_TIMEOUT_MS = 60_000;
+
+/** Harde grenser per forespørsel. Overskridelse gir 400/429, aldri modellkall. */
+export const RUN_LIMITS = {
+  maxCandidatesPerRequest: 120,
+  maxTotalInputChars: 120_000,
+  maxActiveRunsPerUser: 2,
+  maxActiveRunsPerImport: 1,
+  maxRunsPerHourPerUserTask: 12,
+} as const;
 
 export type RunnerInput = {
   /** Brukerens egen klient (RLS) — brukes til idempotens-oppslag. */
@@ -58,8 +70,27 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
   if (segments.length === 0) {
     return fail(400, "no_candidates", "Ingen kandidater til normalisering i denne importen.");
   }
+  if (segments.length > RUN_LIMITS.maxCandidatesPerRequest) {
+    return fail(400, "too_many_candidates", "For mange elementer i én analyse.", {
+      limit: RUN_LIMITS.maxCandidatesPerRequest,
+      received: segments.length,
+    });
+  }
+  const totalChars = segments.reduce((n, s) => n + s.text.length, 0);
+  if (totalChars > RUN_LIMITS.maxTotalInputChars) {
+    return fail(400, "input_too_large", "Kildeteksten er for stor for én analyse.", {
+      limit: RUN_LIMITS.maxTotalInputChars,
+      received: totalChars,
+    });
+  }
 
-  const sourceHash = await computeSourceHash(cvImportId, segments, NORMALIZATION_PROMPT_VERSION);
+  const segmentHashes = await computeSegmentHashes(segments);
+  const inputSignature = await computeInputSignature(
+    cvImportId,
+    segments,
+    NORMALIZATION_PROMPT_VERSION,
+    NORMALIZER_VERSION,
+  );
 
   // -------------------------------------------------------- idempotens
   const { data: existingBatch } = await userClient
@@ -68,7 +99,7 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
     .eq("user_id", userId)
     .eq("source_table", "cv_parse_candidates")
     .eq("source_id", cvImportId)
-    .eq("source_hash", sourceHash)
+    .eq("input_signature", inputSignature)
     .maybeSingle();
 
   if (existingBatch) {
@@ -82,7 +113,7 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
         ok: true,
         idempotent: true,
         cv_import_id: cvImportId,
-        source_hash: sourceHash,
+        input_signature: inputSignature,
         batch_id: existingBatch.id,
         proposals_created: 0,
         proposals_existing: count ?? 0,
@@ -92,6 +123,28 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
         duration_ms: Date.now() - startedAt,
       },
     };
+  }
+
+  // --------------------------------------------------------- kjøregrenser
+  const { data: limitJson, error: limitError } = await adminClient.rpc(
+    "internal_ai_check_run_limits",
+    {
+      p_user_id: userId,
+      p_task_key: TASK_KEY,
+      p_import_id: cvImportId,
+      p_max_active_per_user: RUN_LIMITS.maxActiveRunsPerUser,
+      p_max_active_per_import: RUN_LIMITS.maxActiveRunsPerImport,
+      p_max_per_hour: RUN_LIMITS.maxRunsPerHourPerUserTask,
+    },
+  );
+  if (limitError) {
+    return fail(500, "database_error", "Kunne ikke kontrollere kjøregrensene.");
+  }
+  const limits = (limitJson ?? {}) as { allowed?: boolean; reason?: string };
+  if (limits.allowed !== true) {
+    return fail(429, limits.reason ?? "rate_limited", "Analysen er midlertidig sperret.", {
+      limits: limitJson,
+    });
   }
 
   // ---------------------------------------------------- modellprofil
@@ -115,7 +168,8 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
     profileId: pj.profile_id,
     taskKey: TASK_KEY,
     modelId: pj.model_id,
-    promptVersion: pj.prompt_version,
+    // Svarkontrakten er en del av prompten og må derfor spores i versjonen.
+    promptVersion: `${pj.prompt_version}+out${OUTPUT_CONTRACT_VERSION}`,
     maxTokens: pj.max_tokens,
     requestOptions: pj.request_options ?? {},
     capabilities: {
@@ -139,13 +193,18 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
       max_tokens: profile.maxTokens,
       request_options: profile.requestOptions,
       capabilities: pj.capabilities ?? {},
-      source_hash: sourceHash,
+      input_signature: inputSignature,
+      normalizer_version: NORMALIZER_VERSION,
       cv_import_id: cvImportId,
       segments: segments.length,
     },
     p_api_version: "2023-06-01",
   });
   if (runError || typeof modelRunId !== "string") {
+    console.error(
+      "[propose-cv-atoms] start_model_run",
+      runError?.message ?? `uventet retur: ${typeof modelRunId}`,
+    );
     return fail(500, "database_error", "Kunne ikke starte modellkjøringen.");
   }
 
@@ -177,14 +236,14 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
   // --------------------------------------------------------- modellkall
   const result = await callClaude({
     profile,
-    system: NORMALIZATION_SYSTEM_PROMPT_NO,
+    system: `${NORMALIZATION_SYSTEM_PROMPT_NO}\n\n${NORMALIZATION_OUTPUT_CONTRACT_NO}`,
     messages: [
       {
         role: "user",
         content: buildNormalizationUserPrompt({
           source_type: "cv_parse_candidates",
           source_id: cvImportId,
-          source_hash: sourceHash,
+          source_hash: inputSignature,
           segments: segments.map((s) => ({ id: s.id, text: s.text })),
         }),
       },
@@ -247,11 +306,12 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
     });
   }
 
-  const batch = { ...parsedOut.batch, source_id: cvImportId, source_hash: sourceHash };
+  const batch = { ...parsedOut.batch, source_id: cvImportId, source_hash: inputSignature };
   const vendorCheck = vendorValidate(batch);
   const { kept, dropped } = validateAndDedupe(batch, segments, {
     cvImportId,
-    sourceHash,
+    segmentHashes,
+    inputSignature,
     modelRunId,
     promptVersion: profile.promptVersion,
     normalizerVersion: NORMALIZER_VERSION,
@@ -278,64 +338,64 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
   }
 
   // -------------------------------------------------------- skriving
-  const { data: batchRow, error: batchError } = await adminClient
-    .from("atom_enrichment_batches")
-    .insert({
-      user_id: userId,
-      source_type: "cv_import",
-      source_table: "cv_parse_candidates",
-      source_id: cvImportId,
-      source_record_id: cvImportId,
-      source_hash: sourceHash,
-      title: "Språknormalisering av CV-import",
-      status: "open",
-      context: {
-        task_key: TASK_KEY,
-        model_run_id: modelRunId,
-        model_id: profile.modelId,
-        prompt_version: profile.promptVersion,
+  // Batch og alle forslag skrives i én transaksjon (RPC). Feiler ett forslag,
+  // rulles hele settet tilbake og ingen batch blir liggende igjen.
+  const { data: writeJson, error: writeError } = await adminClient.rpc(
+    "internal_ai_create_enrichment_batch",
+    {
+      p_user_id: userId,
+      p_batch: {
+        source_type: "cv_import",
+        source_table: "cv_parse_candidates",
+        source_id: cvImportId,
+        source_record_id: cvImportId,
+        source_hash: inputSignature,
+        input_signature: inputSignature,
         normalizer_version: NORMALIZER_VERSION,
-        correlation_id: correlationId,
-        segments: segments.length,
-        dropped,
-        vendor_warnings: vendorCheck.warnings.slice(0, 20),
+        model_run_id: modelRunId,
+        title: "Språknormalisering av CV-import",
+        status: "open",
+        context: {
+          task_key: TASK_KEY,
+          model_run_id: modelRunId,
+          model_id: profile.modelId,
+          prompt_version: profile.promptVersion,
+          normalizer_version: NORMALIZER_VERSION,
+          correlation_id: correlationId,
+          segments: segments.length,
+          dropped,
+          vendor_warnings: vendorCheck.warnings.slice(0, 20),
+        },
       },
-    })
-    .select("id")
-    .single();
-  if (batchError || !batchRow) {
+      p_proposals: kept,
+    },
+  );
+
+  if (writeError || !writeJson) {
+    console.error(
+      "[propose-cv-atoms] atomic write failed",
+      JSON.stringify({ correlationId, code: writeError?.code ?? null }),
+    );
+    await finishRun({
+      status: "failed",
+      outcome: "invalid_output",
+      errorCode: "database_error",
+      httpStatus: 200,
+      requestId: result.requestId,
+      durationMs: result.durationMs,
+      retryCount: result.retryCount,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+    });
     return fail(500, "database_error", "Kunne ikke lagre forslagene.");
   }
 
-  const { data: insertedRows, error: proposalError } = await adminClient
-    .from("atom_enrichment_proposals")
-    .insert(
-      kept.map((p) => ({
-        batch_id: batchRow.id,
-        user_id: userId,
-        proposal_action: p.proposal_action,
-        target_atom_type: p.target_atom_type,
-        source_type: p.source_type,
-        source_table: p.source_table,
-        source_record_id: p.source_record_id,
-        source_id: p.source_id,
-        source_hash: p.source_hash,
-        confidence: p.confidence,
-        inferred: p.inferred,
-        rationale: p.rationale,
-        explanation: p.explanation,
-        status: "pending_review",
-        proposal_payload: p.proposal_payload,
-      })),
-    )
-    .select("id, source_record_id, proposal_action, proposal_payload");
-  if (proposalError) {
-    console.error(
-      "[propose-cv-atoms] proposal insert failed",
-      JSON.stringify({ correlationId, code: proposalError.code }),
-    );
-    return fail(500, "database_error", "Kunne ikke lagre forslagene.");
-  }
+  const write = writeJson as {
+    batch_id: string;
+    idempotent: boolean;
+    inserted: number;
+    skipped: number;
+  };
 
   await finishRun({
     status: "succeeded",
@@ -349,9 +409,15 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
     outputTokens: result.usage.outputTokens,
   });
 
-  const rows = (insertedRows ?? []) as {
+  const { data: storedRows } = await adminClient
+    .from("atom_enrichment_proposals")
+    .select("id, source_record_id, source_hash, proposal_action, proposal_payload")
+    .eq("batch_id", write.batch_id);
+
+  const rows = (storedRows ?? []) as {
     id: string;
     source_record_id: string | null;
+    source_hash: string | null;
     proposal_action: string;
     proposal_payload: Record<string, unknown> | null;
   }[];
@@ -363,6 +429,8 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
       modelRunId,
       segments: segments.length,
       proposals: rows.length,
+      inserted: write.inserted,
+      skipped: write.skipped,
       dropped: dropped.length,
       durationMs: Date.now() - startedAt,
     }),
@@ -374,8 +442,8 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
       ok: true,
       phase: "3B",
       cv_import_id: cvImportId,
-      source_hash: sourceHash,
-      batch_id: batchRow.id,
+      input_signature: inputSignature,
+      batch_id: write.batch_id,
       model_run_id: modelRunId,
       model_profile: {
         profile_key: pj.profile_key,
@@ -384,13 +452,15 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
         max_tokens: profile.maxTokens,
       },
       segments: segments.length,
-      proposals_created: rows.length,
+      proposals_created: write.inserted,
+      proposals_skipped: write.skipped,
       proposals: rows.map((r) => ({
         id: r.id,
         proposal_action: r.proposal_action,
         cv_import_id: cvImportId,
         cv_parse_candidate_id: r.source_record_id,
-        source_hash: sourceHash,
+        source_hash: r.source_hash,
+        normalizer_version: NORMALIZER_VERSION,
         atom_type: (r.proposal_payload?.["atom_type"] as string | undefined) ?? null,
         content_no: (r.proposal_payload?.["content_no"] as string | undefined) ?? null,
         source_quote: (r.proposal_payload?.["source_quote"] as string | undefined) ?? null,

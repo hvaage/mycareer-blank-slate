@@ -238,6 +238,9 @@ export type Database = {
           context: Json
           created_at: string
           id: string
+          input_signature: string | null
+          model_run_id: string | null
+          normalizer_version: string | null
           notes: string | null
           source_hash: string | null
           source_id: string | null
@@ -253,6 +256,9 @@ export type Database = {
           context?: Json
           created_at?: string
           id?: string
+          input_signature?: string | null
+          model_run_id?: string | null
+          normalizer_version?: string | null
           notes?: string | null
           source_hash?: string | null
           source_id?: string | null
@@ -268,6 +274,9 @@ export type Database = {
           context?: Json
           created_at?: string
           id?: string
+          input_signature?: string | null
+          model_run_id?: string | null
+          normalizer_version?: string | null
           notes?: string | null
           source_hash?: string | null
           source_id?: string | null
@@ -291,6 +300,9 @@ export type Database = {
           explanation: string | null
           id: string
           inferred: boolean
+          model_run_id: string | null
+          normalizer_version: string | null
+          prompt_version: string | null
           proposal_action: Database["public"]["Enums"]["atom_enrichment_proposal_action"]
           proposal_payload: Json
           rationale: string | null
@@ -299,6 +311,7 @@ export type Database = {
           reviewer_comment: string | null
           source_hash: string | null
           source_id: string | null
+          source_import_id: string | null
           source_record_id: string | null
           source_table: string | null
           source_type: string
@@ -320,6 +333,9 @@ export type Database = {
           explanation?: string | null
           id?: string
           inferred?: boolean
+          model_run_id?: string | null
+          normalizer_version?: string | null
+          prompt_version?: string | null
           proposal_action: Database["public"]["Enums"]["atom_enrichment_proposal_action"]
           proposal_payload?: Json
           rationale?: string | null
@@ -328,6 +344,7 @@ export type Database = {
           reviewer_comment?: string | null
           source_hash?: string | null
           source_id?: string | null
+          source_import_id?: string | null
           source_record_id?: string | null
           source_table?: string | null
           source_type: string
@@ -349,6 +366,9 @@ export type Database = {
           explanation?: string | null
           id?: string
           inferred?: boolean
+          model_run_id?: string | null
+          normalizer_version?: string | null
+          prompt_version?: string | null
           proposal_action?: Database["public"]["Enums"]["atom_enrichment_proposal_action"]
           proposal_payload?: Json
           rationale?: string | null
@@ -357,6 +377,7 @@ export type Database = {
           reviewer_comment?: string | null
           source_hash?: string | null
           source_id?: string | null
+          source_import_id?: string | null
           source_record_id?: string | null
           source_table?: string | null
           source_type?: string
@@ -5311,6 +5332,10 @@ export type Database = {
       brreg_full_start_run: { Args: { p_strict?: boolean }; Returns: Json }
       career_atom_delete: { Args: { p_atom_id: string }; Returns: Json }
       career_atom_delete_impact: { Args: { p_atom_id: string }; Returns: Json }
+      career_atom_promote_parse_candidate: {
+        Args: { p_atom: Json; p_candidate_id: string }
+        Returns: Json
+      }
       careerjet_canonical_has_visible: {
         Args: { p_canonical: string }
         Returns: boolean
@@ -5640,6 +5665,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      internal_ai_check_run_limits: {
+        Args: {
+          p_import_id: string
+          p_max_active_per_import?: number
+          p_max_active_per_user?: number
+          p_max_per_hour?: number
+          p_task_key: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       internal_ai_claim_job_step: {
         Args: {
           p_job_kinds?: string[]
@@ -5656,6 +5692,10 @@ export type Database = {
           p_status: string
           p_worker_id: string
         }
+        Returns: Json
+      }
+      internal_ai_create_enrichment_batch: {
+        Args: { p_batch: Json; p_proposals: Json; p_user_id: string }
         Returns: Json
       }
       internal_ai_enqueue_job: {

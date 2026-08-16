@@ -45,7 +45,7 @@ const UUID = z.string().uuid();
 const bodySchema = z
   .object({
     cvImportId: UUID,
-    candidateIds: z.array(UUID).min(1).max(300).optional(),
+    candidateIds: z.array(UUID).min(1).max(120).optional(),
     correlation_id: UUID.optional(),
   })
   .strict();
