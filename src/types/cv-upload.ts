@@ -79,7 +79,13 @@ export type FlowState =
       lastError?: string;
     }
   | { kind: "parsing"; importId: string; fileName: string }
-  | { kind: "parsed_preview"; importId: string; counts: PreviewCounts; fileName: string }
+  | {
+      kind: "parsed_preview";
+      importId: string;
+      counts: PreviewCounts;
+      fileName: string;
+      raw: any;
+    }
   | { kind: "committing"; importId: string }
   | { kind: "done"; result: CommitResponse }
   | {
