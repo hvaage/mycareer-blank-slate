@@ -166,10 +166,15 @@ export async function addManualRole(input: ManualRoleInput): Promise<string> {
 }
 
 /**
- * Bruker-lagt resultat under en bekreftet rolle. Samme kontrollerte atomflyt og
- * provenance-regel som manuelt lagt rolle: kanonisk `source_type='user_input'`,
- * `confidence='verified'` + `user_confirmed=true` (som er atom-tillit, IKKE
- * claim-evidensstatusen `user_attested`). `kilde: "bruker_manuelt"` er kun metadata.
+ * Bruker-lagt resultat under en bekreftet rolle. Går gjennom den kontrollerte
+ * atomflyten i RPC-en `career_atom_add_manual_result`, som i samme transaksjon:
+ *   1) oppretter career_atoms-raden med source_type='user_input'
+ *   2) oppretter aktiv career_atom_links-rad med link_type='oppnadd_i'
+ *   3) kjører career_atom_project_parent(resultat_atom_id)
+ * parent_atom_id skrives aldri direkte herfra — den er en
+ * kompatibilitetsprojeksjon eid av den kanoniske oppnadd_i-lenken.
+ * `confidence='verified'` + `user_confirmed=true` er atom-tillit, IKKE
+ * claim-evidensstatusen `user_attested`. `kilde: "bruker_manuelt"` er metadata.
  */
 export async function addManualResult(input: {
   userId: string;
@@ -179,42 +184,20 @@ export async function addManualResult(input: {
 }): Promise<string> {
   const title = input.title.trim();
   if (!title) throw new Error("Resultatet må ha en beskrivelse.");
+  if (!input.roleAtomId) throw new Error("Resultatet må plasseres under en rolle.");
 
-  const structured: Record<string, unknown> = {
-    lagt_inn_av_bruker: true,
-    kilde: "bruker_manuelt",
-    review_import_id: input.importId,
-    role_atom_id: input.roleAtomId,
-  };
-  structured["logical_key"] = careerAtomLogicalKey({
-    atom_kind: "evidens",
-    atom_type: "achievement",
-    content_no: title,
-    structured_data: structured,
+  const { data, error } = await supabase.rpc("career_atom_add_manual_result", {
+    p_title: title,
+    p_role_atom_id: input.roleAtomId,
+    p_review_import_id: input.importId,
+    p_structured_data: {} as Json,
   });
-
-  const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from("career_atoms")
-    .insert({
-      user_id: input.userId,
-      atom_kind: "evidens",
-      atom_type: "achievement",
-      parent_atom_id: input.roleAtomId,
-      content_no: title,
-      structured_data: structured as Json,
-      source_type: "user_input",
-      source_ref: "cv_review_results",
-      confidence: "verified",
-      user_confirmed: true,
-      refreshed_at: now,
-      last_seen_at: now,
-    })
-    .select("id")
-    .single();
   if (error) throw error;
-  return data.id;
+  const atomId = (data as { atom_id?: string } | null)?.atom_id;
+  if (!atomId) throw new Error("Kunne ikke opprette resultatet.");
+  return atomId;
 }
+
 
 export function invalidateReviewProgress(qc: QueryClient, userId: string): void {
   void qc.invalidateQueries({ queryKey: ["cv-review-progress", userId] });
