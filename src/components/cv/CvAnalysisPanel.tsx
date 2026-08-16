@@ -164,16 +164,6 @@ export function CvAnalysisPanel({ userId, importId, candidates, unresolvedCount 
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {unresolvedCount > 0 && (
-          <Alert>
-            <AlertTriangle className="h-4 w-4" aria-hidden />
-            <AlertTitle>Rett opp funnene først</AlertTitle>
-            <AlertDescription>
-              {unresolvedCount} funn er ikke gjennomgått ennå. Analysen blir bedre hvis du retter
-              feil i teksten før du starter.
-            </AlertDescription>
-          </Alert>
-        )}
 
         {tooLarge && (
           <Alert variant="destructive">
