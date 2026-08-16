@@ -244,9 +244,6 @@ export const Route = createFileRoute("/api/cv/generations")({
         }
 
         // Kontaktdata legges på jobben etter opprettelse — modellen ser dem aldri.
-        await supabaseAdmin.rpc("internal_ai_set_job_contact" as never, {} as never).catch?.(
-          () => undefined,
-        );
         await supabaseAdmin
           .from("cv_generation_jobs")
           .update({
