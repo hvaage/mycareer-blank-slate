@@ -552,17 +552,17 @@ export function AppSidebar() {
     </Sheet>
   );
 
-  // Only render desktop chrome on md+; mobile uses the drawer.
+  // Desktop-chrome styres kun av CSS-breakpointet (md), slik at den aldri kan
+  // falle bort i gråsonen der JS-bredden avrundes annerledes enn media query.
   return (
     <>
-      {!isMobile && (
-        <div className="hidden md:flex">
-          {desktopRail}
-          {desktopSubPanel}
-        </div>
-      )}
+      <div className="hidden md:flex">
+        {desktopRail}
+        {desktopSubPanel}
+      </div>
       {mobileDrawer}
     </>
+
   );
 }
 
