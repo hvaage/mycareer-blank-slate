@@ -9,7 +9,7 @@ import type { ExtractedClaim } from "../types.ts";
 
 // Beløp med valuta: "USD 45 mill.", "NOK 4,5 mrd.", "$45M"
 const CURRENCY_PATTERN =
-  /\b(NOK|USD|EUR|GBP|SEK|DKK|\$|€|£)\s*([\d.,\s]+?)\s*(mill\.?|millioner?|mrd\.?|milliarder?|k|tusen|M|B|bn)?\b/gi;
+  /\b(NOK|USD|EUR|GBP|SEK|DKK|\$|€|£)\s*([\d.,\s]+?)\s*(mill\.?|millioner?|millions?|mrd\.?|milliarder?|billions?|k|tusen|thousands?|M|B|bn)?\b/gi;
 
 // Prosent: "40 %", "40%", "40 prosent"
 const PERCENT_PATTERN = /\b([\d.,]+)\s*(?:%|prosent|percent)\b/gi;
