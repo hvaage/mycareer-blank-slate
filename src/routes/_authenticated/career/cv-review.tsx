@@ -5,11 +5,19 @@
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, HelpCircle, Loader2, Undo2, XCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { CvAnalysisPanel } from "@/components/cv/CvAnalysisPanel";
+import { CvReviewTimelineStep } from "@/components/cv/CvReviewTimelineStep";
+import { candidateSetSignature, roleFromAtom } from "@/lib/cv-review-timeline";
+import {
+  cvReviewProgressQuery,
+  invalidateReviewProgress,
+  syncReviewProgress,
+} from "@/lib/queries/cv-review-progress";
+
 import {
   ATOM_TYPE_CLASS,
   ATOM_TYPE_LABEL,
