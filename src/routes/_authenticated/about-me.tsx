@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -72,6 +72,9 @@ function AboutMePage() {
 
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate({ from: "/about-me" });
+  const search = useSearch({ from: "/_authenticated/about-me" });
+  const activeTab = (search.tab as string) || "kort_om_meg";
   const collapse = usePersistedCollapse("about-me:sections", true);
   const { data: p, isLoading } = useQuery({
     ...profileQuery(user?.id ?? ""),
@@ -189,7 +192,7 @@ function AboutMePage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="kort_om_meg" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => navigate({ search: { ...search, tab: v } })} className="w-full">
         <TabsList className="h-auto gap-1 p-1">
           <TabsTrigger value="kort_om_meg" className="gap-1.5 text-sm">
             <UserIcon className="h-4 w-4" /> Svarene dine
