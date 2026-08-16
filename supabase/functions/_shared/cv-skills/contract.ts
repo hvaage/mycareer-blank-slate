@@ -123,6 +123,25 @@ export function claimReviewActionsFor(status: EvidenceStatus): ClaimReviewAction
   return ["attest", "rewrite", "add_documentation", "remove"];
 }
 
+/**
+ * Intern merknad ved brukerbekreftelse. Vises bare i gjennomgangen —
+ * den skal aldri havne i den eksporterte CV-teksten.
+ */
+export const USER_ATTESTED_INTERNAL_NOTE =
+  "Bekreftet av deg. Oppgitt ekstern dokumentasjon er ikke tilgjengelig.";
+
+/** Hvordan en bekreftelse ble til. Kanalen er alltid brukerens egen handling. */
+export type AttestationProvenance = {
+  channel: "user_review_ui";
+  actor: "user";
+  /** Verifikasjonen påstanden hadde da brukeren bekreftet den. */
+  verificationAtAttestation: ClaimVerification | null;
+  /** Versjonsnummer for bekreftelsen av denne påstanden. */
+  claimVersion: number;
+  /** Dokumentversjonens outputHash da bekreftelsen ble gitt, om kjent. */
+  documentOutputHash: string | null;
+};
+
 /** Brukerens egen bekreftelse av en påstand. */
 export type UserAttestation = {
   claimId: string;
@@ -134,6 +153,27 @@ export type UserAttestation = {
   externalDocumentAvailable: boolean;
   /** False når teksten er endret etter bekreftelsen. Krever ny bekreftelse. */
   valid: boolean;
+  withdrawnAt: string | null;
+  invalidatedAt: string | null;
+  invalidatedReason: string | null;
+  provenance: AttestationProvenance;
+  /** Intern merknad. Aldri en del av eksportert tekst. */
+  internalNote: string;
+};
+
+/** Del av en påstand som mangler dekning i grunnlaget. */
+export type UnsupportedElement = {
+  /** Hva slags element: tall, dato, marked, geografi, sammenligning, annet. */
+  kind: "number" | "date" | "market" | "geography" | "comparison" | "causality" | "other";
+  text: string;
+  reason: string;
+};
+
+/** Registrert motstrid mellom påstand og grunnlag. */
+export type ClaimContradiction = {
+  text: string;
+  conflictingAtomIds: string[];
+  reason: string;
 };
 
 export type ClaimEvidence = {
@@ -147,6 +187,8 @@ export type ClaimEvidence = {
   supportingAtomIds: string[];
   availableActions: ClaimReviewAction[];
   userAttestation: UserAttestation | null;
+  unsupportedElements: UnsupportedElement[];
+  contradiction: ClaimContradiction | null;
 };
 
 export type DocumentEvidenceReport = {
@@ -156,6 +198,19 @@ export type DocumentEvidenceReport = {
   documentedCoverage: Record<EvidenceStatus, number> & { total: number };
   claims: ClaimEvidence[];
 };
+
+/**
+ * Endringer som gjør en tidligere bekreftelse ugyldig.
+ * Endres tall, dato, marked, geografi, årsakssammenheng eller styrken i en
+ * sammenligning, må brukeren bekrefte på nytt.
+ */
+export function attestationSurvivesRewrite(previousText: string, nextText: string): boolean {
+  const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
+  if (norm(previousText) === norm(nextText)) return true;
+  const facts = (t: string) =>
+    (norm(t).match(/\d[\d\s.,]*|størst|ledende|først|eneste|nest|alle|hele/g) ?? []).join("|");
+  return false && facts(previousText) === facts(nextText);
+}
 
 export function summarizeEvidence(
   documentId: string,
@@ -179,6 +234,7 @@ export function summarizeEvidence(
     claims,
   };
 }
+
 
 export type ClaimType = "hard" | "soft";
 
