@@ -77,13 +77,17 @@ supersedering av en allerede supersedert lenke; og sirkulær supersederingskjede
 reasons, maskinens opprinnelige forslag, snapshot ved overstyring). Relasjonen
 selv ligger i tabellen over.
 
-### `career_atoms.evidence_atom_ids` i dag — ingen speilingstrigger nå
+### `career_atoms.evidence_atom_ids` — kompatibilitetsprojeksjon, ingen generell trigger
 
-- **Innhold i dag**: `uuid[] not null default '{}'`, tenkt som pekere fra en indirekte klasse (kompetanse/eksponering) til atomene som belegger den. I databasen nå: 9 atomer (5 roller, 1 resultat, 3 kvalifikasjoner), **null referanser totalt** og null `parent_atom_id`. Feltet er altså i praksis ubrukt, men leses av `dashboard-status.ts`, `career-atoms.ts`, `career_atom_delete_impact`/`career_atom_delete` (som fjerner fjernede atomer fra arrayet og nedgraderer atomer som mister sitt siste belegg) og av CHECK-regelen «kompetanse med `confidence='verified'` krever minst én oppføring».
-- **Hva som eventuelt skal speiles**: kun `belegges_av` og `avledet_av` med `status='aktiv'` og `superseded_at is null`. `oppnadd_i` (resultat → rolle) speiles aldri — den hører til `parent_atom_id`-aksen, ikke til evidenspekere.
+Én beslutning: `career_atom_links` er den kanoniske relasjonen, og
+`evidence_atom_ids` er en kompatibilitetsprojeksjon som holdes i synk.
+
+- **Innhold i dag**: `uuid[] not null default '{}'`, pekere fra en indirekte klasse (kompetanse/eksponering) til atomene som belegger den. I databasen nå: 9 atomer (5 roller, 1 resultat, 3 kvalifikasjoner), **null referanser totalt** og null `parent_atom_id`. Feltet leses av `dashboard-status.ts`, `career-atoms.ts`, `career_atom_delete_impact`/`career_atom_delete` og av CHECK-regelen «kompetanse med `confidence='verified'` krever minst én oppføring».
+- **Hva som projiseres**: kun `belegges_av` og `avledet_av` med `status='aktiv'` og `superseded_at is null`. `oppnadd_i` projiseres aldri — den hører til `parent_atom_id`-aksen.
+- **Hvordan**: projeksjonen oppdateres atomisk inne i de samme kontrollerte RPC-ene som oppretter, bekrefter, avviser eller supersederer en lenke — ingen generell trigger, ingen blind overskriving av hele arrayet. RPC-en legger til og fjerner kun de id-ene som eies av lenketabellen for det atomet, og lar øvrige referanser stå urørt.
 - **Backfill**: ingen. Det finnes ingen eksisterende arrays å migrere.
-- **Bevaring av referanser**: en fremtidig trigger skal kun legge til og fjerne de id-ene som stammer fra koblingstabellen, aldri skrive hele arrayet på nytt og aldri nullstille id-er som ikke har en tilsvarende lenke.
-- **Beslutning i denne fasen**: ingen trigger. Koblingstabellen er kilden, og `evidence_atom_ids` skrives fortsatt bare av dagens eksplisitte flyt. Speiling vurderes som et eget, dokumentert steg når lenker faktisk finnes i drift.
+- **Sletting/arkivering**: `career_atom_delete` og `career_atom_delete_impact` oppdateres mot samme modell og testes med (a) aktiv `belegges_av`-lenke, (b) aktiv `oppnadd_i`-lenke, (c) supersedert lenke. Testene skal vise at atomet arkiveres (`is_active=false`), at lenkehistorikken bevares, at `on delete restrict` ikke gir feil, at projeksjonen oppdateres for de arkiverte atomene, og at delete-impact fortsatt rapporterer riktig konsekvens.
+
 
 
 ## 3. Resultatplassering
