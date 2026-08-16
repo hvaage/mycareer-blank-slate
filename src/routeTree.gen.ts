@@ -55,6 +55,7 @@ import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/s
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
+import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
 import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
@@ -332,6 +333,12 @@ const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
   path: '/api/public/ingest-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedKarriereErfaringRoute =
+  AuthenticatedKarriereErfaringRouteImport.update({
+    id: '/karriere/erfaring',
+    path: '/karriere/erfaring',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInnstillingerKontoRoute =
   AuthenticatedInnstillingerKontoRouteImport.update({
     id: '/innstillinger/konto',
@@ -541,6 +548,7 @@ export interface FileRoutesByFullPath {
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
+  '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -612,6 +620,7 @@ export interface FileRoutesByTo {
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
+  '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -688,6 +697,7 @@ export interface FileRoutesById {
   '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
+  '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -764,6 +774,7 @@ export interface FileRouteTypes {
     | '/employers/$companyId'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
+    | '/karriere/erfaring'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -835,6 +846,7 @@ export interface FileRouteTypes {
     | '/employers/$companyId'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
+    | '/karriere/erfaring'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -910,6 +922,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employers/$companyId'
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
+    | '/_authenticated/karriere/erfaring'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -1286,6 +1299,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicIngestReportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/karriere/erfaring': {
+      id: '/_authenticated/karriere/erfaring'
+      path: '/karriere/erfaring'
+      fullPath: '/karriere/erfaring'
+      preLoaderRoute: typeof AuthenticatedKarriereErfaringRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/innstillinger/konto': {
       id: '/_authenticated/innstillinger/konto'
       path: '/innstillinger/konto'
@@ -1508,6 +1528,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedEmployersCompanyIdRoute: typeof AuthenticatedEmployersCompanyIdRoute
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
+  AuthenticatedKarriereErfaringRoute: typeof AuthenticatedKarriereErfaringRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedApplicationsIndexRoute: typeof AuthenticatedApplicationsIndexRoute
   AuthenticatedCvBuilderIndexRoute: typeof AuthenticatedCvBuilderIndexRoute
@@ -1555,6 +1576,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInnstillingerIntegrasjonerRoute:
     AuthenticatedInnstillingerIntegrasjonerRoute,
   AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
+  AuthenticatedKarriereErfaringRoute: AuthenticatedKarriereErfaringRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedApplicationsIndexRoute: AuthenticatedApplicationsIndexRoute,
   AuthenticatedCvBuilderIndexRoute: AuthenticatedCvBuilderIndexRoute,

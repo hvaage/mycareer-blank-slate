@@ -64,10 +64,11 @@ const primaryGroups: GroupNode[] = [
     icon: BookOpen,
     items: [
       { label: "Om meg", to: "/about-me" },
+      { label: "Erfaring og kompetanse", to: "/karriere/erfaring" },
       { label: "Karriereprofil", to: "/preferences" },
       { label: "AI-forslag", to: "/career/atom-review" },
     ],
-    matchPrefixes: ["/about-me", "/preferences", "/career"],
+    matchPrefixes: ["/about-me", "/preferences", "/career", "/karriere"],
   },
   {
     id: "market",
