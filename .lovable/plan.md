@@ -1,113 +1,78 @@
-# Ny informasjonsarkitektur og grunnlagsoversikt
+# Profilsidene: duplisering, internt vokabular og tall uten grunnlag
 
-Prosjektreferanse bekreftes i hver delrapport: **miwzhbludgwvskmsfqnq**.
+## Kartleggingsrapport (målt i koden nå, ingenting endret)
 
-Ren frontend og navigasjon. Ingen skjemaendringer. Leveres i syv trinn med rapport mellom hvert.
+### Hvor skrives feltene
 
-## Ny menystruktur
+| Opplysning | Om meg skriver til | Karriereprofil skriver til |
+|---|---|---|
+| År med erfaring | `profiles.years_experience` | `user_career_profiles.years_experience` |
+| Ønskede bransjer | `profiles.target_industries` | `user_career_profiles.desired_industries` |
+| Ønskede roller | `profiles.target_roles` | `user_career_profiles.desired_role_types` |
+| Senioritet | `profiles.target_seniority` | `user_career_profiles.leadership_level` |
+| Arbeidsform | `profiles.work_types` | `user_career_profiles.preferred_work_styles` + `remote_preference` + `travel_preference` |
+| Lønn min/maks | `profiles.salary_expectation_min/max` | `user_career_profiles.salary_expectation_min/max` |
+| Steder | `profiles.preferred_locations` (+ `target_city`, `target_region`) | `user_career_profiles.preferred_locations` |
+| Motivasjon | (ingen) | sju skalaer i `user_career_profiles` |
 
-```text
-Hjem
-Min karriere
-  Oversikt
-  Erfaring og kompetanse
-  Karriereprofil
-  Mål og utvikling        (kun tom tilstand inntil fase 3)
-  Dokumentasjon
-  Til gjennomgang (n)
-Marked
-Jobber
-Søknader
-Nettverk                  (kommer senere)
---
-Innstillinger
-  Integrasjoner
-  Konto
-Admin                     (kun admin)
-```
+### Hva matching faktisk leser
 
-Arkiv utgår som toppnivå. Om meg utgår som samleside.
+Fra `score-pending-opportunities` (v3, `loadProfileAndEvidence`):
 
-## Trinn 1 — Integrasjoner og Konto til Innstillinger
+- **Roller:** union av `profiles.target_roles` + `profiles.target_role` + `user_career_profiles.desired_role_types`. Begge sider teller. To motstridende svar blir ikke valgt mellom — de slås sammen, så «CCO, COO, Daglig leder» og «Utvikling/tech, Produkt» søkes begge.
+- **Steder:** union av begge `preferred_locations`.
+- **Bransjer:** union av `profiles.target_industries` + `desired_industries`.
+- **År med erfaring:** `profiles.years_experience` først, `user_career_profiles` bare som fallback. Karriereprofilens 40 leses aldri når Om meg har 30.
+- **Senioritet:** `profiles.target_seniority` først, `leadership_level` som fallback.
+- **Hardfilter:** kun `profiles`-felter (`target_city`, `target_region`, `willing_to_relocate`, `preferred_work_extents`, `preferred_engagement_types`).
+- **Leses ikke av noe:** lønnsforventning (begge steder), `preferred_company_sizes`, `travel_preference`, `remote_preference`, `preferred_work_styles`, `primary_industry`, alle sju motivasjonsskalaer.
 
-Nytt sidebar-punkt Innstillinger nederst med Integrasjoner (eksisterende side) og Konto (kontofanene som i dag ligger under Om meg: varsling, passord, sletting). Om meg mister disse fanene. Gamle stier beholdes som redirect.
+Konklusjon: `profiles` er tabellen matching hviler på. `user_career_profiles` bidrar bare med støy i unionene, og resten av kolonnene der er ubrukte.
 
-## Trinn 2 — Én dokumentasjonsflate, arbeidsgiveranalyser til Marked
+### Hva de manuelle skjemaene skriver til
 
-Først en koblingsrapport, før noe filtreres bort: `public.documents` har `company_name` (fritekst) og `application_id`, men ingen `company_id`-nøkkel mot `companies`. Koblingen er altså navnebasert og potensielt svak. Trinnet starter derfor med å liste de ni analysedokumentene og vise, per dokument, om navnet treffer et selskap entydig og om det finnes en søknadskobling. Dokumenter uten sikker kobling blir stående i dokumentlisten under en egen gruppe «Arbeidsgiveranalyser», slik at ingenting forsvinner uten å dukke opp et annet sted.
+Begge «Legg til for hånd»-skjemaene skriver til **`career_atoms`** (v4), ikke til de droppede tabellene — de feiler altså ikke. Men formen er v3:
 
-Min dokumentasjon og Dokumenter slås til én side «Dokumentasjon» under Min karriere: filer, bibliotek, pakker. Case og resultater utgår som fane.
+- «Dimensjon» + «Viktighet 1–6» → `atom_kind = 'onske'`, `viktighet`. Riktig i v4.
+- «Kategori» + «Styrke 1–6» → `atom_kind = 'evidens'`, og styrken skrives til `viktighet`. **Evidens har ingen styrke i v4** — feltet er feilaktig og skal ut.
+- Evidens-skjemaet krever allerede peker for kompetanse/eksponering, og kaster forklarende feil når peker mangler. Det beholdes.
 
-Arbeidsgiveranalyser med sikker kobling lenkes fra selskapets side under Marked (og fra søknaden de ble laget for). Generell CV vises under Min karriere; stillingstilpasset CV og søknadsbrev vises på den enkelte søknaden.
+## Endringene
 
+### 1. Fjern internt vokabular og tomme seksjoner
 
-## Trinn 3 — Én opplasting, analyse som handling
+- Seksjonen «Match-dimensjoner (forberedelse)» / «Modul 3 (MVP)» / «Lagre utkast til match_assessments» / «White-space» / «Konfidens» fjernes fra Karriereprofil i sin helhet (`PreferencesMatchIntelligenceSection` tas ut av siden).
+- «Preferanse-atomer» → «Dette er viktig for deg». «Evidens-atomer» → «Dette kan du dokumentere». (Overskriftene finnes allerede; det er brødtekst, tomtilstander og toast-meldinger som fortsatt sier «atom».)
+- «Profilberedskap (lokal)» → «Hvor komplett er profilen din».
+- Ingressen «dataene lagres strukturert for neste moduler» og «full vekting i scoring kommer senere» erstattes med én linje per seksjon om hva svaret gir brukeren.
 
-Opplasting skjer kun under Dokumentasjon. Hver fil får radhandlinger: «Analyser til karrieredata», «Koble til utdanning/rolle», last ned, slett. Analysen starter samme flyt som i dag (import → kandidater → gjennomgang).
+### 2. Fjern tall uten grunnlag
 
-Karriereoversikt-fanen slutter å ta imot filer og peker til Dokumentasjon. Begge gule advarsler fjernes.
+- Beredskapsprosenten vises ikke når brukeren har null registrerte erfaringer/ønsker. I stedet: liste over hva som mangler, i kjedens rekkefølge, med lenke til CV-opplasting.
+- Når grunnlaget finnes, teller ikke utfylte skjemafelter alene mot fullstendighet: uten minst én rolle og ett ønske stanser skalaen på «påbegynt».
 
-## Trinn 4 — Til gjennomgang som kø
+### 3. Rett de manuelle skjemaene til v4
 
-AI-forslag døpes om til «Til gjennomgang» med teller i menyen. Køen samler: CV-kandidater, regelbaserte forslag, spørsmål om kompetanse uten belegg, ønsker eldre enn 12 måneder, mål som har passert frist, begrensninger nær valid_to. Én liste med filter per type, én avgjørelse per element.
+- «Styrke 1–6» fjernes fra evidensskjemaet, og `strength_score` slutter å skrives.
+- «Viktighet 1–6» beholdes for ønsker, med kort forklaring på hva den brukes til.
+- Visningen av «Styrke: x/6» på evidenslinjer fjernes.
 
-## Trinn 5 — Grunnlagsoversikten, delt i tre leveranser
+### 4. Løs dupliseringen — én opplysning, ett sted
 
-### 5a Visning (ingen handlinger)
+Eier = tabellen matching leser, altså `profiles`, redigert fra Om meg. Karriereprofil eier bare det som er unikt for den: karrierestadium og motivasjonsskalaene (de som beholdes).
 
-Ny side «Erfaring og kompetanse» som viser alt av kind `evidens` i rekkefølgen roller → resultater → kompetanse → kvalifikasjoner → eksponering → verktøy.
+- Karriereprofil slutter å skrive `years_experience`, `desired_role_types`, `desired_industries`, `leadership_level`, `preferred_locations`, `salary_expectation_min/max`, `preferred_work_styles`. Feltene vises som lesbar oppsummering med «Endre i Om meg».
+- Ubrukte felter uten leser fjernes fra skjemaet: `preferred_company_sizes`, `travel_preference`, `remote_preference`, `primary_industry`.
+- **Konfliktløser:** der de to tabellene har ulike verdier, vises begge side om side med kilde, og brukeren velger én. Valget skrives til `profiles`, og den tilsvarende kolonnen i `user_career_profiles` tømmes, slik at unionen i matching slutter å blande. Ingen automatisk sammenslåing.
+- Konfliktløseren vises bare når det finnes konflikt, og forsvinner når alle er avgjort.
 
-Hierarkisk visning per rolle med nestede resultater, kompetanse som hviler på rollen (med antall resultater som belegger den), og avledet eksponering. Kvalifikasjoner og verktøy i egne grupper under.
+### 5. Måling
 
-Per element vises: manglende belegg, attestasjon (selvrapportert / dokumentert / bekreftet av leder / bekreftet av tredjepart), ikke bekreftet, kilde (importert fra CV, lagt inn manuelt, foreslått og godkjent). Utdatert vises kun for ønske, verdi og mål, aldri for evidens.
-
-5a leveres og rapporteres alene. Brukeren kan se hele grunnlaget selv om han ennå ikke kan endre det.
-
-### 5b Redigering, sletting med konsekvensoppslag, bekreftelse
-
-Konsekvensoppslaget bygges som én databasefunksjon — rekursiv traversering i basen, ikke logikk spredt i frontend, slik at svaret blir det samme uansett hvor slettingen starter. Signaturen foreslås og godkjennes før 5b bygges:
-
-```text
-public.career_atom_delete_impact(_atom_id uuid)
-  returns jsonb
-
-{
-  "atom": { "id", "atom_type", "content_no" },
-  "children":            [ { id, atom_type, content_no } ],   -- rekursivt, parent_atom_id
-  "derived_exposure":    [ { id, content_no } ],              -- eksponering under rollen
-  "skills_losing_only_evidence": [ { id, content_no } ],      -- eneste belegg forsvinner
-  "skills_losing_some_evidence": [ { id, content_no, remaining } ],
-  "counts": { "children": n, "derived_exposure": n, "skills_orphaned": n }
-}
-```
-
-Dette er den ene unntaksendringen i basen (en `SECURITY DEFINER`-lesefunksjon med `auth.uid()`-sjekk og GRANT til `authenticated`). Ingen tabell- eller kolonneendringer.
-
-Handlinger per element: rediger, slett, bekreft, koble dokumentasjon. Sletting viser alltid dialogen med funksjonens svar før den utføres. Redigering av et bekreftet atom varsler før lagring at confidence faller tilbake fra verified.
-
-### 5c Manuell registrering
-
-«Legg til nytt» per gruppe, med ontologireglene innebygd i skjemaet, ikke som avvisning etterpå: kompetanse krever peker til minst ett resultat eller én rolle, med forklaring i feltet; eksponering kan ikke opprettes fritt, brukeren må velge rollen den kom fra.
-
-### Karriereprofil og Mål
-
-Karriereprofil får samme mønster for ønske, verdi og begrensning, gruppert med viktighet og gyldighet, der begrensninger tydelig merkes som filtrerende. «Kort om meg» flyttes hit som en egen, øverste seksjon med eget kort og egen overskrift — over preferansegruppene, ikke som et felt blant dem — fordi teksten brukes i CV-generering og må være lett å finne og redigere.
-
-Mål og utvikling får kun en tom tilstand som forklarer hva som kommer.
-
-
-## Trinn 6 — Oversikt
-
-Min karriere → Oversikt svarer på «hvor komplett er grunnlaget mitt?»: antall elementer per slag, kompetanser uten belegg, dekningsgrad for attestasjon, antall i gjennomgangskøen, hva som er utdatert. Hvert tall er en lenke til stedet det rettes.
-
-## Trinn 7 — Navneendringer og opprydding
-
-Karriereoversikt → Erfaring og kompetanse. Kort om meg inn i Karriereprofil. AI-forslag → Til gjennomgang. Søknad → Søknader. Om meg og Arkiv fjernes fra menyen; gamle ruter redirecter til nye.
+Rapporteres etter, for Karriereprofil og Om meg: antall felter før/etter, antall skjermbilder ved 1440 px, antall dupliserte felter, antall forklaringer som beskrev systemet.
 
 ## Teknisk
 
-- Sidebar-grupper i `src/components/app-sidebar.tsx` skrives om til strukturen over; teller for gjennomgang hentes med en egen tellespørring.
-- Nye ruter under `src/routes/_authenticated/`: `karriere.index`, `karriere.erfaring`, `karriere.profil`, `karriere.mal`, `karriere.dokumentasjon`, `karriere.gjennomgang`, `innstillinger.*`. Eksisterende ruter (`about-me`, `preferences`, `career/atom-review`, `documentation/*`, `documents/*`, `integrations`) beholdes som tynne redirects for å bevare lenker.
-- Innhold gjenbrukes fra dagens `about-me.tsx`, `preferences.tsx`, `career/atom-review.tsx`, `documentation/*` og `documents/*` ved å flytte seksjonene til komponenter, ikke skrive dem på nytt.
-- Lesing og skriving går gjennom `src/lib/queries/career-atoms.ts`, `cv-parse-candidates.ts`, `atom-enrichment.ts`, `documentation.ts`. Ingen migrasjoner; attestasjon, klasse og confidence leses som de er.
-- Sletting og redigering bruker eksisterende mutasjoner, men kaller `career_atom_delete_impact` først og viser svaret i bekreftelsesdialogen. Rapport etter hvert av 5a, 5b og 5c.
+- Frontend: `src/routes/_authenticated/preferences.tsx`, `src/routes/_authenticated/about-me.tsx`, `src/components/career/PreferencesAtomsSection.tsx`, `src/lib/career-profile-completeness.ts`.
+- `PreferencesMatchIntelligenceSection.tsx` og tilhørende `whitespace-analysis` / `should-apply`-bruk fjernes fra siden (filene beholdes urørt inntil de eventuelt ryddes senere).
+- Konfliktløseren skriver `profiles` og nullstiller de duplikate `user_career_profiles`-kolonnene per bruker. Ingen migrasjon, ingen endring i matching-koden — unionen blir riktig av seg selv når den ene siden er tom.
+- Layouttillegget (seksjonsmeny, kolonner, kollaps, tetthet) kommer etter dette, som avtalt.
