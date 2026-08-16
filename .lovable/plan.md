@@ -30,61 +30,102 @@ Dagens innhold: 5 `role`, 1 `achievement`, 1 `education`, 2 `language` — alle 
 ### Kan gjøres uten migrasjon
 Import av skillkode, felles Claude-klient, deterministiske validatorer (quality, ATS-format/GDPR, hard-claim-matching, keyword coverage), all bruk av `atom_enrichment_*`, og all lagring på eksisterende `documents`-kolonner.
 
-## 2. Fil-for-fil importplan
+## 2. Fil-for-fil importplan (leverandørkode, ingen sammenslåing)
 
-Til `supabase/functions/_shared/cv-skills/<skill>/` med `VERSION.ts` (skill-versjon + skjemaversjon) per katalog:
+Skillpakkene importeres uendret som versjonert leverandørkode til `supabase/functions/_shared/cv-skills/<skill>/`, med `VERSION.ts` per katalog. De redigeres ikke under import. Eksisterende `_shared/cv-evidence-graph/` (v4-runtime) forblir kanonisk domenemodell og røres ikke.
 
 - `cv-atom-language-no/` (v1.0.0): `types.ts`, `normalizer.ts`, `prompt.ts`.
-- `cv-evidence-graph/` (v2.0.0, skjema 1.1): `types.ts`, `validators.ts`, `deduplicate.ts`, `proposals.ts`, `crud.ts`, `converters/*`. Slås sammen med eksisterende `_shared/cv-evidence-graph/` — v4-felter og `name-lexicon.ts` beholdes, gammel katalog erstattes av re-eksport så eksisterende funksjoner ikke brekker.
+- `cv-evidence-graph/` (v2.0.0, skjema 1.1): kun **rene** moduler — `types.ts`, `validators.ts`, `deduplicate.ts`, `proposals.ts`, `converters/*`. **`crud.ts` importeres ikke**; skillens generiske CRUD mot `cv_evidence_atoms` skal aldri kunne kjøre.
 - `cv-quality-no/` (v2.0.0): `quality.ts`, `rewrite-validator.ts`, `types.ts`, `checks/*` (6 filer).
 - `cv-hallucination-guard/` (v2.0.0): `guard.ts`, `llm-judge.ts`, `types.ts`, `extractors/*` (4), `matchers/*` (2).
 - `cv-ats-rules-no/` (v2.0.0): `ats-rules.ts`, `keyword-coverage.ts`, `types.ts`, `validators/*` (4).
 
-I tillegg: `_shared/cv-skills/adapters/career-atom-adapter.ts` (career_atoms ⇄ skillens atomtype), `_shared/cv-skills/index.ts` som eneste kanoniske eksportflate. `SKILL.md` og `references/` legges i `docs/cv-skills/<skill>/` som dokumentasjon, aldri i prompten. Frontend importerer DTO-typer fra én generert kontraktfil (`src/lib/cv-skills-contract.ts`), ingen duplisering.
+Adapterlag `_shared/cv-skills/adapters/career-atom-adapter.ts` er eneste sted som oversetter mellom `career_atoms` og skillenes typer. Alle skriveoperasjoner går gjennom eksisterende v4 apply-/review-funksjoner (`atom_enrichment_proposals`-flyten, `career_atom_delete`, promotering fra `cv_parse_candidates`) — aldri gjennom skillkode. `SKILL.md` og `references/` legges i `docs/cv-skills/<skill>/`; de sendes aldri i prompten. Frontend importerer DTO-er fra én kontraktfil (`src/lib/cv-skills-contract.ts`).
 
 ## 3. Pipeline
 
-**Inntak:** parser → `cv-atom-language-no` (Claude, `NORMALIZATION_SYSTEM_PROMPT_NO`) → `validateNormalizationBatch()` → `cv-evidence-graph` validering/dedup → forslag i `atom_enrichment_proposals` → brukerreview → varig `career_atoms` med `confidence = verified`. Låste/bekreftede atoms endres aldri av AI.
+### Inntak og atomisering
+parser → `cv-atom-language-no` (Claude, `NORMALIZATION_SYSTEM_PROMPT_NO`) → `validateNormalizationBatch()` → skillens validering/dedup → forslag i `atom_enrichment_proposals` → brukerreview → apply via v4-funksjon.
 
-**Generell CV:** hent verified atoms → frys `atom_snapshot` på dokumentversjon → `cv_general_generation` (blokker med supporting atom-id-er) → `checkQuality()` → evt. `cv_quality_rewrite` → `validateRewriteResponse()` → guard på endelig tekst → `validateCvDraft()` (ATS/GDPR) → render.
+Regler ved apply:
+- Direkte brukerbekreftede fakta (rolle, resultat, kvalifikasjon) kan få `confidence = verified` og `user_confirmed = true`.
+- Importgodkjenning følger v4-tabellens eksisterende tilstandsmaskin (`state`, `mangel_state`), ikke en egen AI-regel.
+- Kompetanse og eksponering lagres som **avledet** metadata med `evidence_atom_ids` mot rolle/resultat, aldri som selvstendig faktagrunnlag.
+- `atom_class` og `attestation` settes av databasen. Edge Function og frontend skriver dem aldri.
+- `user_locked` og `user_confirmed` atoms overskrives aldri av AI eller import.
 
-**Tilpasset CV:** verified atoms + krav-atoms fra `opportunity_requirement_atoms` → `evaluateKeywordCoverage()` før generering (exact/normalized/semantic_alias/unsupported) → utvalg og rangering → frys atom- og kravsnapshot → `cv_tailored_generation` → quality → rewrite-validering → guard → ATS format + endelig dekning → render. Unsupported krav vises som gap, skrives aldri inn.
+### Kanonisk eligibility-funksjon
+Én funksjon `eligibleAtomsForGeneration(user_id, { mode, opportunity_id })` er eneste kilde til hvilke atoms som kan brukes. Den krever `is_active = true`, godkjent `state`, `confidence = verified`, gyldig `attestation`, `user_confirmed = true`, ikke utløpt `stale_at`, akseptabelt `mangel_state`, og filtrerer på `target_position_id`: målspesifikke atoms kan aldri lekke inn i generell CV. `imported` og `inferred` blir aldri faktagrunnlag. Avledet kompetanse kan brukes til utvalg og rangering, men i teksten er det rolle-/resultat-atomene den er avledet fra som er supporting evidence.
 
-Rewrite som endrer tekst ugyldiggjør guard-resultatet; guard kjøres på nytt. Hvert steg returnerer `ok | needs_review | blocked_validation | blocked_guard | provider_error | timeout`, og siste fullførte steg lagres slik at kjøringen kan gjenopptas uten duplikater.
+### Blokk- og claimkontrakt
+Generering returnerer blokker, ikke fritekst:
+
+```text
+blockId, section, text, supportingAtomIds[], requirementAtomIds[], claimIds[], sourceSnapshotHash
+```
+
+Én blokk = én punktlinje eller én sammenhengende claim. Hele dokumentets tekst har en `outputHash`. Quality-, guard- og ATS-resultater lagres alltid med den `outputHash` de ble kjørt på; enhver senere endring — også manuell brukerredigering — ugyldiggjør alle kontroller og krever ny kjøring.
+
+### Generell CV
+eligible atoms → frys atom-snapshot i samme transaksjon som ny dokumentversjon → `cv_general_generation` → `checkQuality()` → evt. `cv_quality_rewrite` → `validateRewriteResponse()` → guard på endelig tekst → `validateCvDraft()` (ATS/GDPR) → render av godkjent versjon.
+
+### Tilpasset CV
+eligible atoms + krav-atoms fra `opportunity_requirement_atoms` → `evaluateKeywordCoverage()` før generering (exact / normalized / semantic_alias / unsupported) → utvalg og rangering → frys atom- og kravsnapshot → `cv_tailored_generation` → quality → rewrite-validering → guard → ATS-format + endelig dekning → render. Unsupported krav vises som gap og skrives aldri inn.
+
+Hvert steg returnerer `ok | needs_review | blocked_validation | blocked_guard | provider_error | timeout`.
+
+### Immutable dokumentversjoner
+Ny generering eller rewrite oppretter alltid **ny** dokumentversjon. Godkjente og tidligere versjoner endres aldri. Atom- og kravsnapshot fryses i samme transaksjon som versjonen. `ai_model_runs` får FK til dokumentversjonen, ikke bare en id-liste på dokumentet. Unik constraint på (dokumentrot, versjonsnummer).
 
 ## 4. Claude-klient, secrets og modellprofil
 
-`_shared/claude/client.ts`: pinnet SDK, secret `ANTHROPIC_API_KEY`, eksplisitt `ANTHROPIC_API_VERSION`, valgfri `ANTHROPIC_API_BASE_URL` med Anthropic som standard, timeout, maxtokens, retry kun ved 429/5xx/nettverk med eksponentiell backoff, ingen modellfallback, logging av request-id, tokens, cache, responstid, status. Modell-id hentes alltid fra godkjent server-side profil. Rå CV-tekst logges aldri.
+`_shared/claude/client.ts`: pinnet Anthropic SDK med lockfile, secret `ANTHROPIC_API_KEY`, eksplisitt `ANTHROPIC_API_VERSION` logget per kjøring. **Ingen fri base-URL** — endepunktet er låst til Anthropics offisielle API. Timeout, maks tokens, retry kun ved transient 429/5xx/nettverk med eksponentiell backoff, ingen modellfallback, logging av request-id, tokens, cache, responstid og status. Rå CV-tekst logges aldri. Modell-id kommer alltid fra godkjent server-side profil.
 
-Nye tabeller: `ai_model_profiles` (task_key, model_id, status candidate/production/disabled, prompt_version, max_tokens, temperature, request_options, valid_from/to, created_by) med unik production per task, `ai_model_runs` (bruker, correlation-id, task, modell, promptversjon, input/output-hash, document/proposal/snapshot-id-er, tider, tokens, kostnad, prisversjon, retries, feiltype, validator/guard-resultat), `ai_model_profile_audit` (promotion/rollback).
+`request_options` valideres mot modellens capabilities før kall: parametere modellen ikke støtter (blant annet `temperature` på Sonnet 5-generasjonen) utelates i stedet for å sendes og feile.
 
-Task keys som spesifisert (syv). Deterministiske validatorer får ingen profil.
+Nye interne tabeller: `ai_model_profiles` (task_key, model_id, status, prompt_version, max_tokens, request_options, valid_from/to, created_by) med unik production-profil per task, `ai_model_runs`, `ai_model_profile_audit`, `ai_model_pricing` (input-, output- og cachepris per modell med gyldighetsperiode). Hver kjøring lagrer et immutable `pricing_snapshot`; faktiske tokenverdier lagres alltid, også når kostnaden ikke kunne beregnes.
+
+Task keys som spesifisert (syv). Deterministiske validatorer får ingen modellprofil.
 
 ## 5. Evaluering
 
-`ai_eval_cases`, `ai_eval_runs`, `ai_eval_jobs` (én modell × én case per jobb, pending/running/succeeded/failed, tidsbudsjett, reaper for stale running), `ai_eval_scores`. Admin-only Edge Functions + admin-side under `/admin`. Startkandidater verifiseres mot Anthropic Models API før bruk: `claude-haiku-4-5-20251001`, `claude-sonnet-5`, `claude-opus-5`, valgfritt `claude-fable-5`. Modelliste oppdaterbar uten kodeendring. Evalsettet dekker de oppgitte norske semantikk-, eierskap-, tall-, dedup-, guard- og ATS-tilfellene. Måltall per task: schemavaliditet, sporbarhet, nye/tapte claims, eierskap, dedupepresisjon, guard FP/FN, ATS-dekning, tid, tokens, kostnad, blindvurdering. Promotion krever eksplisitt adminhandling med auditlogg og rollback; billigst er aldri tilstrekkelig grunn.
+`ai_eval_cases`, `ai_eval_jobs` (én modell × én case per jobb: pending/running/succeeded/failed, tidsbudsjett, reaper for stale running), `ai_eval_runs`, `ai_eval_scores`. Admin-only Edge Functions og adminflate. Startkandidater (verifiseres mot Models API ved implementering): `claude-haiku-4-5-20251001`, `claude-sonnet-5`, `claude-opus-5`, valgfritt `claude-fable-5`. Modellisten er data, ikke kode. Evalsettet dekker de oppgitte norske semantikk-, eierskaps-, tall-, dedup-, guard- og ATS-tilfellene. Måltall per task: schemavaliditet, sporbarhet, nye/tapte claims, eierskap, dedupepresisjon, guard FP/FN, ATS-dekning, tid, tokens, kostnad, blindvurdering. Promotion er eksplisitt adminhandling med auditlogg og rollback; lav pris er aldri tilstrekkelig grunn.
 
-## 6. Migrasjoner og RLS
+## 6. Migrasjoner, RLS og jobbkjøring
 
-Alle additive:
-1. `ai_model_profiles`, `ai_model_profile_audit` — ingen Data API-tilgang for vanlige brukere; kun `service_role` + admin via Edge Function.
-2. `ai_model_runs` — eier kan lese egne rader; admin via `has_role`.
-3. `ai_eval_*` — admin-only.
-4. `documents`: legg til `document_kind` (general/tailored), `opportunity_id`, `requirement_ids`, `requirement_snapshot`, `ats_format_result`, `ats_relevance_result`, `model_run_ids`, `skill_versions`, `prompt_versions`, `approved_at` (kun det som mangler).
-5. `cv_generation_jobs` for asynkron pipeline med steg-status og gjenopptak.
-Alle nye brukertabeller: GRANT etter CREATE, RLS på, eierskapspredikat, UPDATE med både USING og WITH CHECK, adminpolicy via eksisterende `user_roles`/`has_role` — aldri `raw_user_meta_data`.
+Interne tabeller (`ai_model_profiles`, `ai_model_runs`, `ai_model_profile_audit`, `ai_model_pricing`, `ai_eval_*`) legges i et **ikke-eksponert `ai`-schema** uten Data API-tilgang. Ingen `anon`/`authenticated`-grants; frontend leser bare sanitert status og resultat gjennom Edge Functions. Brukerdata som frontend faktisk må lese direkte beholdes i `public` med RLS, eierskapspredikat og UPDATE-policy med både `USING` og `WITH CHECK`. Adminpolicy bygger på `user_roles`/`has_role`, som først inspiseres for `SECURITY DEFINER`, låst `search_path` og korrekte EXECUTE-rettigheter. Service-klient brukes kun etter at Edge Function har autorisert brukeren. Alle eier-, status- og FK-kolonner som RLS og jobbkøen bruker, indekseres.
+
+`documents` utvides additivt med kun det som mangler: `document_kind` (general/tailored), `opportunity_id`, `requirement_ids`, `requirement_snapshot`, `ats_format_result`, `ats_relevance_result`, `output_hash`, `skill_versions`, `prompt_versions`, `approved_at`, samt unik constraint på (dokumentrot, versjon).
+
+`cv_generation_jobs`: `idempotency_key`, `input_hash`, `last_completed_step`, `attempt_count`, `available_at`, `locked_at`, `lease_expires_at`, heartbeat, reaper for stale running, løpende tellere, eksplisitt tidsbudsjett og unik constraint mot duplikatgenerering. **Ett modellsteg per invokasjon**; frontend poller status og holder aldri én request åpen gjennom flere Claude-kall.
 
 ## 7. Frontend
 
-`/cv-builder` erstatter stubben: valg mellom generell og tilpasset CV, framdrift mot jobbstatus (polling), visning av brukte godkjente erfaringer, atoms som trenger review, språkforslag, faktasjekk-status, ATS-status, versjon og eksport. Tilpasset variant krever valgt stilling og viser støttede, delvis støttede og unsupported krav samt hvilke formuleringer som ble tilpasset. Ingen modell- eller leverandørnavn i brukerflaten — kun «AI-analyse», «AI-forslag», «faktasjekk». Review-koblinger inn i eksisterende `career/atom-review.tsx` og `career/cv-review.tsx`. Adminflate under `/admin` viser modell-id, promptversjon, tokens, kostnad, tid og evalresultater.
+Første versjon av `/cv-builder` er en evidensport, ikke en full byggeflate — i dag finnes bare ni atoms:
+1. Velg generell eller tilpasset CV.
+2. Kontroller om det finnes nok godkjent evidens.
+3. Ved mangler: send brukeren til import/gjennomgang.
+4. Generer utkast (jobbstatus via polling).
+5. Vis faktasjekk, relevante gap og eksport.
 
-## 8. Testplan og utrulling
+Atom-id-er, kvalitetssjekker og ATS-detaljer ligger bak «Se grunnlag». Tilpasset variant krever valgt stilling og viser støttede, delvis støttede og unsupported krav. Ingen modell- eller leverandørnavn i brukerflaten — kun «AI-analyse», «AI-forslag», «faktasjekk». Koblinger inn i eksisterende `career/atom-review.tsx` og `career/cv-review.tsx`. Adminflate under `/admin` viser modell-id, promptversjon, tokens, kostnad, tid og evalresultater.
 
-Rekkefølge: (1) importer skillkode + full typecheck, (2) Claude-klient + kjøringslogg, (3) `propose-cv-atoms` (atom-language), (4) evidence validering/dedup/review/apply, (5) kobling til eksisterende import/review, (6) `generate-cv` generell, (7) `improve-cv-text` + guard + `evaluate-cv-ats`, (8) tilpasset CV med pre/post keyword coverage, (9) admin-eval, (10) RLS-, idempotens-, feil- og kostnadstester. Én Edge Function deployes om gangen og verifiseres med en ekte brukeravgrenset kjøring før neste. RLS-test med to brukere på atoms, forslag, dokumenter og kjøringer.
+## 8. Leveransedeling, test og utrulling
+
+1. Rene skillmoduler, adapter og Claude-klient (+ full typecheck).
+2. Atomforslag, review og v4-apply.
+3. Generell CV med immutable versjonering og kontrollkjede.
+4. Stillingstilpasset CV med pre/post keyword coverage.
+5. Eksport: DOCX først, PDF etter verifikasjon.
+6. Admin-evaluering og bred modellmatrise.
+
+Eksport bygges på **én strukturert dokumentmodell** som kilde for både DOCX og PDF. Akseptansetest for eksport: visuell rendering, tekstekstraksjon fra begge formater, riktig rekkefølge på overskrifter og punktlister, ingen tabellbasert layout, og samme innholdshash som før rendering.
+
+Én Edge Function deployes om gangen og verifiseres med en ekte brukeravgrenset kjøring før neste. Øvrig testplan: RLS-test med to brukere på atoms, forslag, dokumenter og kjøringer; idempotens- og reaper-test på jobbkøen; feilinjeksjon mot Claude (429, 5xx, timeout); kostnads- og tokenlogging uten rå CV-tekst.
 
 ## 9. Åpne spørsmål
 
-1. **Adapter kontra skjemaendring:** planen mapper skillenes `cv_evidence_atoms`/typenavn til `career_atoms` i ett adapterlag. Alternativet — å endre skillfilene direkte — bryter versjonssporbarheten. Bekreft adapter.
-2. **Kompetanseatomer:** ontologien tillater ikke direkte belegg for kompetanse/eksponering. Forslag: `cv-atom-language-no`-kandidater av typen kompetanse lagres alltid som indirekte, avledet av rolle/resultat.
-3. **Modell-ID-er:** `claude-sonnet-5`, `claude-opus-5` og `claude-fable-5` må verifiseres mot Models API ved implementering; hvis de ikke finnes, brukes nyeste pinnede tilgjengelige og listen oppdateres i data, ikke kode.
-4. **Eksport til DOCX/PDF:** Edge-runtime har ingen native binærer. Foreslår HTML→PDF-rendering og en ren-JS DOCX-generator; bekreft at det er godt nok.
+1. **Avledet kompetanse:** brukes til utvalg og rangering, aldri som supporting evidence i teksten. Bekreft grensen.
+2. **Stale-terskel:** hvilken alder på `stale_at` skal blokkere bruk i CV, kontra bare varsle i grunnlagsvisningen?
+3. **Modell-ID-er** verifiseres mot Models API ved implementering; avvik oppdateres i data, ikke kode.
+4. **PDF-tidspunkt:** DOCX først er lagt til grunn; bekreft at PDF kan komme i en senere leveranse.
