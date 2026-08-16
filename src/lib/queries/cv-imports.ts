@@ -109,6 +109,32 @@ export function useUserAtomCounts(userId: string | undefined) {
   });
 }
 
+/**
+ * Nyeste import som fortsatt venter på brukeren: enten uanalysert («pending»)
+ * eller ferdig analysert uten at innholdet er bekreftet («committed_at» er tom).
+ * Uten denne mistet brukeren en påbegynt import ved navigasjon eller refresh,
+ * og fikk opplastingsskjermen på nytt som om ingenting var gjort.
+ */
+export function useResumableImport(userId: string | undefined) {
+  return useQuery({
+    queryKey: ["cv-import-resumable", userId],
+    enabled: !!userId,
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cv_imports")
+        .select("*")
+        .eq("user_id", userId!)
+        .is("committed_at", null)
+        .in("status", ["pending", "parsed", "processing"])
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return ((data ?? [])[0] ?? null) as unknown as CvImportRow | null;
+    },
+  });
+}
+
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
@@ -222,6 +248,7 @@ export function useRegisterCvUpload(userId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cv-imports", userId] });
+      qc.invalidateQueries({ queryKey: ["cv-import-resumable", userId] });
     },
   });
 }
@@ -233,6 +260,7 @@ export function useRunCvParse(userId: string) {
     mutationFn: (importId: string) => invokeParseWithTimeout(importId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cv-imports", userId] });
+      qc.invalidateQueries({ queryKey: ["cv-import-resumable", userId] });
     },
   });
 }
@@ -274,6 +302,7 @@ export function useCommitImport(userId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cv-imports", userId] });
       qc.invalidateQueries({ queryKey: ["cv-atom-counts", userId] });
+      qc.invalidateQueries({ queryKey: ["cv-import-resumable", userId] });
     },
   });
 }
