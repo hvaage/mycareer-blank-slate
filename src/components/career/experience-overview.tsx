@@ -220,6 +220,8 @@ function EmptyChain() {
           </li>
         </ol>
 
+        <PendingWorkNotice />
+
         <div className="flex flex-wrap items-center gap-3 pt-2">
           <Button asChild>
             <Link to="/about-me" search={{ tab: "karriereoversikt" }}>
@@ -231,6 +233,67 @@ function EmptyChain() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Tomt grunnlag betyr ikke alltid «ingen CV». Ofte ligger det en påbegynt import
+ * eller en ubehandlet gjennomgangskø — den skal brukeren se her, ikke gjette seg til.
+ */
+function PendingWorkNotice() {
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
+  const { data } = useQuery({
+    queryKey: ["experience-pending-work", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const [candidates, imports] = await Promise.all([
+        supabase
+          .from("cv_parse_candidates")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("status", "ubehandlet"),
+        supabase
+          .from("cv_imports")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .is("committed_at", null)
+          .in("status", ["pending", "processing", "parsed"]),
+      ]);
+      if (candidates.error) throw candidates.error;
+      if (imports.error) throw imports.error;
+      return { pending: candidates.count ?? 0, open: imports.count ?? 0 };
+    },
+  });
+
+  if (!data || (data.pending === 0 && data.open === 0)) return null;
+
+  return (
+    <div className="rounded-md border bg-muted/40 p-4 space-y-2">
+      <p className="text-sm font-medium">
+        {data.pending > 0
+          ? `Du har ${data.pending} element${data.pending === 1 ? "" : "er"} som venter på gjennomgang.`
+          : "Du har en CV-import som ikke er ferdig bekreftet."}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Innholdet kommer hit først når du har bekreftet det i gjennomgangen — ingenting legges inn
+        automatisk.
+      </p>
+      <div className="flex flex-wrap gap-2 pt-1">
+        {data.pending > 0 && (
+          <Button asChild size="sm">
+            <Link to="/career/cv-review">Fortsett gjennomgangen</Link>
+          </Button>
+        )}
+        {data.open > 0 && (
+          <Button asChild size="sm" variant="outline">
+            <Link to="/about-me" search={{ tab: "karriereoversikt" }}>
+              Fullfør CV-importen
+            </Link>
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 
