@@ -82,7 +82,7 @@ function AtomLine({ row, extra }: { row: CareerAtomRow; extra?: string }) {
     (cls === "kompetanse" || cls === "eksponering") && links.length === 0 && !row.parent_atom_id;
 
   return (
-    <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1">
+    <li className="group flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1">
       <span className="min-w-0 flex-1 basis-48 text-sm leading-snug">
         {row.content_no ?? "(uten tekst)"}
       </span>
@@ -106,10 +106,12 @@ function AtomLine({ row, extra }: { row: CareerAtomRow; extra?: string }) {
           </Badge>
         ) : null}
         <span className="text-[11px] text-muted-foreground">{sourceLabel(row)}</span>
+        <AtomActions row={row} />
       </span>
     </li>
   );
 }
+
 
 /** Seksjon med korte elementer uten hierarki — tåler to–tre kolonner. */
 function Group({
