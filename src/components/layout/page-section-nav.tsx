@@ -108,10 +108,12 @@ export function PageSectionNav({
                       : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
+                  {it.status ? <StatusMark status={it.status} /> : null}
                   {it.label}
                   {typeof it.count === "number" ? (
                     <span className="tabular-nums text-xs text-muted-foreground">({it.count})</span>
                   ) : null}
+
                 </a>
               </li>
             );
