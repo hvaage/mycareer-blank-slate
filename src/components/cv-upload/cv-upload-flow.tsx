@@ -110,6 +110,34 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
   const importArchived = useImportArchivedCv(userId);
   const docDrafts = useCreateDocumentationDrafts(userId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const resumable = useResumableImport(userId);
+  const [resumedId, setResumedId] = useState<string | null>(null);
+
+  // Gjenoppta en påbegynt import. Uten dette så brukeren opplastingsskjermen på
+  // nytt etter navigasjon/refresh, og den analyserte CV-en ble aldri bekreftet.
+  useEffect(() => {
+    if (state.kind !== "idle") return;
+    const row = resumable.data;
+    if (!row || row.id === resumedId) return;
+    setResumedId(row.id);
+    dispatch({
+      type: "upload_done",
+      importId: row.id,
+      fileName: (row as any).source_filename ?? "CV",
+    });
+    const raw = (row as any).raw_parsed_data;
+    if (raw && parsedShapeIsReadable(raw)) {
+      dispatch({
+        type: "parsed",
+        importId: row.id,
+        counts: countsFromParsed(raw),
+        fileName: (row as any).source_filename ?? "CV",
+        raw,
+      });
+      setSelected(new Set(flattenItems(buildPreviewGroups(raw)).map((i) => i.key)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.kind, resumable.data?.id]);
 
   const onCreateDocumentationDrafts = async (importId: string) => {
     try {
