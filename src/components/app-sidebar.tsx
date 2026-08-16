@@ -131,14 +131,18 @@ const adminGroup: GroupNode = {
   matchPrefixes: ["/admin"],
 };
 
-const integrationsLeaf: GroupNode = {
-  id: "integrations",
-  label: "Integrasjoner",
-  title: "Integrasjoner",
-  icon: Plug,
-  to: "/integrations",
-  matchPrefixes: ["/integrations"],
+const settingsGroup: GroupNode = {
+  id: "settings",
+  label: "Innstillinger",
+  title: "Innstillinger",
+  icon: Settings,
+  items: [
+    { label: "Integrasjoner", to: "/innstillinger/integrasjoner" },
+    { label: "Konto", to: "/innstillinger/konto" },
+  ],
+  matchPrefixes: ["/innstillinger", "/integrations"],
 };
+
 
 function matchesGroup(pathname: string, group: GroupNode): boolean {
   const prefixes =
