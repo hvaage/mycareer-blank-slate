@@ -160,6 +160,52 @@ export async function addManualRole(input: ManualRoleInput): Promise<string> {
   return data.id;
 }
 
+/** Bruker-lagt resultat under en bekreftet rolle. Proveniens: brukeren selv. */
+export async function addManualResult(input: {
+  userId: string;
+  importId: string | null;
+  title: string;
+  roleAtomId: string | null;
+}): Promise<string> {
+  const title = input.title.trim();
+  if (!title) throw new Error("Resultatet må ha en beskrivelse.");
+
+  const structured: Record<string, unknown> = {
+    lagt_inn_av_bruker: true,
+    kilde: "bruker_manuelt",
+    review_import_id: input.importId,
+    role_atom_id: input.roleAtomId,
+  };
+  structured["logical_key"] = careerAtomLogicalKey({
+    atom_kind: "evidens",
+    atom_type: "achievement",
+    content_no: title,
+    structured_data: structured,
+  });
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("career_atoms")
+    .insert({
+      user_id: input.userId,
+      atom_kind: "evidens",
+      atom_type: "achievement",
+      parent_atom_id: input.roleAtomId,
+      content_no: title,
+      structured_data: structured as Json,
+      source_type: "bruker",
+      source_ref: "cv_review_results",
+      confidence: "verified",
+      user_confirmed: true,
+      refreshed_at: now,
+      last_seen_at: now,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data.id;
+}
+
 export function invalidateReviewProgress(qc: QueryClient, userId: string): void {
   void qc.invalidateQueries({ queryKey: ["cv-review-progress", userId] });
   void qc.invalidateQueries({ queryKey: ["cv-review-timeline-context", userId] });

@@ -15,13 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   ATOM_TYPE_LABEL,
   candidateTitle,
   invalidateCandidateQueries,
@@ -305,5 +298,3 @@ export function isResultCandidate(c: CvParseCandidateRow): boolean {
   const t = (c.resolved_atom_type ?? c.suggested_atom_type ?? "") as CareerAtomType;
   return RESULT_TYPES.includes(t);
 }
-
-export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue };
