@@ -18,6 +18,10 @@ import { CvUploader } from "@/components/cv-uploader";
 import { AboutMeCvSection } from "@/components/cv-upload/about-me-section";
 import { JobSearchPrefs } from "@/components/job-search-prefs";
 import { getCareerStage } from "@/lib/career-stage";
+import { FormSection, sectionStatus } from "@/components/form/form-section";
+import { PageSectionNav } from "@/components/layout/page-section-nav";
+import { usePersistedCollapse } from "@/hooks/use-persisted-collapse";
+
 
 
 export const Route = createFileRoute("/_authenticated/about-me")({
