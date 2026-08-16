@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.career_atom_delete_impact(uuid) TO PUBLIC;
