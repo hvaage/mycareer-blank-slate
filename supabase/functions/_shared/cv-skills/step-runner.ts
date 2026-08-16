@@ -10,7 +10,12 @@
 // Portene injiseres slik at kallene kan verifiseres i test uten database
 // og uten nettverk.
 
-import { callClaude, type ClaudeCallResult, type ModelProfile } from "../claude/client.ts";
+import {
+  callClaude,
+  type ClaudeCallResult,
+  type ClaudeRuntimePort,
+  type ModelProfile,
+} from "../claude/client.ts";
 import type { StepOutcome } from "./contract.ts";
 
 export type ModelRunPorts = {
