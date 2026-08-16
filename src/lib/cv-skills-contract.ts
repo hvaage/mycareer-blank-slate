@@ -1,9 +1,10 @@
-// Delt kontrakt mellom backend (server functions) og frontend for CV-skillflyten.
+// GENERERT FIL — IKKE REDIGER.
 //
-// Frontend skal IKKE tolke readiness eller verification selv — den importerer
-// disse typene og verdiene herfra. Backend er eneste sted som avgjør status.
+// Kilde: supabase/functions/_shared/cv-skills/contract.ts (kanonisk backendkontrakt)
+// Generer på nytt: node scripts/generate-cv-skills-contract.mjs
 //
-// Merk: denne filen inneholder ingen leverandørkode og ingen modellnavn.
+// Bare DTO-kontrakten deles med frontend. Eligibility og readiness-vurdering
+// er autoritativ backendlogikk og kjøres aldri i nettleseren.
 
 /** Hvor klar brukerens grunnlag er for CV-generering. */
 export const READINESS_STATUSES = [
