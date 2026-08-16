@@ -289,7 +289,7 @@ function CvReviewPage() {
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link to="/about-me">Gå til Om meg → Karriereoversikt</Link>
+              <Link to="/about-me" search={{ tab: "karriereoversikt" }}>Gå til Om meg → Karriereoversikt</Link>
             </Button>
           </CardContent>
         </Card>
