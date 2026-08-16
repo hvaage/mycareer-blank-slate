@@ -219,7 +219,8 @@ function AboutMePage() {
               />
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs">Senioritet</Label>
+                  <CareerStageContext userId={user.id} />
+                  <Label className="text-xs">Hvilket nivå søker du?</Label>
                   <Select
                     value={p.target_seniority ?? "ikke-valgt"}
                     onValueChange={(v) => save("target_seniority")(v === "ikke-valgt" ? "" : v)}
@@ -238,6 +239,7 @@ function AboutMePage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <AutoSaveInput
                   label="Arbeidsformer"
                   value={p.work_types?.join(", ")}
