@@ -283,8 +283,13 @@ function CvReviewPage() {
         <TabsContent value="pending" className="space-y-6 pt-4">
           {pending.length === 0 ? (
             <EmptyState
-              title="Ingenting å gå gjennom"
-              description="Alle funn fra denne importen er behandlet."
+              title={hasImports ? "Ingenting å gå gjennom" : "Ingen import ennå"}
+              description={
+                hasImports
+                  ? "Alle funn fra denne importen er behandlet."
+                  : "Last opp CV-en under Om meg → Karriereoversikt for å få funn å bekrefte her."
+              }
+
             />
           ) : (
             <>
