@@ -169,6 +169,7 @@ export async function addManualRole(input: ManualRoleInput): Promise<string> {
   if (!title) throw new Error("Rollen må ha en tittel.");
 
   const structured: Record<string, unknown> = {
+    title,
     employer: input.employer?.trim() || null,
     start_date: input.startIso,
     end_date: input.isCurrent ? null : input.endIso,
