@@ -213,7 +213,7 @@ export const Route = createFileRoute("/api/cv/generations")({
               language: parsed.data.language ?? "no",
               includeContact: parsed.data.includeContact !== false,
             },
-            p_atom_ids: eligible.map((a) => a.id),
+            p_atom_ids: prepared.eligibleAtomIds,
             p_snapshot: snapshot as never,
             p_snapshot_hash: snapshotHash,
             p_readiness: readiness as never,
