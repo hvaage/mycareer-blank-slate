@@ -204,7 +204,8 @@ function DeleteDialog({
   const impact = useQuery({ ...deleteImpactQuery(row.id), enabled: open });
 
   const data = impact.data;
-  const alsoRemoved = (data?.descendants.length ?? 0) + (data?.orphaned.length ?? 0);
+  const alsoRemoved = data?.descendants.length ?? 0;
+  const unbacked = data?.orphaned.length ?? 0;
   const needsAccept = alsoRemoved > 0;
 
   const del = useMutation({
@@ -212,15 +213,19 @@ function DeleteDialog({
     onSuccess: (res) => {
       invalidateAfterAtomChange(queryClient, user!.id);
       toast.success(
-        res.deleted + res.orphaned > 1
-          ? `Slettet ${res.deleted + res.orphaned} elementer.`
-          : "Slettet.",
+        res.deleted > 1 ? `Slettet ${res.deleted} elementer.` : "Slettet.",
+        res.unbacked > 0
+          ? {
+              description: `${res.unbacked} kompetanse(r) står nå uten belegg. De er merket, ikke slettet.`,
+            }
+          : undefined,
       );
       onOpenChange(false);
       setAccepted(false);
     },
     onError: (e: Error) => toast.error(e.message ?? "Kunne ikke slette"),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
