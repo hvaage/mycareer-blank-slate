@@ -200,17 +200,44 @@ export interface PromoteCandidateInput {
   verified: boolean;
 }
 
+/** Ser etter et allerede bekreftet element for kandidaten. */
+async function findExistingPromotion(
+  userId: string,
+  candidateId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("cv_parse_candidates")
+    .select("promoted_atom_id")
+    .eq("id", candidateId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (data?.promoted_atom_id) return data.promoted_atom_id;
+
+  const { data: atom } = await supabase
+    .from("career_atoms")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("structured_data->>parse_candidate_id", candidateId)
+    .maybeSingle();
+  return atom?.id ?? null;
+}
+
 /**
  * Promoterer én kandidat til ett atom, og merker kandidaten bekreftet.
  * Kaster med brukervendt tekst når ontologien ikke tillater atomet.
+ * Er kandidaten allerede bekreftet — via gjennomgangen eller et godkjent
+ * forslag — returneres det eksisterende elementet som et no-op.
  */
 export async function promoteCandidate(
   input: PromoteCandidateInput,
-): Promise<{ atomId: string }> {
+): Promise<{ atomId: string; alreadyPromoted?: boolean }> {
   const { userId, candidate, resolvedType, verified } = input;
   const pointers = input.evidenceAtomIds ?? [];
   const parentAtomId = input.parentAtomId ?? null;
   const title = candidateTitle(candidate);
+
+  const already = await findExistingPromotion(userId, candidate.id);
+  if (already) return { atomId: already, alreadyPromoted: true };
 
   if (requiresEvidencePointer(resolvedType) && pointers.length === 0) {
     throw new Error(
@@ -260,7 +287,13 @@ export async function promoteCandidate(
     })
     .select("id")
     .single();
-  if (error) throw error;
+  if (error) {
+    // Samtidig bekreftelse eller allerede promotert kandidat: aldri en teknisk
+    // feil til brukeren — vi returnerer elementet som allerede finnes.
+    const raced = await findExistingPromotion(userId, candidate.id);
+    if (raced) return { atomId: raced, alreadyPromoted: true };
+    throw error;
+  }
 
   const { error: updErr } = await supabase
     .from("cv_parse_candidates")

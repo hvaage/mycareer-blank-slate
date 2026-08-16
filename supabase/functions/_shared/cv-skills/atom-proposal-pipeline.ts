@@ -35,6 +35,39 @@ export type Segment = {
   candidate: CandidateInput;
 };
 
+/**
+ * Eksplisitt svarkontrakt. Vendorprompten beskriver reglene, men ikke feltnavnene.
+ * Denne teksten legges til systemprompten slik at svaret alltid kan valideres.
+ * Versjonen inngår i prompt_version-sporet som `+out<versjon>`.
+ */
+export const OUTPUT_CONTRACT_VERSION = "1";
+export const NORMALIZATION_OUTPUT_CONTRACT_NO = `Svar med ett JSON-objekt, uten markdown:
+{
+  "schema_version": "1.0",
+  "language": "no",
+  "source_type": "<kopier fra input>",
+  "source_id": "<kopier fra input>",
+  "source_hash": "<kopier fra input>",
+  "warnings": [],
+  "proposals": [
+    {
+      "proposal_id": "<unik streng>",
+      "source": { "segment_id": "<eksakt id fra input>", "source_text": "<eksakt tekst fra input>" },
+      "normalized_no": "<normalisert norsk tekst>",
+      "semantic_key": "<kort nøkkel>",
+      "concepts": [],
+      "suggested_atom_type": "role|achievement|metric|context|tool|education|skill|domain|language|certification|project|volunteer|summary_fragment",
+      "explicit_facts": [],
+      "unsupported_implications": [],
+      "confidence": 0.0,
+      "review_state": "ready_for_atom|needs_review|reject",
+      "rationale": "<kort begrunnelse>",
+      "clarification_question": null
+    }
+  ]
+}
+Lag minst ett forslag per segment. Alle feltene over er obligatoriske.`;
+
 /** Typene som kan belegges direkte. Øvrige blir forslag om evidens, ikke atomer. */
 const DIRECT_TYPES = new Set([
   "role",
@@ -83,21 +116,53 @@ export function buildSegments(candidates: CandidateInput[]): Segment[] {
     .filter((s) => s.text.trim().length > 0);
 }
 
-/** Server-side kildesignatur. Beregnes aldri av klienten. */
-export async function computeSourceHash(
+async function sha256Hex(input: string): Promise<string> {
+  const bytes = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Kanonisk normalisering av kildetekst før hashing. */
+export function canonicalizeSourceText(text: string): string {
+  return text.normalize("NFKC").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * source_hash representerer KUN kanonisk kildeinnhold for én kandidat.
+ * Ingen id-er, ingen importreferanse, ingen versjonsnummer.
+ * To kandidater med identisk tekst får derfor samme source_hash, men er
+ * fortsatt to sporbare forslag fordi source_record_id skiller dem.
+ */
+export function computeSourceHash(text: string): Promise<string> {
+  return sha256Hex(`cv-source-v1\n${canonicalizeSourceText(text)}`);
+}
+
+/** Hash per segment, brukt som per-forslag source_hash. */
+export async function computeSegmentHashes(segments: Segment[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (const s of segments) out.set(s.id, await computeSourceHash(s.text));
+  return out;
+}
+
+/**
+ * Batchsignatur = kildesettet + prompt- og normalizerversjon.
+ * Brukes kun til batch-idempotens, aldri som forslagets source_hash.
+ */
+export async function computeInputSignature(
   cvImportId: string,
   segments: Segment[],
   promptVersion: string,
+  normalizerVersion: string,
 ): Promise<string> {
+  const hashes = await computeSegmentHashes(segments);
   const canonical = JSON.stringify({
-    v: 1,
-    prompt_version: promptVersion,
+    v: 2,
     cv_import_id: cvImportId,
-    segments: segments.map((s) => ({ id: s.id, text: s.text })),
+    prompt_version: promptVersion,
+    normalizer_version: normalizerVersion,
+    segments: segments.map((s) => ({ id: s.id, h: hashes.get(s.id) })),
   });
-  const bytes = new TextEncoder().encode(canonical);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return sha256Hex(canonical);
 }
 
 export type ParseOutcome =
@@ -208,7 +273,11 @@ export type ProposalRow = {
   source_table: "cv_parse_candidates";
   source_record_id: string;
   source_id: string;
+  source_import_id: string;
   source_hash: string;
+  normalizer_version: string;
+  prompt_version: string;
+  model_run_id: string;
   confidence: number;
   inferred: boolean;
   rationale: string;
@@ -235,7 +304,15 @@ function normalizeForMatch(v: string): string {
 export function validateAndDedupe(
   batch: NormalizationBatch,
   segments: Segment[],
-  ctx: { cvImportId: string; sourceHash: string; modelRunId: string; promptVersion: string; normalizerVersion: string },
+  ctx: {
+    cvImportId: string;
+    /** Per-kandidat innholdshash: segment.id -> sha256(kanonisk tekst). */
+    segmentHashes: Map<string, string>;
+    inputSignature: string;
+    modelRunId: string;
+    promptVersion: string;
+    normalizerVersion: string;
+  },
 ): EvidenceCheck {
   const bySegment = new Map(segments.map((s) => [s.id, s]));
   const kept: ProposalRow[] = [];
@@ -266,6 +343,12 @@ export function validateAndDedupe(
     const atomType = p.suggested_atom_type ?? segment.candidate.suggested_atom_type;
     const direct = DIRECT_TYPES.has(atomType);
 
+    const segmentHash = ctx.segmentHashes.get(segment.id);
+    if (!segmentHash) {
+      dropped.push({ proposal_id: p.proposal_id, reason: "mangler kildehash" });
+      continue;
+    }
+
     kept.push({
       proposal_action: direct ? "create_atom" : "suggest_evidence",
       target_atom_type: "career_atom",
@@ -273,7 +356,11 @@ export function validateAndDedupe(
       source_table: "cv_parse_candidates",
       source_record_id: segment.candidate.id,
       source_id: ctx.cvImportId,
-      source_hash: ctx.sourceHash,
+      source_import_id: ctx.cvImportId,
+      source_hash: segmentHash,
+      normalizer_version: ctx.normalizerVersion,
+      prompt_version: ctx.promptVersion,
+      model_run_id: ctx.modelRunId,
       confidence: Math.max(0, Math.min(1, p.confidence)),
       inferred: true,
       rationale: p.rationale.slice(0, 2000),
@@ -290,7 +377,8 @@ export function validateAndDedupe(
           parse_candidate_id: segment.candidate.id,
           cv_import_id: ctx.cvImportId,
           parse_local_ref: segment.candidate.local_ref,
-          source_hash: ctx.sourceHash,
+          source_hash: segmentHash,
+          input_signature: ctx.inputSignature,
           semantic_key: p.semantic_key,
           explicit_facts: p.explicit_facts,
           unsupported_implications: p.unsupported_implications,
