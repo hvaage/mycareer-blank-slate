@@ -29,10 +29,16 @@ import {
 const TASK_KEY = "cv_atom_language_no";
 const CLAUDE_TIMEOUT_MS = 60_000;
 
-/** Harde grenser per forespørsel. Overskridelse gir 400/429, aldri modellkall. */
+/**
+ * Harde grenser per forespørsel. Overskridelse gir 400/429, aldri modellkall.
+ * Ett kall = én delbatch. Frontend deler større utvalg deterministisk og kjører
+ * delbatchene etter hverandre; grensen for hele utvalget håndheves der.
+ */
 export const RUN_LIMITS = {
-  maxCandidatesPerRequest: 120,
-  maxTotalInputChars: 120_000,
+  maxCandidatesPerRequest: 20,
+  maxTotalInputChars: 20_000,
+  maxCandidatesPerSelection: 120,
+  maxSelectionChars: 120_000,
   maxActiveRunsPerUser: 2,
   maxActiveRunsPerImport: 1,
   maxRunsPerHourPerUserTask: 12,
@@ -50,6 +56,8 @@ export type RunnerInput = {
   candidates: CandidateInput[];
   correlationId: string;
   startedAt: number;
+  /** Eksplisitt brukerhandling: avviste forslag erstattes og analysen kjøres på nytt. */
+  regenerate?: boolean;
 };
 
 export type RunnerResult = { status: number; body: Record<string, unknown> };
@@ -85,11 +93,27 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
   }
 
   const segmentHashes = await computeSegmentHashes(segments);
+
+  // Regenerering er en eksplisitt brukerhandling: tidligere avviste forslag
+  // settes til «erstattet», og epoken gjør kildesignaturen ny.
+  let regenerationEpoch = 0;
+  if (input.regenerate === true) {
+    const { data: regenJson, error: regenError } = await adminClient.rpc(
+      "internal_ai_begin_regeneration",
+      { p_user_id: userId, p_import_id: cvImportId },
+    );
+    if (regenError) {
+      return fail(500, "database_error", "Kunne ikke starte en ny analyse.");
+    }
+    regenerationEpoch = Number((regenJson as { epoch?: number } | null)?.epoch ?? 0);
+  }
+
   const inputSignature = await computeInputSignature(
     cvImportId,
     segments,
-    NORMALIZATION_PROMPT_VERSION,
+    `${NORMALIZATION_PROMPT_VERSION}+out${OUTPUT_CONTRACT_VERSION}`,
     NORMALIZER_VERSION,
+    regenerationEpoch,
   );
 
   // -------------------------------------------------------- idempotens

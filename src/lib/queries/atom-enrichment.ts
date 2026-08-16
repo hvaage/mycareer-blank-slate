@@ -150,6 +150,26 @@ export const atomEnrichmentProposalsByBatchQuery = (userId: string, batchId: str
     },
   });
 
+/** Alle forslag som stammer fra én CV-import. RLS holder dem private per bruker. */
+export const atomEnrichmentProposalsByImportQuery = (userId: string, importId: string | null) =>
+  queryOptions({
+    queryKey: ["atom-enrichment-proposals", userId, "import", importId ?? ""],
+    enabled: !!userId && !!importId,
+    staleTime: 5_000,
+    queryFn: async (): Promise<AtomEnrichmentProposalRow[]> => {
+      const { data, error } = await supabase
+        .from("atom_enrichment_proposals")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("source_import_id", importId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as AtomEnrichmentProposalRow[];
+    },
+  });
+
+
+
 function asRecord(payload: Json | null | undefined): Record<string, unknown> {
   if (payload == null || typeof payload !== "object" || Array.isArray(payload)) return {};
   return payload as Record<string, unknown>;

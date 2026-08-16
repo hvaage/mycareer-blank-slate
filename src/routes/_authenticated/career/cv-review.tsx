@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, HelpCircle, Loader2, Undo2, XCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { CvAnalysisPanel } from "@/components/cv/CvAnalysisPanel";
 import {
   ATOM_TYPE_CLASS,
   ATOM_TYPE_LABEL,
@@ -185,6 +186,11 @@ function CvReviewPage() {
 
   const hasImports = (imports.data?.length ?? 0) > 0;
   const activeImport = imports.data?.find((i) => i.id === activeImportId) ?? null;
+  // Bare funn brukeren har bekreftet sendes til analyse — evidens først.
+  const analysisCandidates = confirmed.map((c) => ({
+    id: c.id,
+    text: candidateTitle(c),
+  }));
   const importNotCommitted =
     Boolean(activeImport) && activeImport?.status !== "committed" && rows.length === 0;
 
@@ -270,6 +276,15 @@ function CvReviewPage() {
             </SelectContent>
           </Select>
         </div>
+      )}
+
+      {activeImportId && (
+        <CvAnalysisPanel
+          userId={userId}
+          importId={activeImportId}
+          candidates={analysisCandidates}
+          unresolvedCount={pending.length}
+        />
       )}
 
       <Tabs defaultValue="pending">

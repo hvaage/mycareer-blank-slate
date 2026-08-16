@@ -153,13 +153,16 @@ export async function computeInputSignature(
   segments: Segment[],
   promptVersion: string,
   normalizerVersion: string,
+  /** Økes bare ved eksplisitt regenerering bestilt av brukeren. */
+  regenerationEpoch = 0,
 ): Promise<string> {
   const hashes = await computeSegmentHashes(segments);
   const canonical = JSON.stringify({
-    v: 2,
+    v: 3,
     cv_import_id: cvImportId,
     prompt_version: promptVersion,
     normalizer_version: normalizerVersion,
+    regeneration_epoch: regenerationEpoch,
     segments: segments.map((s) => ({ id: s.id, h: hashes.get(s.id) })),
   });
   return sha256Hex(canonical);
