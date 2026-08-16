@@ -99,6 +99,7 @@ type PointerAtom = {
   atom_class: string | null;
   content_no: string | null;
   structured_data?: unknown;
+  parent_atom_id?: string | null;
 };
 
 
