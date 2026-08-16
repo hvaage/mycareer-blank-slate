@@ -36,7 +36,34 @@ const profileQuery = (userId: string) =>
     },
   });
 
+/** Viser hvor brukeren står i dag, der han svarer på hvilket nivå han søker. */
+function CareerStageContext({ userId }: { userId: string }) {
+  const { data } = useQuery({
+    queryKey: ["career-stage-context", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_career_profiles")
+        .select("career_stage")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const stage = data?.career_stage ? getCareerStage(data.career_stage) : null;
+  if (!stage) return null;
+  return (
+    <p className="text-[11px] text-muted-foreground mb-1">
+      Karrierestadium i dag: <span className="text-foreground/80 font-medium">{stage.labelNb}</span>{" "}
+      <Link to="/preferences" className="text-primary hover:underline">
+        endre
+      </Link>
+    </p>
+  );
+}
+
 function AboutMePage() {
+
   const { user } = useAuth();
   const qc = useQueryClient();
   const { data: p, isLoading } = useQuery({
