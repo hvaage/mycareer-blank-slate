@@ -5852,6 +5852,15 @@ export type Database = {
         Returns: Json
       }
       brreg_full_start_run: { Args: { p_strict?: boolean }; Returns: Json }
+      career_atom_add_manual_result: {
+        Args: {
+          p_review_import_id?: string
+          p_role_atom_id: string
+          p_structured_data?: Json
+          p_title: string
+        }
+        Returns: Json
+      }
       career_atom_delete: { Args: { p_atom_id: string }; Returns: Json }
       career_atom_delete_impact: { Args: { p_atom_id: string }; Returns: Json }
       career_atom_delete_impact_links: {
