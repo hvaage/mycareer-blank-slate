@@ -43,7 +43,12 @@ export interface TimelineRole {
   /** Kandidat-id når rollen kommer fra importen, atom-id når den er lagret. */
   id: string;
   kind: "kandidat" | "lagret";
+  /** Stillingstittelen slik den står i kilden. Tom streng når den mangler. */
   title: string;
+  /** True når kilden ikke ga en stillingstittel — brukeren må spørres. */
+  titleMissing: boolean;
+  /** Rollebeskrivelsen, vist under tittelen. Aldri brukt som tittel. */
+  summary: string | null;
   employer: string | null;
   startIso: string | null;
   endIso: string | null;
