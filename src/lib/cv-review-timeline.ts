@@ -262,10 +262,14 @@ export function roleFromAtom(atom: {
   const startIso = start.iso;
   const endIso = end.iso;
   const current = isCurrentRole(sd);
+  const content = atom.content_no?.trim() ?? null;
+  const title = extractRoleTitle(sd) ?? (looksLikeJobTitle(content) ? content : null);
   return {
     id: atom.id,
     kind: "lagret",
-    title: (atom.content_no ?? "Uten tittel").trim(),
+    title: title ?? "",
+    titleMissing: !title,
+    summary: summaryOf(content, title),
     employer: str(sd, ["employer", "company", "arbeidsgiver", "organisasjon"]),
     startIso,
     endIso: current ? null : endIso,
