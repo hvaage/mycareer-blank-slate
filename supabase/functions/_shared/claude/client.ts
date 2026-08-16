@@ -52,8 +52,8 @@ export type ClaudeCallInput = {
   correlationId: string;
   timeoutMs?: number;
   maxRetries?: number;
-  /** Injisert runtime. Uten denne faller klienten tilbake til process.env (Deno-funksjoner). */
-  runtime?: ClaudeRuntimePort;
+  /** Injisert runtime. Påkrevd: klienten leser aldri env selv. */
+  runtime: ClaudeRuntimePort;
 };
 
 export type ClaudeUsage = {
