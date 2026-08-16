@@ -531,7 +531,12 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
             },
             segments: segments.length,
             proposals_created: insertedRows?.length ?? 0,
-            proposals: (insertedRows ?? []).map((r) => ({
+            proposals: ((insertedRows ?? []) as {
+              id: string;
+              proposal_action: string;
+              source_record_id: string | null;
+              proposal_payload: unknown;
+            }[]).map((r) => ({
               id: r.id,
               proposal_action: r.proposal_action,
               cv_import_id: cvImportId,
