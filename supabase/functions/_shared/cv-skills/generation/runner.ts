@@ -477,8 +477,32 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
   if (input.step === "quality_check" || input.step === "rewrite_validation") {
     const quality = checkCvQuality(buildQualityInput(doc.blocks) as never);
     const outputHash = await sha256Hex(doc.contentText ?? "");
-    const needsRewrite =
-      input.step === "quality_check" && !quality.ok && input.rewriteCount < MAX_REWRITES;
+    // Rewritebeslutningen lagres eksplisitt, slik at en quality-pass aldri kan
+    // gi et rewritekall og maks én rewrite kan kjøres per jobb.
+    const triggerCodes = [
+      ...quality.summary_issues,
+      ...quality.role_issues.flatMap((r) => [
+        ...r.description_issues,
+        ...r.achievement_issues.flatMap((a) => a.issues),
+      ]),
+    ]
+      .filter((i) => {
+        const sev = (i as { severity?: string }).severity;
+        return sev === "critical" || sev === "important";
+      })
+      .map((i) => (i as { rule_id?: string }).rule_id ?? "unknown");
+    const rewriteTriggerCodes = Array.from(new Set(triggerCodes));
+    const rewriteRequired =
+      input.step === "quality_check" && !quality.ok && rewriteTriggerCodes.length > 0;
+    const needsRewrite = rewriteRequired && input.rewriteCount < MAX_REWRITES;
+    const qualityResultHash = await sha256Hex(
+      stableStringify({
+        quality_version: QUALITY_VERSION,
+        ok: quality.ok,
+        triggers: rewriteTriggerCodes,
+        output_hash: outputHash,
+      }),
+    );
     const next: GenerationStep = needsRewrite ? "quality_rewrite" : "hallucination_guard";
     await commitStep(input.adminClient, input.jobId, input.workerId, {
       step: input.step,
@@ -494,10 +518,25 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
         role_issues: quality.role_issues,
         checked_output_hash: outputHash,
         step: input.step,
+        rewrite_required: rewriteRequired,
+        rewrite_trigger_codes: rewriteTriggerCodes,
+        quality_result_hash: qualityResultHash,
+      },
+      statePatch: {
+        rewrite_decision: {
+          step: input.step,
+          rewrite_required: rewriteRequired,
+          rewrite_scheduled: needsRewrite,
+          rewrite_trigger_codes: rewriteTriggerCodes,
+          quality_result_hash: qualityResultHash,
+          rewrite_count: input.rewriteCount,
+          max_rewrites: MAX_REWRITES,
+        },
       },
     });
     return done({ outcome: quality.ok ? "ok" : "needs_review", nextStep: next, terminal: null, errorCode: null, modelRunId: null });
   }
+
 
   // --------------------------------------------------------- quality_rewrite
   if (input.step === "quality_rewrite") {
@@ -793,30 +832,57 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
     const outputHash = await sha256Hex(doc.contentText ?? "");
     const mappingErrors = dateMapping.filter((m) => m.mappingError !== null);
     const sourceGaps = dateMapping.filter((m) => m.startDate === null && m.mappingError === null);
+    // Datofeil som skyldes hull i grunnlaget er ikke ATS-feil. De rapporteres
+    // som source_data_gaps med severity=warning, og teller ikke mot ats.ok.
+    const gapRoleIndexes = new Set(
+      dateMapping.map((m, i) => (sourceGaps.includes(m) ? i : -1)).filter((i) => i >= 0),
+    );
+    const isSourceGapDateError = (e: { rule_id?: string; field_path?: string | null }) => {
+      if (e.rule_id !== "content.role_date_format") return false;
+      const m = /^roles\[(\d+)\]\.(start|end)_date$/.exec(e.field_path ?? "");
+      return m !== null && gapRoleIndexes.has(Number(m[1]));
+    };
+    const atsErrors = ats.errors.filter((e) => !isSourceGapDateError(e));
+    const gapWarnings = ats.errors.filter((e) => isSourceGapDateError(e));
+    const sourceDataGaps = sourceGaps.map((m) => {
+      const idx = dateMapping.indexOf(m);
+      return {
+        block_id: m.blockId,
+        atom_id: m.atomId,
+        reason: m.missingReason,
+        severity: "warning" as const,
+        ats_field_paths: gapWarnings
+          .filter((e) => (e.field_path ?? "").startsWith(`roles[${idx}].`))
+          .map((e) => e.field_path ?? null),
+      };
+    });
+    const atsOk = atsErrors.length === 0;
     await commitStep(input.adminClient, input.jobId, input.workerId, {
       step: input.step,
       nextStep: "finalize_for_review",
       outputHash,
       ats: {
         rules_version: RULES_VERSION,
-        ok: ats.ok,
+        ok: atsOk,
+        raw_ok: ats.ok,
         // Skille mellom hull i grunnlaget og feil i vår egen mapping.
         mapping_ok: mappingErrors.length === 0,
         date_mapping: dateMapping,
         mapping_errors: mappingErrors,
-        source_date_gaps: sourceGaps.map((m) => ({
-          block_id: m.blockId,
-          atom_id: m.atomId,
-          reason: m.missingReason,
-        })),
-        errors: ats.errors,
-        warnings: ats.warnings,
+        source_date_gaps: sourceDataGaps,
+        source_data_gaps: sourceDataGaps,
+        errors: atsErrors,
+        warnings: [
+          ...ats.warnings,
+          ...gapWarnings.map((e) => ({ ...e, severity: "warning" as const, reason: "placeholder_in_source" })),
+        ],
         infos: ats.infos,
         checked_output_hash: outputHash,
       },
     });
-    return done({ outcome: ats.ok ? "ok" : "needs_review", nextStep: "finalize_for_review", terminal: null, errorCode: null, modelRunId: null });
+    return done({ outcome: atsOk ? "ok" : "needs_review", nextStep: "finalize_for_review", terminal: null, errorCode: null, modelRunId: null });
   }
+
 
 
   // ------------------------------------------------------ finalize_for_review

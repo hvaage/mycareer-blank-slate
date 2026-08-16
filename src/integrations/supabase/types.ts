@@ -1535,6 +1535,109 @@ export type Database = {
           },
         ]
       }
+      cv_claim_attestation_events: {
+        Row: {
+          attestation_id: string
+          created_at: string
+          detail: Json
+          event_kind: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          attestation_id: string
+          created_at?: string
+          detail?: Json
+          event_kind: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          attestation_id?: string
+          created_at?: string
+          detail?: Json
+          event_kind?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_claim_attestation_events_attestation_id_fkey"
+            columns: ["attestation_id"]
+            isOneToOne: false
+            referencedRelation: "cv_claim_attestations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cv_claim_attestations: {
+        Row: {
+          attested_at: string
+          attested_by_user_id: string
+          attested_claim_hash: string
+          attested_claim_text: string
+          claim_id: string
+          created_at: string
+          document_id: string
+          external_document_available: boolean
+          external_source_name: string | null
+          external_source_year: number | null
+          id: string
+          invalidated_at: string | null
+          invalidated_reason: string | null
+          note: string | null
+          updated_at: string
+          withdrawn_at: string | null
+          withdrawn_reason: string | null
+        }
+        Insert: {
+          attested_at?: string
+          attested_by_user_id: string
+          attested_claim_hash: string
+          attested_claim_text: string
+          claim_id: string
+          created_at?: string
+          document_id: string
+          external_document_available?: boolean
+          external_source_name?: string | null
+          external_source_year?: number | null
+          id?: string
+          invalidated_at?: string | null
+          invalidated_reason?: string | null
+          note?: string | null
+          updated_at?: string
+          withdrawn_at?: string | null
+          withdrawn_reason?: string | null
+        }
+        Update: {
+          attested_at?: string
+          attested_by_user_id?: string
+          attested_claim_hash?: string
+          attested_claim_text?: string
+          claim_id?: string
+          created_at?: string
+          document_id?: string
+          external_document_available?: boolean
+          external_source_name?: string | null
+          external_source_year?: number | null
+          id?: string
+          invalidated_at?: string | null
+          invalidated_reason?: string | null
+          note?: string | null
+          updated_at?: string
+          withdrawn_at?: string | null
+          withdrawn_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_claim_attestations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cv_document_blocks: {
         Row: {
           block_id: string
