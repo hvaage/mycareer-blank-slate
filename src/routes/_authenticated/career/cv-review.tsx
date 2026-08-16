@@ -185,6 +185,11 @@ function CvReviewPage() {
 
   const hasImports = (imports.data?.length ?? 0) > 0;
   const activeImport = imports.data?.find((i) => i.id === activeImportId) ?? null;
+  // Bare funn brukeren har bekreftet sendes til analyse — evidens først.
+  const analysisCandidates = confirmed.map((c) => ({
+    id: c.id,
+    text: candidateTitle(c),
+  }));
   const importNotCommitted =
     Boolean(activeImport) && activeImport?.status !== "committed" && rows.length === 0;
 
@@ -270,6 +275,15 @@ function CvReviewPage() {
             </SelectContent>
           </Select>
         </div>
+      )}
+
+      {activeImportId && (
+        <CvAnalysisPanel
+          userId={userId}
+          importId={activeImportId}
+          candidates={analysisCandidates}
+          unresolvedCount={pending.length}
+        />
       )}
 
       <Tabs defaultValue="pending">
