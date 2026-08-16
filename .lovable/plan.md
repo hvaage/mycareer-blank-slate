@@ -106,6 +106,17 @@ selv ligger i tabellen over.
 - **Arkivering**: når `career_atom_delete` arkiverer et atom, beholdes alle lenker historisk, aktive lenker til eller fra atomet settes til `trenger_ny_vurdering`, og projeksjonen oppdateres atomisk i samme transaksjon. `career_atom_delete_impact` rapporterer antall berørte aktive lenker og hvilke atomer som mister sitt siste belegg.
 - **Tester**: arkivering med (a) aktiv `belegges_av`-lenke, (b) aktiv `oppnadd_i`-lenke, (c) supersedert lenke. Skal vise at atomet arkiveres, at `on delete restrict` ikke gir feil, at lenkehistorikken står, at aktive lenker er merket for ny vurdering, og at lenketabell, projeksjonstabell og `evidence_atom_ids` ikke motsier hverandre etterpå. Delete-impact verifiseres mot samme oppsett.
 
+### `career_atoms.parent_atom_id` — samme mekanikk for `oppnadd_i`
+
+`career_atom_links` er kanonisk også her; `parent_atom_id` er en
+kompatibilitetsprojeksjon for eksisterende v4-lesere.
+
+- **Én aktiv rolle per resultat**: partial unique `(user_id, from_atom_id) where link_type='oppnadd_i' and status='aktiv' and superseded_at is null`. Flere foreslåtte og historiske lenker kan finnes; bare én kan være aktiv.
+- **Projeksjonsfunksjon**: `public.career_atom_project_parent(atom_id)`, søsteren til `career_atom_project_evidence`, kjøres i samme transaksjon som lenkeendringen. Bekreftet lenke → `parent_atom_id` settes til rollen. Avvist eller supersedert → `parent_atom_id` oppdateres til den nye aktive rollen, ellers nullstilles. `trenger_ny_vurdering` → nullstilles, slik at ingen leser tolker plasseringen som fortsatt bekreftet. Arkivering av rolle eller resultat → nullstilles, lenkehistorikken beholdes.
+- **Eiersporing**: `public.career_atom_parent_projection` (`user_id`, `atom_id` unik, `parent_atom_id`, `link_id` FK `career_atom_links`, `created_at`) registrerer hvilken lenke som eier den projiserte forelderen. Funksjonen nullstiller eller overskriver aldri en `parent_atom_id` som ikke er registrert som eid av en `oppnadd_i`-lenke. Alle skriveveier bruker samme funksjon.
+- **Tilgang**: begge projeksjonstabellene er service-only for skriving — `GRANT SELECT` til `authenticated` med RLS på `auth.uid()`, `GRANT ALL` til `service_role`, ingen `anon`, ingen skriverettighet til `authenticated`.
+- **Tester**: bekreftet resultat → rolle gir både aktiv `oppnadd_i`-lenke og riktig `parent_atom_id`; forsøk på en ny aktiv rollelenke for samme resultat avvises; overstyring til ny rolle oppdaterer `parent_atom_id` atomisk; rolleendring og arkivering gir `trenger_ny_vurdering` og `parent_atom_id = null`; historiske lenker beholdes; `career_atom_delete_impact` rapporterer korrekt; eksisterende v4-lesere og den nye gjennomgangen viser samme gjeldende plassering.
+
 
 
 
