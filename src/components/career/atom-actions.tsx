@@ -204,7 +204,8 @@ function DeleteDialog({
   const impact = useQuery({ ...deleteImpactQuery(row.id), enabled: open });
 
   const data = impact.data;
-  const alsoRemoved = (data?.descendants.length ?? 0) + (data?.orphaned.length ?? 0);
+  const alsoRemoved = data?.descendants.length ?? 0;
+  const unbacked = data?.orphaned.length ?? 0;
   const needsAccept = alsoRemoved > 0;
 
   const del = useMutation({
@@ -212,15 +213,19 @@ function DeleteDialog({
     onSuccess: (res) => {
       invalidateAfterAtomChange(queryClient, user!.id);
       toast.success(
-        res.deleted + res.orphaned > 1
-          ? `Slettet ${res.deleted + res.orphaned} elementer.`
-          : "Slettet.",
+        res.deleted > 1 ? `Slettet ${res.deleted} elementer.` : "Slettet.",
+        res.unbacked > 0
+          ? {
+              description: `${res.unbacked} kompetanse(r) står nå uten belegg. De er merket, ikke slettet.`,
+            }
+          : undefined,
       );
       onOpenChange(false);
       setAccepted(false);
     },
     onError: (e: Error) => toast.error(e.message ?? "Kunne ikke slette"),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -244,7 +249,7 @@ function DeleteDialog({
           </p>
         ) : (
           <div className="space-y-3">
-            {alsoRemoved === 0 && (data.weakened.length ?? 0) === 0 ? (
+            {alsoRemoved === 0 && unbacked === 0 && (data.weakened.length ?? 0) === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Ingenting annet hviler på dette. Bare denne linjen forsvinner.
               </p>
@@ -257,7 +262,7 @@ function DeleteDialog({
             />
             <ImpactList
               title="Mister hele belegget sitt"
-              note="Uten dette har de ingenting å hvile på, og fjernes også."
+              note="Disse beholdes, men merkes som ubelagt. Du kan koble dem til en annen rolle eller fjerne dem selv."
               rows={data.orphaned}
             />
             <ImpactList
@@ -281,13 +286,14 @@ function DeleteDialog({
                   className="mt-0.5"
                 />
                 <span>
-                  Jeg forstår at {alsoRemoved} element(er) til fjernes sammen med denne. Dette kan
+                  Jeg forstår at {alsoRemoved} element(er) til slettes sammen med denne. Dette kan
                   ikke angres.
                 </span>
               </label>
             ) : null}
           </div>
         )}
+
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

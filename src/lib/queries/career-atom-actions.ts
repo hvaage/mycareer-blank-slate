@@ -74,7 +74,8 @@ export type DeleteResult = {
   found: boolean;
   deleted: number;
   unlinked: number;
-  orphaned: number;
+  /** Kompetanse/eksponering som mistet hele belegget. Beholdes, men nedgraderes. */
+  unbacked: number;
 };
 
 export async function deleteCareerAtom(atomId: string): Promise<DeleteResult> {
@@ -87,9 +88,10 @@ export async function deleteCareerAtom(atomId: string): Promise<DeleteResult> {
     found: r["found"] === true,
     deleted: Number(r["deleted"] ?? 0) || 0,
     unlinked: Number(r["unlinked"] ?? 0) || 0,
-    orphaned: Number(r["orphaned"] ?? 0) || 0,
+    unbacked: Number(r["unbacked"] ?? 0) || 0,
   };
 }
+
 
 export type EditAtomPayload = {
   /** Selve påstanden slik den vises. */
