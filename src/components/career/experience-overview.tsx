@@ -115,12 +115,14 @@ function Group({
   description,
   rows,
   columns = true,
+  maxColumns = 3,
 }: {
   id: string;
   title: string;
   description?: string;
   rows: CareerAtomRow[];
   columns?: boolean;
+  maxColumns?: 2 | 3;
 }) {
   return (
     <section id={id} className="scroll-mt-20">
@@ -137,9 +139,11 @@ function Group({
         <ul
           className={cn(
             "divide-y divide-border/60",
-            columns && "lg:columns-2 lg:gap-x-8 xl:columns-3 [&>li]:break-inside-avoid",
+            columns && "lg:columns-2 lg:gap-x-8 [&>li]:break-inside-avoid",
+            columns && maxColumns === 3 && "2xl:columns-3",
           )}
         >
+
           {rows.map((r) => (
             <AtomLine key={r.id} row={r} />
           ))}
