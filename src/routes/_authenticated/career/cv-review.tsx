@@ -11,8 +11,10 @@ import { CheckCircle2, HelpCircle, Loader2, Undo2, XCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context";
 import { CvAnalysisPanel } from "@/components/cv/CvAnalysisPanel";
 import { CvReviewTimelineStep } from "@/components/cv/CvReviewTimelineStep";
+import { CvReviewResultsStep, isResultCandidate } from "@/components/cv/CvReviewResultsStep";
 import { candidateSetSignature, roleFromAtom } from "@/lib/cv-review-timeline";
 import {
+  advanceReviewProgress,
   cvReviewProgressQuery,
   invalidateReviewProgress,
   syncReviewProgress,
@@ -73,6 +75,9 @@ export const Route = createFileRoute("/_authenticated/career/cv-review")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): { import?: string } => ({
+    import: typeof search["import"] === "string" ? (search["import"] as string) : undefined,
+  }),
   component: CvReviewPage,
 });
 
@@ -89,7 +94,9 @@ function CvReviewPage() {
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const qc = useQueryClient();
-  const [importId, setImportId] = useState<string | null>(null);
+  const search = Route.useSearch();
+  // Direkte oppstart: kommer brukeren rett fra analysen, åpner vi den importen.
+  const [importId, setImportId] = useState<string | null>(search.import ?? null);
 
   const imports = useQuery(cvImportsQuery(userId));
   const activeImportId = importId ?? imports.data?.[0]?.id ?? null;
@@ -143,6 +150,7 @@ function CvReviewPage() {
   const roleCandidates = rows.filter(
     (r) => (r.resolved_atom_type ?? r.suggested_atom_type) === "role",
   );
+  const resultCandidates = rows.filter(isResultCandidate);
   const savedRoles = roleAtoms.map((a) =>
     roleFromAtom({ id: a.id, content_no: a.content_no, structured_data: a.structured_data }),
   );
@@ -342,6 +350,21 @@ function CvReviewPage() {
           roleCandidates={roleCandidates}
           savedRoles={savedRoles}
           onContinue={() => invalidateReviewProgress(qc, userId)}
+        />
+      ) : activeImportId && currentStep === 2 ? (
+        <CvReviewResultsStep
+          userId={userId}
+          importId={activeImportId}
+          signature={signature}
+          resultCandidates={resultCandidates}
+          savedRoles={savedRoles}
+          promotedByLocalRef={promoted}
+          onContinue={() => invalidateReviewProgress(qc, userId)}
+          onBack={() => {
+            void advanceReviewProgress(activeImportId, signature, 1)
+              .then(() => invalidateReviewProgress(qc, userId))
+              .catch((e: Error) => toast.error(e.message));
+          }}
         />
       ) : (
       <Tabs defaultValue="pending">

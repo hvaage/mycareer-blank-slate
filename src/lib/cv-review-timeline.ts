@@ -7,7 +7,37 @@
  */
 import type { CvParseCandidateRow } from "@/lib/queries/cv-parse-candidates";
 
-export const TIMELINE_GAP_MIN_MONTHS = 6;
+/**
+ * Avtalt produktregel: hull under tre måneder markeres ikke. Hull på tre
+ * måneder eller mer kan vises som «Mulig tidsrom å avklare», men bare når
+ * begge datoene har tilstrekkelig presisjon (måned eller dag) og ingen av
+ * rollene er pågående eller har en placeholderdato.
+ */
+export const TIMELINE_GAP_MIN_MONTHS = 3;
+
+/** Datoer vi ser i importer når kilden egentlig ikke oppga noen dato. */
+const PLACEHOLDER_DATES = new Set([
+  "1900-01-01",
+  "1901-01-01",
+  "1970-01-01",
+  "2000-01-01",
+  "9999-12-31",
+]);
+
+export type DatePrecision = "dag" | "maned" | "ar";
+
+export function isPlaceholderDate(iso: string | null): boolean {
+  return Boolean(iso && PLACEHOLDER_DATES.has(iso));
+}
+
+/** Bare måneds- eller dagspresisjon er nøyaktig nok til å påstå et hull. */
+export function hasSufficientGapPrecision(
+  iso: string | null,
+  precision: DatePrecision | null,
+): boolean {
+  if (!iso || isPlaceholderDate(iso)) return false;
+  return precision === "dag" || precision === "maned";
+}
 
 export interface TimelineRole {
   /** Kandidat-id når rollen kommer fra importen, atom-id når den er lagret. */
@@ -17,6 +47,8 @@ export interface TimelineRole {
   employer: string | null;
   startIso: string | null;
   endIso: string | null;
+  startPrecision: DatePrecision | null;
+  endPrecision: DatePrecision | null;
   isCurrent: boolean;
   candidate: CvParseCandidateRow | null;
   missingDates: boolean;
@@ -42,20 +74,35 @@ function str(sd: Sd, keys: string[]): string | null {
   return null;
 }
 
-/** Normaliserer «2019», «2019-04», «04.2019», «2019-04-01» til ISO-dato. */
-export function normalizeDateToIso(raw: string | null): string | null {
-  if (!raw) return null;
+/**
+ * Normaliserer «2019», «2019-04», «04.2019», «2019-04-01» til ISO-dato og
+ * sier samtidig hvor presis kilden faktisk var. Presisjonen er avgjørende:
+ * et årstall alene er ikke nøyaktig nok til å påstå et hull.
+ */
+export function normalizeDate(raw: string | null): {
+  iso: string | null;
+  precision: DatePrecision | null;
+} {
+  if (!raw) return { iso: null, precision: null };
   const v = raw.trim();
-  if (/^\d{4}$/.test(v)) return `${v}-01-01`;
+  if (/^\d{4}$/.test(v)) return { iso: `${v}-01-01`, precision: "ar" };
   let m = /^(\d{4})[-/](\d{1,2})$/.exec(v);
-  if (m) return `${m[1]}-${m[2]!.padStart(2, "0")}-01`;
+  if (m) return { iso: `${m[1]}-${m[2]!.padStart(2, "0")}-01`, precision: "maned" };
   m = /^(\d{1,2})[./-](\d{4})$/.exec(v);
-  if (m) return `${m[2]}-${m[1]!.padStart(2, "0")}-01`;
+  if (m) return { iso: `${m[2]}-${m[1]!.padStart(2, "0")}-01`, precision: "maned" };
   m = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(v);
-  if (m) return `${m[1]}-${m[2]!.padStart(2, "0")}-${m[3]!.padStart(2, "0")}`;
+  if (m) {
+    return { iso: `${m[1]}-${m[2]!.padStart(2, "0")}-${m[3]!.padStart(2, "0")}`, precision: "dag" };
+  }
   m = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/.exec(v);
-  if (m) return `${m[3]}-${m[2]!.padStart(2, "0")}-${m[1]!.padStart(2, "0")}`;
-  return null;
+  if (m) {
+    return { iso: `${m[3]}-${m[2]!.padStart(2, "0")}-${m[1]!.padStart(2, "0")}`, precision: "dag" };
+  }
+  return { iso: null, precision: null };
+}
+
+export function normalizeDateToIso(raw: string | null): string | null {
+  return normalizeDate(raw).iso;
 }
 
 export function isCurrentRole(sd: Sd): boolean {
@@ -68,10 +115,10 @@ export function isCurrentRole(sd: Sd): boolean {
 
 export function roleFromCandidate(c: CvParseCandidateRow): TimelineRole {
   const sd = (c.structured_data as Sd | null) ?? {};
-  const startIso = normalizeDateToIso(
-    str(sd, ["start_date", "startDate", "fra", "from", "startdato"]),
-  );
-  const endIso = normalizeDateToIso(str(sd, ["end_date", "endDate", "til", "to", "sluttdato"]));
+  const start = normalizeDate(str(sd, ["start_date", "startDate", "fra", "from", "startdato"]));
+  const end = normalizeDate(str(sd, ["end_date", "endDate", "til", "to", "sluttdato"]));
+  const startIso = start.iso;
+  const endIso = end.iso;
   const current = isCurrentRole(sd);
   return {
     id: c.id,
@@ -80,6 +127,8 @@ export function roleFromCandidate(c: CvParseCandidateRow): TimelineRole {
     employer: str(sd, ["employer", "company", "arbeidsgiver", "organisasjon"]),
     startIso,
     endIso: current ? null : endIso,
+    startPrecision: start.precision,
+    endPrecision: current ? null : end.precision,
     isCurrent: current,
     candidate: c,
     missingDates: !startIso,
@@ -103,35 +152,44 @@ export function sortRoles(roles: TimelineRole[]): TimelineRole[] {
 }
 
 /**
- * Finner hull mellom roller med kjente datoer. Roller uten startdato er ikke
- * med i hulldeteksjonen — vi gjetter ikke på perioder vi ikke kjenner.
+ * Finner hull på tre måneder eller mer mellom roller med tilstrekkelig
+ * presise datoer. Roller uten startdato, med placeholderdato, med bare
+ * årstall eller som fortsatt pågår er ikke med — vi gjetter ikke på perioder
+ * vi ikke kjenner.
  */
 export function detectGaps(roles: TimelineRole[]): TimelineGap[] {
   const dated = roles
-    .filter((r) => r.startIso)
-    .map((r) => ({
-      ...r,
-      end: r.isCurrent ? new Date().toISOString().slice(0, 10) : (r.endIso ?? r.startIso!),
-    }))
+    .filter((r) => r.startIso && !isPlaceholderDate(r.startIso))
     .sort((a, b) => a.startIso!.localeCompare(b.startIso!));
 
   const gaps: TimelineGap[] = [];
   let covered: string | null = null;
   let coveredTitle = "";
+  let coveredIsSafe = false;
   for (const r of dated) {
-    if (covered && monthsBetween(covered, r.startIso!) >= TIMELINE_GAP_MIN_MONTHS) {
+    // Pågående rolle dekker fram til i dag, men brukes aldri som hullkant.
+    const end = r.isCurrent
+      ? new Date().toISOString().slice(0, 10)
+      : (r.endIso ?? r.startIso!);
+    const endSafe =
+      !r.isCurrent && Boolean(r.endIso) && hasSufficientGapPrecision(r.endIso, r.endPrecision);
+    const startSafe = !r.isCurrent && hasSufficientGapPrecision(r.startIso, r.startPrecision);
+
+    const months = covered ? monthsBetween(covered, r.startIso!) : 0;
+    if (covered && coveredIsSafe && startSafe && months >= TIMELINE_GAP_MIN_MONTHS) {
       gaps.push({
         key: `${covered}_${r.startIso}`,
         startIso: covered,
         endIso: r.startIso!,
-        months: monthsBetween(covered, r.startIso!),
+        months,
         afterTitle: coveredTitle,
         beforeTitle: r.title,
       });
     }
-    if (!covered || r.end > covered) {
-      covered = r.end;
+    if (!covered || end > covered) {
+      covered = end;
       coveredTitle = r.title;
+      coveredIsSafe = endSafe;
     }
   }
   return gaps;
@@ -163,10 +221,10 @@ export function roleFromAtom(atom: {
   structured_data: unknown;
 }): TimelineRole {
   const sd = ((atom.structured_data as Sd | null) ?? {}) as Sd;
-  const startIso = normalizeDateToIso(
-    str(sd, ["start_date", "startDate", "fra", "from", "startdato"]),
-  );
-  const endIso = normalizeDateToIso(str(sd, ["end_date", "endDate", "til", "to", "sluttdato"]));
+  const start = normalizeDate(str(sd, ["start_date", "startDate", "fra", "from", "startdato"]));
+  const end = normalizeDate(str(sd, ["end_date", "endDate", "til", "to", "sluttdato"]));
+  const startIso = start.iso;
+  const endIso = end.iso;
   const current = isCurrentRole(sd);
   return {
     id: atom.id,
@@ -175,6 +233,8 @@ export function roleFromAtom(atom: {
     employer: str(sd, ["employer", "company", "arbeidsgiver", "organisasjon"]),
     startIso,
     endIso: current ? null : endIso,
+    startPrecision: start.precision,
+    endPrecision: current ? null : end.precision,
     isCurrent: current,
     candidate: null,
     missingDates: !startIso,

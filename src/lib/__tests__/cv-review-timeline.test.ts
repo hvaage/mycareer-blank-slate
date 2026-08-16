@@ -15,6 +15,8 @@ function role(p: Partial<TimelineRole> & { id: string }): TimelineRole {
     employer: null,
     startIso: null,
     endIso: null,
+    startPrecision: p.startIso ? "maned" : null,
+    endPrecision: p.endIso ? "maned" : null,
     isCurrent: false,
     candidate: null,
     missingDates: false,
@@ -49,22 +51,95 @@ describe("sortRoles", () => {
 });
 
 describe("detectGaps", () => {
-  it("finner hull på seks måneder eller mer", () => {
+  it("markerer ikke hull under tre måneder", () => {
+    expect(
+      detectGaps([
+        role({ id: "a", startIso: "2015-01-01", endIso: "2016-01-01" }),
+        role({ id: "b", startIso: "2016-03-01", endIso: "2017-01-01" }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("viser hull på nøyaktig tre måneder", () => {
     const gaps = detectGaps([
       role({ id: "a", title: "A", startIso: "2015-01-01", endIso: "2016-01-01" }),
-      role({ id: "b", title: "B", startIso: "2017-01-01", endIso: "2018-01-01" }),
+      role({ id: "b", title: "B", startIso: "2016-04-01", endIso: "2017-01-01" }),
     ]);
     expect(gaps).toHaveLength(1);
-    expect(gaps[0]!.months).toBe(12);
+    expect(gaps[0]!.months).toBe(3);
     expect(gaps[0]!.afterTitle).toBe("A");
     expect(gaps[0]!.beforeTitle).toBe("B");
   });
 
-  it("ser bort fra korte opphold og overlapp", () => {
+  it("viser hull på fem måneder", () => {
+    const gaps = detectGaps([
+      role({ id: "a", startIso: "2015-01-01", endIso: "2016-01-01" }),
+      role({ id: "b", startIso: "2016-06-01", endIso: "2017-01-01" }),
+    ]);
+    expect(gaps.map((g) => g.months)).toEqual([5]);
+  });
+
+  it("viser hull på seks måneder", () => {
+    const gaps = detectGaps([
+      role({ id: "a", startIso: "2015-01-01", endIso: "2016-01-01" }),
+      role({ id: "b", startIso: "2016-07-01", endIso: "2017-01-01" }),
+    ]);
+    expect(gaps.map((g) => g.months)).toEqual([6]);
+  });
+
+  it("markerer ikke hull når datoen er en placeholder", () => {
+    expect(
+      detectGaps([
+        role({ id: "a", startIso: "1900-01-01", endIso: "1900-01-01" }),
+        role({ id: "b", startIso: "2016-07-01", endIso: "2017-01-01" }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("markerer ikke hull når presisjonen bare er årstall", () => {
+    expect(
+      detectGaps([
+        role({
+          id: "a",
+          startIso: "2015-01-01",
+          endIso: "2016-01-01",
+          startPrecision: "ar",
+          endPrecision: "ar",
+        }),
+        role({ id: "b", startIso: "2016-07-01", endIso: "2017-01-01" }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("markerer ikke hull når sluttdato mangler", () => {
+    expect(
+      detectGaps([
+        role({ id: "a", startIso: "2015-01-01", endIso: null, endPrecision: null }),
+        role({ id: "b", startIso: "2016-07-01", endIso: "2017-01-01" }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("markerer ikke hull rundt en pågående rolle", () => {
+    expect(
+      detectGaps([
+        role({ id: "a", startIso: "2015-01-01", endIso: null, endPrecision: null, isCurrent: true }),
+        role({ id: "b", startIso: "2016-07-01", endIso: "2017-01-01" }),
+      ]),
+    ).toEqual([]);
     expect(
       detectGaps([
         role({ id: "a", startIso: "2015-01-01", endIso: "2016-01-01" }),
-        role({ id: "b", startIso: "2016-04-01", endIso: "2018-01-01" }),
+        role({ id: "b", startIso: "2016-07-01", endIso: null, endPrecision: null, isCurrent: true }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("markerer ikke overlappende perioder", () => {
+    expect(
+      detectGaps([
+        role({ id: "a", startIso: "2015-01-01", endIso: "2016-01-01" }),
+        role({ id: "b", startIso: "2015-06-01", endIso: "2018-01-01" }),
         role({ id: "c", startIso: "2017-01-01", endIso: "2019-01-01" }),
       ]),
     ).toEqual([]);
