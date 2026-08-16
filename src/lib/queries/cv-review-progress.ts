@@ -152,7 +152,7 @@ export async function addManualRole(input: ManualRoleInput): Promise<string> {
       atom_type: "role",
       content_no: title,
       structured_data: structured as Json,
-      source_type: "bruker",
+      source_type: "user_input",
       source_ref: "cv_review_timeline",
       confidence: "verified",
       user_confirmed: true,
@@ -165,7 +165,12 @@ export async function addManualRole(input: ManualRoleInput): Promise<string> {
   return data.id;
 }
 
-/** Bruker-lagt resultat under en bekreftet rolle. Proveniens: brukeren selv. */
+/**
+ * Bruker-lagt resultat under en bekreftet rolle. Samme kontrollerte atomflyt og
+ * provenance-regel som manuelt lagt rolle: kanonisk `source_type='user_input'`,
+ * `confidence='verified'` + `user_confirmed=true` (som er atom-tillit, IKKE
+ * claim-evidensstatusen `user_attested`). `kilde: "bruker_manuelt"` er kun metadata.
+ */
 export async function addManualResult(input: {
   userId: string;
   importId: string | null;
@@ -198,7 +203,7 @@ export async function addManualResult(input: {
       parent_atom_id: input.roleAtomId,
       content_no: title,
       structured_data: structured as Json,
-      source_type: "bruker",
+      source_type: "user_input",
       source_ref: "cv_review_results",
       confidence: "verified",
       user_confirmed: true,
