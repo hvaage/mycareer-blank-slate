@@ -98,8 +98,27 @@ function matchCurrencyClaim(claim: ExtractedClaim, atoms: AtomLike[]): ClaimMatc
     }
   }
 
+  // Samme beløp uttrykt på et annet språk i atom-teksten
+  // (f.eks. "NOK 3 billion" i grunnlaget vs. "NOK 3 milliarder" i teksten).
+  for (const atom of atoms) {
+    for (const atomClaim of extractNumberClaims(atomTextHaystack(atom))) {
+      const p = atomClaim.parsed as { kind?: string; currency?: string; normalized_value?: number };
+      if (p.kind !== "currency") continue;
+      if (p.currency !== parsed.currency) continue;
+      if (p.normalized_value !== parsed.normalized_value) continue;
+      return {
+        claim,
+        verdict: "verified",
+        confidence: 0.85,
+        supporting_atom_ids: [atom.id],
+        reasoning: "Samme beløp finnes i atom-innholdet.",
+      };
+    }
+  }
+
   return defaultUnverified(claim, "Ingen matchende beløp funnet i atoms.");
 }
+
 
 function matchPercentClaim(claim: ExtractedClaim, atoms: AtomLike[]): ClaimMatch {
   const parsed = claim.parsed as { value: number };
