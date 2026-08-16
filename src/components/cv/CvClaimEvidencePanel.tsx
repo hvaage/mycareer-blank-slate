@@ -17,6 +17,7 @@ import {
   CLAIM_REVIEW_ACTION_TEXT,
   EVIDENCE_STATUS_TEXT,
   type ClaimEvidence,
+  USER_ATTESTED_INTERNAL_NOTE,
   type ClaimReviewAction,
 } from "@/lib/cv-skills-contract";
 import { Badge } from "@/components/ui/badge";
@@ -140,6 +141,31 @@ export function CvClaimEvidencePanel({
                     {EVIDENCE_STATUS_TEXT[claim.evidenceStatus]}
                   </Badge>
                 </div>
+
+                {claim.contradiction && (
+                  <p className="text-xs text-destructive">
+                    Avvik: {claim.contradiction.reason}
+                  </p>
+                )}
+
+                {claim.unsupportedElements.length > 0 && (
+                  <div className="rounded-md bg-muted/50 p-3 text-xs">
+                    <p className="font-medium">Dette mangler dekning i grunnlaget ditt:</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-muted-foreground">
+                      {claim.unsupportedElements.map((el, i) => (
+                        <li key={`${el.kind}-${i}`}>
+                          <span className="font-medium text-foreground">{el.text}</span> — {el.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {claim.userAttestation?.valid && (
+                  <p className="text-xs text-muted-foreground">
+                    {USER_ATTESTED_INTERNAL_NOTE} Merknaden brukes bare her, aldri i CV-teksten.
+                  </p>
+                )}
 
                 {claim.userAttestation?.valid && (
                   <p className="text-xs text-muted-foreground">
