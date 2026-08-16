@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { careerAtomsQuery, type CareerAtomRow } from "@/lib/queries/career-atoms";
+import { AtomActions } from "@/components/career/atom-actions";
+
 import { ATOM_TYPE_LABEL, ATOM_TYPE_CLASS } from "@/lib/queries/cv-parse-candidates";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
