@@ -18,10 +18,13 @@ export function usePersistedCollapse(storageKey: string, defaultOpen: boolean) {
     setHydrated(true);
   }, [storageKey]);
 
+  /** fallback overstyrer defaultOpen for id-er brukeren ikke har rørt. */
   const isOpen = useCallback(
-    (id: string) => (hydrated && id in state ? state[id]! : defaultOpen),
+    (id: string, fallback?: boolean) =>
+      hydrated && id in state ? state[id]! : (fallback ?? defaultOpen),
     [state, hydrated, defaultOpen],
   );
+
 
   const toggle = useCallback(
     (id: string) => {
