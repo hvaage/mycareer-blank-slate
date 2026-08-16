@@ -65,6 +65,8 @@ export async function runModelStep(
     correlationId: string;
     jobId: string;
     workerId: string;
+    /** Injisert runtime med API-nøkkel. Klienten leser aldri env selv. */
+    runtime: ClaudeRuntimePort;
     timeoutMs?: number;
     maxRetries?: number;
   },
