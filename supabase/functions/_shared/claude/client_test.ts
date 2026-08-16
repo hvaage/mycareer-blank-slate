@@ -1,8 +1,14 @@
 // Deno-tester for capability-filtrering i Claude-klienten.
 // Kjør: deno test supabase/functions/_shared/claude/client_test.ts
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { type ModelCapabilities, sanitizeMessages, sanitizeRequestOptions } from "./client.ts";
+import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  ClaudeConfigurationError,
+  type ModelCapabilities,
+  sanitizeMessages,
+  sanitizeRequestOptions,
+} from "./client.ts";
+
 
 const base: ModelCapabilities = {
   supportsTemperature: false,
