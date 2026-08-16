@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, HelpCircle, Loader2, Undo2, XCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { CvAnalysisPanel } from "@/components/cv/CvAnalysisPanel";
 import {
   ATOM_TYPE_CLASS,
   ATOM_TYPE_LABEL,
