@@ -195,42 +195,14 @@ export function CvReviewTimelineStep({
 
       <div className="space-y-3">
         {timeline.map((r) => (
-          <div
+          <RoleRow
             key={`${r.kind}-${r.id}`}
-            className="flex flex-wrap items-start justify-between gap-3 rounded-md border p-3"
-          >
-            <div className="min-w-0">
-              <p className="font-medium">
-                {r.title}
-                {r.employer ? <span className="text-muted-foreground"> · {r.employer}</span> : null}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {periodLabel(r)}
-                {r.kind === "lagret" ? " · lagret" : " · fra importen"}
-              </p>
-              {r.missingDates && (
-                <p className="mt-1 text-xs text-amber-600">
-                  Datoene mangler i kilden. Legg dem inn manuelt hvis du vil ha rollen på
-                  tidslinjen.
-                </p>
-              )}
-            </div>
-            {r.candidate && (
-              <div className="flex gap-2">
-                <Button size="sm" disabled={busy} onClick={() => confirm.mutate([r.candidate!])}>
-                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Bekreft
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() => reject.mutate(r.candidate!)}
-                >
-                  <XCircle className="mr-1 h-3.5 w-3.5" /> Ikke min
-                </Button>
-              </div>
-            )}
-          </div>
+            role={r}
+            busy={busy || saveTitle.isPending}
+            onSaveTitle={(title) => saveTitle.mutate({ role: r, title })}
+            onConfirm={() => r.candidate && confirm.mutate([r.candidate])}
+            onReject={() => r.candidate && reject.mutate(r.candidate)}
+          />
         ))}
         {timeline.length === 0 && (
           <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
