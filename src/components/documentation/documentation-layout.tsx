@@ -5,8 +5,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/documentation" as const, label: "Oversikt", exact: true },
-  { to: "/documentation/library" as const, label: "Dokumentbibliotek", exact: false },
-  { to: "/documentation/cases" as const, label: "Case og resultater", exact: false },
+  { to: "/documentation/library" as const, label: "Dokumenter", exact: false },
   { to: "/documentation/packages" as const, label: "Dokumentpakker", exact: false },
 ] as const;
 

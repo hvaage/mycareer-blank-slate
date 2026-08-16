@@ -21,6 +21,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, FileText, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  employerAnalysisDocLinksQuery,
+  type EmployerAnalysisLink,
+} from "@/lib/queries/employer-analysis-docs";
+import { EmployerAnalysisDocsGroup } from "@/components/documentation/employer-analysis-docs-group";
 
 export const Route = createFileRoute("/_authenticated/documentation/library")({
   component: DocumentationLibraryPage,
@@ -87,7 +92,9 @@ function matchesVisibilityFilter(d: LibraryDocRow, vis: string) {
 
 function DocumentationLibraryPage() {
   const { data, isLoading, isError, error } = useQuery(documentationLibraryDocumentsQuery());
+  const { data: analysisLinks } = useQuery(employerAnalysisDocLinksQuery());
   const rows = (data ?? []) as LibraryDocRow[];
+  const links = (analysisLinks ?? {}) as Record<string, EmployerAnalysisLink>;
 
   const [titleQuery, setTitleQuery] = useState("");
   const [category, setCategory] = useState(ALL);
@@ -98,16 +105,27 @@ function DocumentationLibraryPage() {
   const statusValues = useMemo(() => uniqueSorted(rows.map((r) => r.documentation_status)), [rows]);
   const visibilityValues = useMemo(() => uniqueSorted(rows.map((r) => r.visibility)), [rows]);
 
+  const analysisRows = useMemo(() => rows.filter((d) => !!links[d.id]), [rows, links]);
+  const linkedAnalyses = useMemo(
+    () => analysisRows.filter((d) => links[d.id]?.status === "linked"),
+    [analysisRows, links],
+  );
+  const uncertainAnalyses = useMemo(
+    () => analysisRows.filter((d) => links[d.id]?.status !== "linked"),
+    [analysisRows, links],
+  );
+
   const filtered = useMemo(() => {
     const q = titleQuery.trim().toLowerCase();
     return rows.filter((d) => {
+      if (links[d.id]) return false; // arbeidsgiveranalyser har egen gruppe
       if (q && !d.title.toLowerCase().includes(q)) return false;
       if (!matchesCategoryFilter(d, category)) return false;
       if (!matchesStatusFilter(d, status)) return false;
       if (!matchesVisibilityFilter(d, visibility)) return false;
       return true;
     });
-  }, [rows, titleQuery, category, status, visibility]);
+  }, [rows, links, titleQuery, category, status, visibility]);
 
   const hasActiveFilters =
     titleQuery.trim() !== "" || category !== ALL || status !== ALL || visibility !== ALL;
@@ -206,6 +224,12 @@ function DocumentationLibraryPage() {
                   </Select>
                 </div>
               </div>
+
+              <EmployerAnalysisDocsGroup
+                uncertain={uncertainAnalyses}
+                linked={linkedAnalyses}
+                links={links}
+              />
 
               {filtered.length === 0 ? (
                 <EmptyState
