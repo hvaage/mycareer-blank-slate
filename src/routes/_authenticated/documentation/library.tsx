@@ -225,6 +225,12 @@ function DocumentationLibraryPage() {
                 </div>
               </div>
 
+              <EmployerAnalysisDocsGroup
+                uncertain={uncertainAnalyses}
+                linked={linkedAnalyses}
+                links={links}
+              />
+
               {filtered.length === 0 ? (
                 <EmptyState
                   title={hasActiveFilters ? "Ingen dokumenter matcher" : "Ingen dokumenter"}
