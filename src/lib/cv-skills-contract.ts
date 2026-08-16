@@ -40,16 +40,147 @@ export type ReadinessReport = {
   };
 };
 
-/** Hvor godt en påstand i teksten er belagt i brukerens bekreftede grunnlag. */
+/**
+ * Hvor godt en påstand i teksten er belagt i brukerens bekreftede grunnlag.
+ * Dette er den maskinelle verifikasjonen fra hallusinasjonsvakten.
+ * `user_attested` settes ALDRI av vakten — bare av brukerens egen bekreftelse.
+ */
 export const CLAIM_VERIFICATIONS = [
   "supported",
   "partially_supported",
   "unsupported",
   "not_applicable",
+  "user_attested",
+  "contradicted",
 ] as const;
 export type ClaimVerification = (typeof CLAIM_VERIFICATIONS)[number];
 
+/**
+ * Evidensklassifisering slik den presenteres for brukeren.
+ * - documented: dekket av dokumentert grunnlag
+ * - user_attested: brukeren står selv inne for opplysningen
+ * - partially_supported: delvis dekket — mangler presisjon eller omfang
+ * - unsupported: ingen dekning i grunnlaget
+ * - contradicted: grunnlaget sier noe annet
+ */
+export const EVIDENCE_STATUSES = [
+  "documented",
+  "user_attested",
+  "partially_supported",
+  "unsupported",
+  "contradicted",
+] as const;
+export type EvidenceStatus = (typeof EVIDENCE_STATUSES)[number];
+
+export const EVIDENCE_STATUS_TEXT: Record<EvidenceStatus, string> = {
+  documented: "Dokumentert i grunnlaget ditt",
+  user_attested: "Bekreftet av deg",
+  partially_supported: "Delvis dekket av grunnlaget",
+  unsupported: "Ikke dekket av grunnlaget",
+  contradicted: "Strider mot grunnlaget",
+};
+
+/** Evidensstatuser som kan godkjennes og eksporteres. */
+export const APPROVABLE_EVIDENCE_STATUSES = ["documented", "user_attested"] as const;
+
+export function isApprovalBlocking(status: EvidenceStatus): boolean {
+  return !(APPROVABLE_EVIDENCE_STATUSES as readonly string[]).includes(status);
+}
+
+/**
+ * Maskinell verifikasjon + gyldig brukerbekreftelse -> evidensstatus.
+ * En bekreftelse gjelder bare teksten den ble gitt for. Endres teksten,
+ * er bekreftelsen ikke lenger gyldig og statusen faller tilbake.
+ */
+export function evidenceStatusFor(
+  verification: ClaimVerification,
+  hasValidAttestation: boolean,
+): EvidenceStatus {
+  if (verification === "supported" || verification === "not_applicable") return "documented";
+  // Motstrid kan ikke overstyres av en bekreftelse: grunnlaget må rettes først.
+  if (verification === "contradicted") return "contradicted";
+  if (hasValidAttestation) return "user_attested";
+  if (verification === "user_attested") return "unsupported";
+  return verification === "partially_supported" ? "partially_supported" : "unsupported";
+}
+
+/** Handlinger brukeren kan velge i gjennomgangen av en påstand. */
+export const CLAIM_REVIEW_ACTIONS = ["attest", "rewrite", "add_documentation", "remove"] as const;
+export type ClaimReviewAction = (typeof CLAIM_REVIEW_ACTIONS)[number];
+
+export const CLAIM_REVIEW_ACTION_TEXT: Record<ClaimReviewAction, string> = {
+  attest: "Bekreft som egen opplysning",
+  rewrite: "Omskriv slik at den følger grunnlaget",
+  add_documentation: "Legg til dokumentasjon",
+  remove: "Fjern formuleringen",
+};
+
+export function claimReviewActionsFor(status: EvidenceStatus): ClaimReviewAction[] {
+  if (status === "documented") return [];
+  if (status === "user_attested") return ["rewrite", "add_documentation", "remove"];
+  return ["attest", "rewrite", "add_documentation", "remove"];
+}
+
+/** Brukerens egen bekreftelse av en påstand. */
+export type UserAttestation = {
+  claimId: string;
+  attestedAt: string;
+  attestedClaimText: string;
+  note: string | null;
+  externalSourceName: string | null;
+  externalSourceYear: number | null;
+  externalDocumentAvailable: boolean;
+  /** False når teksten er endret etter bekreftelsen. Krever ny bekreftelse. */
+  valid: boolean;
+};
+
+export type ClaimEvidence = {
+  claimId: string;
+  blockId: string;
+  type: ClaimType;
+  value: string;
+  verification: ClaimVerification;
+  evidenceStatus: EvidenceStatus;
+  approvalBlocking: boolean;
+  supportingAtomIds: string[];
+  availableActions: ClaimReviewAction[];
+  userAttestation: UserAttestation | null;
+};
+
+export type DocumentEvidenceReport = {
+  documentId: string;
+  canApprove: boolean;
+  blockingClaimIds: string[];
+  documentedCoverage: Record<EvidenceStatus, number> & { total: number };
+  claims: ClaimEvidence[];
+};
+
+export function summarizeEvidence(
+  documentId: string,
+  claims: ClaimEvidence[],
+): DocumentEvidenceReport {
+  const coverage = {
+    documented: 0,
+    user_attested: 0,
+    partially_supported: 0,
+    unsupported: 0,
+    contradicted: 0,
+    total: claims.length,
+  };
+  for (const c of claims) coverage[c.evidenceStatus] += 1;
+  const blockingClaimIds = claims.filter((c) => c.approvalBlocking).map((c) => c.claimId);
+  return {
+    documentId,
+    canApprove: blockingClaimIds.length === 0 && claims.length > 0,
+    blockingClaimIds,
+    documentedCoverage: coverage,
+    claims,
+  };
+}
+
 export type ClaimType = "hard" | "soft";
+
+
 
 export type CvBlock = {
   blockId: string;
