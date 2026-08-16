@@ -83,7 +83,10 @@ function AtomLine({ row, extra }: { row: CareerAtomRow; extra?: string }) {
 
   return (
     <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1">
-      <span className="min-w-0 flex-1 text-sm leading-snug">{row.content_no ?? "(uten tekst)"}</span>
+      <span className="min-w-0 flex-1 basis-48 text-sm leading-snug">
+        {row.content_no ?? "(uten tekst)"}
+      </span>
+
       <span className="flex shrink-0 flex-wrap items-center gap-1.5">
         {extra ? <span className="text-[11px] text-muted-foreground">{extra}</span> : null}
         {missingEvidence ? (
