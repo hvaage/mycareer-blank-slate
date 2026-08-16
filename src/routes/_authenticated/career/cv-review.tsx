@@ -138,14 +138,17 @@ function CvReviewPage() {
   );
   const progress = useQuery(cvReviewProgressQuery(userId, activeImportId));
   const progressRow = progress.data ?? null;
-  const needsSync =
-    Boolean(activeImportId) &&
-    rows.length > 0 &&
-    !progress.isLoading &&
-    progressRow?.candidate_set_signature !== signature;
+  const hasRows = rows.length > 0;
+  // Første gangs oppstart: ingen fremdrift finnes, så vi oppretter den.
+  const needsFirstSync =
+    Boolean(activeImportId) && hasRows && !progress.isLoading && progressRow === null;
+  // Foreldet kandidatsett: aldri gjenoppta som om ingenting har skjedd.
+  const isStale =
+    Boolean(progressRow) && progressRow?.candidate_set_signature !== signature && hasRows;
+  const [showChanges, setShowChanges] = useState(false);
 
   useEffect(() => {
-    if (!activeImportId || !needsSync) return;
+    if (!activeImportId || !needsFirstSync) return;
     let cancelled = false;
     void syncReviewProgress(activeImportId, signature)
       .then(() => {
@@ -155,7 +158,7 @@ function CvReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeImportId, needsSync, signature, qc, userId]);
+  }, [activeImportId, needsFirstSync, signature, qc, userId]);
 
   const currentStep =
     progressRow && progressRow.candidate_set_signature === signature ? progressRow.current_step : 1;
@@ -163,9 +166,41 @@ function CvReviewPage() {
     (r) => (r.resolved_atom_type ?? r.suggested_atom_type) === "role",
   );
   const resultCandidates = rows.filter(isResultCandidate);
+  const skillCandidates = rows.filter(isSkillCandidate);
+  const qualificationCandidates = rows.filter(isQualificationCandidate);
   const savedRoles = roleAtoms.map((a) =>
     roleFromAtom({ id: a.id, content_no: a.content_no, structured_data: a.structured_data }),
   );
+  const suggestionRoles = savedRoles.map((r) => ({
+    atomId: r.id,
+    title: r.title,
+    employer: r.employer,
+  }));
+  const suggestionResults = pointerAtoms
+    .filter((a) => a.atom_class === "resultat")
+    .map((a) => ({
+      atomId: a.id,
+      title: (a.content_no ?? "").trim(),
+      roleAtomId: a.parent_atom_id ?? null,
+    }));
+
+  function goToStep(step: number) {
+    if (!activeImportId) return;
+    void advanceReviewProgress(activeImportId, signature, step)
+      .then(() => invalidateReviewProgress(qc, userId))
+      .catch((e: Error) => toast.error(e.message));
+  }
+
+  function restartReview() {
+    if (!activeImportId) return;
+    void syncReviewProgress(activeImportId, signature)
+      .then(() => {
+        setShowChanges(false);
+        invalidateReviewProgress(qc, userId);
+      })
+      .catch((e: Error) => toast.error(e.message));
+  }
+
 
 
   const promoted = useMemo(
