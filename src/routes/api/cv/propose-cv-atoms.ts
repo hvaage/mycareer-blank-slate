@@ -45,7 +45,9 @@ const UUID = z.string().uuid();
 const bodySchema = z
   .object({
     cvImportId: UUID,
-    candidateIds: z.array(UUID).min(1).max(120).optional(),
+    // Én forespørsel = én delbatch. Frontend deler større utvalg selv.
+    candidateIds: z.array(UUID).min(1).max(20).optional(),
+    regenerate: z.boolean().optional(),
     correlation_id: UUID.optional(),
   })
   .strict();
@@ -106,7 +108,7 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
             "Ugyldig forespørsel. Bare cvImportId og candidateIds godtas — tekst kan ikke sendes inn.",
           );
         }
-        const { cvImportId, candidateIds } = parsed.data;
+        const { cvImportId, candidateIds, regenerate } = parsed.data;
 
         // -------------------------------------------------------------- jwt
         const authHeader = request.headers.get("authorization") ?? "";
@@ -198,6 +200,7 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
             candidates: eligible as never,
             correlationId,
             startedAt,
+            regenerate: regenerate === true,
           });
           return Response.json(outcome.body, { status: outcome.status });
         } catch (err) {
