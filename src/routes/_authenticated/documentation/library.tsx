@@ -21,6 +21,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, FileText, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  employerAnalysisDocLinksQuery,
+  type EmployerAnalysisLink,
+} from "@/lib/queries/employer-analysis-docs";
+import { EmployerAnalysisDocsGroup } from "@/components/documentation/employer-analysis-docs-group";
 
 export const Route = createFileRoute("/_authenticated/documentation/library")({
   component: DocumentationLibraryPage,
