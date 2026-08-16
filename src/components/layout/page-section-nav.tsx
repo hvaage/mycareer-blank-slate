@@ -5,14 +5,18 @@
 // ============================================================
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { StatusMark, type SectionStatus } from "@/components/form/form-section";
 
 export type PageSection = {
   id: string;
   label: string;
   count?: number;
+  /** Fremdrift for skjemaseksjoner. Vises som merke i stedet for antall. */
+  status?: SectionStatus;
   /** Sett false for å skjule seksjonen fra menyen. Default: count !== 0 */
   show?: boolean;
 };
+
 
 export function PageSectionNav({
   sections,
@@ -104,10 +108,12 @@ export function PageSectionNav({
                       : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
+                  {it.status ? <StatusMark status={it.status} /> : null}
                   {it.label}
                   {typeof it.count === "number" ? (
                     <span className="tabular-nums text-xs text-muted-foreground">({it.count})</span>
                   ) : null}
+
                 </a>
               </li>
             );
