@@ -105,7 +105,11 @@ export type SanitizedJobStatus = {
   errorCode: string | null;
 };
 
-/** Utfall av ett modellsteg. */
+/**
+ * Utfall av ett modellsteg.
+ * configuration_error = kallet er ugyldig for valgt modellprofil. Ingen
+ * Anthropic-request sendes, og steget skal aldri retryes.
+ */
 export const STEP_OUTCOMES = [
   "ok",
   "needs_review",
@@ -113,6 +117,11 @@ export const STEP_OUTCOMES = [
   "blocked_guard",
   "provider_error",
   "timeout",
+  "configuration_error",
 ] as const;
 export type StepOutcome = (typeof STEP_OUTCOMES)[number];
+
+/** Utfall som aldri skal retryes. */
+export const NON_RETRYABLE_STEP_OUTCOMES = ["configuration_error", "blocked_guard"] as const;
+
 // #endregion generated-dto-contract
