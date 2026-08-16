@@ -5665,6 +5665,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      internal_ai_begin_regeneration: {
+        Args: { p_import_id: string; p_user_id: string }
+        Returns: Json
+      }
       internal_ai_check_run_limits: {
         Args: {
           p_import_id: string
