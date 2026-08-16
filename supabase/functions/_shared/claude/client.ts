@@ -100,10 +100,18 @@ export function sanitizeRequestOptions(
   return out;
 }
 
+/** Konfigurasjonsfeil: kallet er ugyldig for valgt modellprofil. Ingen lydløs degradering. */
+export class ClaudeConfigurationError extends Error {
+  constructor(readonly errorCode: string, message: string) {
+    super(message);
+    this.name = "ClaudeConfigurationError";
+  }
+}
+
 /**
  * Prefill = siste melding er en assistant-melding modellen skal fortsette på.
- * Støtter ikke modellen prefill (eller er extended thinking aktiv), fjernes
- * meldingen i stedet for å sendes og feile.
+ * Støtter ikke modellen prefill (eller er extended thinking aktiv), er kallet
+ * feilkonfigurert. Meldingen fjernes IKKE lydløst — det gir en eksplisitt feil.
  */
 export function sanitizeMessages(
   messages: { role: "user" | "assistant"; content: string }[],
@@ -114,9 +122,21 @@ export function sanitizeMessages(
   if (!last || last.role !== "assistant") return messages;
   const thinkingEnabled =
     (sanitizedOptions["thinking"] as { type?: string } | undefined)?.type === "enabled";
-  if (capabilities.supportsPrefill === true && !thinkingEnabled) return messages;
-  return messages.slice(0, -1);
+  if (capabilities.supportsPrefill !== true) {
+    throw new ClaudeConfigurationError(
+      "unsupported_prefill",
+      "Modellprofilen støtter ikke assistant-prefill, men siste melding er en prefill.",
+    );
+  }
+  if (thinkingEnabled) {
+    throw new ClaudeConfigurationError(
+      "prefill_with_thinking",
+      "Assistant-prefill kan ikke kombineres med extended thinking.",
+    );
+  }
+  return messages;
 }
+
 
 
 function isTransient(status: number | null): boolean {
