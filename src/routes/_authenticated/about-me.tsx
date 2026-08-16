@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import { CvUploader } from "@/components/cv-uploader";
 import { AboutMeCvSection } from "@/components/cv-upload/about-me-section";
 import { JobSearchPrefs } from "@/components/job-search-prefs";
+import { getCareerStage } from "@/lib/career-stage";
+
 
 export const Route = createFileRoute("/_authenticated/about-me")({
   component: AboutMePage,
