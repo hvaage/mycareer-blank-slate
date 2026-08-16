@@ -110,6 +110,8 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
         importId: res.import_id,
         fileName: res.source_filename,
       });
+      // Brukeren har allerede valgt filen — analysen starter uten et ekstra trykk.
+      await runAnalyze(res.import_id, res.source_filename);
     } catch (e: any) {
       dispatch({
         type: "error",
@@ -147,9 +149,7 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.kind === "file_selected" ? (state as { file: File }).file : null]);
 
-  const runAnalyze = async () => {
-    if (state.kind !== "await_parse") return;
-    const { importId, fileName } = state;
+  const runAnalyze = async (importId: string, fileName: string) => {
     dispatch({ type: "parse_start", importId, fileName });
     try {
       const res = await runParse.mutateAsync(importId);
@@ -297,7 +297,7 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
               </Alert>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void runAnalyze()} disabled={runParse.isPending}>
+              <Button onClick={() => void runAnalyze(state.importId, state.fileName)} disabled={runParse.isPending}>
                 {runParse.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Analyser CV
               </Button>
