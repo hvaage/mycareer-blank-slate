@@ -85,12 +85,13 @@ Begge «Legg til for hånd»-skjemaene skriver til **`career_atoms`** (v4), ikke
 
 ### 4. Løs dupliseringen — én opplysning, ett sted
 
-Eier = tabellen matching leser, altså `profiles`, redigert fra Om meg. Karriereprofil eier bare det som er unikt for den: karrierestadium og motivasjonsskalaene (de som beholdes).
+Eier = tabellen matching leser, altså `profiles`, redigert fra Om meg. Karriereprofil eier bare karrierestadium.
 
 - Karriereprofil slutter å skrive `years_experience`, `desired_role_types`, `desired_industries`, `leadership_level`, `preferred_locations`, `salary_expectation_min/max`, `preferred_work_styles`. Feltene vises som lesbar oppsummering med «Endre i Om meg».
-- Ubrukte felter uten leser fjernes fra skjemaet: `preferred_company_sizes`, `travel_preference`, `remote_preference`, `primary_industry`.
-- **Konfliktløser:** der de to tabellene har ulike verdier, vises begge side om side med kilde, og brukeren velger én. Valget skrives til `profiles`, og den tilsvarende kolonnen i `user_career_profiles` tømmes, slik at unionen i matching slutter å blande. Ingen automatisk sammenslåing.
+- Felter uten leser fjernes fra skjemaet: `preferred_company_sizes`, `travel_preference`, `remote_preference`, `primary_industry`, og de sju motivasjonsskalaene skjules (se over).
+- **Konfliktløser:** der de to tabellene har ulike verdier, vises begge side om side med kilde — og med en linje som sier hva systemet gjør i dag: «Jobbsøket bruker begge svarene nå. Velg ett, så søkes det bare på det.» Valget skrives til `profiles`, og den tilsvarende kolonnen i `user_career_profiles` tømmes. Ingen automatisk sammenslåing.
 - Konfliktløseren vises bare når det finnes konflikt, og forsvinner når alle er avgjort.
+
 
 ### 5. Måling
 
