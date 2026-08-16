@@ -110,6 +110,8 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
   const importArchived = useImportArchivedCv(userId);
   const docDrafts = useCreateDocumentationDrafts(userId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Hva analysen faktisk fant, slik det skal presenteres i landingsteksten.
+  const [discovered, setDiscovered] = useState<PreviewCounts | null>(null);
   const resumable = useResumableImport(userId);
   const [resumedId, setResumedId] = useState<string | null>(null);
 
@@ -283,13 +285,10 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
         .eq("id", importId);
       if (updErr) throw Object.assign(new Error(updErr.message), { code: "database_error" });
       const result = await commit.mutateAsync(importId);
+      setDiscovered(countsFromParsed(filtered));
       dispatch({ type: "done", result });
-      toast.success(`${result.candidates_created} elementer lagret. Vi tar deg rett til gjennomgangen.`);
       onCompleted?.(result);
-      // Direkte oppstart: brukeren skal ikke måtte lete etter neste steg.
-      if (!onCompleted) {
-        void navigate({ to: "/career/cv-review", search: { import: result.import_id } });
-      }
+      // Ingen automatisk videresending: brukeren velger selv «nå» eller «senere».
     } catch (e: any) {
       dispatch({
         type: "error",
