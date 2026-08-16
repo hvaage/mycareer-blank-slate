@@ -345,7 +345,7 @@ export function AppSidebar() {
 
   const desktopSubPanel = subPanelOpen && activeGroup ? (
     <div
-      className="hidden shrink-0 flex-col border-r bg-sidebar/60 text-sidebar-foreground md:flex"
+      className="hidden shrink-0 flex-col border-r bg-sidebar/60 text-sidebar-foreground sm:flex"
       style={{ width: SUBPANEL_WIDTH }}
       id={`subpanel-${activeGroup.id}`}
       role="region"
@@ -552,17 +552,17 @@ export function AppSidebar() {
     </Sheet>
   );
 
-  // Only render desktop chrome on md+; mobile uses the drawer.
+  // Desktop-chrome styres kun av CSS-breakpointet (md), slik at den aldri kan
+  // falle bort i gråsonen der JS-bredden avrundes annerledes enn media query.
   return (
     <>
-      {!isMobile && (
-        <div className="hidden md:flex">
-          {desktopRail}
-          {desktopSubPanel}
-        </div>
-      )}
+      <div className="hidden sm:flex">
+        {desktopRail}
+        {desktopSubPanel}
+      </div>
       {mobileDrawer}
     </>
+
   );
 }
 
