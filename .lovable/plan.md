@@ -51,21 +51,50 @@ Karriereoversikt-fanen slutter å ta imot filer og peker til Dokumentasjon. Begg
 
 AI-forslag døpes om til «Til gjennomgang» med teller i menyen. Køen samler: CV-kandidater, regelbaserte forslag, spørsmål om kompetanse uten belegg, ønsker eldre enn 12 måneder, mål som har passert frist, begrensninger nær valid_to. Én liste med filter per type, én avgjørelse per element.
 
-## Trinn 5 — Grunnlagsoversikten (størst)
+## Trinn 5 — Grunnlagsoversikten, delt i tre leveranser
 
-Ny side «Erfaring og kompetanse» som viser og redigerer alt av kind `evidens`, i rekkefølgen roller → resultater → kompetanse → kvalifikasjoner → eksponering → verktøy.
+### 5a Visning (ingen handlinger)
 
-Hierarkisk visning per rolle med nestede resultater, kompetanse som hviler på rollen (med antall belegg), og avledet eksponering. Kvalifikasjoner og verktøy i egne grupper under.
+Ny side «Erfaring og kompetanse» som viser alt av kind `evidens` i rekkefølgen roller → resultater → kompetanse → kvalifikasjoner → eksponering → verktøy.
 
-Per element vises: manglende belegg, attestasjon (selvrapportert / dokumentert / bekreftet av leder / bekreftet av tredjepart), ikke bekreftet, kilde (importert, manuelt, godkjent forslag). Utdatert vises kun for ønske, verdi og mål.
+Hierarkisk visning per rolle med nestede resultater, kompetanse som hviler på rollen (med antall resultater som belegger den), og avledet eksponering. Kvalifikasjoner og verktøy i egne grupper under.
 
-Handlinger: rediger, slett, bekreft, koble dokumentasjon; «legg til nytt» per gruppe.
+Per element vises: manglende belegg, attestasjon (selvrapportert / dokumentert / bekreftet av leder / bekreftet av tredjepart), ikke bekreftet, kilde (importert fra CV, lagt inn manuelt, foreslått og godkjent). Utdatert vises kun for ønske, verdi og mål, aldri for evidens.
 
-- Sletting viser alltid følgene først: hvilke barn som forsvinner, hvilken eksponering som faller bort, hvilke kompetanser som mister sitt eneste belegg.
-- Redigering av et bekreftet atom varsler før lagring at confidence faller tilbake fra verified.
-- Manuell registrering følger ontologien: kompetanse krever peker til minst ett resultat eller én rolle (feltet vises og forklares i skjemaet); eksponering kan ikke opprettes fritt, brukeren må velge rollen den kom fra.
+5a leveres og rapporteres alene. Brukeren kan se hele grunnlaget selv om han ennå ikke kan endre det.
 
-Karriereprofil får samme mønster for ønske, verdi og begrensning, gruppert med viktighet og gyldighet, der begrensninger tydelig merkes som filtrerende. Mål og utvikling får kun en tom tilstand som forklarer hva som kommer.
+### 5b Redigering, sletting med konsekvensoppslag, bekreftelse
+
+Konsekvensoppslaget bygges som én databasefunksjon — rekursiv traversering i basen, ikke logikk spredt i frontend, slik at svaret blir det samme uansett hvor slettingen starter. Signaturen foreslås og godkjennes før 5b bygges:
+
+```text
+public.career_atom_delete_impact(_atom_id uuid)
+  returns jsonb
+
+{
+  "atom": { "id", "atom_type", "content_no" },
+  "children":            [ { id, atom_type, content_no } ],   -- rekursivt, parent_atom_id
+  "derived_exposure":    [ { id, content_no } ],              -- eksponering under rollen
+  "skills_losing_only_evidence": [ { id, content_no } ],      -- eneste belegg forsvinner
+  "skills_losing_some_evidence": [ { id, content_no, remaining } ],
+  "counts": { "children": n, "derived_exposure": n, "skills_orphaned": n }
+}
+```
+
+Dette er den ene unntaksendringen i basen (en `SECURITY DEFINER`-lesefunksjon med `auth.uid()`-sjekk og GRANT til `authenticated`). Ingen tabell- eller kolonneendringer.
+
+Handlinger per element: rediger, slett, bekreft, koble dokumentasjon. Sletting viser alltid dialogen med funksjonens svar før den utføres. Redigering av et bekreftet atom varsler før lagring at confidence faller tilbake fra verified.
+
+### 5c Manuell registrering
+
+«Legg til nytt» per gruppe, med ontologireglene innebygd i skjemaet, ikke som avvisning etterpå: kompetanse krever peker til minst ett resultat eller én rolle, med forklaring i feltet; eksponering kan ikke opprettes fritt, brukeren må velge rollen den kom fra.
+
+### Karriereprofil og Mål
+
+Karriereprofil får samme mønster for ønske, verdi og begrensning, gruppert med viktighet og gyldighet, der begrensninger tydelig merkes som filtrerende. «Kort om meg» flyttes hit som en egen, øverste seksjon med eget kort og egen overskrift — over preferansegruppene, ikke som et felt blant dem — fordi teksten brukes i CV-generering og må være lett å finne og redigere.
+
+Mål og utvikling får kun en tom tilstand som forklarer hva som kommer.
+
 
 ## Trinn 6 — Oversikt
 
