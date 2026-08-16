@@ -121,6 +121,25 @@ export function claimReviewActionsFor(status: EvidenceStatus): ClaimReviewAction
   return ["attest", "rewrite", "add_documentation", "remove"];
 }
 
+/**
+ * Intern merknad ved brukerbekreftelse. Vises bare i gjennomgangen —
+ * den skal aldri havne i den eksporterte CV-teksten.
+ */
+export const USER_ATTESTED_INTERNAL_NOTE =
+  "Bekreftet av deg. Oppgitt ekstern dokumentasjon er ikke tilgjengelig.";
+
+/** Hvordan en bekreftelse ble til. Kanalen er alltid brukerens egen handling. */
+export type AttestationProvenance = {
+  channel: "user_review_ui";
+  actor: "user";
+  /** Verifikasjonen påstanden hadde da brukeren bekreftet den. */
+  verificationAtAttestation: ClaimVerification | null;
+  /** Versjonsnummer for bekreftelsen av denne påstanden. */
+  claimVersion: number;
+  /** Dokumentversjonens outputHash da bekreftelsen ble gitt, om kjent. */
+  documentOutputHash: string | null;
+};
+
 /** Brukerens egen bekreftelse av en påstand. */
 export type UserAttestation = {
   claimId: string;
@@ -132,7 +151,66 @@ export type UserAttestation = {
   externalDocumentAvailable: boolean;
   /** False når teksten er endret etter bekreftelsen. Krever ny bekreftelse. */
   valid: boolean;
+  withdrawnAt: string | null;
+  invalidatedAt: string | null;
+  invalidatedReason: string | null;
+  provenance: AttestationProvenance;
+  /** Intern merknad. Aldri en del av eksportert tekst. */
+  internalNote: string;
 };
+
+/** Del av en påstand som mangler dekning i grunnlaget. */
+export type UnsupportedElement = {
+  /** Hva slags element: tall, dato, marked, geografi, sammenligning, annet. */
+  kind: "number" | "date" | "market" | "geography" | "comparison" | "causality" | "other";
+  text: string;
+  reason: string;
+};
+
+/** Registrert motstrid mellom påstand og grunnlag. */
+export type ClaimContradiction = {
+  text: string;
+  conflictingAtomIds: string[];
+  reason: string;
+};
+
+/**
+ * Deterministisk oppdeling av hva i en påstand som mangler dekning.
+ * Ingen modellkall — bare klassifisering av teksten brukeren skal ta stilling til.
+ */
+export function classifyUnsupportedElements(
+  value: string,
+  verification: ClaimVerification,
+): UnsupportedElement[] {
+  if (verification === "supported" || verification === "not_applicable") return [];
+  const elements: UnsupportedElement[] = [];
+  const push = (kind: UnsupportedElement["kind"], text: string, reason: string) => {
+    if (!elements.some((e) => e.text === text && e.kind === kind)) elements.push({ kind, text, reason });
+  };
+  for (const m of value.match(/\b(19|20)\d{2}\b/g) ?? []) {
+    push("date", m, "Årstallet er ikke belagt i grunnlaget ditt.");
+  }
+  for (const m of value.match(/\b\d[\d\s.,]*\s?(%|prosent|mill\.?|millioner|milliarder|personer|ansatte)?\b/g) ??
+    []) {
+    const t = m.trim();
+    if (t.length === 0 || /^(19|20)\d{2}$/.test(t)) continue;
+    push("number", t, "Tallet er ikke belagt i grunnlaget ditt.");
+  }
+  for (const m of value.match(/\b(størst|ledende|markedsledende|først|eneste|nest største|best)\w*/gi) ?? []) {
+    push("comparison", m, "Sammenligningen er ikke belagt i grunnlaget ditt.");
+  }
+  for (const m of value.match(/\b(B2C|B2B|marked\w*)\b/gi) ?? []) {
+    push("market", m, "Markedsomfanget er ikke belagt i grunnlaget ditt.");
+  }
+  for (const m of value.match(/\b(Norge|norsk\w*|Norden|nordisk\w*|Europa|globalt)\b/gi) ?? []) {
+    push("geography", m, "Geografien er ikke belagt i grunnlaget ditt.");
+  }
+  if (elements.length === 0) {
+    push("other", value, "Formuleringen er ikke belagt i grunnlaget ditt.");
+  }
+  return elements;
+}
+
 
 export type ClaimEvidence = {
   claimId: string;
@@ -145,6 +223,8 @@ export type ClaimEvidence = {
   supportingAtomIds: string[];
   availableActions: ClaimReviewAction[];
   userAttestation: UserAttestation | null;
+  unsupportedElements: UnsupportedElement[];
+  contradiction: ClaimContradiction | null;
 };
 
 export type DocumentEvidenceReport = {
@@ -154,6 +234,19 @@ export type DocumentEvidenceReport = {
   documentedCoverage: Record<EvidenceStatus, number> & { total: number };
   claims: ClaimEvidence[];
 };
+
+/**
+ * Endringer som gjør en tidligere bekreftelse ugyldig.
+ * Endres tall, dato, marked, geografi, årsakssammenheng eller styrken i en
+ * sammenligning, må brukeren bekrefte på nytt.
+ */
+export function attestationSurvivesRewrite(previousText: string, nextText: string): boolean {
+  const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
+  // Bare ren formatering (mellomrom, store/små bokstaver) bevarer bekreftelsen.
+  // Endres tall, dato, marked, geografi, årsakssammenheng eller styrken i en
+  // sammenligning, må brukeren bekrefte på nytt.
+  return norm(previousText) === norm(nextText);
+}
 
 export function summarizeEvidence(
   documentId: string,
@@ -177,6 +270,7 @@ export function summarizeEvidence(
     claims,
   };
 }
+
 
 export type ClaimType = "hard" | "soft";
 

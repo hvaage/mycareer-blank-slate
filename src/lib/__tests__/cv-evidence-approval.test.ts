@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  attestationSurvivesRewrite,
+  classifyUnsupportedElements,
   claimReviewActionsFor,
   evidenceStatusFor,
   isApprovalBlocking,
   summarizeEvidence,
+  USER_ATTESTED_INTERNAL_NOTE,
   type ClaimEvidence,
 } from "@/lib/cv-skills-contract";
 
@@ -20,6 +23,8 @@ function claim(partial: Partial<ClaimEvidence>): ClaimEvidence {
     supportingAtomIds: [],
     availableActions: claimReviewActionsFor(evidenceStatus),
     userAttestation: partial.userAttestation ?? null,
+    unsupportedElements: partial.unsupportedElements ?? [],
+    contradiction: partial.contradiction ?? null,
   };
 }
 
@@ -88,5 +93,83 @@ describe("handlinger i gjennomgangen", () => {
 
   it("allerede bekreftet tilbys ikke ny bekreftelse", () => {
     expect(claimReviewActionsFor("user_attested")).not.toContain("attest");
+  });
+});
+
+describe("bekreftelse og omskriving", () => {
+  const text = "Bygget opp virksomheten fra oppstart og ledet den til markedsledende posisjon i 2003.";
+
+  it("ren formatering bevarer bekreftelsen", () => {
+    expect(attestationSurvivesRewrite(text, `  ${text.toUpperCase()} `)).toBe(true);
+  });
+
+  it("endret årstall krever ny bekreftelse", () => {
+    expect(attestationSurvivesRewrite(text, text.replace("2003", "2004"))).toBe(false);
+  });
+
+  it("endret markedsomfang krever ny bekreftelse", () => {
+    expect(
+      attestationSurvivesRewrite(text, text.replace("markedsledende", "nest største")),
+    ).toBe(false);
+  });
+
+  it("tilbaketrukket bekreftelse gjeninnfører blokkering", () => {
+    const withdrawn = claim({
+      claimId: "c15",
+      evidenceStatus: evidenceStatusFor("partially_supported", false),
+      verification: "partially_supported",
+    });
+    expect(withdrawn.approvalBlocking).toBe(true);
+    expect(summarizeEvidence("doc", [withdrawn]).canApprove).toBe(false);
+  });
+
+  it("intern merknad er ikke en del av påstandsteksten", () => {
+    const attested = claim({
+      claimId: "c15",
+      value: text,
+      evidenceStatus: "user_attested",
+      verification: "partially_supported",
+      userAttestation: {
+        claimId: "c15",
+        attestedAt: new Date().toISOString(),
+        attestedClaimText: text,
+        note: null,
+        externalSourceName: "Storebrand Kapitalforvaltning",
+        externalSourceYear: 2003,
+        externalDocumentAvailable: false,
+        valid: true,
+        withdrawnAt: null,
+        invalidatedAt: null,
+        invalidatedReason: null,
+        provenance: {
+          channel: "user_review_ui",
+          actor: "user",
+          verificationAtAttestation: "partially_supported",
+          claimVersion: 1,
+          documentOutputHash: null,
+        },
+        internalNote: USER_ATTESTED_INTERNAL_NOTE,
+      },
+    });
+    expect(attested.value).not.toContain(USER_ATTESTED_INTERNAL_NOTE);
+    expect(attested.userAttestation?.externalDocumentAvailable).toBe(false);
+    expect(summarizeEvidence("doc", [attested]).canApprove).toBe(true);
+  });
+});
+
+describe("udekkede elementer", () => {
+  it("dokumentert påstand har ingen udekkede elementer", () => {
+    expect(classifyUnsupportedElements("Ledet teamet", "supported")).toEqual([]);
+  });
+
+  it("deler opp tall, årstall, marked og sammenligning", () => {
+    const kinds = classifyUnsupportedElements(
+      "I 2003 størst i Norge innen B2C og B2B",
+      "partially_supported",
+    ).map((e) => e.kind);
+    expect(kinds).toContain("date");
+    expect(kinds).toContain("comparison");
+    expect(kinds).toContain("market");
+    expect(kinds).toContain("geography");
   });
 });

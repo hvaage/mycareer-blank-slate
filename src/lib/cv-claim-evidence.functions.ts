@@ -8,6 +8,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
+  attestationSurvivesRewrite,
+  classifyUnsupportedElements,
   claimReviewActionsFor,
   evidenceStatusFor,
   isApprovalBlocking,
@@ -15,6 +17,7 @@ import {
   type ClaimEvidence,
   type ClaimVerification,
   type DocumentEvidenceReport,
+  USER_ATTESTED_INTERNAL_NOTE,
 } from "@/lib/cv-skills-contract";
 
 type AttestationRow = {
@@ -26,6 +29,12 @@ type AttestationRow = {
   external_source_name: string | null;
   external_source_year: number | null;
   external_document_available: boolean;
+  withdrawn_at: string | null;
+  invalidated_at: string | null;
+  invalidated_reason: string | null;
+  verification_at_attestation: string | null;
+  attested_claim_version: number | null;
+  document_output_hash: string | null;
 };
 
 async function buildReport(
@@ -41,7 +50,7 @@ async function buildReport(
   const { data: attRows } = await supabase
     .from("cv_claim_attestations")
     .select(
-      "claim_id, attested_at, attested_claim_text, attested_claim_hash, note, external_source_name, external_source_year, external_document_available",
+      "claim_id, attested_at, attested_claim_text, attested_claim_hash, note, external_source_name, external_source_year, external_document_available, withdrawn_at, invalidated_at, invalidated_reason, verification_at_attestation, attested_claim_version, document_output_hash",
     )
     .eq("document_id", documentId)
     .is("withdrawn_at", null)
@@ -53,7 +62,7 @@ async function buildReport(
 
   const claims: ClaimEvidence[] = ((claimRows ?? []) as any[]).map((c) => {
     const att = byClaim.get(c.claim_id) ?? null;
-    const valid = att !== null && att.attested_claim_text.trim() === String(c.value).trim();
+    const valid = att !== null && attestationSurvivesRewrite(att.attested_claim_text, String(c.value));
     const evidenceStatus = evidenceStatusFor(c.verification as ClaimVerification, valid);
     return {
       claimId: c.claim_id,
@@ -65,6 +74,18 @@ async function buildReport(
       approvalBlocking: isApprovalBlocking(evidenceStatus),
       supportingAtomIds: c.supporting_atom_ids ?? [],
       availableActions: claimReviewActionsFor(evidenceStatus),
+      unsupportedElements:
+        evidenceStatus === "documented"
+          ? []
+          : classifyUnsupportedElements(String(c.value), c.verification as ClaimVerification),
+      contradiction:
+        c.verification === "contradicted"
+          ? {
+              text: String(c.value),
+              conflictingAtomIds: c.supporting_atom_ids ?? [],
+              reason: "Grunnlaget ditt sier noe annet enn denne formuleringen.",
+            }
+          : null,
       userAttestation: att
         ? {
             claimId: att.claim_id,
@@ -75,10 +96,23 @@ async function buildReport(
             externalSourceYear: att.external_source_year,
             externalDocumentAvailable: att.external_document_available,
             valid,
+            withdrawnAt: att.withdrawn_at ?? null,
+            invalidatedAt: att.invalidated_at ?? null,
+            invalidatedReason: att.invalidated_reason ?? null,
+            provenance: {
+              channel: "user_review_ui" as const,
+              actor: "user" as const,
+              verificationAtAttestation:
+                (att.verification_at_attestation as ClaimVerification | null) ?? null,
+              claimVersion: att.attested_claim_version ?? 1,
+              documentOutputHash: att.document_output_hash ?? null,
+            },
+            internalNote: USER_ATTESTED_INTERNAL_NOTE,
           }
         : null,
     };
   });
+
 
   return summarizeEvidence(documentId, claims);
 }
@@ -128,6 +162,13 @@ export const attestClaim = createServerFn({ method: "POST" })
       external_source_name: data.externalSourceName ?? null,
       external_source_year: data.externalSourceYear ?? null,
       external_document_available: data.externalDocumentAvailable ?? false,
+      provenance: {
+        channel: "user_review_ui",
+        actor: "user",
+        confirmed_text: claim.value,
+        verification_at_attestation: claim.verification,
+      },
+      verification_at_attestation: claim.verification,
     });
     if (insertError) throw new Error("Kunne ikke lagre bekreftelsen.");
 
