@@ -177,7 +177,10 @@ function CvReviewPage() {
 
 
   const currentStep =
-    progressRow && progressRow.candidate_set_signature === signature ? progressRow.current_step : 1;
+    progressRow && (storedSignature === signature || signatureIsLegacy)
+      ? progressRow.current_step
+      : 1;
+
   const roleCandidates = rows.filter(
     (r) => (r.resolved_atom_type ?? r.suggested_atom_type) === "role",
   );
