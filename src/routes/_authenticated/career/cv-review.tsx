@@ -19,6 +19,16 @@ import {
   invalidateReviewProgress,
   syncReviewProgress,
 } from "@/lib/queries/cv-review-progress";
+import { CvReviewSkillsStep } from "@/components/cv/CvReviewSkillsStep";
+import {
+  CvReviewQualificationsStep,
+  isQualificationCandidate,
+} from "@/components/cv/CvReviewQualificationsStep";
+import { CvReviewProgressBar } from "@/components/cv/CvReviewProgressBar";
+import { CvReviewSummary, CvReviewStaleNotice } from "@/components/cv/CvReviewSummary";
+import { isSkillCandidate } from "@/lib/cv-review-skill-suggestions";
+
+
 
 import {
   ATOM_TYPE_CLASS,
@@ -75,11 +85,20 @@ export const Route = createFileRoute("/_authenticated/career/cv-review")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>): { import?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { import?: string; legacy?: boolean } => ({
     import: typeof search["import"] === "string" ? (search["import"] as string) : undefined,
+    // Uttrykkelig legacy-/debugvisning. Aldri en del av den ordinære brukerreisen.
+    legacy: search["legacy"] === true || search["legacy"] === "1" ? true : undefined,
   }),
   component: CvReviewPage,
 });
+
+function countStep(list: CvParseCandidateRow[]): { total: number; remaining: number } {
+  return {
+    total: list.length,
+    remaining: list.filter((c) => c.status === "til_gjennomgang").length,
+  };
+}
 
 type PointerAtom = {
   id: string;
@@ -87,6 +106,7 @@ type PointerAtom = {
   atom_class: string | null;
   content_no: string | null;
   structured_data?: unknown;
+  parent_atom_id?: string | null;
 };
 
 
@@ -126,14 +146,17 @@ function CvReviewPage() {
   );
   const progress = useQuery(cvReviewProgressQuery(userId, activeImportId));
   const progressRow = progress.data ?? null;
-  const needsSync =
-    Boolean(activeImportId) &&
-    rows.length > 0 &&
-    !progress.isLoading &&
-    progressRow?.candidate_set_signature !== signature;
+  const hasRows = rows.length > 0;
+  // Første gangs oppstart: ingen fremdrift finnes, så vi oppretter den.
+  const needsFirstSync =
+    Boolean(activeImportId) && hasRows && !progress.isLoading && progressRow === null;
+  // Foreldet kandidatsett: aldri gjenoppta som om ingenting har skjedd.
+  const isStale =
+    Boolean(progressRow) && progressRow?.candidate_set_signature !== signature && hasRows;
+  const [showChanges, setShowChanges] = useState(false);
 
   useEffect(() => {
-    if (!activeImportId || !needsSync) return;
+    if (!activeImportId || !needsFirstSync) return;
     let cancelled = false;
     void syncReviewProgress(activeImportId, signature)
       .then(() => {
@@ -143,7 +166,7 @@ function CvReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeImportId, needsSync, signature, qc, userId]);
+  }, [activeImportId, needsFirstSync, signature, qc, userId]);
 
   const currentStep =
     progressRow && progressRow.candidate_set_signature === signature ? progressRow.current_step : 1;
@@ -151,9 +174,48 @@ function CvReviewPage() {
     (r) => (r.resolved_atom_type ?? r.suggested_atom_type) === "role",
   );
   const resultCandidates = rows.filter(isResultCandidate);
+  const skillCandidates = rows.filter(isSkillCandidate);
+  const qualificationCandidates = rows.filter(isQualificationCandidate);
   const savedRoles = roleAtoms.map((a) =>
     roleFromAtom({ id: a.id, content_no: a.content_no, structured_data: a.structured_data }),
   );
+  const suggestionRoles = savedRoles.map((r) => ({
+    atomId: r.id,
+    title: r.title,
+    employer: r.employer,
+  }));
+  const suggestionResults = pointerAtoms
+    .filter((a) => a.atom_class === "resultat")
+    .map((a) => ({
+      atomId: a.id,
+      title: (a.content_no ?? "").trim(),
+      roleAtomId: a.parent_atom_id ?? null,
+    }));
+
+  const stepStatuses = [
+    { step: 1, label: "Roller", ...countStep(roleCandidates) },
+    { step: 2, label: "Resultater", ...countStep(resultCandidates) },
+    { step: 3, label: "Kompetanse", ...countStep(skillCandidates) },
+    { step: 4, label: "Kvalifikasjoner", ...countStep(qualificationCandidates) },
+  ];
+
+  function goToStep(step: number) {
+    if (!activeImportId) return;
+    void advanceReviewProgress(activeImportId, signature, step)
+      .then(() => invalidateReviewProgress(qc, userId))
+      .catch((e: Error) => toast.error(e.message));
+  }
+
+  function restartReview() {
+    if (!activeImportId) return;
+    void syncReviewProgress(activeImportId, signature)
+      .then(() => {
+        setShowChanges(false);
+        invalidateReviewProgress(qc, userId);
+      })
+      .catch((e: Error) => toast.error(e.message));
+  }
+
 
 
   const promoted = useMemo(
@@ -333,16 +395,38 @@ function CvReviewPage() {
         </div>
       )}
 
-      {activeImportId && (
-        <CvAnalysisPanel
-          userId={userId}
-          importId={activeImportId}
-          candidates={analysisCandidates}
-          unresolvedCount={pending.length}
+      {activeImportId && hasRows && !isStale && (
+        <CvReviewProgressBar
+          steps={stepStatuses}
+          currentStep={currentStep}
+          onGoToStep={goToStep}
         />
       )}
 
-      {activeImportId && currentStep === 1 ? (
+      {activeImportId && isStale && (
+        <>
+          <CvReviewStaleNotice
+            onRestart={restartReview}
+            onShowChanges={() => setShowChanges((v) => !v)}
+            showingChanges={showChanges}
+            changedCount={pending.length}
+          />
+          {showChanges && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Dette ligger i importen nå</CardTitle>
+                <CardDescription>
+                  {roleCandidates.length} roller, {resultCandidates.length} resultater,{" "}
+                  {skillCandidates.length} kompetanser og {qualificationCandidates.length}{" "}
+                  kvalifikasjoner — hvorav {pending.length} ikke er gjennomgått.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+        </>
+      )}
+
+      {activeImportId && !isStale && currentStep === 1 ? (
         <CvReviewTimelineStep
           userId={userId}
           importId={activeImportId}
@@ -351,7 +435,7 @@ function CvReviewPage() {
           savedRoles={savedRoles}
           onContinue={() => invalidateReviewProgress(qc, userId)}
         />
-      ) : activeImportId && currentStep === 2 ? (
+      ) : activeImportId && !isStale && currentStep === 2 ? (
         <CvReviewResultsStep
           userId={userId}
           importId={activeImportId}
@@ -360,17 +444,54 @@ function CvReviewPage() {
           savedRoles={savedRoles}
           promotedByLocalRef={promoted}
           onContinue={() => invalidateReviewProgress(qc, userId)}
-          onBack={() => {
-            void advanceReviewProgress(activeImportId, signature, 1)
-              .then(() => invalidateReviewProgress(qc, userId))
-              .catch((e: Error) => toast.error(e.message));
-          }}
+          onBack={() => goToStep(1)}
         />
-      ) : (
+      ) : activeImportId && !isStale && currentStep === 3 ? (
+        <CvReviewSkillsStep
+          userId={userId}
+          importId={activeImportId}
+          signature={signature}
+          skillCandidates={skillCandidates}
+          roles={suggestionRoles}
+          results={suggestionResults}
+          promotedByLocalRef={promoted}
+          onContinue={() => invalidateReviewProgress(qc, userId)}
+          onBack={() => goToStep(2)}
+        />
+      ) : activeImportId && !isStale && currentStep === 4 ? (
+        <CvReviewQualificationsStep
+          userId={userId}
+          importId={activeImportId}
+          signature={signature}
+          candidates={qualificationCandidates}
+          onFinish={() => invalidateReviewProgress(qc, userId)}
+          onBack={() => goToStep(3)}
+        />
+      ) : activeImportId && !isStale ? (
+        <>
+          <CvReviewSummary
+            lines={stepStatuses.map((s) => ({
+              step: s.step,
+              label: s.label,
+              confirmed: s.total - s.remaining,
+              remaining: s.remaining,
+            }))}
+            onGoToStep={goToStep}
+          />
+          {/* Valgfritt ettersteg. Blokkerer ikke at gjennomgangen er ferdig. */}
+          <CvAnalysisPanel
+            userId={userId}
+            importId={activeImportId}
+            candidates={analysisCandidates}
+          />
+        </>
+      ) : null}
+
+      {search.legacy && (
       <Tabs defaultValue="pending">
 
         <TabsList>
-          <TabsTrigger value="pending">Til gjennomgang ({pending.length})</TabsTrigger>
+          <TabsTrigger value="pending">Til gjennomgang</TabsTrigger>
           <TabsTrigger value="confirmed">Bekreftet ({confirmed.length})</TabsTrigger>
           <TabsTrigger value="questions">Spørsmål ({questions.length})</TabsTrigger>
           <TabsTrigger value="rejected">Avvist ({rejected.length})</TabsTrigger>
@@ -467,6 +588,7 @@ function CvReviewPage() {
         </TabsContent>
       </Tabs>
       )}
+
 
     </div>
   );

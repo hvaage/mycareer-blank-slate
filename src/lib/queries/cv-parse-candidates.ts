@@ -128,7 +128,7 @@ export const evidencePointerAtomsQuery = (userId: string) =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("career_atoms")
-        .select("id, atom_type, atom_class, content_no, structured_data")
+        .select("id, atom_type, atom_class, content_no, structured_data, parent_atom_id")
         .eq("user_id", userId)
         .eq("atom_kind", "evidens")
         .eq("is_active", true)
