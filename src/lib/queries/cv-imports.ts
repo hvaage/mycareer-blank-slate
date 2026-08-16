@@ -32,6 +32,17 @@ export function parsedShapeIsReadable(raw: any): boolean {
 
 export function countsFromParsed(raw: any): PreviewCounts {
   const c = (k: string) => (Array.isArray(raw?.[k]) ? raw[k].length : 0);
+  const experienceRows: any[] = [
+    ...(Array.isArray(raw?.experience) ? raw.experience : []),
+    ...(Array.isArray(raw?.work_experience) ? raw.work_experience : []),
+  ];
+  // Punktene under hver stilling er egne elementer — de ble tidligere ikke
+  // talt med, så totalen så mindre ut enn det som faktisk ble lagret.
+  const experienceBullets = experienceRows.reduce(
+    (n, e) => n + (Array.isArray(e?.bullets) ? e.bullets.filter(Boolean).length : 0),
+    0,
+  );
+  const volunteer = c("volunteer") + c("volunteering");
   const experience = c("experience") + c("work_experience");
   const education = c("education");
   const skills = c("skills");
@@ -41,6 +52,8 @@ export function countsFromParsed(raw: any): PreviewCounts {
   const achievements = c("achievements") + c("awards");
   return {
     experience,
+    experienceBullets,
+    volunteer,
     education,
     skills,
     languages,
@@ -48,7 +61,15 @@ export function countsFromParsed(raw: any): PreviewCounts {
     projects,
     achievements,
     total:
-      experience + education + skills + languages + certifications + projects + achievements,
+      experience +
+      experienceBullets +
+      volunteer +
+      education +
+      skills +
+      languages +
+      certifications +
+      projects +
+      achievements,
   };
 }
 

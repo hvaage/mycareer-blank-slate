@@ -4,6 +4,8 @@ import type { PreviewCounts } from "@/types/cv-upload";
 
 const LABELS: Array<[keyof PreviewCounts, string]> = [
   ["experience", "Stillinger"],
+  ["experienceBullets", "Resultatpunkter under stillinger"],
+  ["volunteer", "Frivillig arbeid"],
   ["education", "Utdanning"],
   ["skills", "Ferdigheter"],
   ["languages", "Språk"],

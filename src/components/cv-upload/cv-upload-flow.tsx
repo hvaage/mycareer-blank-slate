@@ -22,6 +22,8 @@ import {
   useImportArchivedCv,
   type ArchivedCvSource,
 } from "@/lib/queries/cv-archive-sources";
+import { Link } from "@tanstack/react-router";
+import { useCreateDocumentationDrafts } from "@/lib/queries/cv-documentation-drafts";
 import { supabase } from "@/lib/supabase";
 import type { CommitResponse, FlowState, PreviewCounts } from "@/types/cv-upload";
 
@@ -104,7 +106,31 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
   const runParse = useRunCvParse(userId);
   const commit = useCommitImport(userId);
   const importArchived = useImportArchivedCv(userId);
+  const docDrafts = useCreateDocumentationDrafts(userId);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const onCreateDocumentationDrafts = async (importId: string) => {
+    try {
+      const res = await docDrafts.mutateAsync(importId);
+      if (res.results_created === 0) {
+        toast.info(
+          res.skipped_existing > 0
+            ? "Alle resultatpunktene lå allerede som utkast under Min dokumentasjon."
+            : "Vi fant ingen resultatpunkter å lage utkast av i denne CV-en.",
+        );
+        return;
+      }
+      toast.success(
+        `${res.results_created} resultatutkast opprettet under Min dokumentasjon${
+          res.skipped_existing > 0 ? ` (${res.skipped_existing} fantes fra før)` : ""
+        }.`,
+      );
+    } catch (e: any) {
+      toast.error(
+        `Kunne ikke lage utkast i Min dokumentasjon: ${e?.message ?? "ukjent årsak"}.`,
+      );
+    }
+  };
 
   const toggleSelected = (key: string, checked: boolean) =>
     setSelected((prev) => {
@@ -228,7 +254,9 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
       if (updErr) throw Object.assign(new Error(updErr.message), { code: "database_error" });
       const result = await commit.mutateAsync(importId);
       dispatch({ type: "done", result });
-      toast.success(`Karriereoversikten er oppdatert. ${result.atoms_total_now} elementer totalt.`);
+      toast.success(
+        `${result.candidates_created} elementer lagret. Gå til gjennomgangen for å bekrefte dem.`,
+      );
       onCompleted?.(result);
     } catch (e: any) {
       dispatch({
@@ -385,17 +413,39 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
           <div className="space-y-3">
             <Alert>
               <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>Karriereoversikten er oppdatert</AlertTitle>
-              <AlertDescription>
-                {state.result.atoms_created} nye elementer lagt til.
-                {state.result.atoms_merged > 0 &&
-                  ` ${state.result.atoms_merged} eksisterende ble oppdatert.`}{" "}
-                Totalt {state.result.atoms_total_now} elementer.
+              <AlertTitle>Innholdet er lagret og klart for gjennomgang</AlertTitle>
+              <AlertDescription className="space-y-1">
+                <span className="block">
+                  {state.result.candidates_created} elementer ble lagret fra denne CV-en
+                  {state.result.candidates_duplicate_skipped > 0 &&
+                    ` (${state.result.candidates_duplicate_skipped} var allerede lagret fra før)`}
+                  . Til sammen ligger det {state.result.candidates_total_in_import} elementer i denne
+                  importen, hvorav {state.result.roles} stillinger og{" "}
+                  {state.result.children_with_parent} punkter som hører til en stilling.
+                </span>
+                <span className="block">
+                  Ingenting er lagt i karriereoversikten ennå — du bekrefter hvert element i
+                  gjennomgangen. Derfor står telleren over fortsatt på det du har bekreftet tidligere.
+                </span>
               </AlertDescription>
             </Alert>
-            <Button variant="outline" size="sm" onClick={() => dispatch({ type: "reset" })}>
-              <RotateCcw className="h-4 w-4 mr-2" /> Last opp en til
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm">
+                <Link to="/career/cv-review">Gå til gjennomgang</Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={docDrafts.isPending}
+                onClick={() => void onCreateDocumentationDrafts(state.result.import_id)}
+              >
+                {docDrafts.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Lag utkast i Min dokumentasjon
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => dispatch({ type: "reset" })}>
+                <RotateCcw className="h-4 w-4 mr-2" /> Last opp en til
+              </Button>
+            </div>
           </div>
         )}
 
