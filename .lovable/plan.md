@@ -166,7 +166,7 @@ Tester som må være grønne, ikke bare RLS:
 ## Rekkefølge
 
 1. Drifttest, typecheck, bygg og kontraktstest — rapport før migrasjon.
-2. Migrasjon: `career_atom_links`, `cv_review_progress`, `cv_review_timeline_context`, speilingstrigger for `evidence_atom_ids`, GRANT + RLS.
+2. Migrasjon: `career_atom_links` med invariantvakter, kontrollerte lenke-RPC-er (som også vedlikeholder projeksjonen til `evidence_atom_ids`), oppdatert `career_atom_delete`/`career_atom_delete_impact`, `cv_review_progress` med progress-RPC, `cv_review_timeline_context`, GRANT + RLS. Ingen generell speilingstrigger.
 3. Trinn 1: tidslinje, hulldeteksjon, brukerlagte roller gjennom atomflyten.
 4. Direkte oppstart etter analyse.
 5. Trinn 2 med `trenger_plassering`.
