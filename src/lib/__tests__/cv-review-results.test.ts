@@ -5,7 +5,6 @@ import type { TimelineRole } from "@/lib/cv-review-timeline";
 
 function candidate(p: Partial<CvParseCandidateRow> & { id: string }): CvParseCandidateRow {
   return {
-    id: p.id,
     content_no: p.id,
     parent_local_ref: null,
     suggested_atom_type: "achievement",
