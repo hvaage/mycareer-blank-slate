@@ -30,3 +30,24 @@ skjules.
 Rettes ikke nå. Riktig fiks er en `company_id uuid references public.companies(id)`
 på `documents`, med engangs-backfill fra navn der treffet er entydig, og skriving av
 `company_id` ved generering av nye analyser.
+
+## Motivasjonsskalaene i `user_career_profiles` er skjult, ikke slettet
+
+Kolonnene `stability_vs_growth`, `mission_importance`, `innovation_importance`,
+`sustainability_importance`, `work_life_balance_importance`,
+`compensation_importance` og `leadership_ambition` (skala 1–6) finnes fortsatt,
+med data for eksisterende brukere. Skjemaet på Karriereprofil er fjernet fra
+grensesnittet 2026-08-16 fordi ingen leser dem: verken
+`score-pending-opportunities`, `fetch-careerjet-listings` eller
+`analyze-company` henter kolonnene.
+
+For å ta dem i bruk må tre ting på plass:
+
+1. `loadProfileAndEvidence` i `score-pending-opportunities` må selecte dem og
+   sende dem inn i `profileAi`-konteksten eller i en eksplisitt vekting.
+2. Vektingen må dokumenteres i scoringkontrakten og gi utslag i
+   `MATCH_SCORE_VERSION` (bump kreves, ellers blir gamle og nye scorer blandet).
+3. Skjemaet må tilbake i grensesnittet med en forklaring på hva skalaen faktisk
+   påvirker — ikke «brukes senere».
+
+Fjern dette avsnittet den dagen skalaene har en leser.
