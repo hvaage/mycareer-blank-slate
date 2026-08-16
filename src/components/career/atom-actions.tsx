@@ -249,7 +249,7 @@ function DeleteDialog({
           </p>
         ) : (
           <div className="space-y-3">
-            {alsoRemoved === 0 && (data.weakened.length ?? 0) === 0 ? (
+            {alsoRemoved === 0 && unbacked === 0 && (data.weakened.length ?? 0) === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Ingenting annet hviler på dette. Bare denne linjen forsvinner.
               </p>
@@ -262,7 +262,7 @@ function DeleteDialog({
             />
             <ImpactList
               title="Mister hele belegget sitt"
-              note="Uten dette har de ingenting å hvile på, og fjernes også."
+              note="Disse beholdes, men merkes som ubelagt. Du kan koble dem til en annen rolle eller fjerne dem selv."
               rows={data.orphaned}
             />
             <ImpactList
@@ -286,13 +286,14 @@ function DeleteDialog({
                   className="mt-0.5"
                 />
                 <span>
-                  Jeg forstår at {alsoRemoved} element(er) til fjernes sammen med denne. Dette kan
+                  Jeg forstår at {alsoRemoved} element(er) til slettes sammen med denne. Dette kan
                   ikke angres.
                 </span>
               </label>
             ) : null}
           </div>
         )}
+
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
