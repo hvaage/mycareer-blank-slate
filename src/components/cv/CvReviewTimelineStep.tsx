@@ -42,6 +42,7 @@ import {
   deleteTimelineContext,
   invalidateReviewProgress,
   saveTimelineContext,
+  setRoleTitle,
   timelineContextQuery,
 } from "@/lib/queries/cv-review-progress";
 
@@ -123,6 +124,16 @@ export function CvReviewTimelineStep({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const saveTitle = useMutation({
+    mutationFn: (v: { role: TimelineRole; title: string }) =>
+      setRoleTitle({ userId, kind: v.role.kind, id: v.role.id, title: v.title }),
+    onSuccess: () => {
+      toast.success("Stillingstittelen er lagret.");
+      invalidateCandidateQueries(qc, userId);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const saveGap = useMutation({
     mutationFn: (v: { gap: TimelineGap; category: string; note: string }) =>
       saveTimelineContext({
@@ -157,7 +168,9 @@ export function CvReviewTimelineStep({
   });
 
   const busy = confirm.isPending || reject.isPending || addRole.isPending || advance.isPending;
-  const datedPending = pendingRoles.filter((r) => !r.missingDates && r.candidate);
+  // Roller uten stillingstittel bekreftes aldri i bulk — tittelen må komme fra brukeren.
+  const datedPending = pendingRoles.filter((r) => !r.missingDates && !r.titleMissing && r.candidate);
+  const missingTitles = timeline.filter((r) => r.titleMissing).length;
 
   return (
     <div className="space-y-5">
@@ -173,6 +186,11 @@ export function CvReviewTimelineStep({
           <Badge variant="secondary">{timeline.length} roller</Badge>
           <Badge variant="secondary">{pendingRoles.length} til gjennomgang</Badge>
           {gaps.length > 0 && <Badge variant="outline">{gaps.length} tidsrom å avklare</Badge>}
+          {missingTitles > 0 && (
+            <Badge variant="outline" className="border-amber-500 text-amber-700">
+              {missingTitles} mangler stillingstittel
+            </Badge>
+          )}
           <div className="ml-auto flex gap-2">
             {datedPending.length > 1 && (
               <Button
@@ -195,42 +213,14 @@ export function CvReviewTimelineStep({
 
       <div className="space-y-3">
         {timeline.map((r) => (
-          <div
+          <RoleRow
             key={`${r.kind}-${r.id}`}
-            className="flex flex-wrap items-start justify-between gap-3 rounded-md border p-3"
-          >
-            <div className="min-w-0">
-              <p className="font-medium">
-                {r.title}
-                {r.employer ? <span className="text-muted-foreground"> · {r.employer}</span> : null}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {periodLabel(r)}
-                {r.kind === "lagret" ? " · lagret" : " · fra importen"}
-              </p>
-              {r.missingDates && (
-                <p className="mt-1 text-xs text-amber-600">
-                  Datoene mangler i kilden. Legg dem inn manuelt hvis du vil ha rollen på
-                  tidslinjen.
-                </p>
-              )}
-            </div>
-            {r.candidate && (
-              <div className="flex gap-2">
-                <Button size="sm" disabled={busy} onClick={() => confirm.mutate([r.candidate!])}>
-                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Bekreft
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() => reject.mutate(r.candidate!)}
-                >
-                  <XCircle className="mr-1 h-3.5 w-3.5" /> Ikke min
-                </Button>
-              </div>
-            )}
-          </div>
+            role={r}
+            busy={busy || saveTitle.isPending}
+            onSaveTitle={(title) => saveTitle.mutate({ role: r, title })}
+            onConfirm={() => r.candidate && confirm.mutate([r.candidate])}
+            onReject={() => r.candidate && reject.mutate(r.candidate)}
+          />
         ))}
         {timeline.length === 0 && (
           <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -432,5 +422,121 @@ function ManualRoleForm({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Én rad på tidslinjen. Stillingstittelen er overskriften; rollebeskrivelsen
+ * er sekundær og brukes aldri som tittel. Fant ikke importen en tittel, spør
+ * vi brukeren her — vi gjetter aldri.
+ */
+function RoleRow({
+  role,
+  busy,
+  onSaveTitle,
+  onConfirm,
+  onReject,
+}: {
+  role: TimelineRole;
+  busy: boolean;
+  onSaveTitle: (title: string) => void;
+  onConfirm: () => void;
+  onReject: () => void;
+}) {
+  const [editing, setEditing] = useState(role.titleMissing);
+  const [value, setValue] = useState(role.title);
+
+  return (
+    <div className="rounded-md border p-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium">
+            {role.titleMissing ? (
+              <span className="text-amber-700">Stillingstittel mangler</span>
+            ) : (
+              role.title
+            )}
+            {role.employer ? <span className="text-muted-foreground"> · {role.employer}</span> : null}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {periodLabel(role)}
+            {role.kind === "lagret" ? " · lagret" : " · fra importen"}
+          </p>
+          {role.summary && (
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{role.summary}</p>
+          )}
+          {role.missingDates && (
+            <p className="mt-1 text-xs text-amber-600">
+              Datoene mangler i kilden. Legg dem inn manuelt hvis du vil ha rollen på tidslinjen.
+            </p>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {!editing && (
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              Endre
+            </Button>
+          )}
+          {role.candidate && (
+            <>
+              <Button
+                size="sm"
+                disabled={busy || role.titleMissing}
+                title={role.titleMissing ? "Oppgi stillingstittelen først." : undefined}
+                onClick={onConfirm}
+              >
+                <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Bekreft
+              </Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={onReject}>
+                <XCircle className="mr-1 h-3.5 w-3.5" /> Ikke min
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {editing && (
+        <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3">
+          <Label htmlFor={`title-${role.kind}-${role.id}`} className="text-xs">
+            Hva var stillingstittelen din
+            {role.employer ? ` hos ${role.employer}` : ""}?
+          </Label>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              id={`title-${role.kind}-${role.id}`}
+              value={value}
+              placeholder="F.eks. Kommersiell direktør (CCO)"
+              className="max-w-xs"
+              onChange={(e) => setValue(e.target.value)}
+            />
+            <Button
+              size="sm"
+              disabled={busy || !value.trim()}
+              onClick={() => {
+                onSaveTitle(value);
+                setEditing(false);
+              }}
+            >
+              Lagre tittel
+            </Button>
+            {!role.titleMissing && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setValue(role.title);
+                  setEditing(false);
+                }}
+              >
+                Avbryt
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Vi bruker tittelen slik du skriver den. Beskrivelsen av rollen beholdes uendret.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

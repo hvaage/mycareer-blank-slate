@@ -43,7 +43,12 @@ export interface TimelineRole {
   /** Kandidat-id når rollen kommer fra importen, atom-id når den er lagret. */
   id: string;
   kind: "kandidat" | "lagret";
+  /** Stillingstittelen slik den står i kilden. Tom streng når den mangler. */
   title: string;
+  /** True når kilden ikke ga en stillingstittel — brukeren må spørres. */
+  titleMissing: boolean;
+  /** Rollebeskrivelsen, vist under tittelen. Aldri brukt som tittel. */
+  summary: string | null;
   employer: string | null;
   startIso: string | null;
   endIso: string | null;
@@ -113,6 +118,33 @@ export function isCurrentRole(sd: Sd): boolean {
   return Boolean(end && /^(n[åa]|nu|present|current|d\.d\.?)$/i.test(end));
 }
 
+/**
+ * En stillingstittel er kort og setningsløs. Rollebeskrivelser («Ledet den
+ * kommersielle omstillingen …») er ikke titler, og skal aldri vises som det —
+ * da spør vi heller brukeren.
+ */
+export function looksLikeJobTitle(raw: string | null): boolean {
+  if (!raw) return false;
+  const v = raw.trim();
+  if (v.length < 2 || v.length > 70) return false;
+  if (/[.!?]\s/.test(v)) return false;
+  if (/[.!?]$/.test(v)) return false;
+  return v.split(/\s+/).length <= 9;
+}
+
+/** Tittelen tas fra strukturfeltene, aldri fra rollebeskrivelsen. */
+export function extractRoleTitle(sd: Sd): string | null {
+  const t = str(sd, ["title", "stilling", "stillingstittel", "position", "job_title", "role"]);
+  return looksLikeJobTitle(t) ? t : null;
+}
+
+function summaryOf(content: string | null, title: string | null): string | null {
+  const v = content?.trim() ?? "";
+  if (!v) return null;
+  if (title && v.toLowerCase() === title.toLowerCase()) return null;
+  return v;
+}
+
 export function roleFromCandidate(c: CvParseCandidateRow): TimelineRole {
   const sd = (c.structured_data as Sd | null) ?? {};
   const start = normalizeDate(str(sd, ["start_date", "startDate", "fra", "from", "startdato"]));
@@ -120,10 +152,14 @@ export function roleFromCandidate(c: CvParseCandidateRow): TimelineRole {
   const startIso = start.iso;
   const endIso = end.iso;
   const current = isCurrentRole(sd);
+  const title = extractRoleTitle(sd);
+  const content = c.content_no ?? c.content_en ?? null;
   return {
     id: c.id,
     kind: "kandidat",
-    title: (c.content_no ?? c.content_en ?? "Uten tittel").trim(),
+    title: title ?? "",
+    titleMissing: !title,
+    summary: summaryOf(content, title),
     employer: str(sd, ["employer", "company", "arbeidsgiver", "organisasjon"]),
     startIso,
     endIso: current ? null : endIso,
@@ -226,10 +262,14 @@ export function roleFromAtom(atom: {
   const startIso = start.iso;
   const endIso = end.iso;
   const current = isCurrentRole(sd);
+  const content = atom.content_no?.trim() ?? null;
+  const title = extractRoleTitle(sd) ?? (looksLikeJobTitle(content) ? content : null);
   return {
     id: atom.id,
     kind: "lagret",
-    title: (atom.content_no ?? "Uten tittel").trim(),
+    title: title ?? "",
+    titleMissing: !title,
+    summary: summaryOf(content, title),
     employer: str(sd, ["employer", "company", "arbeidsgiver", "organisasjon"]),
     startIso,
     endIso: current ? null : endIso,

@@ -105,6 +105,48 @@ export async function deleteTimelineContext(userId: string, id: string): Promise
   if (error) throw error;
 }
 
+// ---------------------------------------------------- stillingstittel
+
+/**
+ * Brukeren oppgir stillingstittelen når importen ikke fant den. Tittelen
+ * lagres i strukturfeltet `title` — rollebeskrivelsen i `content_no` røres
+ * ikke, slik at kildeteksten forblir sporbar.
+ */
+export async function setRoleTitle(input: {
+  userId: string;
+  kind: "kandidat" | "lagret";
+  id: string;
+  title: string;
+}): Promise<void> {
+  const title = input.title.trim();
+  if (!title) throw new Error("Skriv inn stillingstittelen.");
+  const table = input.kind === "kandidat" ? "cv_parse_candidates" : "career_atoms";
+
+  const { data: row, error: readError } = await supabase
+    .from(table)
+    .select("structured_data")
+    .eq("id", input.id)
+    .eq("user_id", input.userId)
+    .single();
+  if (readError) throw readError;
+
+  const structured = {
+    ...(((row?.structured_data as Record<string, unknown> | null) ?? {}) as Record<
+      string,
+      unknown
+    >),
+    title,
+    title_oppgitt_av_bruker: true,
+  };
+
+  const { error } = await supabase
+    .from(table)
+    .update({ structured_data: structured as Json })
+    .eq("id", input.id)
+    .eq("user_id", input.userId);
+  if (error) throw error;
+}
+
 // ---------------------------------------------------- manuelt lagte roller
 
 export interface ManualRoleInput {
@@ -127,6 +169,7 @@ export async function addManualRole(input: ManualRoleInput): Promise<string> {
   if (!title) throw new Error("Rollen må ha en tittel.");
 
   const structured: Record<string, unknown> = {
+    title,
     employer: input.employer?.trim() || null,
     start_date: input.startIso,
     end_date: input.isCurrent ? null : input.endIso,

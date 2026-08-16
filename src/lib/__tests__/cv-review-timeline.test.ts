@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   candidateSetSignature,
   detectGaps,
+  extractRoleTitle,
   monthsBetween,
   normalizeDateToIso,
   sortRoles,
@@ -12,6 +13,8 @@ function role(p: Partial<TimelineRole> & { id: string }): TimelineRole {
   return {
     kind: "kandidat",
     title: p.id,
+    titleMissing: false,
+    summary: null,
     employer: null,
     startIso: null,
     endIso: null,
@@ -183,5 +186,22 @@ describe("candidateSetSignature", () => {
 describe("monthsBetween", () => {
   it("regner i hele måneder", () => {
     expect(monthsBetween("2020-01-01", "2020-07-01")).toBe(6);
+  });
+});
+
+describe("extractRoleTitle", () => {
+  it("henter tittelen fra strukturfeltet", () => {
+    expect(extractRoleTitle({ title: "Kommersiell direktør (CCO)" })).toBe(
+      "Kommersiell direktør (CCO)",
+    );
+  });
+
+  it("avviser rollebeskrivelser som tittel", () => {
+    expect(
+      extractRoleTitle({
+        title: "Ledet den kommersielle omstillingen fra produktsalg til abonnement, og bygde nytt team.",
+      }),
+    ).toBeNull();
+    expect(extractRoleTitle({})).toBeNull();
   });
 });
