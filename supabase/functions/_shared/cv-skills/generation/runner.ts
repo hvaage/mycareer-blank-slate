@@ -25,6 +25,7 @@ import {
   type GeneratedClaim,
   type GenerationSnapshot,
 } from "./contract.ts";
+import { accountClaims } from "./claim-accounting.ts";
 import { checkCvQuality, QUALITY_VERSION } from "../vendor/cv-quality-no/scripts/quality.ts";
 import {
   buildRewriteUserPrompt,
@@ -720,14 +721,24 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
       .flatMap((m) => m.supporting_atom_ids)
       .filter((id) => !allowedAtomIds.has(id));
 
-    const verdictFor = (value: string): GeneratedClaim["verification"] => {
+    // Alle claims regnskapsføres deterministisk mot sine EGNE supporting atoms.
+    // Guardens tekstnivå-treff brukes i tillegg til å heve verdikten.
+    const accounting = accountClaims(doc.claims, doc.snapshot.atoms);
+    const accountingById = new Map(accounting.entries.map((e) => [e.claimId, e]));
+    const guardVerdictFor = (value: string): GeneratedClaim["verification"] | null => {
       const match = guard.matches.find((m) => value.includes(m.claim.text) || m.claim.text.includes(value));
-      if (!match) return "not_applicable";
+      if (!match) return null;
       if (match.verdict === "verified") return "supported";
       if (match.verdict === "partial") return "partially_supported";
       return "unsupported";
     };
-    const claims = doc.claims.map((c) => ({ ...c, verification: verdictFor(c.value) }));
+    const claims = doc.claims.map((c) => {
+      const deterministic = accountingById.get(c.claimId)?.verification ?? "unsupported";
+      const fromGuard = guardVerdictFor(c.value);
+      const verification: GeneratedClaim["verification"] =
+        deterministic === "supported" || fromGuard !== "supported" ? deterministic : "supported";
+      return { ...c, verification };
+    });
 
     const outputHash = await sha256Hex(text);
     const guardPayload = {
@@ -735,6 +746,7 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
       ok: guard.ok && outsideSnapshot.length === 0,
       mode: guard.mode,
       stats: guard.stats,
+      claim_accounting: accounting.summary,
       contradicted: guard.contradicted,
       unverified: guard.unverified,
       partial: guard.partial,
@@ -773,8 +785,14 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
 
   // --------------------------------------------------------- ats_format_check
   if (input.step === "ats_format_check") {
-    const ats = validateCvDraft(buildAtsDraft(doc.blocks, contact));
+    // Datoene kommer fra det frosne grunnlaget, aldri fra generert tekst.
+    // Steget kaller ingen modell og lager ingen ny dokumentversjon:
+    // teksten og outputHash er uendret.
+    const { draft, dateMapping } = buildAtsDraft(doc.blocks, contact, doc.snapshot);
+    const ats = validateCvDraft(draft);
     const outputHash = await sha256Hex(doc.contentText ?? "");
+    const mappingErrors = dateMapping.filter((m) => m.mappingError !== null);
+    const sourceGaps = dateMapping.filter((m) => m.startDate === null && m.mappingError === null);
     await commitStep(input.adminClient, input.jobId, input.workerId, {
       step: input.step,
       nextStep: "finalize_for_review",
@@ -782,6 +800,15 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
       ats: {
         rules_version: RULES_VERSION,
         ok: ats.ok,
+        // Skille mellom hull i grunnlaget og feil i vår egen mapping.
+        mapping_ok: mappingErrors.length === 0,
+        date_mapping: dateMapping,
+        mapping_errors: mappingErrors,
+        source_date_gaps: sourceGaps.map((m) => ({
+          block_id: m.blockId,
+          atom_id: m.atomId,
+          reason: m.missingReason,
+        })),
         errors: ats.errors,
         warnings: ats.warnings,
         infos: ats.infos,
@@ -790,6 +817,7 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
     });
     return done({ outcome: ats.ok ? "ok" : "needs_review", nextStep: "finalize_for_review", terminal: null, errorCode: null, modelRunId: null });
   }
+
 
   // ------------------------------------------------------ finalize_for_review
   if (input.step === "finalize_for_review") {
