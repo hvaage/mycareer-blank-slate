@@ -40,7 +40,9 @@ Skillpakkene importeres uendret som versjonert leverandørkode til `supabase/fun
 - `cv-hallucination-guard/` (v2.0.0): `guard.ts`, `llm-judge.ts`, `types.ts`, `extractors/*` (4), `matchers/*` (2).
 - `cv-ats-rules-no/` (v2.0.0): `ats-rules.ts`, `keyword-coverage.ts`, `types.ts`, `validators/*` (4).
 
-Adapterlag `_shared/cv-skills/adapters/career-atom-adapter.ts` er eneste sted som oversetter mellom `career_atoms` og skillenes typer. Alle skriveoperasjoner går gjennom eksisterende v4 apply-/review-funksjoner (`atom_enrichment_proposals`-flyten, `career_atom_delete`, promotering fra `cv_parse_candidates`) — aldri gjennom skillkode. `SKILL.md` og `references/` legges i `docs/cv-skills/<skill>/`; de sendes aldri i prompten. Frontend importerer DTO-er fra én kontraktfil (`src/lib/cv-skills-contract.ts`).
+**Ingen sammenslåing.** Skill-v2 lever isolert under `cv-skills/`; eksisterende `_shared/cv-evidence-graph/` (v4) er kanonisk domenemodell og endres ikke. De to kodebasene importerer aldri hverandre. Adapterlaget `_shared/cv-skills/adapters/career-atom-adapter.ts` er eneste kobling mellom dem.
+
+Alle skriveoperasjoner går gjennom eksisterende v4 apply-/review-flyt (`atom_enrichment_proposals` → godkjenning → apply, promotering fra `cv_parse_candidates`) — aldri gjennom skillkode. **`career_atom_delete` inngår ikke i CV-skillflyten:** AI og import kan bare opprette forslag; ingen automatisk sletting eller deaktivering av atoms. `SKILL.md` og `references/` ligger i `docs/cv-skills/<skill>/` og sendes aldri i prompten. Frontend importerer DTO-er fra én kontraktfil (`src/lib/cv-skills-contract.ts`).
 
 ## 3. Pipeline
 
