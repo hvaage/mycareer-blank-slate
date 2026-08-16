@@ -179,7 +179,10 @@ function readText(payload: any): string {
 }
 
 export async function callClaude(input: ClaudeCallInput): Promise<ClaudeCallResult> {
-  const apiKey = process.env["ANTHROPIC_API_KEY"];
+  // Injisert runtime har forrang. Fallback kun for Deno-funksjonsmiljøet.
+  const apiKey =
+    input.runtime?.apiKey ??
+    (typeof process !== "undefined" ? process.env["ANTHROPIC_API_KEY"] : undefined);
   const started = Date.now();
   if (!apiKey) {
     console.error("[claude] missing_configuration", JSON.stringify({ correlationId: input.correlationId }));
