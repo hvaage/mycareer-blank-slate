@@ -35,6 +35,15 @@ export type ModelProfile = {
   capabilities: ModelCapabilities;
 };
 
+/**
+ * Injisert runtime-port. Handleren leser secrets fra sitt eget runtime-miljø
+ * og sender dem hit. Klienten leser aldri env på modulnivå.
+ */
+export type ClaudeRuntimePort = {
+  apiKey: string;
+  fetchImpl?: typeof fetch;
+};
+
 export type ClaudeCallInput = {
   profile: ModelProfile;
   system: string;
@@ -43,6 +52,8 @@ export type ClaudeCallInput = {
   correlationId: string;
   timeoutMs?: number;
   maxRetries?: number;
+  /** Injisert runtime. Uten denne faller klienten tilbake til process.env (Deno-funksjoner). */
+  runtime?: ClaudeRuntimePort;
 };
 
 export type ClaudeUsage = {
@@ -168,7 +179,10 @@ function readText(payload: any): string {
 }
 
 export async function callClaude(input: ClaudeCallInput): Promise<ClaudeCallResult> {
-  const apiKey = process.env["ANTHROPIC_API_KEY"];
+  // Injisert runtime har forrang. Fallback kun for Deno-funksjonsmiljøet.
+  const apiKey =
+    input.runtime?.apiKey ??
+    (typeof process !== "undefined" ? process.env["ANTHROPIC_API_KEY"] : undefined);
   const started = Date.now();
   if (!apiKey) {
     console.error("[claude] missing_configuration", JSON.stringify({ correlationId: input.correlationId }));
@@ -234,7 +248,8 @@ export async function callClaude(input: ClaudeCallInput): Promise<ClaudeCallResu
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(ANTHROPIC_BASE_URL, {
+      const doFetch = input.runtime?.fetchImpl ?? fetch;
+      const res = await doFetch(ANTHROPIC_BASE_URL, {
         method: "POST",
         headers: {
           "content-type": "application/json",

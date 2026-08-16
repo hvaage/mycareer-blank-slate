@@ -55,6 +55,7 @@ import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/s
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
+import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
@@ -333,6 +334,11 @@ const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
   path: '/api/public/ingest-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCvProposeCvAtomsRoute = ApiCvProposeCvAtomsRouteImport.update({
+  id: '/api/cv/propose-cv-atoms',
+  path: '/api/cv/propose-cv-atoms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedKarriereErfaringRoute =
   AuthenticatedKarriereErfaringRouteImport.update({
     id: '/karriere/erfaring',
@@ -549,6 +555,7 @@ export interface FileRoutesByFullPath {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -621,6 +628,7 @@ export interface FileRoutesByTo {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -698,6 +706,7 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -775,6 +784,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/api/cv/propose-cv-atoms'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -847,6 +857,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/api/cv/propose-cv-atoms'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -923,6 +934,7 @@ export interface FileRouteTypes {
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
+    | '/api/cv/propose-cv-atoms'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -964,6 +976,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  ApiCvProposeCvAtomsRoute: typeof ApiCvProposeCvAtomsRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicOpsWatchdogRoute: typeof ApiPublicOpsWatchdogRoute
@@ -1297,6 +1310,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/ingest-report'
       fullPath: '/api/public/ingest-report'
       preLoaderRoute: typeof ApiPublicIngestReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cv/propose-cv-atoms': {
+      id: '/api/cv/propose-cv-atoms'
+      path: '/api/cv/propose-cv-atoms'
+      fullPath: '/api/cv/propose-cv-atoms'
+      preLoaderRoute: typeof ApiCvProposeCvAtomsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/karriere/erfaring': {
@@ -1664,6 +1684,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  ApiCvProposeCvAtomsRoute: ApiCvProposeCvAtomsRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicOpsWatchdogRoute: ApiPublicOpsWatchdogRoute,
