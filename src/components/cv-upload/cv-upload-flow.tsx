@@ -359,7 +359,7 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
               onSetMany={setManySelected}
             />
             <div className="flex gap-2">
-              <Button onClick={() => onCommit(state.importId, state.raw)} disabled={commit.isPending}>
+              <Button onClick={() => onCommit(state.importId, state.raw)} disabled={commit.isPending || selected.size === 0}>
                 {commit.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Bekreft og lagre{selected.size > 0 ? ` (${selected.size})` : ""}
               </Button>
