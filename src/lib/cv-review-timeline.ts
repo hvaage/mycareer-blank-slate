@@ -155,3 +155,28 @@ export function candidateSetSignature(rows: { id: string; updated_at?: string | 
   }
   return `${rows.length}-${h1.toString(16)}${h2.toString(16)}`;
 }
+
+/** Lagret rolle fra karriereprofilen, vist på samme tidslinje. */
+export function roleFromAtom(atom: {
+  id: string;
+  content_no: string | null;
+  structured_data: unknown;
+}): TimelineRole {
+  const sd = ((atom.structured_data as Sd | null) ?? {}) as Sd;
+  const startIso = normalizeDateToIso(
+    str(sd, ["start_date", "startDate", "fra", "from", "startdato"]),
+  );
+  const endIso = normalizeDateToIso(str(sd, ["end_date", "endDate", "til", "to", "sluttdato"]));
+  const current = isCurrentRole(sd);
+  return {
+    id: atom.id,
+    kind: "lagret",
+    title: (atom.content_no ?? "Uten tittel").trim(),
+    employer: str(sd, ["employer", "company", "arbeidsgiver", "organisasjon"]),
+    startIso,
+    endIso: current ? null : endIso,
+    isCurrent: current,
+    candidate: null,
+    missingDates: !startIso,
+  };
+}
