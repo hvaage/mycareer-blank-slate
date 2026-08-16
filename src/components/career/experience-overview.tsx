@@ -453,6 +453,8 @@ export function ExperienceOverview() {
           title="Kompetanse uten belegg i en rolle"
           description="Kompetanse skal hvile på et resultat eller en rolle."
           rows={looseSkills}
+          maxColumns={2}
+
         />
       ) : null}
       {looseExposure.length > 0 ? (
