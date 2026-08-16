@@ -1,0 +1,45 @@
+# SHA-256-manifest — importert leverandørkode (skill-v2)
+
+Rot: `supabase/functions/_shared/cv-skills/vendor/`  
+Filer: 36 · Generert: 2026-08-16T15:45:04Z
+
+Bevisst ekskludert: `cv-evidence-graph/scripts/crud.ts` (skriver mot utfaset `cv_evidence_atoms`).
+
+```
+d40fe317f22d82ae65c729877a89908504926be7a6ce6f96e082b7c0b06b3174  cv-atom-language-no/scripts/normalizer.ts
+668f4813c44d51fbb535098274656c3c72ab313dffee73451803e6e844d12564  cv-atom-language-no/scripts/prompt.ts
+4b1e16f2154f7d2c64b857913aca295f49cdfdc431f1f6f303fc47f5b7a4f85e  cv-atom-language-no/scripts/types.ts
+b49b7c2322c407f01ef3edeab1e4234a2132bb9596075735f44912256f178d36  cv-ats-rules-no/scripts/ats-rules.ts
+512c0048d1669ad086a8e7eab7e400dec559b41b63e86ebe6b297e22509cdc08  cv-ats-rules-no/scripts/keyword-coverage.ts
+0d7e149fec56dec1a86a4c231a0762b4023be75116605029553f638dced40450  cv-ats-rules-no/scripts/types.ts
+871f78756f30d681edd799bb4a0f02b3ee8c254f66867ea2ce694e040cce362e  cv-ats-rules-no/scripts/validators/content-validator.ts
+82768936988e0ea592c8654d9ed2318896df48f7bd97661e835750f2da18ccf0  cv-ats-rules-no/scripts/validators/format-validator.ts
+bb8bf6b43da0ad71bdfd3a0d748091c8544b98958a9aa8b5ad1863f0775a07e5  cv-ats-rules-no/scripts/validators/gdpr-validator.ts
+e4f85510dc767c25dad8bf6ff9438e4af5334b35dfd05ed4bc3a30953689260a  cv-ats-rules-no/scripts/validators/language-validator.ts
+f544ab6bc927103403e53f9682389feaa99405826ab1c8ce4e6f0f747c569979  cv-evidence-graph/scripts/converters/linkedin-pdf.ts
+c0d4f0338dd60ae7736192a2f813b12b8b64594e378beedb520fb78997296898  cv-evidence-graph/scripts/converters/linkedin-zip.ts
+b2d097c5818891473370f5dc6eefa58deb118190a05016a50702ae9c8321ee09  cv-evidence-graph/scripts/converters/old-cv.ts
+8f00143c26a90a761be044a74a373fed85535a11f30435cb6f049b1b2230ee14  cv-evidence-graph/scripts/converters/profile-fields.ts
+256a691076689eb47165cef45e9e6e75ab4db629c765babf0aa6960efa761d15  cv-evidence-graph/scripts/deduplicate.ts
+94251eaa7f4a5dce87a8768dc887991c85528ed70d54b526bef3c27099a6f495  cv-evidence-graph/scripts/proposals.ts
+c3a0450fcd1600250bc8ac10e600e3708cd15e5d783f629f46915dd36ccfb2ce  cv-evidence-graph/scripts/types.ts
+bd2bc51aa42e492cfe35af59880945d1140474b89122c8ce576ff4b1a2130857  cv-evidence-graph/scripts/validators.ts
+30f7f1f3ea4139709bd1f164d1cc2049b2ff64770caaf3b072f8a6f702809aaa  cv-hallucination-guard/scripts/extractors/claim-extractor.ts
+f59cc76d3ca77c5b837dc84c65bc32ec587f59812a968789bd8149692efdb55c  cv-hallucination-guard/scripts/extractors/date-extractor.ts
+272c495e53e22850bfbfe7a4b6782379500c71b6174756c20d0791a4f0f9593e  cv-hallucination-guard/scripts/extractors/entity-extractor.ts
+b372f35a6f8abca74e3899089b3b92bb029f2f0e35c6abfcc715d7b330aebc63  cv-hallucination-guard/scripts/extractors/number-extractor.ts
+870510039599649aa38ae53fee68e2d3ba353816dcee2800a43fceb21ae9e9b0  cv-hallucination-guard/scripts/guard.ts
+5189fd62d1e03aea5c2d505d362c352cd7ad5efc49c745992807cb87facc78e0  cv-hallucination-guard/scripts/llm-judge.ts
+5f45f9c345bfc4aae5c1051cd463096e3d632360060b0efbafbfed8088d048c5  cv-hallucination-guard/scripts/matchers/exact-matcher.ts
+701e9e3419ff85dd52d906780a63671a7daf9926b55abe6d35f4f0b0ceaa01cd  cv-hallucination-guard/scripts/matchers/semantic-matcher.ts
+a5921c2253a503ec206c53f24ef36066cde5217face196c737dcdc9847571de6  cv-hallucination-guard/scripts/types.ts
+fbbe18286225f9fad54293e693615baa9b09d8a23731e9761d47ddb72fd43be8  cv-quality-no/scripts/checks/ai-tells.ts
+e8ad3c916f0498eccc6ff919fc958edf6790b312fb8e78ac518a7b9345c8df19  cv-quality-no/scripts/checks/cliches.ts
+f373221d9f33ab52c8f9a6fef0f3530fd9ab892edc6f036ad2bc7701d4fd7b6c  cv-quality-no/scripts/checks/readability.ts
+79f1e1945a76ee8beaa6a4c34ae05168768885c0e15e33ae6399c30c266e52aa  cv-quality-no/scripts/checks/repetition.ts
+e235c45243eedcb18423a6bef9928b27e1f4335414d23428b47ae0215a4e9d89  cv-quality-no/scripts/checks/tense-consistency.ts
+51561532d4acba259ddef0bffa70b6ffe0be42505c36bc638a4ea3f3fb7eca4b  cv-quality-no/scripts/checks/verb-strength.ts
+82ec182bed3776955030d3b0e217604ec71e818cce45baa8822edf24b8495001  cv-quality-no/scripts/quality.ts
+601cae852fcedc8d85ee154804a37b73b162f78f62f3cf2ef8d7717b0c8f3c70  cv-quality-no/scripts/rewrite-validator.ts
+956748e7fa33817f53298bc1242de6281da5095921310eb0eefd593bec4ad5a4  cv-quality-no/scripts/types.ts
+```
