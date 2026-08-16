@@ -83,6 +83,7 @@ export async function runModelStep(
     system: input.system,
     messages: input.messages,
     correlationId: input.correlationId,
+    runtime: input.runtime,
     ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
     ...(input.maxRetries !== undefined ? { maxRetries: input.maxRetries } : {}),
   });
