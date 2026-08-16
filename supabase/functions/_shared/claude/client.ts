@@ -15,7 +15,14 @@ const ANTHROPIC_API_VERSION = "2023-06-01";
 export type ModelCapabilities = {
   supportsTemperature: boolean;
   supportsTopP: boolean;
+  /** Sampling med top_k. Ikke støttet sammen med extended thinking. */
+  supportsTopK?: boolean;
+  /** Extended thinking (thinking-blokk i request). */
+  supportsThinking?: boolean;
+  /** Prefill: siste melding kan være en assistant-melding modellen fortsetter på. */
+  supportsPrefill?: boolean;
 };
+
 
 export type ModelProfile = {
   profileId: string;
