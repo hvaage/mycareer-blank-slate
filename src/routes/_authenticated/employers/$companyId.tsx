@@ -80,6 +80,12 @@ function CompanyDetailPage() {
   const myRating = data?.myRating ?? null;
   const orgnr = (company as any)?.organisasjonsnummer ?? null;
 
+  // Lagrede analysedokumenter: kobles bare når selskapet har organisasjonsnummer.
+  const { data: analysisDocs } = useQuery(
+    employerAnalysisDocsForCompanyQuery(companyId, orgnr ? (company as any)?.name : null),
+  );
+  const savedAnalysisDocs = (analysisDocs ?? []) as any[];
+
   // K3 + K5: ubetinget hook med enabled-flagg.
   const {
     data: envelope,
