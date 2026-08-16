@@ -53,7 +53,7 @@ async function buildReport(
 
   const claims: ClaimEvidence[] = ((claimRows ?? []) as any[]).map((c) => {
     const att = byClaim.get(c.claim_id) ?? null;
-    const valid = att !== null && att.attested_claim_text.trim() === String(c.value).trim();
+    const valid = att !== null && attestationSurvivesRewrite(att.attested_claim_text, String(c.value));
     const evidenceStatus = evidenceStatusFor(c.verification as ClaimVerification, valid);
     return {
       claimId: c.claim_id,
@@ -65,6 +65,18 @@ async function buildReport(
       approvalBlocking: isApprovalBlocking(evidenceStatus),
       supportingAtomIds: c.supporting_atom_ids ?? [],
       availableActions: claimReviewActionsFor(evidenceStatus),
+      unsupportedElements:
+        evidenceStatus === "documented"
+          ? []
+          : classifyUnsupportedElements(String(c.value), c.verification as ClaimVerification),
+      contradiction:
+        c.verification === "contradicted"
+          ? {
+              text: String(c.value),
+              conflictingAtomIds: c.supporting_atom_ids ?? [],
+              reason: "Grunnlaget ditt sier noe annet enn denne formuleringen.",
+            }
+          : null,
       userAttestation: att
         ? {
             claimId: att.claim_id,
@@ -75,10 +87,23 @@ async function buildReport(
             externalSourceYear: att.external_source_year,
             externalDocumentAvailable: att.external_document_available,
             valid,
+            withdrawnAt: att.withdrawn_at ?? null,
+            invalidatedAt: att.invalidated_at ?? null,
+            invalidatedReason: att.invalidated_reason ?? null,
+            provenance: {
+              channel: "user_review_ui" as const,
+              actor: "user" as const,
+              verificationAtAttestation:
+                (att.verification_at_attestation as ClaimVerification | null) ?? null,
+              claimVersion: att.attested_claim_version ?? 1,
+              documentOutputHash: att.document_output_hash ?? null,
+            },
+            internalNote: USER_ATTESTED_INTERNAL_NOTE,
           }
         : null,
     };
   });
+
 
   return summarizeEvidence(documentId, claims);
 }
