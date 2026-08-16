@@ -27,7 +27,13 @@ describe("cv-skills-kontrakt", () => {
     try {
       hits = execFileSync(
         "rg",
-        ["-n", "cv-skills/(vendor|adapters)|_shared/claude|lib/claude|ANTHROPIC_API_KEY", "src"],
+        [
+          "-n",
+          "cv-skills/(vendor|adapters)|_shared/claude|lib/claude|ANTHROPIC_API_KEY",
+          "src",
+          "-g",
+          "!**/__tests__/**",
+        ],
         { cwd: root, encoding: "utf8" },
       );
     } catch {
