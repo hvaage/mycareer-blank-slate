@@ -85,8 +85,10 @@ export const Route = createFileRoute("/_authenticated/career/cv-review")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>): { import?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { import?: string; legacy?: boolean } => ({
     import: typeof search["import"] === "string" ? (search["import"] as string) : undefined,
+    // Uttrykkelig legacy-/debugvisning. Aldri en del av den ordinære brukerreisen.
+    legacy: search["legacy"] === true || search["legacy"] === "1" ? true : undefined,
   }),
   component: CvReviewPage,
 });
