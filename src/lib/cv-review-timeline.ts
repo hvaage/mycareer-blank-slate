@@ -280,3 +280,60 @@ export function roleFromAtom(atom: {
     missingDates: !startIso,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Dubletter på tvers av importer
+// ---------------------------------------------------------------------------
+
+function norm(s: string | null | undefined): string {
+  return (s ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/[\s\-_./,]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function overlaps(a: TimelineRole, b: TimelineRole): boolean {
+  if (!a.startIso || !b.startIso) return false;
+  const aEnd = a.isCurrent ? "9999-12-31" : (a.endIso ?? a.startIso);
+  const bEnd = b.isCurrent ? "9999-12-31" : (b.endIso ?? b.startIso);
+  return a.startIso <= bEnd && b.startIso <= aEnd;
+}
+
+export interface TimelineDuplicateGroup {
+  key: string;
+  roles: TimelineRole[];
+  reason: string;
+}
+
+/**
+ * Flere importer av samme CV gir samme rolle flere ganger. Vi slår aldri
+ * sammen automatisk — vi peker på gruppen og lar brukeren slette det som er
+ * overflødig. Kriteriet er samme arbeidsgiver med overlappende periode, og
+ * enten samme tittel eller manglende tittel på én av dem.
+ */
+export function findDuplicateRoles(roles: TimelineRole[]): TimelineDuplicateGroup[] {
+  const groups: TimelineRole[][] = [];
+
+  for (const r of roles) {
+    if (!r.employer || !r.startIso) continue;
+    const hit = groups.find((g) =>
+      g.some(
+        (x) =>
+          norm(x.employer) === norm(r.employer) &&
+          overlaps(x, r) &&
+          (norm(x.title) === norm(r.title) || !x.title || !r.title),
+      ),
+    );
+    if (hit) hit.push(r);
+    else groups.push([r]);
+  }
+
+  return groups
+    .filter((g) => g.length > 1)
+    .map((g) => ({
+      key: g.map((r) => `${r.kind}-${r.id}`).join("|"),
+      roles: g,
+      reason: `Samme arbeidsgiver (${g[0]!.employer}) med overlappende periode`,
+    }));
+}

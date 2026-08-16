@@ -246,3 +246,73 @@ export function invalidateReviewProgress(qc: QueryClient, userId: string): void 
   void qc.invalidateQueries({ queryKey: ["cv-review-progress", userId] });
   void qc.invalidateQueries({ queryKey: ["cv-review-timeline-context", userId] });
 }
+
+// ---------------------------------------------------- ansettelsesperiode
+
+/**
+ * Brukeren retter ansettelsesperioden. Datoene lagres i strukturfeltet slik
+ * brukeren oppgir dem; kildeteksten røres ikke.
+ */
+export async function setRolePeriod(input: {
+  userId: string;
+  kind: "kandidat" | "lagret";
+  id: string;
+  startIso: string | null;
+  endIso: string | null;
+  isCurrent: boolean;
+}): Promise<void> {
+  const table = input.kind === "kandidat" ? "cv_parse_candidates" : "career_atoms";
+
+  const { data: row, error: readError } = await supabase
+    .from(table)
+    .select("structured_data")
+    .eq("id", input.id)
+    .eq("user_id", input.userId)
+    .single();
+  if (readError) throw readError;
+
+  const structured = {
+    ...(((row?.structured_data as Record<string, unknown> | null) ?? {}) as Record<string, unknown>),
+    start_date: input.startIso,
+    end_date: input.isCurrent ? null : input.endIso,
+    is_current: input.isCurrent,
+    periode_oppgitt_av_bruker: true,
+  };
+
+  const { error } = await supabase
+    .from(table)
+    .update({ structured_data: structured as Json })
+    .eq("id", input.id)
+    .eq("user_id", input.userId);
+  if (error) throw error;
+}
+
+/** Brukeren retter arbeidsgiveren på en rolle. */
+export async function setRoleEmployer(input: {
+  userId: string;
+  kind: "kandidat" | "lagret";
+  id: string;
+  employer: string | null;
+}): Promise<void> {
+  const table = input.kind === "kandidat" ? "cv_parse_candidates" : "career_atoms";
+
+  const { data: row, error: readError } = await supabase
+    .from(table)
+    .select("structured_data")
+    .eq("id", input.id)
+    .eq("user_id", input.userId)
+    .single();
+  if (readError) throw readError;
+
+  const structured = {
+    ...(((row?.structured_data as Record<string, unknown> | null) ?? {}) as Record<string, unknown>),
+    employer: input.employer?.trim() || null,
+  };
+
+  const { error } = await supabase
+    .from(table)
+    .update({ structured_data: structured as Json })
+    .eq("id", input.id)
+    .eq("user_id", input.userId);
+  if (error) throw error;
+}
