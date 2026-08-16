@@ -185,7 +185,33 @@ export async function callClaude(input: ClaudeCallInput): Promise<ClaudeCallResu
 
   const { profile } = input;
   const options = sanitizeRequestOptions(profile.requestOptions, profile.capabilities);
-  const messages = sanitizeMessages(input.messages, profile.capabilities, options);
+  let messages: { role: "user" | "assistant"; content: string }[];
+  try {
+    messages = sanitizeMessages(input.messages, profile.capabilities, options);
+  } catch (err) {
+    if (err instanceof ClaudeConfigurationError) {
+      console.error(
+        "[claude] configuration_error",
+        JSON.stringify({
+          correlationId: input.correlationId,
+          taskKey: profile.taskKey,
+          model: profile.modelId,
+          errorCode: err.errorCode,
+        }),
+      );
+      return {
+        ok: false,
+        outcome: "configuration_error",
+        errorCode: err.errorCode,
+        status: null,
+        requestId: null,
+        durationMs: Date.now() - started,
+        retryCount: 0,
+      };
+    }
+    throw err;
+  }
+
   const body = {
     model: profile.modelId,
     max_tokens: profile.maxTokens,
