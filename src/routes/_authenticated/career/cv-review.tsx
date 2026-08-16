@@ -81,7 +81,9 @@ type PointerAtom = {
   atom_type: string | null;
   atom_class: string | null;
   content_no: string | null;
+  structured_data?: unknown;
 };
+
 
 function CvReviewPage() {
   const { user } = useAuth();
