@@ -22,7 +22,7 @@ Dagens innhold: 5 `role`, 1 `achievement`, 1 `education`, 2 `language` — alle 
 ### Konflikter mellom skillkontrakt og faktisk schema
 1. **Tabellnavn:** skillene refererer gjennomgående `cv_evidence_atoms`. Kanonisk tabell er `career_atoms`. Løses med ett adapterlag, ikke ved å gjenopplive gammel tabell.
 2. **Atomtyper:** skillens typeliste (`role`, `achievement`, `metric`, `context`, `tool`, …) mot v4s `atom_kind` + `atom_type` + DB-satt `atom_class`. Krever eksplisitt typekart; `atom_class` og `attestation` skrives aldri fra kode.
-3. **`cv-evidence-graph` finnes i to versjoner** (repo-variant vs. skill 2.0.0/skjema 1.1). Må slås sammen, ikke dupliseres.
+3. **`cv-evidence-graph` finnes i to versjoner** (repo-variant v4 vs. skill 2.0.0/skjema 1.1). De skal **ikke** slås sammen: skill-v2 er isolert leverandørkode, v4 er kanonisk runtime, og adapteret er eneste kobling.
 4. **Ontologiregel:** kompetanse/eksponering kan ikke belegges direkte. Skillens frie `skill`-atomer fra tekst må derfor bli forslag knyttet til rolle/resultat.
 5. **CV-bygger finnes ikke:** `/cv-builder` er en `ComingSoonStub` (51 linjer). Hele generering, quality/guard/ATS-visning og eksport må bygges.
 6. **Ingen generisk modellprofil/-kjøring:** må opprettes (ny, ikke parallell til employer-tabellene, som beholdes uendret).
@@ -187,7 +187,9 @@ Eksport bygges på **én strukturert dokumentmodell** som kilde for både DOCX o
 - `ai.model_pricing`: `unique (model_id, valid_from)`.
 - `ai.eval_runs/eval_jobs`: `unique (eval_run_id, case_id, profile_id)`; indeks `(status, available_at)`.
 
-**f) EXECUTE på `public.has_role(uuid, app_role)`.** Faktisk ACL i dag: `postgres=X`, `authenticated=X`, `service_role=X`. Ingen grant til `anon`, ingen PUBLIC-grant. Funksjonen er `SECURITY DEFINER` med `search_path=public`. Dette er nøyaktig det admin-policyene trenger, så ingen rettighetsendring gjøres. Regresjonstest: assert at ACL for `has_role` er akkurat disse tre rollene, og at `anon` får `permission denied` ved kall.
+**f) EXECUTE på `public.has_role(uuid, app_role)`.** Faktisk ACL i dag: `postgres=X`, `authenticated=X`, `service_role=X`. Ingen grant til `anon`, ingen PUBLIC-grant. Funksjonen er `SECURITY DEFINER` med `search_path=public`. Dette er nøyaktig det admin-policyene trenger, så ingen rettighetsendring gjøres. Regresjonstest: assert at ACL for `has_role` er akkurat disse tre rollene, at `anon` får `permission denied` ved kall, og at verken `anon` eller `authenticated` har `CREATE` på `public`-schemaet (`has_schema_privilege('anon','public','CREATE') = false`, samme for `authenticated`).
+
+**g) Cron-endepunkt.** Eksakt funksjonsnavn og full URL settes inn i cron-SQL-en før jobben opprettes (ingen `/api/public/…`-plassholder), og både gyldig og ugyldig cron-secret testes mot endepunktet før cron aktiveres.
 
 **g) Sikkerhetstester før GO.** `anon` kan ikke kalle `public.internal_ai_*`; `authenticated` kan ikke kalle dem direkte; bruker A får ingen rader eller jobber for bruker B; RPC-ene virker bare via Edge-flyt som først har verifisert JWT; cron-kall med feil secret gir 401 og ingen sideeffekt; to samtidige workers på samme kø claimer aldri samme jobb (`SKIP LOCKED`-test med parallelle sesjoner).
 
