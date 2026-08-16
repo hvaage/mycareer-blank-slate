@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, CheckCircle2, AlertTriangle, FileText, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import { CvDropzone } from "./dropzone";
+import { ArchiveCvPicker } from "./archive-picker";
 import { PreviewSummary } from "./preview-summary";
 import { messageFor } from "./error-messages";
 import {
@@ -15,6 +16,10 @@ import {
   useRegisterCvUpload,
   useRunCvParse,
 } from "@/lib/queries/cv-imports";
+import {
+  useImportArchivedCv,
+  type ArchivedCvSource,
+} from "@/lib/queries/cv-archive-sources";
 import { supabase } from "@/lib/supabase";
 import type { CommitResponse, FlowState, PreviewCounts } from "@/types/cv-upload";
 
@@ -93,6 +98,25 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
   const register = useRegisterCvUpload(userId);
   const runParse = useRunCvParse(userId);
   const commit = useCommitImport(userId);
+  const importArchived = useImportArchivedCv(userId);
+
+  const onUseArchived = async (source: ArchivedCvSource) => {
+    try {
+      const res = await importArchived.mutateAsync(source);
+      dispatch({
+        type: "upload_done",
+        importId: res.import_id,
+        fileName: res.source_filename,
+      });
+    } catch (e: any) {
+      dispatch({
+        type: "error",
+        from: "upload",
+        errorCode: e?.code ?? "upload_failed",
+        message: e?.message,
+      });
+    }
+  };
 
   useEffect(() => {
     if (state.kind !== "file_selected") return;
