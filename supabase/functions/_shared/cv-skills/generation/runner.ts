@@ -697,7 +697,14 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
     };
 
     const text = doc.contentText ?? doc.blocks.map((b) => b.text).join("\n");
-    const guard = await verifyAgainstAtomsFull(text, vendorAtoms, judgeClient, { language: "no" });
+    // Guardens AtomLike er et minimums-interface; vendorens CvAtom oppfyller det
+    // strukturelt, men har smalere structured_data-typer.
+    const guard = await verifyAgainstAtomsFull(
+      text,
+      vendorAtoms as unknown as AtomLike[],
+      judgeClient,
+      { language: "no" },
+    );
 
     if (modelRunId) {
       await finishRun(input.adminClient, modelRunId, {
