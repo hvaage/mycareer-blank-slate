@@ -28,6 +28,7 @@ import { normalizeAiErrorMessage, AI_UX_RATE_LIMIT } from "@/lib/ai-ux-messages"
 
 import { EmployerAnalysisReportV2 } from "@/components/employers/EmployerAnalysisReportV2";
 import { EmployerCandidateMatch } from "@/components/employers/EmployerCandidateMatch";
+import { employerAnalysisDocsForCompanyQuery } from "@/lib/queries/employer-analysis-docs";
 
 export const Route = createFileRoute("/_authenticated/employers/$companyId")({
   component: CompanyDetailPage,
