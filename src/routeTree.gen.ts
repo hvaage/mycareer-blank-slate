@@ -44,6 +44,7 @@ import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedOfferAnalysisIndexRouteImport } from './routes/_authenticated/offer-analysis/index'
 import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authenticated/next-steps/index'
 import { Route as AuthenticatedInterviewPrepIndexRouteImport } from './routes/_authenticated/interview-prep/index'
+import { Route as AuthenticatedInnstillingerIndexRouteImport } from './routes/_authenticated/innstillinger.index'
 import { Route as AuthenticatedEmployersIndexRouteImport } from './routes/_authenticated/employers/index'
 import { Route as AuthenticatedDocumentsIndexRouteImport } from './routes/_authenticated/documents/index'
 import { Route as AuthenticatedDocumentationIndexRouteImport } from './routes/_authenticated/documentation/index'
@@ -54,6 +55,8 @@ import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/s
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
+import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
+import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
 import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
 import { Route as AuthenticatedDocumentsNewRouteImport } from './routes/_authenticated/documents/new'
 import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenticated/documents/$id'
@@ -266,6 +269,12 @@ const AuthenticatedInterviewPrepIndexRoute =
     path: '/interview-prep/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedInnstillingerIndexRoute =
+  AuthenticatedInnstillingerIndexRouteImport.update({
+    id: '/innstillinger/',
+    path: '/innstillinger/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedEmployersIndexRoute =
   AuthenticatedEmployersIndexRouteImport.update({
     id: '/employers/',
@@ -323,6 +332,18 @@ const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
   path: '/api/public/ingest-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedInnstillingerKontoRoute =
+  AuthenticatedInnstillingerKontoRouteImport.update({
+    id: '/innstillinger/konto',
+    path: '/innstillinger/konto',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInnstillingerIntegrasjonerRoute =
+  AuthenticatedInnstillingerIntegrasjonerRouteImport.update({
+    id: '/innstillinger/integrasjoner',
+    path: '/innstillinger/integrasjoner',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedEmployersCompanyIdRoute =
   AuthenticatedEmployersCompanyIdRouteImport.update({
     id: '/employers/$companyId',
@@ -518,6 +539,8 @@ export interface FileRoutesByFullPath {
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
+  '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -528,6 +551,7 @@ export interface FileRoutesByFullPath {
   '/documentation/': typeof AuthenticatedDocumentationIndexRoute
   '/documents/': typeof AuthenticatedDocumentsIndexRoute
   '/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
@@ -586,6 +610,8 @@ export interface FileRoutesByTo {
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
+  '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -596,6 +622,7 @@ export interface FileRoutesByTo {
   '/documentation': typeof AuthenticatedDocumentationIndexRoute
   '/documents': typeof AuthenticatedDocumentsIndexRoute
   '/employers': typeof AuthenticatedEmployersIndexRoute
+  '/innstillinger': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep': typeof AuthenticatedInterviewPrepIndexRoute
   '/next-steps': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis': typeof AuthenticatedOfferAnalysisIndexRoute
@@ -659,6 +686,8 @@ export interface FileRoutesById {
   '/_authenticated/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/_authenticated/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
+  '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -669,6 +698,7 @@ export interface FileRoutesById {
   '/_authenticated/documentation/': typeof AuthenticatedDocumentationIndexRoute
   '/_authenticated/documents/': typeof AuthenticatedDocumentsIndexRoute
   '/_authenticated/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/_authenticated/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/_authenticated/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/_authenticated/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/_authenticated/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
@@ -732,6 +762,8 @@ export interface FileRouteTypes {
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
+    | '/innstillinger/integrasjoner'
+    | '/innstillinger/konto'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -742,6 +774,7 @@ export interface FileRouteTypes {
     | '/documentation/'
     | '/documents/'
     | '/employers/'
+    | '/innstillinger/'
     | '/interview-prep/'
     | '/next-steps/'
     | '/offer-analysis/'
@@ -800,6 +833,8 @@ export interface FileRouteTypes {
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
+    | '/innstillinger/integrasjoner'
+    | '/innstillinger/konto'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -810,6 +845,7 @@ export interface FileRouteTypes {
     | '/documentation'
     | '/documents'
     | '/employers'
+    | '/innstillinger'
     | '/interview-prep'
     | '/next-steps'
     | '/offer-analysis'
@@ -872,6 +908,8 @@ export interface FileRouteTypes {
     | '/_authenticated/documents/$id'
     | '/_authenticated/documents/new'
     | '/_authenticated/employers/$companyId'
+    | '/_authenticated/innstillinger/integrasjoner'
+    | '/_authenticated/innstillinger/konto'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -882,6 +920,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documentation/'
     | '/_authenticated/documents/'
     | '/_authenticated/employers/'
+    | '/_authenticated/innstillinger/'
     | '/_authenticated/interview-prep/'
     | '/_authenticated/next-steps/'
     | '/_authenticated/offer-analysis/'
@@ -1170,6 +1209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInterviewPrepIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/innstillinger/': {
+      id: '/_authenticated/innstillinger/'
+      path: '/innstillinger'
+      fullPath: '/innstillinger/'
+      preLoaderRoute: typeof AuthenticatedInnstillingerIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/employers/': {
       id: '/_authenticated/employers/'
       path: '/employers'
@@ -1239,6 +1285,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/ingest-report'
       preLoaderRoute: typeof ApiPublicIngestReportRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/innstillinger/konto': {
+      id: '/_authenticated/innstillinger/konto'
+      path: '/innstillinger/konto'
+      fullPath: '/innstillinger/konto'
+      preLoaderRoute: typeof AuthenticatedInnstillingerKontoRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/innstillinger/integrasjoner': {
+      id: '/_authenticated/innstillinger/integrasjoner'
+      path: '/innstillinger/integrasjoner'
+      fullPath: '/innstillinger/integrasjoner'
+      preLoaderRoute: typeof AuthenticatedInnstillingerIntegrasjonerRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/employers/$companyId': {
       id: '/_authenticated/employers/$companyId'
@@ -1446,12 +1506,15 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDocumentsIdRoute: typeof AuthenticatedDocumentsIdRoute
   AuthenticatedDocumentsNewRoute: typeof AuthenticatedDocumentsNewRoute
   AuthenticatedEmployersCompanyIdRoute: typeof AuthenticatedEmployersCompanyIdRoute
+  AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
+  AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedApplicationsIndexRoute: typeof AuthenticatedApplicationsIndexRoute
   AuthenticatedCvBuilderIndexRoute: typeof AuthenticatedCvBuilderIndexRoute
   AuthenticatedDocumentationIndexRoute: typeof AuthenticatedDocumentationIndexRoute
   AuthenticatedDocumentsIndexRoute: typeof AuthenticatedDocumentsIndexRoute
   AuthenticatedEmployersIndexRoute: typeof AuthenticatedEmployersIndexRoute
+  AuthenticatedInnstillingerIndexRoute: typeof AuthenticatedInnstillingerIndexRoute
   AuthenticatedInterviewPrepIndexRoute: typeof AuthenticatedInterviewPrepIndexRoute
   AuthenticatedNextStepsIndexRoute: typeof AuthenticatedNextStepsIndexRoute
   AuthenticatedOfferAnalysisIndexRoute: typeof AuthenticatedOfferAnalysisIndexRoute
@@ -1489,12 +1552,16 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentsIdRoute: AuthenticatedDocumentsIdRoute,
   AuthenticatedDocumentsNewRoute: AuthenticatedDocumentsNewRoute,
   AuthenticatedEmployersCompanyIdRoute: AuthenticatedEmployersCompanyIdRoute,
+  AuthenticatedInnstillingerIntegrasjonerRoute:
+    AuthenticatedInnstillingerIntegrasjonerRoute,
+  AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedApplicationsIndexRoute: AuthenticatedApplicationsIndexRoute,
   AuthenticatedCvBuilderIndexRoute: AuthenticatedCvBuilderIndexRoute,
   AuthenticatedDocumentationIndexRoute: AuthenticatedDocumentationIndexRoute,
   AuthenticatedDocumentsIndexRoute: AuthenticatedDocumentsIndexRoute,
   AuthenticatedEmployersIndexRoute: AuthenticatedEmployersIndexRoute,
+  AuthenticatedInnstillingerIndexRoute: AuthenticatedInnstillingerIndexRoute,
   AuthenticatedInterviewPrepIndexRoute: AuthenticatedInterviewPrepIndexRoute,
   AuthenticatedNextStepsIndexRoute: AuthenticatedNextStepsIndexRoute,
   AuthenticatedOfferAnalysisIndexRoute: AuthenticatedOfferAnalysisIndexRoute,
