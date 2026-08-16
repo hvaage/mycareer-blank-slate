@@ -74,9 +74,10 @@ export function useUserAtomCounts(userId: string | undefined) {
     enabled: !!userId,
     queryFn: async () => {
       const { count, error } = await supabase
-        .from("cv_evidence_atoms")
+        .from("career_atoms")
         .select("id", { count: "exact", head: true })
-        .eq("user_id", userId!);
+        .eq("user_id", userId!)
+        .eq("is_active", true);
       if (error) throw error;
       if (typeof count !== "number") {
         // Null telling er ikke «null atomer» — det er en telling vi ikke fikk.
