@@ -73,6 +73,56 @@ function normalize(text: string): string {
   return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
 
+/**
+ * Grunnlaget er ofte engelsk mens teksten er norsk. Ekvivalensene under er
+ * rene oversettelser — de utvider aldri betydningen av en påstand.
+ */
+const NO_EN_EQUIVALENTS: Readonly<Record<string, string[]>> = {
+  norsk: ["norwegian"],
+  engelsk: ["english"],
+  morsmålsnivå: ["native"],
+  morsmål: ["native"],
+  flytende: ["fluent"],
+  ledet: ["led", "leadership", "leading"],
+  ledelse: ["leadership"],
+  teamledelse: ["team leadership", "team leads"],
+  drift: ["operations", "operating"],
+  teknisk: ["technical"],
+  arkitektur: ["architecture"],
+  virksomheten: ["business"],
+  virksomhet: ["business"],
+  oppstart: ["start up", "startup", "start-up"],
+  markedsledende: ["market leading", "market-leading"],
+  norske: ["norwegian", "norway"],
+  omsetning: ["revenue"],
+  personer: ["people"],
+  nivå: ["level"],
+};
+
+const MONTHS_NO: Readonly<Record<string, string>> = {
+  januar: "01", februar: "02", mars: "03", april: "04", mai: "05", juni: "06",
+  juli: "07", august: "08", september: "09", oktober: "10", november: "11", desember: "12",
+};
+
+/** "april 2007 til desember 2014" -> ["2007-04", "2014-12"] */
+export function extractNorwegianPeriods(value: string): string[] {
+  const out: string[] = [];
+  const re = new RegExp(`\\b(${Object.keys(MONTHS_NO).join("|")})\\s+(\\d{4})\\b`, "gi");
+  for (const m of value.matchAll(re)) {
+    const month = MONTHS_NO[m[1].toLowerCase()];
+    if (month) out.push(`${m[2]}-${month}`);
+  }
+  return out;
+}
+
+function atomDates(atom: AtomLike): string[] {
+  const sd = (atom.structured_data ?? {}) as Record<string, unknown>;
+  return ["start_date", "end_date"]
+    .map((k) => sd[k])
+    .filter((v): v is string => typeof v === "string" && /^\d{4}-\d{2}/.test(v))
+    .map((v) => v.slice(0, 7));
+}
+
 function atomHaystack(atom: AtomLike): string {
   return normalize(
     [atom.content_no, atom.content_en, atom.source_quote, JSON.stringify(atom.structured_data ?? {})]
@@ -89,7 +139,11 @@ function coverage(value: string, atoms: AtomLike[]): { ratio: number; atomId: st
   let bestId: string | null = null;
   for (const atom of atoms) {
     const hay = atomHaystack(atom);
-    const hit = tokens.filter((t) => hay.includes(t)).length / tokens.length;
+    const hit = tokens.filter((t) => {
+      if (hay.includes(t)) return true;
+      const alts = NO_EN_EQUIVALENTS[t];
+      return alts != null && alts.some((a) => hay.includes(normalize(a)));
+    }).length / tokens.length;
     if (hit > best) {
       best = hit;
       bestId = atom.id;
@@ -97,6 +151,7 @@ function coverage(value: string, atoms: AtomLike[]): { ratio: number; atomId: st
   }
   return { ratio: best, atomId: bestId };
 }
+
 
 export function accountClaims(
   claims: GeneratedClaim[],
