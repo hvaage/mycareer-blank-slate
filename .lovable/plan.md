@@ -72,18 +72,26 @@ peker på en lenke med annet atompar, annen `link_type` eller annen eier;
 supersedering av en allerede supersedert lenke; og sirkulær supersederingskjede
 (rekursiv sjekk). Vaktene ligger i triggere, ikke i RLS, slik at de også gjelder
 `service_role` — testene kjøres både som innlogget bruker og som service role.
+Vakten validerer i tillegg `source_candidate_id` når den er satt: kandidaten må
+ha samme `user_id`, tilhøre den importen/gjennomgangskonteksten lenken gjelder,
+og ikke ha status `avvist` (eller på annen måte være ugyldig som kilde).
+
 
 `suggestion jsonb` på forslagsraden bærer bare forklaringen (confidence,
 reasons, maskinens opprinnelige forslag, snapshot ved overstyring). Relasjonen
 selv ligger i tabellen over.
 
-### `career_atoms.evidence_atom_ids` i dag — ingen speilingstrigger nå
+### `career_atoms.evidence_atom_ids` — kompatibilitetsprojeksjon, ingen generell trigger
 
-- **Innhold i dag**: `uuid[] not null default '{}'`, tenkt som pekere fra en indirekte klasse (kompetanse/eksponering) til atomene som belegger den. I databasen nå: 9 atomer (5 roller, 1 resultat, 3 kvalifikasjoner), **null referanser totalt** og null `parent_atom_id`. Feltet er altså i praksis ubrukt, men leses av `dashboard-status.ts`, `career-atoms.ts`, `career_atom_delete_impact`/`career_atom_delete` (som fjerner fjernede atomer fra arrayet og nedgraderer atomer som mister sitt siste belegg) og av CHECK-regelen «kompetanse med `confidence='verified'` krever minst én oppføring».
-- **Hva som eventuelt skal speiles**: kun `belegges_av` og `avledet_av` med `status='aktiv'` og `superseded_at is null`. `oppnadd_i` (resultat → rolle) speiles aldri — den hører til `parent_atom_id`-aksen, ikke til evidenspekere.
+Én beslutning: `career_atom_links` er den kanoniske relasjonen, og
+`evidence_atom_ids` er en kompatibilitetsprojeksjon som holdes i synk.
+
+- **Innhold i dag**: `uuid[] not null default '{}'`, pekere fra en indirekte klasse (kompetanse/eksponering) til atomene som belegger den. I databasen nå: 9 atomer (5 roller, 1 resultat, 3 kvalifikasjoner), **null referanser totalt** og null `parent_atom_id`. Feltet leses av `dashboard-status.ts`, `career-atoms.ts`, `career_atom_delete_impact`/`career_atom_delete` og av CHECK-regelen «kompetanse med `confidence='verified'` krever minst én oppføring».
+- **Hva som projiseres**: kun `belegges_av` og `avledet_av` med `status='aktiv'` og `superseded_at is null`. `oppnadd_i` projiseres aldri — den hører til `parent_atom_id`-aksen.
+- **Hvordan**: projeksjonen oppdateres atomisk inne i de samme kontrollerte RPC-ene som oppretter, bekrefter, avviser eller supersederer en lenke — ingen generell trigger, ingen blind overskriving av hele arrayet. RPC-en legger til og fjerner kun de id-ene som eies av lenketabellen for det atomet, og lar øvrige referanser stå urørt.
 - **Backfill**: ingen. Det finnes ingen eksisterende arrays å migrere.
-- **Bevaring av referanser**: en fremtidig trigger skal kun legge til og fjerne de id-ene som stammer fra koblingstabellen, aldri skrive hele arrayet på nytt og aldri nullstille id-er som ikke har en tilsvarende lenke.
-- **Beslutning i denne fasen**: ingen trigger. Koblingstabellen er kilden, og `evidence_atom_ids` skrives fortsatt bare av dagens eksplisitte flyt. Speiling vurderes som et eget, dokumentert steg når lenker faktisk finnes i drift.
+- **Sletting/arkivering**: `career_atom_delete` og `career_atom_delete_impact` oppdateres mot samme modell og testes med (a) aktiv `belegges_av`-lenke, (b) aktiv `oppnadd_i`-lenke, (c) supersedert lenke. Testene skal vise at atomet arkiveres (`is_active=false`), at lenkehistorikken bevares, at `on delete restrict` ikke gir feil, at projeksjonen oppdateres for de arkiverte atomene, og at delete-impact fortsatt rapporterer riktig konsekvens.
+
 
 
 ## 3. Resultatplassering
@@ -135,7 +143,16 @@ kandidat-id: `id`, `local_ref`, kanonisk innholds-/kildehash (normalisert
 hashes settet sammen med analyse-/normaliseringsversjonen fra den kanoniske
 kontrakten. Normalisert tekst alene brukes ikke.
 
+Skrivetilgang: `authenticated` får kun `SELECT` på egen rad (RLS `auth.uid()`).
+`current_step`, `step_state` og `is_stale` oppdateres bare gjennom
+`cv_review_progress_advance` (`security definer`), som verifiserer eierskap,
+sammenligner `candidate_set_signature` med dagens kandidatsett, nekter
+oppdatering av en foreldet rad, håndhever trinnrekkefølgen og tar
+`select ... for update` på den aktive raden slik at parallelle oppdateringer
+serialiseres.
+
 Endres signaturen, skjer overgangen atomisk i én server-side RPC: gammel rad får
+
 `is_stale = true`, `stale_reason` og `superseded_at`, og den nye raden opprettes i
 samme transaksjon. Brukeren får «Start gjennomgangen på nytt» eller «Se hva som er
 endret». Systemet gjenopptar aldri en progresjon hvis signaturen ikke stemmer med
@@ -158,7 +175,7 @@ Tester som må være grønne, ikke bare RLS:
 ## Rekkefølge
 
 1. Drifttest, typecheck, bygg og kontraktstest — rapport før migrasjon.
-2. Migrasjon: `career_atom_links`, `cv_review_progress`, `cv_review_timeline_context`, speilingstrigger for `evidence_atom_ids`, GRANT + RLS.
+2. Migrasjon: `career_atom_links` med invariantvakter, kontrollerte lenke-RPC-er (som også vedlikeholder projeksjonen til `evidence_atom_ids`), oppdatert `career_atom_delete`/`career_atom_delete_impact`, `cv_review_progress` med progress-RPC, `cv_review_timeline_context`, GRANT + RLS. Ingen generell speilingstrigger.
 3. Trinn 1: tidslinje, hulldeteksjon, brukerlagte roller gjennom atomflyten.
 4. Direkte oppstart etter analyse.
 5. Trinn 2 med `trenger_plassering`.
