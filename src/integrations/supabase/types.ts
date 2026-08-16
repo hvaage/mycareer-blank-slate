@@ -5874,49 +5874,27 @@ export type Database = {
         }
         Returns: undefined
       }
-      internal_ai_generation_commit_step:
-        | {
-            Args: {
-              p_ats: Json
-              p_blocks: Json
-              p_claims: Json
-              p_content_text: string
-              p_error_code: string
-              p_guard: Json
-              p_job_id: string
-              p_model_run_id: string
-              p_new_version: boolean
-              p_next_step: string
-              p_output_hash: string
-              p_quality: Json
-              p_state_patch: Json
-              p_step: string
-              p_terminal: string
-              p_worker_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_ats: Json
-              p_blocks: Json
-              p_claims: Json
-              p_content_text: string
-              p_error_code: string
-              p_guard: Json
-              p_job_id: string
-              p_model_run_id: string
-              p_new_version: boolean
-              p_next_step: string
-              p_output_hash: string
-              p_quality: Json
-              p_state_patch: Json
-              p_step: string
-              p_terminal: string
-              p_worker_id: string
-            }
-            Returns: Json
-          }
+      internal_ai_generation_commit_step: {
+        Args: {
+          p_ats: Json
+          p_blocks: Json
+          p_claims: Json
+          p_content_text: string
+          p_error_code: string
+          p_guard: Json
+          p_job_id: string
+          p_model_run_id: string
+          p_new_version: boolean
+          p_next_step: string
+          p_output_hash: string
+          p_quality: Json
+          p_state_patch: Json
+          p_step: string
+          p_terminal: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
       internal_ai_get_active_profile: {
         Args: { p_task_key: string }
         Returns: Json
