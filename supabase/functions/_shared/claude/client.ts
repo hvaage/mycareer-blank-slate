@@ -165,11 +165,12 @@ export async function callClaude(input: ClaudeCallInput): Promise<ClaudeCallResu
 
   const { profile } = input;
   const options = sanitizeRequestOptions(profile.requestOptions, profile.capabilities);
+  const messages = sanitizeMessages(input.messages, profile.capabilities, options);
   const body = {
     model: profile.modelId,
     max_tokens: profile.maxTokens,
     system: input.system,
-    messages: input.messages,
+    messages,
     ...options,
   };
   const requestOptionsSnapshot = { max_tokens: profile.maxTokens, ...options };
