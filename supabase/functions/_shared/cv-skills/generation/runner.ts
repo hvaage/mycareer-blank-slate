@@ -42,6 +42,7 @@ import {
   parseLlmJudgeResponse,
 } from "../vendor/cv-hallucination-guard/scripts/llm-judge.ts";
 import type {
+  AtomLike,
   LlmJudgeInput,
   LlmJudgeResponse,
 } from "../vendor/cv-hallucination-guard/scripts/types.ts";
