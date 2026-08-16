@@ -73,9 +73,20 @@ peker på en lenke med annet atompar, annen `link_type` eller annen eier;
 supersedering av en allerede supersedert lenke; og sirkulær supersederingskjede
 (rekursiv sjekk). Vaktene ligger i triggere, ikke i RLS, slik at de også gjelder
 `service_role` — testene kjøres både som innlogget bruker og som service role.
-Vakten validerer i tillegg `source_candidate_id` når den er satt: kandidaten må
-ha samme `user_id`, tilhøre den importen/gjennomgangskonteksten lenken gjelder,
-og ikke ha status `avvist` (eller på annen måte være ugyldig som kilde).
+Vakten validerer i tillegg: `review_import_id` eies av samme `user_id`;
+`source_candidate_id`, når den er satt, har samme `user_id`, tilhører
+`review_import_id` og har ikke status `avvist` (eller er på annen måte ugyldig
+som kilde); og `status='aktiv'` avvises dersom `from_atom_id` eller `to_atom_id`
+er arkivert (`is_active=false`).
+
+### Security definer-regler for alle nye RPC-er
+
+Alle lenke- og progresjons-RPC-er: `security definer`, `set search_path = ''`
+med fullt kvalifiserte objektnavn (`public.`, `auth.`), `revoke execute on
+function ... from public, anon`, `grant execute ... to authenticated` bare der
+brukerflyten trenger det, og eksplisitt `auth.uid()`- og eierskapskontroll inne i
+funksjonen — aldri bare RLS.
+
 
 
 `suggestion jsonb` på forslagsraden bærer bare forklaringen (confidence,
