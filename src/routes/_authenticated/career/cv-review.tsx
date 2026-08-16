@@ -381,16 +381,38 @@ function CvReviewPage() {
         </div>
       )}
 
-      {activeImportId && (
-        <CvAnalysisPanel
-          userId={userId}
-          importId={activeImportId}
-          candidates={analysisCandidates}
-          unresolvedCount={pending.length}
+      {activeImportId && hasRows && !isStale && (
+        <CvReviewProgressBar
+          steps={stepStatuses}
+          currentStep={currentStep}
+          onGoToStep={goToStep}
         />
       )}
 
-      {activeImportId && currentStep === 1 ? (
+      {activeImportId && isStale && (
+        <>
+          <CvReviewStaleNotice
+            onRestart={restartReview}
+            onShowChanges={() => setShowChanges((v) => !v)}
+            showingChanges={showChanges}
+            changedCount={pending.length}
+          />
+          {showChanges && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Dette ligger i importen nå</CardTitle>
+                <CardDescription>
+                  {roleCandidates.length} roller, {resultCandidates.length} resultater,{" "}
+                  {skillCandidates.length} kompetanser og {qualificationCandidates.length}{" "}
+                  kvalifikasjoner — hvorav {pending.length} ikke er gjennomgått.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+        </>
+      )}
+
+      {activeImportId && !isStale && currentStep === 1 ? (
         <CvReviewTimelineStep
           userId={userId}
           importId={activeImportId}
@@ -399,7 +421,7 @@ function CvReviewPage() {
           savedRoles={savedRoles}
           onContinue={() => invalidateReviewProgress(qc, userId)}
         />
-      ) : activeImportId && currentStep === 2 ? (
+      ) : activeImportId && !isStale && currentStep === 2 ? (
         <CvReviewResultsStep
           userId={userId}
           importId={activeImportId}
@@ -408,17 +430,54 @@ function CvReviewPage() {
           savedRoles={savedRoles}
           promotedByLocalRef={promoted}
           onContinue={() => invalidateReviewProgress(qc, userId)}
-          onBack={() => {
-            void advanceReviewProgress(activeImportId, signature, 1)
-              .then(() => invalidateReviewProgress(qc, userId))
-              .catch((e: Error) => toast.error(e.message));
-          }}
+          onBack={() => goToStep(1)}
         />
-      ) : (
+      ) : activeImportId && !isStale && currentStep === 3 ? (
+        <CvReviewSkillsStep
+          userId={userId}
+          importId={activeImportId}
+          signature={signature}
+          skillCandidates={skillCandidates}
+          roles={suggestionRoles}
+          results={suggestionResults}
+          promotedByLocalRef={promoted}
+          onContinue={() => invalidateReviewProgress(qc, userId)}
+          onBack={() => goToStep(2)}
+        />
+      ) : activeImportId && !isStale && currentStep === 4 ? (
+        <CvReviewQualificationsStep
+          userId={userId}
+          importId={activeImportId}
+          signature={signature}
+          candidates={qualificationCandidates}
+          onFinish={() => invalidateReviewProgress(qc, userId)}
+          onBack={() => goToStep(3)}
+        />
+      ) : activeImportId && !isStale ? (
+        <>
+          <CvReviewSummary
+            lines={stepStatuses.map((s) => ({
+              step: s.step,
+              label: s.label,
+              confirmed: s.total - s.remaining,
+              remaining: s.remaining,
+            }))}
+            onGoToStep={goToStep}
+          />
+          {/* Valgfritt ettersteg. Blokkerer ikke at gjennomgangen er ferdig. */}
+          <CvAnalysisPanel
+            userId={userId}
+            importId={activeImportId}
+            candidates={analysisCandidates}
+          />
+        </>
+      ) : null}
+
+      {search.legacy && (
       <Tabs defaultValue="pending">
 
         <TabsList>
-          <TabsTrigger value="pending">Til gjennomgang ({pending.length})</TabsTrigger>
+          <TabsTrigger value="pending">Til gjennomgang</TabsTrigger>
           <TabsTrigger value="confirmed">Bekreftet ({confirmed.length})</TabsTrigger>
           <TabsTrigger value="questions">Spørsmål ({questions.length})</TabsTrigger>
           <TabsTrigger value="rejected">Avvist ({rejected.length})</TabsTrigger>
@@ -515,6 +574,7 @@ function CvReviewPage() {
         </TabsContent>
       </Tabs>
       )}
+
 
     </div>
   );
