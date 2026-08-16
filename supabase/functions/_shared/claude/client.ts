@@ -248,7 +248,8 @@ export async function callClaude(input: ClaudeCallInput): Promise<ClaudeCallResu
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(ANTHROPIC_BASE_URL, {
+      const doFetch = input.runtime?.fetchImpl ?? fetch;
+      const res = await doFetch(ANTHROPIC_BASE_URL, {
         method: "POST",
         headers: {
           "content-type": "application/json",
