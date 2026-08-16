@@ -98,6 +98,13 @@ function AboutMePage() {
     return Number.isFinite(n) ? n : null;
   };
 
+  const saveArrayToggle = async (field: string, arr: string[], code: string, on: boolean) => {
+    const next = on ? Array.from(new Set([...arr, code])) : arr.filter((c) => c !== code);
+    const { error } = await (supabase.from("profiles") as any).update({ [field]: next }).eq("id", user.id);
+    if (error) toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["profile", user.id] });
+  };
+
   const exportMarkdown = () => {
     const md = buildMarkdown(p);
     const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
