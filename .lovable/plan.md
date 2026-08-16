@@ -52,6 +52,7 @@ provenance krever derfor en smal koblingstabell.
 | `status` | `foreslatt`, `aktiv`, `avvist`, `trenger_ny_vurdering` |
 | `confidence` | `hoy`, `lav` — maskinens sikkerhet ved forslag |
 | `reasons` | jsonb: signalene bak forslaget |
+| `review_import_id` | FK `cv_imports` **not null** — importen/gjennomgangen der lenken ble foreslått eller avgjort; settes også når `source_candidate_id` er null |
 | `source_candidate_id` | FK `cv_parse_candidates`, null for brukerlagte |
 | `supersedes_link_id` | FK til samme tabell — den nye lenken peker tilbake på den den erstatter |
 | `superseded_at`, `superseded_reason` | settes på den *gamle* lenken når den erstattes |
@@ -72,9 +73,20 @@ peker på en lenke med annet atompar, annen `link_type` eller annen eier;
 supersedering av en allerede supersedert lenke; og sirkulær supersederingskjede
 (rekursiv sjekk). Vaktene ligger i triggere, ikke i RLS, slik at de også gjelder
 `service_role` — testene kjøres både som innlogget bruker og som service role.
-Vakten validerer i tillegg `source_candidate_id` når den er satt: kandidaten må
-ha samme `user_id`, tilhøre den importen/gjennomgangskonteksten lenken gjelder,
-og ikke ha status `avvist` (eller på annen måte være ugyldig som kilde).
+Vakten validerer i tillegg: `review_import_id` eies av samme `user_id`;
+`source_candidate_id`, når den er satt, har samme `user_id`, tilhører
+`review_import_id` og har ikke status `avvist` (eller er på annen måte ugyldig
+som kilde); og `status='aktiv'` avvises dersom `from_atom_id` eller `to_atom_id`
+er arkivert (`is_active=false`).
+
+### Security definer-regler for alle nye RPC-er
+
+Alle lenke- og progresjons-RPC-er: `security definer`, `set search_path = ''`
+med fullt kvalifiserte objektnavn (`public.`, `auth.`), `revoke execute on
+function ... from public, anon`, `grant execute ... to authenticated` bare der
+brukerflyten trenger det, og eksplisitt `auth.uid()`- og eierskapskontroll inne i
+funksjonen — aldri bare RLS.
+
 
 
 `suggestion jsonb` på forslagsraden bærer bare forklaringen (confidence,
@@ -88,9 +100,12 @@ selv ligger i tabellen over.
 
 - **Innhold i dag**: `uuid[] not null default '{}'`, pekere fra en indirekte klasse (kompetanse/eksponering) til atomene som belegger den. I databasen nå: 9 atomer (5 roller, 1 resultat, 3 kvalifikasjoner), **null referanser totalt** og null `parent_atom_id`. Feltet leses av `dashboard-status.ts`, `career-atoms.ts`, `career_atom_delete_impact`/`career_atom_delete` og av CHECK-regelen «kompetanse med `confidence='verified'` krever minst én oppføring».
 - **Hva som projiseres**: kun `belegges_av` og `avledet_av` med `status='aktiv'` og `superseded_at is null`. `oppnadd_i` projiseres aldri — den hører til `parent_atom_id`-aksen.
-- **Hvordan**: projeksjonen oppdateres atomisk inne i de samme kontrollerte RPC-ene som oppretter, bekrefter, avviser eller supersederer en lenke — ingen generell trigger, ingen blind overskriving av hele arrayet. RPC-en legger til og fjerner kun de id-ene som eies av lenketabellen for det atomet, og lar øvrige referanser stå urørt.
+- **Sporbarhet**: `evidence_atom_ids` kan ikke selv fortelle hvilke UUID-er som stammer fra lenketabellen. Derfor føres eierskapet i en smal intern tabell `public.career_atom_evidence_projection` (`user_id`, `atom_id`, `referenced_atom_id`, `link_id` FK `career_atom_links`, `created_at`, unik på `(atom_id, referenced_atom_id, link_id)`). Ingen `authenticated`-skriv; kun projeksjonsfunksjonen skriver.
+- **Hvordan**: projeksjonen oppdateres atomisk i samme transaksjon som lenkeendringen, gjennom én felles funksjon `public.career_atom_project_evidence(atom_id)` som alle relevante skriveflyter bruker. Den legger til og fjerner kun de referansene projeksjonstabellen eier for det atomet, bevarer historiske og andre eksplisitte evidensreferanser, og skriver aldri hele arrayet blindt. Ingen generell trigger.
 - **Backfill**: ingen. Det finnes ingen eksisterende arrays å migrere.
-- **Sletting/arkivering**: `career_atom_delete` og `career_atom_delete_impact` oppdateres mot samme modell og testes med (a) aktiv `belegges_av`-lenke, (b) aktiv `oppnadd_i`-lenke, (c) supersedert lenke. Testene skal vise at atomet arkiveres (`is_active=false`), at lenkehistorikken bevares, at `on delete restrict` ikke gir feil, at projeksjonen oppdateres for de arkiverte atomene, og at delete-impact fortsatt rapporterer riktig konsekvens.
+- **Arkivering**: når `career_atom_delete` arkiverer et atom, beholdes alle lenker historisk, aktive lenker til eller fra atomet settes til `trenger_ny_vurdering`, og projeksjonen oppdateres atomisk i samme transaksjon. `career_atom_delete_impact` rapporterer antall berørte aktive lenker og hvilke atomer som mister sitt siste belegg.
+- **Tester**: arkivering med (a) aktiv `belegges_av`-lenke, (b) aktiv `oppnadd_i`-lenke, (c) supersedert lenke. Skal vise at atomet arkiveres, at `on delete restrict` ikke gir feil, at lenkehistorikken står, at aktive lenker er merket for ny vurdering, og at lenketabell, projeksjonstabell og `evidence_atom_ids` ikke motsier hverandre etterpå. Delete-impact verifiseres mot samme oppsett.
+
 
 
 
