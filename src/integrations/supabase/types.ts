@@ -1576,9 +1576,11 @@ export type Database = {
           attested_by_user_id: string
           attested_claim_hash: string
           attested_claim_text: string
+          attested_claim_version: number
           claim_id: string
           created_at: string
           document_id: string
+          document_output_hash: string | null
           external_document_available: boolean
           external_source_name: string | null
           external_source_year: number | null
@@ -1586,7 +1588,9 @@ export type Database = {
           invalidated_at: string | null
           invalidated_reason: string | null
           note: string | null
+          provenance: Json
           updated_at: string
+          verification_at_attestation: string | null
           withdrawn_at: string | null
           withdrawn_reason: string | null
         }
@@ -1595,9 +1599,11 @@ export type Database = {
           attested_by_user_id: string
           attested_claim_hash: string
           attested_claim_text: string
+          attested_claim_version?: number
           claim_id: string
           created_at?: string
           document_id: string
+          document_output_hash?: string | null
           external_document_available?: boolean
           external_source_name?: string | null
           external_source_year?: number | null
@@ -1605,7 +1611,9 @@ export type Database = {
           invalidated_at?: string | null
           invalidated_reason?: string | null
           note?: string | null
+          provenance?: Json
           updated_at?: string
+          verification_at_attestation?: string | null
           withdrawn_at?: string | null
           withdrawn_reason?: string | null
         }
@@ -1614,9 +1622,11 @@ export type Database = {
           attested_by_user_id?: string
           attested_claim_hash?: string
           attested_claim_text?: string
+          attested_claim_version?: number
           claim_id?: string
           created_at?: string
           document_id?: string
+          document_output_hash?: string | null
           external_document_available?: boolean
           external_source_name?: string | null
           external_source_year?: number | null
@@ -1624,7 +1634,9 @@ export type Database = {
           invalidated_at?: string | null
           invalidated_reason?: string | null
           note?: string | null
+          provenance?: Json
           updated_at?: string
+          verification_at_attestation?: string | null
           withdrawn_at?: string | null
           withdrawn_reason?: string | null
         }
