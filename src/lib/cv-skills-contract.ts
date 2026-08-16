@@ -174,6 +174,44 @@ export type ClaimContradiction = {
   reason: string;
 };
 
+/**
+ * Deterministisk oppdeling av hva i en påstand som mangler dekning.
+ * Ingen modellkall — bare klassifisering av teksten brukeren skal ta stilling til.
+ */
+export function classifyUnsupportedElements(
+  value: string,
+  verification: ClaimVerification,
+): UnsupportedElement[] {
+  if (verification === "supported" || verification === "not_applicable") return [];
+  const elements: UnsupportedElement[] = [];
+  const push = (kind: UnsupportedElement["kind"], text: string, reason: string) => {
+    if (!elements.some((e) => e.text === text && e.kind === kind)) elements.push({ kind, text, reason });
+  };
+  for (const m of value.match(/\b(19|20)\d{2}\b/g) ?? []) {
+    push("date", m, "Årstallet er ikke belagt i grunnlaget ditt.");
+  }
+  for (const m of value.match(/\b\d[\d\s.,]*\s?(%|prosent|mill\.?|millioner|milliarder|personer|ansatte)?\b/g) ??
+    []) {
+    const t = m.trim();
+    if (t.length === 0 || /^(19|20)\d{2}$/.test(t)) continue;
+    push("number", t, "Tallet er ikke belagt i grunnlaget ditt.");
+  }
+  for (const m of value.match(/\b(størst|ledende|markedsledende|først|eneste|nest største|best)\w*/gi) ?? []) {
+    push("comparison", m, "Sammenligningen er ikke belagt i grunnlaget ditt.");
+  }
+  for (const m of value.match(/\b(B2C|B2B|marked\w*)\b/gi) ?? []) {
+    push("market", m, "Markedsomfanget er ikke belagt i grunnlaget ditt.");
+  }
+  for (const m of value.match(/\b(Norge|norsk\w*|Norden|nordisk\w*|Europa|globalt)\b/gi) ?? []) {
+    push("geography", m, "Geografien er ikke belagt i grunnlaget ditt.");
+  }
+  if (elements.length === 0) {
+    push("other", value, "Formuleringen er ikke belagt i grunnlaget ditt.");
+  }
+  return elements;
+}
+
+
 export type ClaimEvidence = {
   claimId: string;
   blockId: string;
