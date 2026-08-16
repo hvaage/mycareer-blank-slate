@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Heart, Loader2, Plus, RefreshCw, Shield, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
 import {
   EVIDENCE_ATOM_CATEGORIES,
@@ -110,6 +111,9 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
     });
   }, [profile, profileLoading, activePrefs.length, activeEv.length, profileBrief, hasCvDocument]);
 
+  /** Uten registrert erfaring eller ønsker hviler en prosent på ingenting. */
+  const hasFoundation = activePrefs.length > 0 || activeEv.length > 0;
+
   const prefByDim = useMemo(() => groupBy(activePrefs, (r) => r.dimension), [activePrefs]);
   const evByCat = useMemo(() => groupBy(activeEv, (r) => r.category), [activeEv]);
 
@@ -121,7 +125,6 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
   const [evCat, setEvCat] = useState<string>(EVIDENCE_ATOM_CATEGORIES[0]!.id);
   const [evLabel, setEvLabel] = useState("");
   const [evDesc, setEvDesc] = useState("");
-  const [evStr, setEvStr] = useState("4");
 
   const addPref = useMutation({
     mutationFn: async () => {
@@ -138,7 +141,7 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
       });
     },
     onSuccess: () => {
-      toast.success("Preferanse lagt til");
+      toast.success("Lagt til");
       setPrefLabel("");
       setPrefValue("");
       qc.invalidateQueries({ queryKey: ["user-preference-atoms", userId] });
@@ -150,17 +153,15 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
     mutationFn: async () => {
       const label = evLabel.trim();
       if (!label) throw new Error("Skriv en kort label");
-      const s = parseInt(evStr, 10);
       await upsertEvidenceAtom(userId, {
         category: evCat,
         label,
         description: evDesc.trim() || null,
-        strength_score: Number.isFinite(s) ? Math.min(6, Math.max(1, s)) : null,
         source: "manual",
       });
     },
     onSuccess: () => {
-      toast.success("Evidens lagt til");
+      toast.success("Lagt til");
       setEvLabel("");
       setEvDesc("");
       qc.invalidateQueries({ queryKey: ["user-evidence-atoms", userId] });
@@ -181,26 +182,24 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
     mutationFn: () => refreshUserAtoms(userId),
     onSuccess: (data) => {
       invalidateUserAtomQueries(qc, userId);
-      const w = data.warnings.length ? ` Varsler: ${data.warnings.slice(0, 3).join(" · ")}` : "";
+      const w = data.warnings.length ? ` Merk: ${data.warnings.slice(0, 3).join(" · ")}` : "";
       toast.success(
-        `Oppdatert ${data.preferenceUpserted} preferanse-atom(er) og ${data.evidenceUpserted} evidens-atom(er).` +
-          (data.deactivated ? ` ${data.deactivated} utdaterte systemrader deaktivert.` : "") +
+        `Fant ${data.preferenceUpserted} ønske(r) og ${data.evidenceUpserted} ting du kan dokumentere.` +
+          (data.deactivated ? ` ${data.deactivated} utdaterte linjer ble fjernet.` : "") +
           w,
       );
     },
-    onError: (e: Error) => toast.error(e.message ?? "Kunne ikke oppdatere atomer"),
+    onError: (e: Error) => toast.error(e.message ?? "Kunne ikke oppdatere"),
   });
 
   return (
     <div className="space-y-4">
       <Card className="border-dashed border-primary/25">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Oppdater karriereinnsikt</CardTitle>
+          <CardTitle className="text-base">Hent fra det du allerede har lagt inn</CardTitle>
           <CardDescription className="text-xs leading-relaxed">
-            Leser eksisterende data fra <strong>Karriereprofil</strong>, <strong>Om meg / profil</strong>,{" "}
-            <strong>CV og dokumenter</strong>, <strong>LinkedIn-felter</strong> som allerede er lagret, og{" "}
-            <strong>arbeidsgivervurderinger</strong> — uten AI og uten å endre jobbrangering eller arbeidsgiver-AI.
-            Ingen automatikk ved innlogging; du starter oppdateringen selv.
+            Vi leser CV, dokumenter, profilen din og arbeidsgivervurderingene dine, og foreslår hva som er viktig for
+            deg og hva du kan dokumentere. Du starter det selv, og ingenting du har skrevet manuelt blir slettet.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -214,35 +213,47 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
             {refreshAtoms.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden />
-                Oppdaterer…
+                Henter…
               </>
             ) : (
               <>
                 <RefreshCw className="h-4 w-4 mr-2" aria-hidden />
-                Oppdater karriereinnsikt
+                Hent forslag
               </>
             )}
           </Button>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Vi kan hente første versjon av preferanser og dokumentert erfaring fra Karriereprofil, Om meg, CV, LinkedIn
-            og dokumenter. Manuelt innhold du har lagt inn blir ikke slettet.
-          </p>
         </CardContent>
       </Card>
 
       <Card className="border-primary/20 bg-muted/20">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Profilberedskap (lokal)</CardTitle>
-          <CardDescription>{completeness.summaryNb}</CardDescription>
+          <CardTitle className="text-base">Hvor komplett er profilen din</CardTitle>
+          <CardDescription>
+            {hasFoundation
+              ? completeness.summaryNb
+              : "Vi viser ingen prosent før du har lagt inn grunnlaget. Et tall uten innhold bak sier ingenting."}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="flex items-center gap-3">
-            <Progress value={profileLoading ? 0 : completeness.score} className="h-2 flex-1" />
-            <span className="text-sm font-semibold tabular-nums w-12 text-right">
-              {profileLoading ? "—" : `${completeness.score}%`}
-            </span>
-          </div>
-          {!profileLoading && completeness.missingAreas.length > 0 && (
+          {hasFoundation && !profileLoading ? (
+            <div className="flex items-center gap-3">
+              <Progress value={completeness.score} className="h-2 flex-1" />
+              <span className="text-sm font-semibold tabular-nums w-12 text-right">{completeness.score}%</span>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed p-3 text-sm space-y-2">
+              <p className="text-muted-foreground">Dette mangler før profilen kan brukes til noe:</p>
+              <ul className="list-disc pl-4 text-sm space-y-0.5">
+                <li>Rollene dine — last opp CV-en, så henter vi dem</li>
+                <li>Hva du oppnådde i rollene</li>
+                <li>Hva som er viktig for deg i neste jobb</li>
+              </ul>
+              <Button asChild size="sm" variant="secondary">
+                <Link to="/about-me">Last opp CV</Link>
+              </Button>
+            </div>
+          )}
+          {hasFoundation && !profileLoading && completeness.missingAreas.length > 0 && (
             <p className="text-xs text-muted-foreground">
               <span className="font-medium text-foreground/80">Mangler fortsatt: </span>
               {completeness.missingAreas.slice(0, 6).join(" · ")}
@@ -260,17 +271,16 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
               <CardTitle className="text-lg">Dette er viktig for deg</CardTitle>
             </div>
             <CardDescription>
-              Preferanse-atomer beskriver <strong>ikke</strong> bare hva du vil unngå — de sier hva du verdsetter og
-              ønsker å prioritere. De brukes senere til matching og forklaringer.
+              Vi bruker det til å sortere bort stillinger som bryter med det du har sagt er viktig, og til å forklare
+              hvorfor et treff passer.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {activePrefs.length === 0 ? (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground space-y-2">
-                <p>Ingen preferanse-atomer ennå.</p>
+                <p>Ingenting registrert ennå.</p>
                 <p className="text-xs leading-relaxed">
-                  Vi kan hente første versjon av preferanser og dokumentert erfaring fra Karriereprofil, Om meg, CV,
-                  LinkedIn og dokumenter — trykk «Oppdater karriereinnsikt» over. Du kan også legge inn rader manuelt
+                  Trykk «Hent forslag» over, så leser vi CV, dokumenter og profilen din. Du kan også skrive inn selv
                   under.
                 </p>
               </div>
@@ -343,6 +353,7 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
                 <div className="space-y-1">
                   <Label className="text-xs">Viktighet 1–6</Label>
                   <Input className="h-9" inputMode="numeric" value={prefImp} onChange={(e) => setPrefImp(e.target.value)} />
+                  <p className="text-[11px] text-muted-foreground">Avgjør hvor tungt det veier når vi sorterer treff.</p>
                 </div>
               </div>
               <div className="space-y-1">
@@ -354,7 +365,7 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
                 <Input className="h-9" placeholder="Fritekst" value={prefValue} onChange={(e) => setPrefValue(e.target.value)} />
               </div>
               <Button type="button" size="sm" disabled={addPref.isPending} onClick={() => addPref.mutate()}>
-                <Plus className="h-4 w-4 mr-1" /> Legg til preferanse
+                <Plus className="h-4 w-4 mr-1" /> Legg til
               </Button>
             </div>
           </CardContent>
@@ -367,17 +378,16 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
               <CardTitle className="text-lg">Dette kan du dokumentere</CardTitle>
             </div>
             <CardDescription>
-              Evidens-atomer er <strong>ikke</strong> tomme påstander — de beskriver hva du kan underbygge fra CV,
-              profil, dokumenter eller erfaring (kilde kan legges til senere).
+              Dette er det vi kan bruke i CV og søknad uten å finne på noe. Alt må kunne spores til noe du har gjort.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {activeEv.length === 0 ? (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground space-y-2">
-                <p>Ingen evidens-atomer ennå.</p>
+                <p>Ingenting registrert ennå.</p>
                 <p className="text-xs leading-relaxed">
-                  Vi kan hente første versjon fra CV, dokumenter, profil og LinkedIn — trykk «Oppdater karriereinnsikt»
-                  over. Du kan også legge inn eksempler manuelt under.
+                  Trykk «Hent forslag» over, så leser vi CV, dokumenter og profilen din. Du kan også skrive inn
+                  eksempler selv under.
                 </p>
               </div>
             ) : (
@@ -400,15 +410,6 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
                               {a.description && (
                                 <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{a.description}</p>
                               )}
-                              {a.strength_score != null && (() => {
-                                const b = atomScoreBand(a.strength_score);
-                                return (
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  Styrke: {a.strength_score}/6
-                                  {b ? ` (${atomScoreBandLabelNb(b)})` : ""}
-                                </p>
-                                );
-                              })()}
                             </div>
                             <Button
                               type="button"
@@ -432,26 +433,20 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
 
             <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
               <p className="text-xs font-medium text-foreground/90">Legg til for hånd</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Kategori</Label>
-                  <Select value={evCat} onValueChange={setEvCat}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EVIDENCE_ATOM_CATEGORIES.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.labelNb}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Styrke 1–6</Label>
-                  <Input className="h-9" inputMode="numeric" value={evStr} onChange={(e) => setEvStr(e.target.value)} />
-                </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Kategori</Label>
+                <Select value={evCat} onValueChange={setEvCat}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EVIDENCE_ATOM_CATEGORIES.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.labelNb}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Kort label</Label>
@@ -462,7 +457,7 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
                 <Textarea className="min-h-[72px] text-sm" placeholder="Kontekst du kan utdype senere" value={evDesc} onChange={(e) => setEvDesc(e.target.value)} />
               </div>
               <Button type="button" size="sm" disabled={addEv.isPending} onClick={() => addEv.mutate()}>
-                <Plus className="h-4 w-4 mr-1" /> Legg til evidens
+                <Plus className="h-4 w-4 mr-1" /> Legg til
               </Button>
             </div>
           </CardContent>
