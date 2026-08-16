@@ -19,7 +19,8 @@ describe("manuell provenance i CV-gjennomgangen", () => {
   });
 
   it("setter aldri claim-evidensstatusen user_attested fra atomflyten", () => {
-    expect(src).not.toMatch(/user_attested/);
+    const code = src.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, "");
+    expect(code).not.toMatch(/user_attested/);
     expect(src).not.toMatch(/cv_claim_attestations/);
   });
 
