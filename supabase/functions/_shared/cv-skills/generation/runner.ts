@@ -720,14 +720,24 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
       .flatMap((m) => m.supporting_atom_ids)
       .filter((id) => !allowedAtomIds.has(id));
 
-    const verdictFor = (value: string): GeneratedClaim["verification"] => {
+    // Alle claims regnskapsføres deterministisk mot sine EGNE supporting atoms.
+    // Guardens tekstnivå-treff brukes i tillegg til å heve verdikten.
+    const accounting = accountClaims(doc.claims, doc.snapshot.atoms);
+    const accountingById = new Map(accounting.entries.map((e) => [e.claimId, e]));
+    const guardVerdictFor = (value: string): GeneratedClaim["verification"] | null => {
       const match = guard.matches.find((m) => value.includes(m.claim.text) || m.claim.text.includes(value));
-      if (!match) return "not_applicable";
+      if (!match) return null;
       if (match.verdict === "verified") return "supported";
       if (match.verdict === "partial") return "partially_supported";
       return "unsupported";
     };
-    const claims = doc.claims.map((c) => ({ ...c, verification: verdictFor(c.value) }));
+    const claims = doc.claims.map((c) => {
+      const deterministic = accountingById.get(c.claimId)?.verification ?? "unsupported";
+      const fromGuard = guardVerdictFor(c.value);
+      const verification: GeneratedClaim["verification"] =
+        deterministic === "supported" || fromGuard !== "supported" ? deterministic : "supported";
+      return { ...c, verification };
+    });
 
     const outputHash = await sha256Hex(text);
     const guardPayload = {
@@ -735,6 +745,7 @@ export async function runGenerationStep(input: StepRunInput): Promise<StepRunOut
       ok: guard.ok && outsideSnapshot.length === 0,
       mode: guard.mode,
       stats: guard.stats,
+      claim_accounting: accounting.summary,
       contradicted: guard.contradicted,
       unverified: guard.unverified,
       partial: guard.partial,
