@@ -145,15 +145,17 @@ export const Route = createFileRoute("/api/cv/generations")({
           .eq("status", "pending_review")
           .eq("proposal_action", "flag_conflict");
 
-        const { assessReadiness, eligibleAtoms } = await import(
-          "../../../../supabase/functions/_shared/cv-skills/adapters/career-atom-adapter.ts"
+        // Ruten kaller kun tjenestegrensen på serversiden; vurdering av
+        // grunnlaget og frysing av snapshot eies der.
+        const { prepareGenerationStart } = await import(
+          "../../../../supabase/functions/_shared/cv-skills/generation/start-service.ts"
         );
-        const rows = (atomRows ?? []) as never[];
-        const readiness = assessReadiness({
-          rows,
+        const prepared = await prepareGenerationStart({
+          rows: (atomRows ?? []) as never[],
           openProposals: openProposals ?? 0,
           conflicts: conflicts ?? 0,
         });
+        const readiness = prepared.readiness;
 
         // needs_review og blocked_no_evidence gir null modellkall.
         if (readiness.status === "blocked_no_evidence") {
@@ -186,14 +188,13 @@ export const Route = createFileRoute("/api/cv/generations")({
 
         // ----------------------------------------- frosset snapshot + jobb
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { buildSnapshot, sha256Hex, snapshotHashInput } = await import(
-          "../../../../supabase/functions/_shared/cv-skills/generation/contract.ts"
-        );
 
-        const eligible = eligibleAtoms(rows);
-        const frozenAt = new Date().toISOString();
-        const snapshot = buildSnapshot(eligible, {}, frozenAt);
-        const snapshotHash = await sha256Hex(snapshotHashInput(snapshot));
+        const snapshot = prepared.snapshot;
+        const snapshotHash = prepared.snapshotHash;
+        if (!snapshot || !snapshotHash) {
+          return fail(500, "database_error", "Kunne ikke fryse grunnlaget.");
+        }
+
 
         const { data: profileRow, error: profileError } = await supabaseAdmin.rpc(
           "internal_ai_get_active_profile",
