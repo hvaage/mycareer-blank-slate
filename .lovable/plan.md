@@ -72,6 +72,10 @@ peker på en lenke med annet atompar, annen `link_type` eller annen eier;
 supersedering av en allerede supersedert lenke; og sirkulær supersederingskjede
 (rekursiv sjekk). Vaktene ligger i triggere, ikke i RLS, slik at de også gjelder
 `service_role` — testene kjøres både som innlogget bruker og som service role.
+Vakten validerer i tillegg `source_candidate_id` når den er satt: kandidaten må
+ha samme `user_id`, tilhøre den importen/gjennomgangskonteksten lenken gjelder,
+og ikke ha status `avvist` (eller på annen måte være ugyldig som kilde).
+
 
 `suggestion jsonb` på forslagsraden bærer bare forklaringen (confidence,
 reasons, maskinens opprinnelige forslag, snapshot ved overstyring). Relasjonen
