@@ -444,25 +444,32 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
           <div className="space-y-3">
             <Alert>
               <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>Innholdet er lagret og klart for gjennomgang</AlertTitle>
+              <AlertTitle>Analysen er ferdig</AlertTitle>
               <AlertDescription className="space-y-1">
                 <span className="block">
-                  {state.result.candidates_created} elementer ble lagret fra denne CV-en
-                  {state.result.candidates_duplicate_skipped > 0 &&
-                    ` (${state.result.candidates_duplicate_skipped} var allerede lagret fra før)`}
-                  . Til sammen ligger det {state.result.candidates_total_in_import} elementer i denne
-                  importen, hvorav {state.result.roles} stillinger og{" "}
-                  {state.result.children_with_parent} punkter som hører til en stilling.
+                  Vi fant {discovered?.experience ?? state.result.roles} roller,{" "}
+                  {(discovered?.experienceBullets ?? state.result.children_with_parent) +
+                    (discovered?.achievements ?? 0)}{" "}
+                  resultater og {discovered?.skills ?? 0} kompetanser
+                  {state.result.candidates_duplicate_skipped > 0
+                    ? ` (${state.result.candidates_duplicate_skipped} var lagret fra før)`
+                    : ""}
+                  .
                 </span>
                 <span className="block">
-                  Ingenting er lagt i karriereoversikten ennå — du bekrefter hvert element i
-                  gjennomgangen. Derfor står telleren over fortsatt på det du har bekreftet tidligere.
+                  Ingenting er lagt i karriereoversikten ennå — du bekrefter innholdet i en
+                  gjennomgang på fire trinn.
                 </span>
               </AlertDescription>
             </Alert>
             <div className="flex flex-wrap gap-2">
               <Button asChild size="sm">
-                <Link to="/career/cv-review">Gå til gjennomgang</Link>
+                <Link to="/career/cv-review" search={{ import: state.result.import_id }}>
+                  Gå gjennom nå
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => dispatch({ type: "reset" })}>
+                Senere
               </Button>
               <Button
                 variant="outline"
