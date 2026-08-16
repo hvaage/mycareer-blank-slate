@@ -123,6 +123,16 @@ export function CvReviewTimelineStep({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const saveTitle = useMutation({
+    mutationFn: (v: { role: TimelineRole; title: string }) =>
+      setRoleTitle({ userId, kind: v.role.kind, id: v.role.id, title: v.title }),
+    onSuccess: () => {
+      toast.success("Stillingstittelen er lagret.");
+      invalidateCandidateQueries(qc, userId);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const saveGap = useMutation({
     mutationFn: (v: { gap: TimelineGap; category: string; note: string }) =>
       saveTimelineContext({
