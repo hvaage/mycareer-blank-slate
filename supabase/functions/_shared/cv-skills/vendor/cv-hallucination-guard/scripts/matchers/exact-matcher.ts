@@ -2,6 +2,7 @@
 // Matcher hard claims (tall, datoer, entiteter) eksakt mot atoms.
 
 import type { AtomLike, ClaimMatch, ExtractedClaim, MatchVerdict } from "../types.ts";
+import { extractNumberClaims } from "../extractors/number-extractor.ts";
 
 // ---------------------------------------------------------------------------
 // Public API
