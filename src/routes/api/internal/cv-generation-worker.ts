@@ -140,7 +140,82 @@ export const Route = createFileRoute("/api/internal/cv-generation-worker")({
             return Response.json({ ok: true, worked: true, outcome: "succeeded" });
           }
 
-          // Generering er ikke implementert ennå: terminer jobben kontrollert.
+          if (claimed.job_kind === "generate_general_cv") {
+            const modelKey = process.env["ANTHROPIC" + "_API_KEY"];
+            if (!modelKey) {
+              await supabaseAdmin.rpc("internal_ai_fail_job", {
+                p_job_id: jobId,
+                p_worker_id: workerId,
+                p_error_code: "server_misconfigured",
+                p_error: "server_misconfigured",
+              });
+              return fail(500, "server_misconfigured");
+            }
+
+            const { data: jobRow, error: jobError } = await supabaseAdmin
+              .from("cv_generation_jobs")
+              .select("user_id, current_step, step_state, rewrite_count, document_id, input_payload")
+              .eq("id", jobId)
+              .maybeSingle();
+            if (jobError || !jobRow || !jobRow.document_id) {
+              await supabaseAdmin.rpc("internal_ai_fail_job", {
+                p_job_id: jobId,
+                p_worker_id: workerId,
+                p_error_code: "database_error",
+                p_error: "job_state_missing",
+              });
+              return fail(500, "database_error");
+            }
+
+            const { runGenerationStep } = await import(
+              "../../../../supabase/functions/_shared/cv-skills/generation/runner.ts"
+            );
+            const outcome = await runGenerationStep({
+              adminClient: supabaseAdmin,
+              anthropicApiKey: modelKey,
+              jobId,
+              workerId,
+              userId: jobRow.user_id as string,
+              step: (jobRow.current_step ?? "prepare_snapshot") as never,
+              documentId: jobRow.document_id as string,
+              inputPayload: (jobRow.input_payload ?? {}) as Record<string, unknown>,
+              stepState: (jobRow.step_state ?? {}) as Record<string, unknown>,
+              rewriteCount: (jobRow.rewrite_count ?? 0) as number,
+              correlationId: crypto.randomUUID(),
+            });
+
+            // Retrybare utfall committer ikke steget; jobben legges tilbake i kø
+            // på samme steg, uten ny dokumentversjon.
+            if (outcome.terminal === null && outcome.nextStep === null) {
+              await supabaseAdmin.rpc("internal_ai_requeue_job", {
+                p_job_id: jobId,
+                p_worker_id: workerId,
+                p_error_code: outcome.errorCode ?? "provider_error",
+                p_error: outcome.errorCode ?? "provider_error",
+              });
+              return Response.json({
+                ok: true,
+                worked: true,
+                outcome: "requeued",
+                step: outcome.step,
+                error_code: outcome.errorCode,
+                duration_ms: outcome.durationMs,
+              });
+            }
+
+            return Response.json({
+              ok: true,
+              worked: true,
+              outcome: outcome.outcome,
+              step: outcome.step,
+              next_step: outcome.nextStep,
+              terminal: outcome.terminal,
+              error_code: outcome.errorCode,
+              duration_ms: outcome.durationMs,
+            });
+          }
+
+          // Ukjent jobbtype: terminer kontrollert.
           await supabaseAdmin.rpc("internal_ai_fail_job", {
             p_job_id: jobId,
             p_worker_id: workerId,
