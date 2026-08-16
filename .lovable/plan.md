@@ -52,6 +52,7 @@ provenance krever derfor en smal koblingstabell.
 | `status` | `foreslatt`, `aktiv`, `avvist`, `trenger_ny_vurdering` |
 | `confidence` | `hoy`, `lav` — maskinens sikkerhet ved forslag |
 | `reasons` | jsonb: signalene bak forslaget |
+| `review_import_id` | FK `cv_imports` **not null** — importen/gjennomgangen der lenken ble foreslått eller avgjort; settes også når `source_candidate_id` er null |
 | `source_candidate_id` | FK `cv_parse_candidates`, null for brukerlagte |
 | `supersedes_link_id` | FK til samme tabell — den nye lenken peker tilbake på den den erstatter |
 | `superseded_at`, `superseded_reason` | settes på den *gamle* lenken når den erstattes |
