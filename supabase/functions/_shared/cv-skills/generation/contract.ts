@@ -352,14 +352,179 @@ export function renderDocumentText(blocks: GeneratedBlock[], contact: ContactHea
   return `${head}\n\n${body}\n`;
 }
 
-/** Bygger leverandørens CvDraft for ATS-kontroll. Kun teknisk struktur i fase 4B. */
-export function buildAtsDraft(blocks: GeneratedBlock[], contact: ContactHeader): CvDraft {
-  const inSection = (s: string) => blocks.filter((b) => b.section === s);
+// ------------------------------------------------------- ATS-strukturering
+//
+// Rolledatoer hentes deterministisk fra structured_data i de frosne
+// supporting-atomene. Aldri fra generert tekst, aldri fra modellen.
+
+export type AtsDatePrecision = "month" | "year" | "unknown";
+
+export type AtsRoleDateMapping = {
+  blockId: string;
+  atomId: string | null;
+  title: string | null;
+  employer: string | null;
+  /** ATS-format YYYY-MM. null når grunnlaget ikke kan gi det uten å dikte. */
+  startDate: string | null;
+  endDate: string | null;
+  isCurrent: boolean;
+  precision: AtsDatePrecision;
+  sourceStart: string | null;
+  sourceEnd: string | null;
+  /** Hvorfor datoen er null. null når datoen finnes. */
+  missingReason:
+    | "no_atom_for_block"
+    | "no_date_in_source"
+    | "placeholder_in_source"
+    | "year_only_not_representable"
+    | "unparsable_source_value"
+    | null;
+  /** Satt når grunnlaget HAR dato, men ATS-strukturen mangler den. */
+  mappingError: string | null;
+};
+
+/** Parseverdier som brukes som "ukjent" av importlaget. */
+const DATE_PLACEHOLDERS = new Set(["1900-01", "1900-01-01", "1900", "0000-00", "n/a", "ukjent"]);
+
+type ParsedSourceDate = {
+  atsValue: string | null;
+  precision: AtsDatePrecision;
+  reason: AtsRoleDateMapping["missingReason"];
+};
+
+export function parseSourceDate(raw: unknown): ParsedSourceDate {
+  if (raw == null || (typeof raw === "string" && raw.trim() === "")) {
+    return { atsValue: null, precision: "unknown", reason: "no_date_in_source" };
+  }
+  const value = String(raw).trim();
+  if (DATE_PLACEHOLDERS.has(value.toLowerCase())) {
+    return { atsValue: null, precision: "unknown", reason: "placeholder_in_source" };
+  }
+  // YYYY-MM eller YYYY-MM-DD: måneden er kjent, dagen brukes ikke av ATS.
+  const ym = /^(\d{4})-(0[1-9]|1[0-2])(?:-\d{2})?$/.exec(value);
+  if (ym) return { atsValue: `${ym[1]}-${ym[2]}`, precision: "month", reason: null };
+  // Bare år: måned finnes ikke i grunnlaget og skal ALDRI diktes opp.
+  if (/^\d{4}$/.test(value)) {
+    return { atsValue: null, precision: "year", reason: "year_only_not_representable" };
+  }
+  return { atsValue: null, precision: "unknown", reason: "unparsable_source_value" };
+}
+
+function roleStructuredData(atom: SnapshotAtom | undefined): Record<string, unknown> | null {
+  if (!atom) return null;
+  const sd = atom.structured_data;
+  if (!sd || typeof sd !== "object") return null;
+  const rec = sd as Record<string, unknown>;
+  const hasRoleShape = "start_date" in rec || "employer" in rec || "title" in rec;
+  return hasRoleShape ? rec : null;
+}
+
+function str(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+/**
+ * Deterministisk datomapping per erfaringsblokk.
+ * Én blokk = én rolle = det første supporting-atomet med rolleform.
+ */
+export function buildAtsRoleDateMapping(
+  blocks: GeneratedBlock[],
+  snapshot: GenerationSnapshot,
+): AtsRoleDateMapping[] {
+  const byId = new Map((snapshot.atoms ?? []).map((a) => [a.id, a]));
+  return blocks
+    .filter((b) => b.section === "experience")
+    .sort((a, b) => a.ordinal - b.ordinal)
+    .map((block) => {
+      const atom = block.supportingAtomIds
+        .map((id) => byId.get(id))
+        .find((a) => roleStructuredData(a) !== null);
+      const sd = roleStructuredData(atom);
+      if (!atom || !sd) {
+        return {
+          blockId: block.blockId,
+          atomId: atom?.id ?? null,
+          title: null,
+          employer: null,
+          startDate: null,
+          endDate: null,
+          isCurrent: false,
+          precision: "unknown" as AtsDatePrecision,
+          sourceStart: null,
+          sourceEnd: null,
+          missingReason: "no_atom_for_block" as const,
+          mappingError: null,
+        };
+      }
+      const start = parseSourceDate(sd["start_date"]);
+      const rawEnd = sd["end_date"];
+      const end = parseSourceDate(rawEnd);
+      // Pågående rolle: aldri oppdiktet sluttdato.
+      const isCurrent =
+        sd["is_current"] === true ||
+        (str(sd["end_date"]) === null && sd["is_current"] === true);
+      return {
+        blockId: block.blockId,
+        atomId: atom.id,
+        title: str(sd["title"]),
+        employer: str(sd["employer"]),
+        startDate: start.atsValue,
+        endDate: isCurrent ? null : end.atsValue,
+        isCurrent,
+        precision: start.precision,
+        sourceStart: str(sd["start_date"]),
+        sourceEnd: str(rawEnd),
+        missingReason: start.reason,
+        mappingError: null,
+      };
+    });
+}
+
+/** Bygger leverandørens CvDraft for ATS-kontroll, med deterministiske datoer. */
+export function buildAtsDraft(
+  blocks: GeneratedBlock[],
+  contact: ContactHeader,
+  snapshot: GenerationSnapshot,
+): { draft: CvDraft; dateMapping: AtsRoleDateMapping[] } {
+  const inSection = (s: string) => blocks.filter((b) => b.section === s).sort((a, b) => a.ordinal - b.ordinal);
   const summary = inSection("summary")
     .map((b) => b.text)
     .join(" ")
     .trim();
-  return {
+  const dateMapping = buildAtsRoleDateMapping(blocks, snapshot);
+  const mappingByBlock = new Map(dateMapping.map((m) => [m.blockId, m]));
+
+  const roles = inSection("experience").map((b) => {
+    const m = mappingByBlock.get(b.blockId);
+    return {
+      title: m?.title ?? firstLine(b.text),
+      employer: m?.employer ?? "",
+      location: null,
+      start_date: m?.startDate ?? "",
+      end_date: m?.endDate ?? null,
+      is_current: m?.isCurrent === true,
+      description: b.text,
+      achievements: [],
+      atom_ids: b.supportingAtomIds,
+    };
+  });
+
+  // Kontroll: dato som finnes i grunnlaget må også finnes i ATS-strukturen.
+  roles.forEach((role, idx) => {
+    const m = dateMapping[idx];
+    if (!m) return;
+    if (m.startDate && role.start_date !== m.startDate) {
+      m.mappingError = "start_date_lost_in_ats_structure";
+    }
+    if (m.endDate && role.end_date !== m.endDate) {
+      m.mappingError = "end_date_lost_in_ats_structure";
+    }
+    if (!m.startDate && m.sourceStart && m.missingReason === null) {
+      m.mappingError = "start_date_present_in_source_but_null";
+    }
+  });
+
+  const draft = {
     language: "no",
     header: {
       full_name: contact.full_name,
@@ -375,33 +540,60 @@ export function buildAtsDraft(blocks: GeneratedBlock[], contact: ContactHeader):
       has_profile_photo: false,
     },
     summary: summary.length > 0 ? summary : null,
-    roles: inSection("experience").map((b) => ({
-      title: firstLine(b.text),
-      employer: "",
-      location: null,
-      start_date: "",
-      end_date: null,
-      is_current: false,
-      description: b.text,
-      achievements: [],
-      atom_ids: b.supportingAtomIds,
-    })),
-    educations: [],
+    roles,
+    educations: buildAtsEducations(snapshot),
     skills: inSection("skills").map((b) => ({
       name: firstLine(b.text),
       category: "generell",
       proficiency: null,
     })),
-    languages: [],
+    languages: buildAtsLanguages(snapshot),
     certifications: [],
     projects: [],
     volunteer: [],
   } as CvDraft;
+
+  return { draft, dateMapping };
+}
+
+/** Utdanning hentes fra grunnlaget, ikke fra generert tekst. */
+function buildAtsEducations(snapshot: GenerationSnapshot): CvDraft["educations"] {
+  const out: CvDraft["educations"] = [];
+  for (const atom of snapshot.atoms ?? []) {
+    const sd = (atom.structured_data ?? null) as Record<string, unknown> | null;
+    if (!sd || typeof sd !== "object") continue;
+    if (!("degree" in sd) && !("institution" in sd)) continue;
+    const startYear = Number(sd["start_year"]);
+    out.push({
+      degree: str(sd["degree"]) ?? (atom.content_no ?? atom.content_en ?? ""),
+      field: str(sd["field"]),
+      institution: str(sd["institution"]) ?? "",
+      location: null,
+      start_year: Number.isInteger(startYear) ? startYear : 0,
+      end_year: Number.isInteger(Number(sd["end_year"])) ? Number(sd["end_year"]) : null,
+      thesis: str(sd["thesis_title"]),
+      honors: str(sd["honors"]),
+    });
+  }
+  return out;
+}
+
+function buildAtsLanguages(snapshot: GenerationSnapshot): CvDraft["languages"] {
+  const out: CvDraft["languages"] = [];
+  for (const atom of snapshot.atoms ?? []) {
+    const sd = (atom.structured_data ?? null) as Record<string, unknown> | null;
+    if (!sd || typeof sd !== "object") continue;
+    const language = str(sd["language"]);
+    if (!language) continue;
+    out.push({ language, level: str(sd["level"]) ?? str(sd["cefr"]) ?? "" });
+  }
+  return out;
 }
 
 function firstLine(text: string): string {
   return (text.split("\n")[0] ?? text).slice(0, 120).trim();
 }
+
 
 /** Kvalitetsinput bygget av blokkene. Sammendrag og erfaring vurderes separat. */
 export function buildQualityInput(blocks: GeneratedBlock[]): {
