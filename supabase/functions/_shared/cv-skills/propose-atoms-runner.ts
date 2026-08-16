@@ -56,6 +56,8 @@ export type RunnerInput = {
   candidates: CandidateInput[];
   correlationId: string;
   startedAt: number;
+  /** Eksplisitt brukerhandling: avviste forslag erstattes og analysen kjøres på nytt. */
+  regenerate?: boolean;
 };
 
 export type RunnerResult = { status: number; body: Record<string, unknown> };
