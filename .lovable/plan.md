@@ -101,13 +101,13 @@ Task keys som spesifisert (syv). Deterministiske validatorer får ingen modellpr
 
 ## 6. Migrasjoner, RLS, RPC-tilgang og jobbkjøring
 
-### ai-schemaet er ueksponert
-Interne tabeller (`ai.model_profiles`, `ai.model_runs`, `ai.model_profile_audit`, `ai.model_pricing`, `ai.eval_*`) ligger i schema `ai`, som ikke legges til Data API. Ingen grants til `anon`/`authenticated`. Tilgang skjer kun gjennom smale `SECURITY DEFINER`-RPC-er med `set search_path = ''` og fullt kvalifiserte navn; hver RPC får `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` og `GRANT EXECUTE ... TO service_role`. Edge Function verifiserer JWT og eierskap **før** service-klienten brukes. Frontend kaller aldri RPC-ene direkte — den snakker bare med Edge Functions og får sanitert status.
+### ai-schemaet er ueksponert, wrapperne er kallbare
+Tabellene (`ai.model_profiles`, `ai.model_runs`, `ai.model_profile_audit`, `ai.model_pricing`, `ai.eval_*`) ligger i schema `ai`, som ikke legges til Data API og ikke har grants til `anon`/`authenticated`. Fordi funksjoner i et ueksponert schema heller ikke er kallbare over Data API, ligger **wrapperne i `public`** med prefiks `internal_ai_`. Hver wrapper er `SECURITY DEFINER`, `set search_path = ''`, fullt kvalifiserte objektnavn, `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` og `GRANT EXECUTE ... TO service_role`. Edge Function verifiserer JWT og eierskap **før** service-klienten brukes. Frontend kaller aldri wrapperne.
 
-`public`-tabeller som frontend faktisk leser (dokumenter, forslag, atoms) beholder RLS med eierskapspredikat og UPDATE-policy med både `USING` og `WITH CHECK`. Adminpolicy bygger på `public.has_role`, som er verifisert `SECURITY DEFINER` med `search_path=public` (EXECUTE-rettigheter kontrolleres og strammes ved behov).
+`public`-tabeller som frontend leser (dokumenter, forslag, atoms) beholder RLS med eierskapspredikat og UPDATE-policy med både `USING` og `WITH CHECK`. Adminpolicy bygger på `public.has_role` (se preflight punkt f).
 
-### documents
-Additivt: `document_group_id`, `document_kind` (general/tailored), `opportunity_id`, `requirement_ids`, `requirement_snapshot`, `ats_format_result`, `ats_relevance_result`, `output_hash`, `skill_versions`, `prompt_versions`, `approved_at`. Migreringsregel: eksisterende rader får `document_group_id = id` (alle ni dagens dokumenter er versjon 1 uten lineage), deretter opprettes unik constraint på (`document_group_id`, `version`).
+### documents — ett kanonisk felt per dimensjon
+Additivt: `document_group_id`, `opportunity_id`, `requirement_ids`, `requirement_snapshot`, `ats_format_result`, `ats_relevance_result`, `output_hash`, `skill_versions`, `prompt_versions`, `approved_at`. **Ingen `document_kind`** — CV-variant uttrykkes med `cv_variant` (`general`/`tailored`) mens `document_type` fortsatt sier hva slags dokument det er. `opportunity_id` er eneste kanoniske stillingskobling; `tailored_for` (tekst) og `application_id` fases ut for nye CV-rader. Migreringsregel: `document_group_id = id` for de ni eksisterende radene, `cv_variant` settes bare for `document_type='cv'`, `tailored_for` backfilles til `opportunity_id` der den kan matches og merkes deretter som deprecated (leses, skrives ikke). Unik constraint på (`document_group_id`, `version`).
 
 ### Varig jobborkestrering
 Frontendrequest **oppretter bare en jobb** og får jobb-id tilbake. En worker startet av `pg_cron` + `pg_net` claimer ett steg om gangen atomisk (`FOR UPDATE SKIP LOCKED`), utfører ett modellkall og legger jobben tilbake i kø. Cron-secret ligger i Vault; endepunktet ligger under `/api/public/*` og autoriserer kalleren selv.
