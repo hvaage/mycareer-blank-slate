@@ -146,9 +146,30 @@ Eksport bygges på **én strukturert dokumentmodell** som kilde for både DOCX o
 
 Én Edge Function deployes om gangen og verifiseres med en ekte brukeravgrenset kjøring før neste. Øvrig testplan: RLS-test med to brukere på atoms, forslag, dokumenter og kjøringer; idempotens- og reaper-test på jobbkøen; feilinjeksjon mot Claude (429, 5xx, timeout); kostnads- og tokenlogging uten rå CV-tekst.
 
-## 9. Åpne spørsmål
+## 9. Bekreftelser
 
-1. **Avledet kompetanse:** brukes til utvalg og rangering, aldri som supporting evidence i teksten. Bekreft grensen.
-2. **Stale-terskel:** hvilken alder på `stale_at` skal blokkere bruk i CV, kontra bare varsle i grunnlagsvisningen?
-3. **Modell-ID-er** verifiseres mot Models API ved implementering; avvik oppdateres i data, ikke kode.
-4. **PDF-tidspunkt:** DOCX først er lagt til grunn; bekreft at PDF kan komme i en senere leveranse.
+- Avledet kompetanse brukes bare til utvalg og rangering.
+- Supporting evidence er alltid de underliggende rolle-/resultat-atomene.
+- DOCX leveres før PDF.
+- Ingen brukerflate eksponerer modell- eller leverandørnavn.
+- Modell-ID-er verifiseres mot Anthropic Models API ved implementering; avvik oppdateres i data, ikke kode.
+
+## 10. Preflight (levert før migrasjon og deploy)
+
+**a) RPC-/tilgangsmønster for `ai`-schemaet.** Schemaet legges ikke til Data API. Alle tabeller er uten grants til `anon`/`authenticated`. Tilgang skjer via smale `SECURITY DEFINER`-funksjoner (`ai.claim_job_step`, `ai.record_model_run`, `ai.get_active_profile`, `ai.promote_profile`, `ai.enqueue_eval_job`) med `set search_path = ''`, `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` og `GRANT EXECUTE TO service_role`. Edge Function verifiserer JWT og eierskap før service-klienten brukes. Referanse: `public.has_role` er allerede `SECURITY DEFINER` med `search_path=public` og gjenbrukes for admin.
+
+**b) Jobborkestrator og cron-frekvens.** `public.cv_generation_jobs` + worker-endepunkt under `/api/public/…`, startet av `pg_cron` hvert minutt (`* * * * *`) via `pg_net`, med Vault-lagret secret. Ett steg per invokasjon, atomisk claim med `FOR UPDATE SKIP LOCKED`, `lease_expires_at` på 120 s, heartbeat hvert 20. sekund, reaper hvert 5. minutt for stale running, tidsbudsjett per jobb. Frontend oppretter jobb og poller status.
+
+**c) Faktisk dokument-lineage.** Inspisert: `documents` har `version` (integer), `is_base_version`, `tailored_for`, `application_id` — men **ingen** gruppe-/foreldrekolonne. Dagens data: 9 dokumenter, alle `version = 1`, ingen `is_base_version`, ingen `tailored_for`, ingen `atom_snapshot`, ingen med `document_type = 'cv'`. Konklusjon: `document_group_id` må legges til. Migreringsregel: `document_group_id = id` for alle eksisterende rader, deretter unik constraint på (`document_group_id`, `version`).
+
+**d) Atoms per readiness-status.** Totalt 9 atoms, alle hos én bruker: 5 `role`, 1 `resultat`, 3 `kvalifikasjon` (1 education, 2 language), 0 `kompetanse`. Alle 9 passerer hele eligibility-predikatet (aktiv, verified, user_confirmed, ingen `target_position_id`, ingen `mangel_state`, ingen utløpt `stale_at`). Brukerstatus: **`ready_with_gaps`** — nok til en generell CV-struktur, men bare ett resultat-atom og ingen kompetanse, så tilpasset CV vil vise mange gap. 0 atoms i `needs_review`, 0 i `blocked_no_evidence`. Ingen data massebekreftes.
+
+**e) Planlagte constraints og indekser.**
+- `documents`: `unique (document_group_id, version)`; sjekk på `document_kind in ('general','tailored')`; indeks `(user_id, document_group_id, version desc)`, `(opportunity_id) where opportunity_id is not null`.
+- `cv_generation_jobs`: `unique (user_id, idempotency_key)`; sjekk på `status`; indekser `(status, available_at)`, `(user_id, created_at desc)`, `(lease_expires_at) where status='running'`, `(document_group_id)`.
+- `ai.model_profiles`: unikt partielt indeks `(task_key) where status='production'`; FK `created_by`.
+- `ai.model_runs`: FK-er til `cv_generation_jobs`, `documents` og `ai.model_profiles`; `unique (correlation_id, task_key, input_hash)`; indekser `(user_id, created_at desc)`, `(task_key, model_id, created_at desc)`, `(job_id)`, `(document_version_id)`.
+- `ai.model_pricing`: `unique (model_id, valid_from)`.
+- `ai.eval_jobs`: `unique (case_id, model_id, run_batch_id)`; indeks `(status, available_at)`.
+
+Ingen migrasjon eller deploy kjøres før denne preflighten er godkjent.
