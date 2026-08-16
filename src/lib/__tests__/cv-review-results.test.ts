@@ -19,6 +19,8 @@ function role(id: string, title: string): TimelineRole {
     id,
     kind: "lagret",
     title,
+    titleMissing: false,
+    summary: null,
     employer: null,
     startIso: "2020-01-01",
     endIso: null,

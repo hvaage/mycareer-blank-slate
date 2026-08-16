@@ -12,6 +12,8 @@ function role(p: Partial<TimelineRole> & { id: string }): TimelineRole {
   return {
     kind: "kandidat",
     title: p.id,
+    titleMissing: false,
+    summary: null,
     employer: null,
     startIso: null,
     endIso: null,
