@@ -99,17 +99,28 @@ til bulk i første versjon. Da vises ingen bulk-knapp, og alle går én og én.
 
 `public.cv_review_progress`: `user_id`, `import_id`, `candidate_set_signature`,
 `analysis_version`, `current_step`, `step_state` jsonb (status og
-`needs_recheck` per trinn), `is_stale`, `stale_reason`, tidsstempler.
-Unik på `(user_id, import_id, candidate_set_signature)`.
+`needs_recheck` per trinn), `is_stale`, `stale_reason`, `superseded_at`,
+tidsstempler.
 
-`candidate_set_signature` er en stabil hash av kandidatsettet for importen
-(`local_ref`, `suggested_atom_type`, normalisert tekst, `dedupe_key`) sammen med
-analyse-/normaliseringsversjonen fra den kanoniske kontrakten. Ved ny analyse,
-regenerering eller vesentlig endring av settet endres signaturen: den gamle
-raden markeres `is_stale`, og brukeren får valget «Start gjennomgangen på nytt»
-eller «Se hva som er endret». Systemet gjenopptar aldri en progresjon hvis
-signatur ikke stemmer med dagens kandidatsett. Allerede bekreftede atomer og
-lenker påvirkes ikke — bare fremdriften.
+- Unik på `(user_id, import_id, candidate_set_signature)`.
+- Partial unique `(user_id, import_id) where is_stale = false` — maksimalt én aktiv, ikke-foreldet rad per bruker og import.
+
+`candidate_set_signature` bygges deterministisk av, per kandidat, sortert på
+kandidat-id: `id`, `local_ref`, kanonisk innholds-/kildehash (normalisert
+`content_no`/`content_en` + `source_type` + `source_ref` + `source_quote`),
+`suggested_atom_type`, `dedupe_key`, `parent_local_ref` og de relevante feltene i
+`structured_data` (for roller: `employer_normalized`, `title`, `start_date`,
+`end_date`; for kompetanse: `name_normalized`, `source_category`). Til slutt
+hashes settet sammen med analyse-/normaliseringsversjonen fra den kanoniske
+kontrakten. Normalisert tekst alene brukes ikke.
+
+Endres signaturen, skjer overgangen atomisk i én server-side RPC: gammel rad får
+`is_stale = true`, `stale_reason` og `superseded_at`, og den nye raden opprettes i
+samme transaksjon. Brukeren får «Start gjennomgangen på nytt» eller «Se hva som er
+endret». Systemet gjenopptar aldri en progresjon hvis signaturen ikke stemmer med
+dagens kandidatsett. Allerede bekreftede atomer og lenker påvirkes ikke — bare
+fremdriften.
+
 
 ## 6. Privat tidslinjekontekst
 
