@@ -117,7 +117,11 @@ export interface ManualRoleInput {
   importId: string | null;
 }
 
-/** Bruker-lagt rolle. Proveniens sier tydelig at kilden er brukeren selv. */
+/**
+ * Bruker-lagt rolle. Kanonisk lagret kildetype er `source_type='user_input'`.
+ * `kilde: "bruker_manuelt"` i structured_data er kun visningstekst/metadata og
+ * har ingen regelvirkning i backend eller matching.
+ */
 export async function addManualRole(input: ManualRoleInput): Promise<string> {
   const title = input.title.trim();
   if (!title) throw new Error("Rollen må ha en tittel.");
@@ -131,6 +135,7 @@ export async function addManualRole(input: ManualRoleInput): Promise<string> {
     kilde: "bruker_manuelt",
     review_import_id: input.importId,
   };
+
   structured["logical_key"] = careerAtomLogicalKey({
     atom_kind: "evidens",
     atom_type: "role",
