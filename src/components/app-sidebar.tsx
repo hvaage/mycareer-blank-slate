@@ -7,7 +7,6 @@ import {
   Building2,
   Search,
   Send,
-  FolderOpen,
   Settings,
   Shield,
   LogOut,
