@@ -192,7 +192,7 @@ function AboutMePage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="kort_om_meg" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => navigate({ search: { ...search, tab: v } })} className="w-full">
         <TabsList className="h-auto gap-1 p-1">
           <TabsTrigger value="kort_om_meg" className="gap-1.5 text-sm">
             <UserIcon className="h-4 w-4" /> Svarene dine
