@@ -59,10 +59,13 @@ export function AboutMeCvSection({ userId }: Props) {
         <CardHeader>
           <CardTitle className="text-base">Tidligere opplastinger</CardTitle>
           <CardDescription>
-            Logg over CV-er som er importert eller forsøkt importert. «Venter på analyse» betyr at filen
+            Logg over CV-er som er importert eller forsøkt importert hit. Filer som bare ligger i
+            CV-arkivet (fanen <strong>CV</strong>) vises ikke her før du velger dem under «Bruk en
+            CV du allerede har lagret». «Venter på analyse» betyr at filen
             er i bucket — trykk «Analyser CV» i opplasteren over. «Klar for bekreftelse» betyr at AI er
             ferdig — trykk «Bekreft og lagre» i opplasteren for å legge innhold inn i karriereoversikten.
           </CardDescription>
+
         </CardHeader>
         <CardContent>
           {imports.isLoading ? (
