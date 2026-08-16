@@ -206,10 +206,10 @@ export type DocumentEvidenceReport = {
  */
 export function attestationSurvivesRewrite(previousText: string, nextText: string): boolean {
   const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
-  if (norm(previousText) === norm(nextText)) return true;
-  const facts = (t: string) =>
-    (norm(t).match(/\d[\d\s.,]*|størst|ledende|først|eneste|nest|alle|hele/g) ?? []).join("|");
-  return false && facts(previousText) === facts(nextText);
+  // Bare ren formatering (mellomrom, store/små bokstaver) bevarer bekreftelsen.
+  // Endres tall, dato, marked, geografi, årsakssammenheng eller styrken i en
+  // sammenligning, må brukeren bekrefte på nytt.
+  return norm(previousText) === norm(nextText);
 }
 
 export function summarizeEvidence(
