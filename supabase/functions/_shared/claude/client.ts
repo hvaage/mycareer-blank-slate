@@ -35,6 +35,15 @@ export type ModelProfile = {
   capabilities: ModelCapabilities;
 };
 
+/**
+ * Injisert runtime-port. Handleren leser secrets fra sitt eget runtime-miljø
+ * og sender dem hit. Klienten leser aldri env på modulnivå.
+ */
+export type ClaudeRuntimePort = {
+  apiKey: string;
+  fetchImpl?: typeof fetch;
+};
+
 export type ClaudeCallInput = {
   profile: ModelProfile;
   system: string;
@@ -43,6 +52,8 @@ export type ClaudeCallInput = {
   correlationId: string;
   timeoutMs?: number;
   maxRetries?: number;
+  /** Injisert runtime. Uten denne faller klienten tilbake til process.env (Deno-funksjoner). */
+  runtime?: ClaudeRuntimePort;
 };
 
 export type ClaudeUsage = {
