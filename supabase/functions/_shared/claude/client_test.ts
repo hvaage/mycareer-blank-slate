@@ -36,25 +36,34 @@ Deno.test("top_k kombineres aldri med aktiv extended thinking", () => {
   assertEquals(out, { thinking: { type: "enabled", budget_tokens: 2000 } });
 });
 
-Deno.test("prefill beholdes bare når modellen støtter det", () => {
+Deno.test("prefill uten modellstøtte gir eksplisitt konfigurasjonsfeil", () => {
   const messages = [
     { role: "user" as const, content: "Skriv JSON" },
     { role: "assistant" as const, content: "{" },
   ];
-  assertEquals(sanitizeMessages(messages, base).length, 1);
+  const err = assertThrows(
+    () => sanitizeMessages(messages, base),
+    ClaudeConfigurationError,
+  ) as ClaudeConfigurationError;
+  assertEquals(err.errorCode, "unsupported_prefill");
   assertEquals(sanitizeMessages(messages, { ...base, supportsPrefill: true }).length, 2);
 });
 
-Deno.test("prefill fjernes når extended thinking er aktiv", () => {
+Deno.test("prefill kombinert med extended thinking gir konfigurasjonsfeil", () => {
   const messages = [
     { role: "user" as const, content: "Skriv JSON" },
     { role: "assistant" as const, content: "{" },
   ];
-  const out = sanitizeMessages(messages, { ...base, supportsPrefill: true, supportsThinking: true }, {
-    thinking: { type: "enabled", budget_tokens: 1024 },
-  });
-  assertEquals(out.length, 1);
+  const err = assertThrows(
+    () =>
+      sanitizeMessages(messages, { ...base, supportsPrefill: true, supportsThinking: true }, {
+        thinking: { type: "enabled", budget_tokens: 1024 },
+      }),
+    ClaudeConfigurationError,
+  ) as ClaudeConfigurationError;
+  assertEquals(err.errorCode, "prefill_with_thinking");
 });
+
 
 Deno.test("meldinger uten prefill er uendret", () => {
   const messages = [{ role: "user" as const, content: "Hei" }];
