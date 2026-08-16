@@ -93,6 +93,13 @@ export const Route = createFileRoute("/_authenticated/career/cv-review")({
   component: CvReviewPage,
 });
 
+function countStep(list: CvParseCandidateRow[]): { total: number; remaining: number } {
+  return {
+    total: list.length,
+    remaining: list.filter((c) => c.status === "til_gjennomgang").length,
+  };
+}
+
 type PointerAtom = {
   id: string;
   atom_type: string | null;
