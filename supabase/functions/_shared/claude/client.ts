@@ -66,7 +66,7 @@ export type ClaudeCallResult =
     }
   | {
       ok: false;
-      outcome: "provider_error" | "timeout";
+      outcome: "provider_error" | "timeout" | "configuration_error";
       errorCode: string;
       status: number | null;
       requestId: string | null;
@@ -100,10 +100,18 @@ export function sanitizeRequestOptions(
   return out;
 }
 
+/** Konfigurasjonsfeil: kallet er ugyldig for valgt modellprofil. Ingen lydløs degradering. */
+export class ClaudeConfigurationError extends Error {
+  constructor(readonly errorCode: string, message: string) {
+    super(message);
+    this.name = "ClaudeConfigurationError";
+  }
+}
+
 /**
  * Prefill = siste melding er en assistant-melding modellen skal fortsette på.
- * Støtter ikke modellen prefill (eller er extended thinking aktiv), fjernes
- * meldingen i stedet for å sendes og feile.
+ * Støtter ikke modellen prefill (eller er extended thinking aktiv), er kallet
+ * feilkonfigurert. Meldingen fjernes IKKE lydløst — det gir en eksplisitt feil.
  */
 export function sanitizeMessages(
   messages: { role: "user" | "assistant"; content: string }[],
@@ -114,9 +122,21 @@ export function sanitizeMessages(
   if (!last || last.role !== "assistant") return messages;
   const thinkingEnabled =
     (sanitizedOptions["thinking"] as { type?: string } | undefined)?.type === "enabled";
-  if (capabilities.supportsPrefill === true && !thinkingEnabled) return messages;
-  return messages.slice(0, -1);
+  if (capabilities.supportsPrefill !== true) {
+    throw new ClaudeConfigurationError(
+      "unsupported_prefill",
+      "Modellprofilen støtter ikke assistant-prefill, men siste melding er en prefill.",
+    );
+  }
+  if (thinkingEnabled) {
+    throw new ClaudeConfigurationError(
+      "prefill_with_thinking",
+      "Assistant-prefill kan ikke kombineres med extended thinking.",
+    );
+  }
+  return messages;
 }
+
 
 
 function isTransient(status: number | null): boolean {
@@ -165,7 +185,33 @@ export async function callClaude(input: ClaudeCallInput): Promise<ClaudeCallResu
 
   const { profile } = input;
   const options = sanitizeRequestOptions(profile.requestOptions, profile.capabilities);
-  const messages = sanitizeMessages(input.messages, profile.capabilities, options);
+  let messages: { role: "user" | "assistant"; content: string }[];
+  try {
+    messages = sanitizeMessages(input.messages, profile.capabilities, options);
+  } catch (err) {
+    if (err instanceof ClaudeConfigurationError) {
+      console.error(
+        "[claude] configuration_error",
+        JSON.stringify({
+          correlationId: input.correlationId,
+          taskKey: profile.taskKey,
+          model: profile.modelId,
+          errorCode: err.errorCode,
+        }),
+      );
+      return {
+        ok: false,
+        outcome: "configuration_error",
+        errorCode: err.errorCode,
+        status: null,
+        requestId: null,
+        durationMs: Date.now() - started,
+        retryCount: 0,
+      };
+    }
+    throw err;
+  }
+
   const body = {
     model: profile.modelId,
     max_tokens: profile.maxTokens,

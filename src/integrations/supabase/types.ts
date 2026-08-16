@@ -1514,6 +1514,95 @@ export type Database = {
           },
         ]
       }
+      cv_generation_jobs: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          document_group_id: string
+          error_code: string | null
+          finished_at: string | null
+          id: string
+          input_payload: Json
+          job_kind: string
+          last_error: string | null
+          lease_expires_at: string | null
+          lease_seconds: number
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          model_run_id: string | null
+          opportunity_id: string | null
+          priority: number
+          profile_id: string | null
+          result_payload: Json | null
+          run_after: string
+          status: string
+          step_budget_ms: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          document_group_id: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          input_payload?: Json
+          job_kind: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_seconds?: number
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          model_run_id?: string | null
+          opportunity_id?: string | null
+          priority?: number
+          profile_id?: string | null
+          result_payload?: Json | null
+          run_after?: string
+          status?: string
+          step_budget_ms?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          document_group_id?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          input_payload?: Json
+          job_kind?: string
+          last_error?: string | null
+          lease_expires_at?: string | null
+          lease_seconds?: number
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          model_run_id?: string | null
+          opportunity_id?: string | null
+          priority?: number
+          profile_id?: string | null
+          result_payload?: Json | null
+          run_after?: string
+          status?: string
+          step_budget_ms?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_generation_jobs_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "user_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cv_imports: {
         Row: {
           atoms_committed_count: number
@@ -1754,7 +1843,9 @@ export type Database = {
           content_text: string | null
           created_at: string
           customization_notes: string | null
+          cv_variant: string | null
           deleted_at: string | null
+          document_group_id: string
           document_type: Database["public"]["Enums"]["document_type"]
           documentation_category: string | null
           documentation_status: string | null
@@ -1771,6 +1862,7 @@ export type Database = {
           is_base_version: boolean | null
           is_portfolio_featured: boolean | null
           mime_type: string | null
+          opportunity_id: string | null
           quality_result: Json | null
           render_language: string | null
           render_template_version: string | null
@@ -1796,7 +1888,9 @@ export type Database = {
           content_text?: string | null
           created_at?: string
           customization_notes?: string | null
+          cv_variant?: string | null
           deleted_at?: string | null
+          document_group_id?: string
           document_type: Database["public"]["Enums"]["document_type"]
           documentation_category?: string | null
           documentation_status?: string | null
@@ -1813,6 +1907,7 @@ export type Database = {
           is_base_version?: boolean | null
           is_portfolio_featured?: boolean | null
           mime_type?: string | null
+          opportunity_id?: string | null
           quality_result?: Json | null
           render_language?: string | null
           render_template_version?: string | null
@@ -1838,7 +1933,9 @@ export type Database = {
           content_text?: string | null
           created_at?: string
           customization_notes?: string | null
+          cv_variant?: string | null
           deleted_at?: string | null
+          document_group_id?: string
           document_type?: Database["public"]["Enums"]["document_type"]
           documentation_category?: string | null
           documentation_status?: string | null
@@ -1855,6 +1952,7 @@ export type Database = {
           is_base_version?: boolean | null
           is_portfolio_featured?: boolean | null
           mime_type?: string | null
+          opportunity_id?: string | null
           quality_result?: Json | null
           render_language?: string | null
           render_template_version?: string | null
@@ -1880,6 +1978,20 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "applications_with_urgency"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_document_group_id_fkey"
+            columns: ["document_group_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "user_opportunities"
             referencedColumns: ["id"]
           },
         ]
@@ -5527,6 +5639,66 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      internal_ai_claim_job_step: {
+        Args: {
+          p_job_kinds?: string[]
+          p_max_concurrency?: number
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      internal_ai_complete_job: {
+        Args: {
+          p_job_id: string
+          p_model_run_id?: string
+          p_result?: Json
+          p_status: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      internal_ai_enqueue_job: {
+        Args: {
+          p_document_group_id: string
+          p_input?: Json
+          p_job_kind: string
+          p_max_attempts?: number
+          p_opportunity_id?: string
+          p_priority?: number
+          p_profile_id?: string
+          p_rate_limit_per_hour?: number
+          p_step_budget_ms?: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      internal_ai_fail_job: {
+        Args: {
+          p_error?: string
+          p_error_code: string
+          p_job_id: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      internal_ai_get_job_status: {
+        Args: { p_job_id: string; p_user_id: string }
+        Returns: Json
+      }
+      internal_ai_job_heartbeat: {
+        Args: { p_job_id: string; p_worker_id: string }
+        Returns: Json
+      }
+      internal_ai_reap_stale_jobs: { Args: { p_limit?: number }; Returns: Json }
+      internal_ai_requeue_job: {
+        Args: {
+          p_error?: string
+          p_error_code: string
+          p_job_id: string
+          p_worker_id: string
+        }
+        Returns: Json
       }
       link_canonical_to_source: {
         Args: {
