@@ -8,7 +8,7 @@ import {
   Search,
   Send,
   FolderOpen,
-  Plug,
+  Settings,
   Shield,
   LogOut,
   ArrowLeft,
@@ -192,10 +192,13 @@ export function AppSidebar() {
     return groups;
   }, [admin]);
 
+  // Innstillinger ligger i bunnområdet, men må være søkbar for aktiv-gruppe og undermeny.
+  const lookupGroups = useMemo(() => [...allGroups, settingsGroup], [allGroups]);
+
   // K3: openGroup tracks pathname, but user-toggles persist until pathname changes.
   const routeGroup = useMemo(
-    () => groupForPath(pathname, allGroups),
-    [pathname, allGroups],
+    () => groupForPath(pathname, lookupGroups),
+    [pathname, lookupGroups],
   );
   const [openGroup, setOpenGroup] = useState<string | null>(routeGroup);
   const [lastSyncedPath, setLastSyncedPath] = useState(pathname);
@@ -251,7 +254,7 @@ export function AppSidebar() {
   const profileInitials = initialsFor(displayName, email);
 
   const activeGroupId = openGroup;
-  const activeGroup = allGroups.find((g) => g.id === activeGroupId) ?? null;
+  const activeGroup = lookupGroups.find((g) => g.id === activeGroupId) ?? null;
   const subPanelOpen = !!activeGroup && !!activeGroup.items;
 
   // ----- Desktop render -----
@@ -291,10 +294,10 @@ export function AppSidebar() {
       {/* Bottom area */}
       <div className="flex flex-col items-stretch gap-1 border-t p-2">
         <RailButton
-          group={integrationsLeaf}
-          active={matchesGroup(pathname, integrationsLeaf)}
-          expanded={false}
-          onClick={() => handleRailClick(integrationsLeaf)}
+          group={settingsGroup}
+          active={matchesGroup(pathname, settingsGroup)}
+          expanded={activeGroupId === settingsGroup.id}
+          onClick={() => handleRailClick(settingsGroup)}
         />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -376,7 +379,7 @@ export function AppSidebar() {
   }, [openMobile]);
 
   const mobileGroup = mobileGroupId
-    ? allGroups.find((g) => g.id === mobileGroupId) ?? null
+    ? lookupGroups.find((g) => g.id === mobileGroupId) ?? null
     : null;
 
   const mobileNavigate = useCallback(
@@ -492,16 +495,17 @@ export function AppSidebar() {
               <li>
                 <button
                   type="button"
-                  onClick={() => mobileNavigate("/integrations")}
+                  onClick={() => setMobileGroupId(settingsGroup.id)}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-base transition-colors",
-                    matchesGroup(pathname, integrationsLeaf)
+                    matchesGroup(pathname, settingsGroup)
                       ? "bg-primary/10 font-semibold text-primary"
                       : "hover:bg-accent/50",
                   )}
                 >
-                  <Plug className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Integrasjoner</span>
+                  <Settings className="h-4 w-4 shrink-0" />
+                  <span className="flex-1 truncate">Innstillinger</span>
+                  <span aria-hidden className="text-muted-foreground">›</span>
                 </button>
               </li>
             </ul>
