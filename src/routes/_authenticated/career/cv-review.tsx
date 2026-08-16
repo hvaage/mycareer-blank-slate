@@ -109,6 +109,43 @@ function CvReviewPage() {
       a.atom_class === "resultat",
   );
 
+  // Trinnvis gjennomgang: fremdriften er bundet til kandidatsettet. Endres
+  // settet, blir en påbegynt gjennomgang foreldet og starter på nytt.
+  const signature = useMemo(
+    () => candidateSetSignature(rows.map((r) => ({ id: r.id, updated_at: r.updated_at }))),
+    [rows],
+  );
+  const progress = useQuery(cvReviewProgressQuery(userId, activeImportId));
+  const progressRow = progress.data ?? null;
+  const needsSync =
+    Boolean(activeImportId) &&
+    rows.length > 0 &&
+    !progress.isLoading &&
+    progressRow?.candidate_set_signature !== signature;
+
+  useEffect(() => {
+    if (!activeImportId || !needsSync) return;
+    let cancelled = false;
+    void syncReviewProgress(activeImportId, signature)
+      .then(() => {
+        if (!cancelled) invalidateReviewProgress(qc, userId);
+      })
+      .catch((e: Error) => toast.error(e.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeImportId, needsSync, signature, qc, userId]);
+
+  const currentStep =
+    progressRow && progressRow.candidate_set_signature === signature ? progressRow.current_step : 1;
+  const roleCandidates = rows.filter(
+    (r) => (r.resolved_atom_type ?? r.suggested_atom_type) === "role",
+  );
+  const savedRoles = roleAtoms.map((a) =>
+    roleFromAtom({ id: a.id, content_no: a.content_no, structured_data: a.structured_data }),
+  );
+
+
   const promoted = useMemo(
     () => new Map(confirmed.map((c) => [c.local_ref, c.promoted_atom_id])),
     [confirmed],
