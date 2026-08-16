@@ -1,4 +1,4 @@
-import { useReducer, useEffect } from "react";
+import { useReducer, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { CvDropzone } from "./dropzone";
 import { ArchiveCvPicker } from "./archive-picker";
 import { PreviewSummary } from "./preview-summary";
+import { PreviewDetails } from "./preview-details";
+import { buildPreviewGroups, filterParsedData, flattenItems } from "@/lib/cv-preview-items";
 import { messageFor } from "./error-messages";
 import {
   cancelImport,
@@ -29,7 +31,7 @@ type Action =
   | { type: "upload_done"; importId: string; fileName: string }
   | { type: "parse_start"; importId: string; fileName: string }
   | { type: "parse_failed"; message: string }
-  | { type: "parsed"; importId: string; counts: PreviewCounts; fileName: string }
+  | { type: "parsed"; importId: string; counts: PreviewCounts; fileName: string; raw: any }
   | { type: "commit_start"; importId: string }
   | { type: "done"; result: CommitResponse }
   | { type: "error"; from: "upload" | "parse" | "commit"; errorCode: string; message?: string; importId?: string }
@@ -68,6 +70,7 @@ function reducer(state: FlowState, action: Action): FlowState {
         importId: action.importId,
         counts: action.counts,
         fileName: action.fileName,
+        raw: action.raw,
       };
     case "commit_start":
       return { kind: "committing", importId: action.importId };
@@ -101,6 +104,25 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
   const runParse = useRunCvParse(userId);
   const commit = useCommitImport(userId);
   const importArchived = useImportArchivedCv(userId);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggleSelected = (key: string, checked: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+
+  const setManySelected = (keys: string[], checked: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const k of keys) {
+        if (checked) next.add(k);
+        else next.delete(k);
+      }
+      return next;
+    });
 
   const onUseArchived = async (source: ArchivedCvSource) => {
     try {
@@ -182,7 +204,9 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
         importId: res.import_id,
         counts,
         fileName: (row.source_filename as string) ?? fileName,
+        raw: row.raw_parsed_data,
       });
+      setSelected(new Set(flattenItems(buildPreviewGroups(row.raw_parsed_data)).map((i) => i.key)));
     } catch (e: any) {
       dispatch({
         type: "parse_failed",
@@ -191,9 +215,17 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
     }
   };
 
-  const onCommit = async (importId: string) => {
+  const onCommit = async (importId: string, raw: any) => {
     dispatch({ type: "commit_start", importId });
     try {
+      // Bare det brukeren har huket av skal lagres. Vi skriver det valgte
+      // utvalget tilbake til import-raden, slik at commit-funksjonen
+      // konverterer nøyaktig det brukeren bekreftet.
+      const filtered = filterParsedData(raw, selected);
+      const { error: updErr } = await (supabase.from("cv_imports") as any)
+        .update({ raw_parsed_data: filtered })
+        .eq("id", importId);
+      if (updErr) throw Object.assign(new Error(updErr.message), { code: "database_error" });
       const result = await commit.mutateAsync(importId);
       dispatch({ type: "done", result });
       toast.success(`Karriereoversikten er oppdatert. ${result.atoms_total_now} elementer totalt.`);
@@ -319,10 +351,17 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
               <span className="truncate">{state.fileName}</span>
             </div>
             <PreviewSummary counts={state.counts} />
+            <PreviewDetails
+              userId={userId}
+              raw={state.raw}
+              selected={selected}
+              onToggle={toggleSelected}
+              onSetMany={setManySelected}
+            />
             <div className="flex gap-2">
-              <Button onClick={() => onCommit(state.importId)} disabled={commit.isPending}>
+              <Button onClick={() => onCommit(state.importId, state.raw)} disabled={commit.isPending || selected.size === 0}>
                 {commit.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Bekreft og lagre
+                Bekreft og lagre{selected.size > 0 ? ` (${selected.size})` : ""}
               </Button>
               <Button
                 variant="ghost"
