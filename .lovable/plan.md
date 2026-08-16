@@ -34,9 +34,12 @@ Nytt sidebar-punkt Innstillinger nederst med Integrasjoner (eksisterende side) o
 
 ## Trinn 2 — Én dokumentasjonsflate, arbeidsgiveranalyser til Marked
 
+Først en koblingsrapport, før noe filtreres bort: `public.documents` har `company_name` (fritekst) og `application_id`, men ingen `company_id`-nøkkel mot `companies`. Koblingen er altså navnebasert og potensielt svak. Trinnet starter derfor med å liste de ni analysedokumentene og vise, per dokument, om navnet treffer et selskap entydig og om det finnes en søknadskobling. Dokumenter uten sikker kobling blir stående i dokumentlisten under en egen gruppe «Arbeidsgiveranalyser», slik at ingenting forsvinner uten å dukke opp et annet sted.
+
 Min dokumentasjon og Dokumenter slås til én side «Dokumentasjon» under Min karriere: filer, bibliotek, pakker. Case og resultater utgår som fane.
 
-Arbeidsgiveranalyser filtreres ut av dokumentlisten og lenkes fra selskapets side under Marked (og fra søknaden de ble laget for). Generell CV vises under Min karriere; stillingstilpasset CV og søknadsbrev vises på den enkelte søknaden.
+Arbeidsgiveranalyser med sikker kobling lenkes fra selskapets side under Marked (og fra søknaden de ble laget for). Generell CV vises under Min karriere; stillingstilpasset CV og søknadsbrev vises på den enkelte søknaden.
+
 
 ## Trinn 3 — Én opplasting, analyse som handling
 
