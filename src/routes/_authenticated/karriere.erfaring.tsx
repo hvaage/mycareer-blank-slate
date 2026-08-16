@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_authenticated/karriere/erfaring")({
 
 function ErfaringPage() {
   return (
-    <div className="container mx-auto max-w-5xl space-y-6 p-4 md:p-8">
+    <div className="container mx-auto max-w-7xl space-y-4 p-4 md:p-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Erfaring og kompetanse</h1>
         <p className="text-sm text-muted-foreground">
