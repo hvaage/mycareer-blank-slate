@@ -79,16 +79,19 @@ function AboutMePage() {
         <div>
           <h1 className="text-2xl font-bold">Om meg</h1>
           <p className="text-sm text-muted-foreground">
-            Samlet oversikt over deg selv: integrasjoner, CV-arkiv, karriereoversikt,
-            personlig profil og kontoinnstillinger. Endringer lagres automatisk, og
+            CV-arkiv, karriereoversikt og personlig profil. Endringer lagres automatisk, og
             spørreskjemaet under <strong>Kort om meg</strong> kan eksporteres som
             <code> about-me.md</code>.
             {" "}
             <Link to="/preferences" className="text-primary hover:underline font-medium">
               Karriereprofil for matching
             </Link>{" "}
-            finner du på egen side.
+            finner du på egen side. Integrasjoner og konto ligger nå under{" "}
+            <Link to="/innstillinger/integrasjoner" className="text-primary hover:underline font-medium">
+              Innstillinger
+            </Link>.
           </p>
+
         </div>
         <Button variant="outline" size="sm" onClick={exportMarkdown}>
           <Download className="h-4 w-4 mr-2" /> Eksporter .md
