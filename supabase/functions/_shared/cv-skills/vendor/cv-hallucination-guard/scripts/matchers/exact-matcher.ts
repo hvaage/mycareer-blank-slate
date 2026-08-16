@@ -184,6 +184,22 @@ function matchHeadcountClaim(claim: ExtractedClaim, atoms: AtomLike[]): ClaimMat
     }
   }
 
+  // Samme antall personer uttrykt på et annet språk i atom-teksten
+  // (f.eks. "25 people" i grunnlaget vs. "25 personer" i teksten).
+  for (const atom of atoms) {
+    for (const atomClaim of extractNumberClaims(atomTextHaystack(atom))) {
+      const p = atomClaim.parsed as { kind?: string; value?: number };
+      if (p.kind !== "headcount" || p.value !== parsed.value) continue;
+      return {
+        claim,
+        verdict: "verified",
+        confidence: 0.85,
+        supporting_atom_ids: [atom.id],
+        reasoning: "Samme antall personer finnes i atom-innholdet.",
+      };
+    }
+  }
+
   return defaultUnverified(claim, "Ingen matchende team-størrelse funnet i achievements.");
 }
 
