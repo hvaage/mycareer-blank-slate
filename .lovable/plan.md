@@ -1,120 +1,134 @@
-# CV-gjennomgangen: trinnvis, ikke flat kø
+# CV-gjennomgangen: trinnvis, ikke flat kø — teknisk avklaring
 
-Gjennomgangen av CV-import legges om fra én flat liste med 44 enkeltavgjørelser til
-fire trinn som følger kjeden rolle → resultat → kompetanse, med bulk-bekreftelse,
-begrunnede forslag og fremdrift.
+Trinnflyten og rekkefølgen fra forrige plan står. Under er svaret på de sju
+punktene, og den konkrete datamodellen for koblinger og gjenopptaksversjonering
+som skal ligge fast før migrasjonen kjøres.
 
-## Det jeg har verifisert i dagens data og kode
+## 0. Drifttesten (punkt 7)
 
-- Gjennomgangen (`/career/cv-review`) er i dag én flat liste bygd av
-  `buildCandidateTree`, med én knapp per kandidat.
-- Dagens import har 44 kandidater: 6 roller (bekreftet), 23 resultater, 9 kompetanser,
-  2 oppsummeringer, 1 frivillig, 1 utdanning, 2 språk.
-- Roller har `start_date`/`end_date` i `structured_data`, men to av seks har
-  `start_date: 1900-01` og manglende sluttdato — altså placeholderverdier som *ikke*
-  skal gi karrierehull.
-- Kompetansene har ingen posisjonsinformasjon fra parsen: alle ni har
-  `source_category: "other"`, ingen `parent_local_ref`, ingen tidsangivelse.
-  Det betyr at «posisjon i dokumentet» og «tidsangivelse» som plasseringssignaler
-  ikke finnes i dagens parseresultat.
+`src/routes/api/cv/generations.ts` importerer i dag ingen vendor- eller
+adaptermodul: den kaller `prepareGenerationStart` fra
+`generation/start-service.ts` via dynamisk import, og laster `supabaseAdmin`
+inne i handleren. Rettingen ble gjort i forrige runde. Første handling i
+implementeringen er likevel å kjøre drifttest, typecheck, bygg og kontraktstest
+og rapportere resultatet før noe annet — ingen migrasjon før den er grønn.
 
-Konsekvens: automatisk plassering kan i første omgang bare bygge på tekstsignaler
-(ordoverlapp mot rolletittel/arbeidsgiver, og treff i resultatteksten under en rolle).
-Det gir færre høy-sikkerhet-treff enn instruksens eksempel. Full plasseringskvalitet
-krever at parseren bærer seksjon og kildeposisjon videre — det hører til
-cv-evidence-graph v2.0 (instruksens punkt 11) og gjøres ikke her. Jeg legger
-signalmodellen slik at nye signaler kan kobles inn uten å endre grensesnittet.
+## 1. Kanonisk datamodell for brukerlagte elementer
 
-## Trinn 1 — tidslinje over hele karrieren
+`cv_parse_candidates` brukes **ikke** som lager for brukerredigert
+karriereinnhold. Tabellen er parselaget: én rad = maskinens tolkning av én
+kildepassasje, med `source_type`/`source_quote`/`parse_confidence` og
+`(import_id, local_ref)` som identitet. En brukerlagt rolle har ingen kilde i
+importen og ville krevet syntetiske verdier i akkurat de feltene.
 
-Alle roller vises samtidig, sortert etter periode, med `[Bekreft alle roller]` som
-én handling. Roller kan endres og legges til her.
+Brukerlagte roller og resultater går derfor rett inn i den etablerte
+atomflyten som `career_atoms` med `atom_kind='evidens'`, opprettet via samme
+server-side godkjenningsvei som promotering, med `source_type='user_input'` og
+provenance i `structured_data` (bruker, tidspunkt, `review_import_id`,
+`review_step`, original tekst). Ingen ny skriveport, samme idempotens- og
+RLS-regler.
 
-Mulige hull vises kun når begge datoene finnes, har månedspresisjon, ikke er
-placeholder (`1900-01`), rollen ikke pågår, perioder ikke overlapper og oppholdet er
-minst tre måneder. Ellers vises ingenting.
+`origin` legges **ikke** til på `cv_parse_candidates`. Parsekandidater beholder
+sin betydning uendret.
 
-Ved et mulig hull kan brukeren legge til rolle, velge en kategori (studier,
-permisjon, sabbatsår, selvstendig, annet) eller hoppe over. Kategorivalget lagres som
-privat tidslinjekontekst — ikke rolle, ikke atom, ikke evidens, aldri med i
-CV-, eksport- eller modellgrunnlag. Den kan endres og fjernes senere.
+## 2. Koblinger — egen tabell, ikke JSONB
 
-Trinn 2–4 er låst til rollene er bekreftet for denne gjennomgangen. Låsingen er
-UI-gating; alt kan rettes senere.
+Dagens modell har `career_atoms.parent_atom_id` (én forelder) og
+`career_atoms.evidence_atom_ids` (uuid-array). Arrayet kan ikke bære
+begrunnelse, hvem som bestemte koblingen, eller historikk, og har ingen
+unikhetsregel. Én kompetanse mot flere roller *og* flere resultater med
+provenance krever derfor en smal koblingstabell.
 
-## Trinn 2 — resultater per rolle
+`public.career_atom_links`:
 
-Én rolle om gangen med alle resultatene under seg og `[Bekreft alle]` per rolle.
-Roller uten resultater får spørsmålet «Hva oppnådde du her?» (valgfritt).
-Brukeren kan legge til et resultat; det lagres som brukeroppgitt grunnlag.
+| kolonne | innhold |
+|---|---|
+| `id` | uuid pk |
+| `user_id` | eier, alle policyer på `auth.uid()` |
+| `from_atom_id` | FK `career_atoms` on delete cascade — kompetansen/eksponeringen |
+| `to_atom_id` | FK `career_atoms` on delete cascade — rollen eller resultatet |
+| `link_type` | `belegges_av` (kompetanse → rolle/resultat), `oppnadd_i` (resultat → rolle), `avledet_av` (eksponering → rolle) |
+| `decided_by` | `machine_suggested`, `user_confirmed`, `user_overridden` |
+| `status` | `foreslatt`, `aktiv`, `avvist`, `trenger_ny_vurdering` |
+| `confidence` | `hoy`, `lav` — maskinens sikkerhet ved forslag |
+| `reasons` | jsonb: signalene bak forslaget |
+| `source_candidate_id` | FK `cv_parse_candidates`, null for brukerlagte |
+| `superseded_by` | FK til samme tabell — historikk uten sletting |
+| `created_at`, `decided_at`, `decided_by_user_id` | |
 
-## Trinn 3 — kompetanse
+- Unikhet: `unique (user_id, from_atom_id, to_atom_id, link_type) where superseded_by is null` — hindrer duplikatkoblinger, tillater historiske rader.
+- Ingenting slettes: en overstyring setter `superseded_by` på den gamle raden og skriver en ny.
+- `evidence_atom_ids` beholdes som avledet speiling for eksisterende lesere, oppdatert fra koblingstabellen av en trigger, slik at generering og matching ikke må endres i denne fasen.
+- GRANT select/insert/update til `authenticated`, ALL til `service_role`, ingen `anon`. RLS på `auth.uid() = user_id`.
 
-Hvert forslag vises ferdig utfylt med rolle, resultat, type og en begrunnelseslinje
-som sier hvorfor koblingen ble foreslått. Høy sikkerhet krever minst to uavhengige
-signaler. Høy-sikkerhet-forslag samles i én liste med `[Bekreft alle N]`, resten går
-én og én. Én kompetanse kan kobles til flere roller og flere resultater uten at det
-lages duplikater. Overstyrer brukeren maskinens forslag, beholdes forslaget som
-historikk og brukerens valg blir gjeldende.
+`suggestion jsonb` på forslagsraden bærer bare forklaringen (confidence,
+reasons, maskinens opprinnelige forslag, snapshot ved overstyring). Relasjonen
+selv ligger i tabellen over.
 
-## Trinn 4 — kvalifikasjoner
+## 3. Resultatplassering
 
-Utdanning, sertifisering, språk og verktøy bekreftes samlet.
+Et resultat plasseres under en rolle **kun** når parsen gir en strukturell
+kobling: `parent_local_ref` peker på rollekandidaten, eller resultatet lå i
+rollens bullet-liste i importen. Ordlikhet mellom resultattekst og rolletittel
+plasserer aldri noe.
 
-## Fremdrift og oppstart
+Uten strukturell kobling får resultatet `trenger_plassering` og vises i trinn 2
+i en egen bolk «Hvor hører dette hjemme?», der brukeren velger rolle eller lar
+det stå frittstående. `career_atom_links.link_type='oppnadd_i'` opprettes først
+når plasseringen er avgjort.
 
-Fremdriftslinje gjennom hele flyten med trinnstatus, antall gjenstående og markering
-av trinn som må vurderes på nytt fordi en rolle er endret. Etter analyse går brukeren
-rett inn i trinn 1 («Gå gjennom nå» / «Senere»). Velger han senere, ligger det i køen
-som i dag. Køen beholdes for det som kommer over tid.
+Ny vurdering:
+- Endres en rolle (tittel, arbeidsgiver, periode), settes alle aktive lenker inn mot den rollen til `trenger_ny_vurdering`, og trinn 2 og 3 merkes «må vurderes på nytt» i fremdriftslinjen.
+- Endres et resultat, settes kompetanselenkene inn mot det resultatet til `trenger_ny_vurdering`.
+Ingen lenke fjernes automatisk; brukeren bekrefter eller endrer.
 
-## Evidensgrenser (uendret)
+## 4. Konservativ sikkerhet
 
-Bulk-bekreftelse av parsekandidater oppretter aldri `user_attested`. Attestasjon skjer
-bare i den etablerte påstandsgjennomgangen, på eksakt påstandstekst og versjon.
-Frontend definerer ingen egne statuser — alle verdier kommer fra den kanoniske
-kontrakten. Ingenting slettes ved avvisning.
+Signaltyper:
+- **Strukturelle**: `parent_local_ref`, bullet-tilhørighet, samme `local_ref`-seksjon, dato-/periodeoverlapp.
+- **Eksplisitt kildebaserte**: kompetansenavnet forekommer ordrett i rollens eller resultatets `source_quote`.
+- **Tekstlige**: ordoverlapp, normalisert navnelikhet.
 
-## Teknisk
+Høy sikkerhet krever minst ett strukturelt eller eksplisitt kildebasert signal
+**i tillegg til** et tekstsignal. To varianter av samme ordlikhet teller som ett
+signal. Kompetansene i dagens import har verken `parent_local_ref`,
+kildeposisjon eller tidsdata, så det er forventet at få eller ingen kvalifiserer
+til bulk i første versjon. Da vises ingen bulk-knapp, og alle går én og én.
 
-Database (én migrasjon, med GRANT og RLS scopet til `auth.uid()`):
-- `public.cv_review_timeline_context` — privat hullkontekst: `user_id`, `import_id`,
-  `gap_start`, `gap_end`, `category`, `note`, tidsstempler. Leses aldri av
-  generering, eksport eller modellinput.
-- `public.cv_review_progress` (eller kolonner på `cv_imports`): aktivt trinn,
-  trinnstatus, `needs_recheck`-markering per trinn, for gjenopptak.
-- Utvidelse av `cv_parse_candidates`: `origin` (`parsed` | `user_added`) og
-  `suggestion` (jsonb: `confidence`, `reasons[]`, kildereferanser, opprinnelig
-  maskinforslag ved overstyring).
+## 5. Gjenopptak og versjonering
 
-Frontend:
-- `src/lib/cv-review-timeline.ts` — periodeparsing, placeholder- og
-  presisjonsdeteksjon, hulldeteksjon med reglene over. Ren funksjon, testes direkte.
-- `src/lib/cv-review-placement.ts` — signalmodell for kompetanseplassering
-  (ordoverlapp, treff i resultattekst, `local_ref`-struktur), `confidence` + `reasons[]`,
-  krav om to uavhengige signaler for høy sikkerhet.
-- `src/lib/queries/cv-parse-candidates.ts` utvides med bulk-bekreftelse, brukerlagte
-  roller/resultater med provenance (`origin`, bruker, tidspunkt, original tekst,
-  import-id) og markering av berørte forslag ved rolleendring.
-- `/career/cv-review` bygges om til en trinnflyt med fremdriftslinje; dagens flate
-  liste beholdes som «Gå gjennom én og én».
-- `cv-upload-flow.tsx` sender brukeren rett til trinn 1 etter analyse.
+`public.cv_review_progress`: `user_id`, `import_id`, `candidate_set_signature`,
+`analysis_version`, `current_step`, `step_state` jsonb (status og
+`needs_recheck` per trinn), `is_stale`, `stale_reason`, tidsstempler.
+Unik på `(user_id, import_id, candidate_set_signature)`.
 
-Tester (vitest + kanarier): bulk-bekreftelse gir ikke `user_attested`, provenance på
-brukerlagte elementer, rolleendring markerer berørte forslag, placeholder-/usikre
-datoer gir ikke hull, privat hullkontekst er utenfor CV- og modellgrunnlag, én
-kompetanse med flere pekere gir ikke duplikat, avbrutt gjennomgang gjenopptas på
-riktig trinn, frontend bruker bare kontraktverdier.
+`candidate_set_signature` er en stabil hash av kandidatsettet for importen
+(`local_ref`, `suggested_atom_type`, normalisert tekst, `dedupe_key`) sammen med
+analyse-/normaliseringsversjonen fra den kanoniske kontrakten. Ved ny analyse,
+regenerering eller vesentlig endring av settet endres signaturen: den gamle
+raden markeres `is_stale`, og brukeren får valget «Start gjennomgangen på nytt»
+eller «Se hva som er endret». Systemet gjenopptar aldri en progresjon hvis
+signatur ikke stemmer med dagens kandidatsett. Allerede bekreftede atomer og
+lenker påvirkes ikke — bare fremdriften.
+
+## 6. Privat tidslinjekontekst
+
+`public.cv_review_timeline_context` (user_id, import_id, gap_start, gap_end,
+category, note, tidsstempler), RLS på `auth.uid()`, ingen `anon`, ingen
+kobling til `career_atoms`.
+
+Tester som må være grønne, ikke bare RLS:
+- snapshotbyggeren for CV-generering inneholder ingen felter fra tabellen,
+- modellinput og ATS-grunnlag likeså,
+- eksportgrunnlaget likeså,
+- ingen `select *`-spørring i lesestien treffer tabellen (statisk sjekk på at kun gjennomgangsmodulen refererer tabellnavnet).
 
 ## Rekkefølge
 
-1. Trinn 1 med tidslinje, hulldeteksjon og brukerlagte roller (+ migrasjon).
-2. Direkte oppstart etter analyse.
-3. Trinn 2 — resultater per rolle.
-4. Trinn 3 — kompetanseplassering med begrunnelse og bulk.
-5. Trinn 4 — kvalifikasjoner.
-6. Fremdrift, gjenopptak og full testdekning.
-
-Splitting av sammensatte kompetanser og utledning av overordnet kompetanse
-(punkt 11) hører til cv-evidence-graph v2.0 og er ikke med her.
-Måling (punkt 12) settes opp etter at trinn 1–3 er i drift.
+1. Drifttest, typecheck, bygg og kontraktstest — rapport før migrasjon.
+2. Migrasjon: `career_atom_links`, `cv_review_progress`, `cv_review_timeline_context`, speilingstrigger for `evidence_atom_ids`, GRANT + RLS.
+3. Trinn 1: tidslinje, hulldeteksjon, brukerlagte roller gjennom atomflyten.
+4. Direkte oppstart etter analyse.
+5. Trinn 2 med `trenger_plassering`.
+6. Trinn 3 med koblingstabell, begrunnelser og konservativ bulk.
+7. Trinn 4, fremdrift/gjenopptak, full testdekning.
