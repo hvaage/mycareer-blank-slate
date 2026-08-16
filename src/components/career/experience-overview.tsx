@@ -476,8 +476,7 @@ export function ExperienceOverview() {
 
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <FileText className="h-3.5 w-3.5" />
-      <p className="flex items-center gap-2 text-xs text-muted-foreground">
-        <FileText className="h-3.5 w-3.5" />
+
         Bruk menyen til høyre på hver linje for å bekrefte, endre eller slette. Sletting viser først
         hva annet som henger sammen med den.
       </p>
