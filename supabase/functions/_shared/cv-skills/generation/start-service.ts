@@ -6,7 +6,8 @@
 // av snapshot. Ingen modellkall, ingen databaseskriving skjer her.
 
 import { assessReadiness, eligibleAtoms } from "../adapters/career-atom-adapter.ts";
-import type { CareerAtomRow, ReadinessReport } from "../adapters/career-atom-adapter.ts";
+import type { CareerAtomRow } from "../adapters/career-atom-adapter.ts";
+import type { ReadinessReport } from "../contract.ts";
 import { buildSnapshot, sha256Hex, snapshotHashInput } from "./contract.ts";
 import type { GenerationSnapshot } from "./contract.ts";
 
