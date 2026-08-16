@@ -143,6 +143,7 @@ export function invalidateCandidateQueries(qc: QueryClient, userId: string): voi
   void qc.invalidateQueries({ queryKey: ["cv-parse-candidates", userId] });
   void qc.invalidateQueries({ queryKey: ["career-atoms"] });
   void qc.invalidateQueries({ queryKey: ["cv-imports", userId] });
+  void qc.invalidateQueries({ queryKey: ["cv-atom-counts", userId] });
 }
 
 // ---------------------------------------------------------------------------
