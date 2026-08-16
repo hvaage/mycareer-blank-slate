@@ -183,6 +183,11 @@ function CvReviewPage() {
     );
   }
 
+  const hasImports = (imports.data?.length ?? 0) > 0;
+  const activeImport = imports.data?.find((i) => i.id === activeImportId) ?? null;
+  const importNotCommitted =
+    Boolean(activeImport) && activeImport?.status !== "committed" && rows.length === 0;
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
       <header className="space-y-2">
@@ -193,7 +198,63 @@ function CvReviewPage() {
         </p>
       </header>
 
+      {imports.isError && (
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="text-base">Kunne ikke hente importene dine</CardTitle>
+            <CardDescription>
+              {imports.error instanceof Error ? imports.error.message : "Ukjent årsak"}. Dette
+              betyr ikke at du ikke har importer.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {!imports.isError && !hasImports && (
+        <Card className="border-amber-500/50">
+          <CardHeader>
+            <CardTitle className="text-base">Ingen CV-import å gå gjennom ennå</CardTitle>
+            <CardDescription className="space-y-2">
+              <span className="block">
+                Filene du laster opp under <strong>Om meg → CV</strong> er et arkiv: de lagres
+                som de er, uten analyse. Derfor blir det ingen funn å bekrefte her.
+              </span>
+              <span className="block">
+                For å bygge karrieredata må du laste opp CV-en under{" "}
+                <strong>Om meg → Karriereoversikt</strong>, kjøre <em>Analyser CV</em> og
+                deretter <em>Bekreft og lagre</em>. Da dukker funnene opp på denne siden.
+              </span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link to="/about-me">Gå til Om meg → Karriereoversikt</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {importNotCommitted && (
+        <Card className="border-amber-500/50">
+          <CardHeader>
+            <CardTitle className="text-base">Importen er ikke ferdig behandlet</CardTitle>
+            <CardDescription>
+              «{activeImport?.source_filename ?? activeImport?.import_type}» har status «
+              {activeImport?.status}». Fullfør <em>Analyser CV</em> og <em>Bekreft og lagre</em> i
+              opplasteren under Om meg → Karriereoversikt, så kommer funnene hit.
+              {activeImport?.error_message ? ` Feil: ${activeImport.error_message}` : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link to="/about-me">Åpne opplasteren</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {(imports.data?.length ?? 0) > 1 && (
+
         <div className="max-w-md space-y-2">
           <Label>Import</Label>
           <Select value={activeImportId ?? ""} onValueChange={setImportId}>
