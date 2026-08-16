@@ -1,0 +1,112 @@
+import { describe, expect, it } from "vitest";
+import {
+  candidateSetSignature,
+  detectGaps,
+  monthsBetween,
+  normalizeDateToIso,
+  sortRoles,
+  type TimelineRole,
+} from "@/lib/cv-review-timeline";
+
+function role(p: Partial<TimelineRole> & { id: string }): TimelineRole {
+  return {
+    kind: "kandidat",
+    title: p.id,
+    employer: null,
+    startIso: null,
+    endIso: null,
+    isCurrent: false,
+    candidate: null,
+    missingDates: false,
+    ...p,
+  };
+}
+
+describe("normalizeDateToIso", () => {
+  it("normaliserer år, måned og fulle datoer", () => {
+    expect(normalizeDateToIso("2019")).toBe("2019-01-01");
+    expect(normalizeDateToIso("2019-4")).toBe("2019-04-01");
+    expect(normalizeDateToIso("04.2019")).toBe("2019-04-01");
+    expect(normalizeDateToIso("2019-04-07")).toBe("2019-04-07");
+    expect(normalizeDateToIso("07.04.2019")).toBe("2019-04-07");
+  });
+
+  it("gjetter ikke på ukjent format", () => {
+    expect(normalizeDateToIso("våren 2019")).toBeNull();
+    expect(normalizeDateToIso(null)).toBeNull();
+  });
+});
+
+describe("sortRoles", () => {
+  it("sorterer nyeste først og legger udaterte sist", () => {
+    const out = sortRoles([
+      role({ id: "a", startIso: "2015-01-01" }),
+      role({ id: "b" }),
+      role({ id: "c", startIso: "2021-01-01" }),
+    ]);
+    expect(out.map((r) => r.id)).toEqual(["c", "a", "b"]);
+  });
+});
+
+describe("detectGaps", () => {
+  it("finner hull på seks måneder eller mer", () => {
+    const gaps = detectGaps([
+      role({ id: "a", title: "A", startIso: "2015-01-01", endIso: "2016-01-01" }),
+      role({ id: "b", title: "B", startIso: "2017-01-01", endIso: "2018-01-01" }),
+    ]);
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]!.months).toBe(12);
+    expect(gaps[0]!.afterTitle).toBe("A");
+    expect(gaps[0]!.beforeTitle).toBe("B");
+  });
+
+  it("ser bort fra korte opphold og overlapp", () => {
+    expect(
+      detectGaps([
+        role({ id: "a", startIso: "2015-01-01", endIso: "2016-01-01" }),
+        role({ id: "b", startIso: "2016-04-01", endIso: "2018-01-01" }),
+        role({ id: "c", startIso: "2017-01-01", endIso: "2019-01-01" }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("hopper over roller uten startdato", () => {
+    expect(
+      detectGaps([
+        role({ id: "a", startIso: "2015-01-01", endIso: "2016-01-01" }),
+        role({ id: "b" }),
+      ]),
+    ).toEqual([]);
+  });
+});
+
+describe("candidateSetSignature", () => {
+  it("er stabil uavhengig av rekkefølge", () => {
+    const a = candidateSetSignature([
+      { id: "1", updated_at: "x" },
+      { id: "2", updated_at: "y" },
+    ]);
+    const b = candidateSetSignature([
+      { id: "2", updated_at: "y" },
+      { id: "1", updated_at: "x" },
+    ]);
+    expect(a).toBe(b);
+  });
+
+  it("endres når settet endres", () => {
+    const a = candidateSetSignature([{ id: "1", updated_at: "x" }]);
+    expect(a).not.toBe(candidateSetSignature([{ id: "1", updated_at: "z" }]));
+    expect(a).not.toBe(
+      candidateSetSignature([
+        { id: "1", updated_at: "x" },
+        { id: "2", updated_at: "x" },
+      ]),
+    );
+  });
+});
+
+describe("monthsBetween", () => {
+  it("regner i hele måneder", () => {
+    expect(monthsBetween("2020-01-01", "2020-07-01")).toBe(6);
+  });
+});
