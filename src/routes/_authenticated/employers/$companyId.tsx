@@ -359,6 +359,37 @@ function CompanyDetailPage() {
         </Button>
       </div>
 
+      {savedAnalysisDocs.length > 0 ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Lagrede arbeidsgiveranalyser</CardTitle>
+            <CardDescription>
+              Analysedokumenter knyttet til {company.name} via navn og organisasjonsnummer.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ul className="divide-y">
+              {savedAnalysisDocs.map((d: any) => (
+                <li key={d.id}>
+                  <Link
+                    to="/documents/$id"
+                    params={{ id: d.id }}
+                    className="flex items-center gap-2 py-2 text-sm hover:underline"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-medium">{d.title}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {fmtDateTime(d.updated_at ?? d.created_at)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
+
+
       {envelopeError ? (
         <div className="space-y-4">
           {jobStatusSlot}
