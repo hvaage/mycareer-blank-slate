@@ -254,10 +254,12 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
       if (updErr) throw Object.assign(new Error(updErr.message), { code: "database_error" });
       const result = await commit.mutateAsync(importId);
       dispatch({ type: "done", result });
-      toast.success(
-        `${result.candidates_created} elementer lagret. Gå til gjennomgangen for å bekrefte dem.`,
-      );
+      toast.success(`${result.candidates_created} elementer lagret. Vi tar deg rett til gjennomgangen.`);
       onCompleted?.(result);
+      // Direkte oppstart: brukeren skal ikke måtte lete etter neste steg.
+      if (!onCompleted) {
+        void navigate({ to: "/career/cv-review", search: { import: result.import_id } });
+      }
     } catch (e: any) {
       dispatch({
         type: "error",
