@@ -107,16 +107,17 @@ Tabellene (`ai.model_profiles`, `ai.model_runs`, `ai.model_profile_audit`, `ai.m
 `public`-tabeller som frontend leser (dokumenter, forslag, atoms) beholder RLS med eierskapspredikat og UPDATE-policy med både `USING` og `WITH CHECK`. Adminpolicy bygger på `public.has_role` (se preflight punkt f).
 
 ### documents — ett kanonisk felt per dimensjon
-Additivt: `document_group_id`, `opportunity_id`, `requirement_ids`, `requirement_snapshot`, `ats_format_result`, `ats_relevance_result`, `output_hash`, `skill_versions`, `prompt_versions`, `approved_at`. **Ingen `document_kind`** — CV-variant uttrykkes med `cv_variant` (`general`/`tailored`) mens `document_type` fortsatt sier hva slags dokument det er. `opportunity_id` er eneste kanoniske stillingskobling; `tailored_for` (tekst) og `application_id` fases ut for nye CV-rader. Migreringsregel: `document_group_id = id` for de ni eksisterende radene, `cv_variant` settes bare for `document_type='cv'`, `tailored_for` backfilles til `opportunity_id` der den kan matches og merkes deretter som deprecated (leses, skrives ikke). Unik constraint på (`document_group_id`, `version`).
+Verifisert før migrasjon: enum `document_type` har allerede verdien `cv` — ingen enumendring nødvendig. Additivt: `document_group_id` (backfilles til `id`, deretter `NOT NULL`, self-FK til `documents(id)` med `ON DELETE RESTRICT`), `opportunity_id`, `cv_variant`, `requirement_ids`, `requirement_snapshot`, `ats_format_result`, `ats_relevance_result`, `output_hash`, `skill_versions`, `prompt_versions`, `approved_at`. **Ingen `document_kind`** — CV-variant uttrykkes med `cv_variant` (`general`/`tailored`), `document_type` sier hva slags dokument det er. `opportunity_id` er eneste kanoniske stillingskobling; `tailored_for`, `application_id` og `is_base_version` er legacy (leses, skrives ikke for nye CV-rader). `tailored_for` backfilles til `opportunity_id` der den kan matches. Unik constraint på (`document_group_id`, `version`).
+
 
 ### Varig jobborkestrering
 Frontendrequest **oppretter bare en jobb** og får jobb-id tilbake. En worker startet av `pg_cron` + `pg_net` claimer ett steg atomisk (`FOR UPDATE SKIP LOCKED`), **avslutter claim-transaksjonen før Claude kalles**, utfører ett modellkall og melder resultatet tilbake i en ny transaksjon. Ingen databaselås holdes under nettverkskall. Cron-secret ligger i Vault; endepunktet ligger under `/api/public/*` og autoriserer kalleren selv.
 
 RPC-er (alle `public.internal_ai_*`): `claim_job_step`, `heartbeat`, `complete_step`, `requeue_step` (transient feil, backoff), `fail_job` (permanent), `reap_stale`. Reaper setter både stale jobb og tilhørende `running` model-run til terminal status.
 
-Vern: maks én aktiv genereringsjobb per (`user_id`, `document_group_id`), rate-limit på enqueue per bruker og time, global worker-concurrency for generering, og separat lavere concurrency for eval og dyre modeller.
+Vern: global worker-concurrency håndheves **atomisk inne i `claim_job_step`** (ingen separat count-then-claim), maks én aktiv genereringsjobb per (`user_id`, `document_group_id`), rate-limit på enqueue per bruker og time, og separat lavere concurrency for eval og dyre modeller. Frontend leser aldri jobbtabellen via Data API — sanitert status hentes gjennom Edge Function/serverfunksjon (`SanitizedJobStatus`).
 
-`cv_generation_jobs`: `id`, `user_id`, `document_group_id`, `job_kind`, `priority int`, `idempotency_key` (unik per bruker+input), `input_hash`, `status`, `last_completed_step`, `next_step`, `attempt_count`, `max_attempts`, `available_at`, `locked_at`, `lease_expires_at`, `heartbeat_at`, `worker_id`, `time_budget_ms`, `counters jsonb`, `error_code`, `error_detail`, `created_at`, `updated_at`.
+`cv_generation_jobs`: `id`, `user_id`, `document_group_id`, `job_kind`, `priority int`, `idempotency_key` (unik per bruker+input), `input_hash`, `status text not null check (status in ('queued','running','waiting_review','succeeded','failed','cancelled'))`, `last_completed_step`, `next_step`, `attempt_count`, `max_attempts`, `available_at`, `locked_at`, `lease_expires_at`, `heartbeat_at`, `worker_id`, `time_budget_ms`, `counters jsonb`, `error_code`, `error_detail`, `created_at`, `updated_at`. Requeue øker `attempt_count`, setter `available_at` med eksponentiell backoff og går til `failed` ved `attempt_count >= max_attempts`.
 
 ### ai.model_runs på kolonnenivå
 `id uuid pk`, `user_id uuid not null`, `correlation_id text not null`, `job_id uuid` (FK → `public.cv_generation_jobs`), `document_version_id uuid` (FK → `public.documents`), `proposal_id uuid`, `task_key text not null`, `profile_id uuid not null` (FK → `ai.model_profiles`), `profile_snapshot jsonb not null`, `model_id text not null`, `anthropic_api_version text not null`, `skill_versions jsonb not null`, `prompt_version text not null`, `request_options_snapshot jsonb not null`, `input_hash text not null`, `output_hash text`, `anthropic_request_id text`, `input_tokens int`, `output_tokens int`, `cache_read_tokens int`, `cache_write_tokens int`, `pricing_snapshot jsonb`, `estimated_cost_usd numeric`, `cost_complete boolean not null default false`, `retry_count int not null default 0`, `status text not null check (status in ('running','ok','needs_review','blocked_validation','blocked_guard','provider_error','timeout','cancelled'))`, `error_code text`, `validator_result jsonb`, `guard_result jsonb`, `started_at`, `finished_at`, `duration_ms int`, `created_at`.
@@ -126,12 +127,12 @@ Indekser: `(user_id, created_at desc)`, `(task_key, model_id, created_at desc)`,
 ### Readiness- og verification-kontrakt
 Frontend importerer disse fra `src/lib/cv-skills-contract.ts` og tolker ingenting selv:
 
-- `blocked_no_evidence`: ingen eligible rolle-atoms.
-- `needs_review`: eligible rolle-atoms finnes, men det finnes åpne forslag eller uavklarte konflikter som må avgjøres først.
-- `ready_with_gaps`: nok grunnlag til generering, men mindre enn to resultat-atoms, eller (for tilpasset CV) unsupported krav.
-- `ready`: eligible rolle-atoms og minst to resultat-atoms, ingen åpne konflikter.
+- `blocked_no_evidence`: ingen eligible atoms i det hele tatt.
+- `needs_review`: eligible grunnlag finnes, men uavklarte konflikter må avgjøres først.
+- `ready_with_gaps`: nok grunnlag til generering, men færre enn to resultat-atoms, åpne forslag, eller (for tilpasset CV) unsupported krav.
+- `ready`: eligible grunnlag, minst to resultat-atoms, ingen åpne forslag eller konflikter.
 
-Manglende avledet kompetanse gir aldri gap alene. `claim.verification`: `supported` | `partially_supported` | `unsupported` | `not_applicable`.
+Formell rolle er **ikke** et absolutt krav: en bruker uten rolle-atom kan generere dersom annet eligible grunnlag finnes. Antall resultat-atoms er kvalitetsindikator, ikke genereringskrav. Manglende avledet kompetanse gir aldri gap alene. `claim.verification`: `supported` | `partially_supported` | `unsupported` | `not_applicable`.
 
 ### Personvernport før produksjon
 Dataminimering (kun nødvendige segmenter til modellen, aldri rå CV i driftslogg), oppdatert behandlingsinformasjon til brukeren, definert retention og sletting for jobber, kjøringer og snapshots (koblet til eksisterende `delete-account`), og evalcase som er syntetiske eller eksplisitt anonymiserte. Porten må være passert før første produksjonskjøring.
