@@ -209,16 +209,24 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
       </CardHeader>
       <CardContent className="space-y-4">
         {state.kind === "idle" && (
-          <CvDropzone
-            onFile={(file, error) => {
-              if (error) {
-                toast.error(messageFor(error));
-                return;
-              }
-              dispatch({ type: "select", file });
-            }}
-          />
+          <div className="space-y-4">
+            <ArchiveCvPicker
+              userId={userId}
+              busy={importArchived.isPending}
+              onUse={(source) => void onUseArchived(source)}
+            />
+            <CvDropzone
+              onFile={(file, error) => {
+                if (error) {
+                  toast.error(messageFor(error));
+                  return;
+                }
+                dispatch({ type: "select", file });
+              }}
+            />
+          </div>
         )}
+
 
         {(state.kind === "file_selected" || state.kind === "uploading") && (
           <div className="flex items-center gap-3 rounded-md border p-4">
