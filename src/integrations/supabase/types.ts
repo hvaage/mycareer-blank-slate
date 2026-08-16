@@ -5593,6 +5593,7 @@ export type Database = {
           total_bytes: number
         }[]
       }
+      cv_variant_db: { Args: { p_variant: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
