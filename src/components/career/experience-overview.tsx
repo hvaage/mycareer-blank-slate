@@ -19,6 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 import { careerAtomsQuery, type CareerAtomRow } from "@/lib/queries/career-atoms";
 import { AtomActions } from "@/components/career/atom-actions";
 
