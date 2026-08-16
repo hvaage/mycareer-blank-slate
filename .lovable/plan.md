@@ -40,7 +40,9 @@ Skillpakkene importeres uendret som versjonert leverandørkode til `supabase/fun
 - `cv-hallucination-guard/` (v2.0.0): `guard.ts`, `llm-judge.ts`, `types.ts`, `extractors/*` (4), `matchers/*` (2).
 - `cv-ats-rules-no/` (v2.0.0): `ats-rules.ts`, `keyword-coverage.ts`, `types.ts`, `validators/*` (4).
 
-Adapterlag `_shared/cv-skills/adapters/career-atom-adapter.ts` er eneste sted som oversetter mellom `career_atoms` og skillenes typer. Alle skriveoperasjoner går gjennom eksisterende v4 apply-/review-funksjoner (`atom_enrichment_proposals`-flyten, `career_atom_delete`, promotering fra `cv_parse_candidates`) — aldri gjennom skillkode. `SKILL.md` og `references/` legges i `docs/cv-skills/<skill>/`; de sendes aldri i prompten. Frontend importerer DTO-er fra én kontraktfil (`src/lib/cv-skills-contract.ts`).
+**Ingen sammenslåing.** Skill-v2 lever isolert under `cv-skills/`; eksisterende `_shared/cv-evidence-graph/` (v4) er kanonisk domenemodell og endres ikke. De to kodebasene importerer aldri hverandre. Adapterlaget `_shared/cv-skills/adapters/career-atom-adapter.ts` er eneste kobling mellom dem.
+
+Alle skriveoperasjoner går gjennom eksisterende v4 apply-/review-flyt (`atom_enrichment_proposals` → godkjenning → apply, promotering fra `cv_parse_candidates`) — aldri gjennom skillkode. **`career_atom_delete` inngår ikke i CV-skillflyten:** AI og import kan bare opprette forslag; ingen automatisk sletting eller deaktivering av atoms. `SKILL.md` og `references/` ligger i `docs/cv-skills/<skill>/` og sendes aldri i prompten. Frontend importerer DTO-er fra én kontraktfil (`src/lib/cv-skills-contract.ts`).
 
 ## 3. Pipeline
 
@@ -55,27 +57,33 @@ Regler ved apply:
 - `user_locked` og `user_confirmed` atoms overskrives aldri av AI eller import.
 
 ### Kanonisk eligibility-funksjon
-Én funksjon `eligibleAtomsForGeneration(user_id, { mode, opportunity_id })` er eneste kilde til hvilke atoms som kan brukes. Den krever `is_active = true`, godkjent `state`, `confidence = verified`, gyldig `attestation`, `user_confirmed = true`, ikke utløpt `stale_at`, akseptabelt `mangel_state`, og filtrerer på `target_position_id`: målspesifikke atoms kan aldri lekke inn i generell CV. `imported` og `inferred` blir aldri faktagrunnlag. Avledet kompetanse kan brukes til utvalg og rangering, men i teksten er det rolle-/resultat-atomene den er avledet fra som er supporting evidence.
+`eligibleAtomsForGeneration({ mode, opportunity_id })` er eneste kilde til hvilke atoms som kan brukes. **Identiteten hentes fra verifisert JWT** — aldri fra `user_id` i request — og valgt opportunity må tilhøre samme bruker, ellers avvises kallet.
+
+Predikat: `is_active = true`, godkjent `state`, `confidence = verified`, gyldig `attestation`, `user_confirmed = true`, akseptabelt `mangel_state`, og filter på `target_position_id` slik at målspesifikke atoms aldri lekker inn i generell CV. `imported` og `inferred` blir aldri faktagrunnlag. `stale_at` gir **varsel**, ikke automatisk blokkering: historiske fakta blir ikke ugyldige av alder. Avledet kompetanse brukes bare til utvalg og rangering; supporting evidence i teksten er alltid de underliggende rolle-/resultat-atomene.
+
+Funksjonen returnerer readiness-status i stedet for et ja/nei: `ready`, `ready_with_gaps`, `needs_review`, `blocked_no_evidence`. Ingen massebekreftelse av eksisterende data.
 
 ### Blokk- og claimkontrakt
-Generering returnerer blokker, ikke fritekst:
+Generering returnerer strukturert JSON, ikke fritekst:
 
 ```text
-blockId, section, text, supportingAtomIds[], requirementAtomIds[], claimIds[], sourceSnapshotHash
+document: { documentVersionId, outputHash, snapshotHash }
+blocks[]: { blockId, section, text, supportingAtomIds[], requirementAtomIds[], claimIds[], sourceSnapshotHash }
+claims[]: { claimId, blockId, type: hard|soft, value, supportingAtomIds[], verification }
 ```
 
-Én blokk = én punktlinje eller én sammenhengende claim. Hele dokumentets tekst har en `outputHash`. Quality-, guard- og ATS-resultater lagres alltid med den `outputHash` de ble kjørt på; enhver senere endring — også manuell brukerredigering — ugyldiggjør alle kontroller og krever ny kjøring.
+`claimId`, `blockId` og alle hasher genereres av serveren, aldri av modellen. Hver Claude-respons runtime-valideres mot kontrakten før lagring; ugyldig respons lagres ikke og gir `blocked_validation`. Én blokk = én punktlinje eller én sammenhengende claim. Quality-, guard- og ATS-resultater lagres alltid med den `outputHash` de ble kjørt på; enhver senere endring — også manuell brukerredigering — ugyldiggjør kontrollene og krever ny kjøring.
 
 ### Generell CV
-eligible atoms → frys atom-snapshot i samme transaksjon som ny dokumentversjon → `cv_general_generation` → `checkQuality()` → evt. `cv_quality_rewrite` → `validateRewriteResponse()` → guard på endelig tekst → `validateCvDraft()` (ATS/GDPR) → render av godkjent versjon.
+eligible atoms → ny dokumentversjon + frosset atom-snapshot i **én DB-transaksjon** via én autorisert RPC → `cv_general_generation` → `checkQuality()` → evt. `cv_quality_rewrite` → `validateRewriteResponse()` → guard på endelig tekst → `validateCvDraft()` (ATS/GDPR) → render av godkjent versjon.
 
 ### Tilpasset CV
-eligible atoms + krav-atoms fra `opportunity_requirement_atoms` → `evaluateKeywordCoverage()` før generering (exact / normalized / semantic_alias / unsupported) → utvalg og rangering → frys atom- og kravsnapshot → `cv_tailored_generation` → quality → rewrite-validering → guard → ATS-format + endelig dekning → render. Unsupported krav vises som gap og skrives aldri inn.
+eligible atoms + krav-atoms fra `opportunity_requirement_atoms` → `evaluateKeywordCoverage()` før generering (exact / normalized / semantic_alias / unsupported) → utvalg og rangering → dokumentversjon + atom- og kravsnapshot i samme transaksjon → `cv_tailored_generation` → quality → rewrite-validering → guard → ATS-format + endelig dekning → render. Unsupported krav vises som gap og skrives aldri inn.
 
 Hvert steg returnerer `ok | needs_review | blocked_validation | blocked_guard | provider_error | timeout`.
 
 ### Immutable dokumentversjoner
-Ny generering eller rewrite oppretter alltid **ny** dokumentversjon. Godkjente og tidligere versjoner endres aldri. Atom- og kravsnapshot fryses i samme transaksjon som versjonen. `ai_model_runs` får FK til dokumentversjonen, ikke bare en id-liste på dokumentet. Unik constraint på (dokumentrot, versjonsnummer).
+Ny generering eller rewrite oppretter alltid **ny** dokumentversjon gjennom samme transaksjonelle RPC. Godkjente og tidligere versjoner endres aldri. Flere sekvensielle klientkall er ikke en akseptabel erstatning for transaksjonen. `ai_model_runs` får FK til dokumentversjonen. Dokumentrot håndteres med `document_group_id` (se preflight punkt c), med unik constraint på (`document_group_id`, `version`) etter at eksisterende rader er migrert.
 
 ## 4. Claude-klient, secrets og modellprofil
 
@@ -91,13 +99,28 @@ Task keys som spesifisert (syv). Deterministiske validatorer får ingen modellpr
 
 `ai_eval_cases`, `ai_eval_jobs` (én modell × én case per jobb: pending/running/succeeded/failed, tidsbudsjett, reaper for stale running), `ai_eval_runs`, `ai_eval_scores`. Admin-only Edge Functions og adminflate. Startkandidater (verifiseres mot Models API ved implementering): `claude-haiku-4-5-20251001`, `claude-sonnet-5`, `claude-opus-5`, valgfritt `claude-fable-5`. Modellisten er data, ikke kode. Evalsettet dekker de oppgitte norske semantikk-, eierskaps-, tall-, dedup-, guard- og ATS-tilfellene. Måltall per task: schemavaliditet, sporbarhet, nye/tapte claims, eierskap, dedupepresisjon, guard FP/FN, ATS-dekning, tid, tokens, kostnad, blindvurdering. Promotion er eksplisitt adminhandling med auditlogg og rollback; lav pris er aldri tilstrekkelig grunn.
 
-## 6. Migrasjoner, RLS og jobbkjøring
+## 6. Migrasjoner, RLS, RPC-tilgang og jobbkjøring
 
-Interne tabeller (`ai_model_profiles`, `ai_model_runs`, `ai_model_profile_audit`, `ai_model_pricing`, `ai_eval_*`) legges i et **ikke-eksponert `ai`-schema** uten Data API-tilgang. Ingen `anon`/`authenticated`-grants; frontend leser bare sanitert status og resultat gjennom Edge Functions. Brukerdata som frontend faktisk må lese direkte beholdes i `public` med RLS, eierskapspredikat og UPDATE-policy med både `USING` og `WITH CHECK`. Adminpolicy bygger på `user_roles`/`has_role`, som først inspiseres for `SECURITY DEFINER`, låst `search_path` og korrekte EXECUTE-rettigheter. Service-klient brukes kun etter at Edge Function har autorisert brukeren. Alle eier-, status- og FK-kolonner som RLS og jobbkøen bruker, indekseres.
+### ai-schemaet er ueksponert
+Interne tabeller (`ai.model_profiles`, `ai.model_runs`, `ai.model_profile_audit`, `ai.model_pricing`, `ai.eval_*`) ligger i schema `ai`, som ikke legges til Data API. Ingen grants til `anon`/`authenticated`. Tilgang skjer kun gjennom smale `SECURITY DEFINER`-RPC-er med `set search_path = ''` og fullt kvalifiserte navn; hver RPC får `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated` og `GRANT EXECUTE ... TO service_role`. Edge Function verifiserer JWT og eierskap **før** service-klienten brukes. Frontend kaller aldri RPC-ene direkte — den snakker bare med Edge Functions og får sanitert status.
 
-`documents` utvides additivt med kun det som mangler: `document_kind` (general/tailored), `opportunity_id`, `requirement_ids`, `requirement_snapshot`, `ats_format_result`, `ats_relevance_result`, `output_hash`, `skill_versions`, `prompt_versions`, `approved_at`, samt unik constraint på (dokumentrot, versjon).
+`public`-tabeller som frontend faktisk leser (dokumenter, forslag, atoms) beholder RLS med eierskapspredikat og UPDATE-policy med både `USING` og `WITH CHECK`. Adminpolicy bygger på `public.has_role`, som er verifisert `SECURITY DEFINER` med `search_path=public` (EXECUTE-rettigheter kontrolleres og strammes ved behov).
 
-`cv_generation_jobs`: `idempotency_key`, `input_hash`, `last_completed_step`, `attempt_count`, `available_at`, `locked_at`, `lease_expires_at`, heartbeat, reaper for stale running, løpende tellere, eksplisitt tidsbudsjett og unik constraint mot duplikatgenerering. **Ett modellsteg per invokasjon**; frontend poller status og holder aldri én request åpen gjennom flere Claude-kall.
+### documents
+Additivt: `document_group_id`, `document_kind` (general/tailored), `opportunity_id`, `requirement_ids`, `requirement_snapshot`, `ats_format_result`, `ats_relevance_result`, `output_hash`, `skill_versions`, `prompt_versions`, `approved_at`. Migreringsregel: eksisterende rader får `document_group_id = id` (alle ni dagens dokumenter er versjon 1 uten lineage), deretter opprettes unik constraint på (`document_group_id`, `version`).
+
+### Varig jobborkestrering
+Frontendrequest **oppretter bare en jobb** og får jobb-id tilbake. En worker startet av `pg_cron` + `pg_net` claimer ett steg om gangen atomisk (`FOR UPDATE SKIP LOCKED`), utfører ett modellkall og legger jobben tilbake i kø. Cron-secret ligger i Vault; endepunktet ligger under `/api/public/*` og autoriserer kalleren selv.
+
+`cv_generation_jobs`: `id`, `user_id`, `document_group_id`, `job_kind`, `idempotency_key` (unik per bruker+input), `input_hash`, `status`, `last_completed_step`, `next_step`, `attempt_count`, `max_attempts`, `available_at`, `locked_at`, `lease_expires_at`, `heartbeat_at`, `worker_id`, `time_budget_ms`, `counters jsonb`, `error_code`, `error_detail`, `created_at`, `updated_at`. Reaper frigjør jobber med utløpt lease. Frontend poller kun status.
+
+### ai.model_runs på kolonnenivå
+`id uuid pk`, `user_id uuid not null`, `correlation_id text not null`, `job_id uuid` (FK → `public.cv_generation_jobs`), `document_version_id uuid` (FK → `public.documents`), `proposal_id uuid`, `task_key text not null`, `profile_id uuid not null` (FK → `ai.model_profiles`), `model_id text not null`, `anthropic_api_version text not null`, `skill_version text not null`, `prompt_version text not null`, `request_options_snapshot jsonb not null`, `input_hash text not null`, `output_hash text`, `anthropic_request_id text`, `input_tokens int`, `output_tokens int`, `cache_read_tokens int`, `cache_write_tokens int`, `pricing_snapshot jsonb`, `estimated_cost_usd numeric`, `cost_complete boolean not null default false`, `retry_count int not null default 0`, `status text not null check (status in ('ok','needs_review','blocked_validation','blocked_guard','provider_error','timeout'))`, `error_code text`, `validator_result jsonb`, `guard_result jsonb`, `started_at`, `finished_at`, `duration_ms int`, `created_at`.
+
+Indekser: `(user_id, created_at desc)`, `(task_key, model_id, created_at desc)`, `(job_id)`, `(document_version_id)`, `unique (correlation_id, task_key, input_hash)` for idempotens. Tokenverdier lagres alltid, også når kostnad ikke kunne beregnes.
+
+### Personvernport før produksjon
+Dataminimering (kun nødvendige segmenter til modellen, aldri rå CV i driftslogg), oppdatert behandlingsinformasjon til brukeren, definert retention og sletting for jobber, kjøringer og snapshots (koblet til eksisterende `delete-account`), og evalcase som er syntetiske eller eksplisitt anonymiserte. Porten må være passert før første produksjonskjøring.
 
 ## 7. Frontend
 
@@ -123,9 +146,30 @@ Eksport bygges på **én strukturert dokumentmodell** som kilde for både DOCX o
 
 Én Edge Function deployes om gangen og verifiseres med en ekte brukeravgrenset kjøring før neste. Øvrig testplan: RLS-test med to brukere på atoms, forslag, dokumenter og kjøringer; idempotens- og reaper-test på jobbkøen; feilinjeksjon mot Claude (429, 5xx, timeout); kostnads- og tokenlogging uten rå CV-tekst.
 
-## 9. Åpne spørsmål
+## 9. Bekreftelser
 
-1. **Avledet kompetanse:** brukes til utvalg og rangering, aldri som supporting evidence i teksten. Bekreft grensen.
-2. **Stale-terskel:** hvilken alder på `stale_at` skal blokkere bruk i CV, kontra bare varsle i grunnlagsvisningen?
-3. **Modell-ID-er** verifiseres mot Models API ved implementering; avvik oppdateres i data, ikke kode.
-4. **PDF-tidspunkt:** DOCX først er lagt til grunn; bekreft at PDF kan komme i en senere leveranse.
+- Avledet kompetanse brukes bare til utvalg og rangering.
+- Supporting evidence er alltid de underliggende rolle-/resultat-atomene.
+- DOCX leveres før PDF.
+- Ingen brukerflate eksponerer modell- eller leverandørnavn.
+- Modell-ID-er verifiseres mot Anthropic Models API ved implementering; avvik oppdateres i data, ikke kode.
+
+## 10. Preflight (levert før migrasjon og deploy)
+
+**a) RPC-/tilgangsmønster for `ai`-schemaet.** Schemaet legges ikke til Data API. Alle tabeller er uten grants til `anon`/`authenticated`. Tilgang skjer via smale `SECURITY DEFINER`-funksjoner (`ai.claim_job_step`, `ai.record_model_run`, `ai.get_active_profile`, `ai.promote_profile`, `ai.enqueue_eval_job`) med `set search_path = ''`, `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` og `GRANT EXECUTE TO service_role`. Edge Function verifiserer JWT og eierskap før service-klienten brukes. Referanse: `public.has_role` er allerede `SECURITY DEFINER` med `search_path=public` og gjenbrukes for admin.
+
+**b) Jobborkestrator og cron-frekvens.** `public.cv_generation_jobs` + worker-endepunkt under `/api/public/…`, startet av `pg_cron` hvert minutt (`* * * * *`) via `pg_net`, med Vault-lagret secret. Ett steg per invokasjon, atomisk claim med `FOR UPDATE SKIP LOCKED`, `lease_expires_at` på 120 s, heartbeat hvert 20. sekund, reaper hvert 5. minutt for stale running, tidsbudsjett per jobb. Frontend oppretter jobb og poller status.
+
+**c) Faktisk dokument-lineage.** Inspisert: `documents` har `version` (integer), `is_base_version`, `tailored_for`, `application_id` — men **ingen** gruppe-/foreldrekolonne. Dagens data: 9 dokumenter, alle `version = 1`, ingen `is_base_version`, ingen `tailored_for`, ingen `atom_snapshot`, ingen med `document_type = 'cv'`. Konklusjon: `document_group_id` må legges til. Migreringsregel: `document_group_id = id` for alle eksisterende rader, deretter unik constraint på (`document_group_id`, `version`).
+
+**d) Atoms per readiness-status.** Totalt 9 atoms, alle hos én bruker: 5 `role`, 1 `resultat`, 3 `kvalifikasjon` (1 education, 2 language), 0 `kompetanse`. Alle 9 passerer hele eligibility-predikatet (aktiv, verified, user_confirmed, ingen `target_position_id`, ingen `mangel_state`, ingen utløpt `stale_at`). Brukerstatus: **`ready_with_gaps`** — nok til en generell CV-struktur, men bare ett resultat-atom og ingen kompetanse, så tilpasset CV vil vise mange gap. 0 atoms i `needs_review`, 0 i `blocked_no_evidence`. Ingen data massebekreftes.
+
+**e) Planlagte constraints og indekser.**
+- `documents`: `unique (document_group_id, version)`; sjekk på `document_kind in ('general','tailored')`; indeks `(user_id, document_group_id, version desc)`, `(opportunity_id) where opportunity_id is not null`.
+- `cv_generation_jobs`: `unique (user_id, idempotency_key)`; sjekk på `status`; indekser `(status, available_at)`, `(user_id, created_at desc)`, `(lease_expires_at) where status='running'`, `(document_group_id)`.
+- `ai.model_profiles`: unikt partielt indeks `(task_key) where status='production'`; FK `created_by`.
+- `ai.model_runs`: FK-er til `cv_generation_jobs`, `documents` og `ai.model_profiles`; `unique (correlation_id, task_key, input_hash)`; indekser `(user_id, created_at desc)`, `(task_key, model_id, created_at desc)`, `(job_id)`, `(document_version_id)`.
+- `ai.model_pricing`: `unique (model_id, valid_from)`.
+- `ai.eval_jobs`: `unique (case_id, model_id, run_batch_id)`; indeks `(status, available_at)`.
+
+Ingen migrasjon eller deploy kjøres før denne preflighten er godkjent.
