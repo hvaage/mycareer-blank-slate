@@ -44,6 +44,7 @@ import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedOfferAnalysisIndexRouteImport } from './routes/_authenticated/offer-analysis/index'
 import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authenticated/next-steps/index'
 import { Route as AuthenticatedInterviewPrepIndexRouteImport } from './routes/_authenticated/interview-prep/index'
+import { Route as AuthenticatedInnstillingerIndexRouteImport } from './routes/_authenticated/innstillinger.index'
 import { Route as AuthenticatedEmployersIndexRouteImport } from './routes/_authenticated/employers/index'
 import { Route as AuthenticatedDocumentsIndexRouteImport } from './routes/_authenticated/documents/index'
 import { Route as AuthenticatedDocumentationIndexRouteImport } from './routes/_authenticated/documentation/index'
@@ -266,6 +267,12 @@ const AuthenticatedInterviewPrepIndexRoute =
   AuthenticatedInterviewPrepIndexRouteImport.update({
     id: '/interview-prep/',
     path: '/interview-prep/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInnstillingerIndexRoute =
+  AuthenticatedInnstillingerIndexRouteImport.update({
+    id: '/innstillinger/',
+    path: '/innstillinger/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedEmployersIndexRoute =
@@ -544,6 +551,7 @@ export interface FileRoutesByFullPath {
   '/documentation/': typeof AuthenticatedDocumentationIndexRoute
   '/documents/': typeof AuthenticatedDocumentsIndexRoute
   '/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
@@ -614,6 +622,7 @@ export interface FileRoutesByTo {
   '/documentation': typeof AuthenticatedDocumentationIndexRoute
   '/documents': typeof AuthenticatedDocumentsIndexRoute
   '/employers': typeof AuthenticatedEmployersIndexRoute
+  '/innstillinger': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep': typeof AuthenticatedInterviewPrepIndexRoute
   '/next-steps': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis': typeof AuthenticatedOfferAnalysisIndexRoute
@@ -689,6 +698,7 @@ export interface FileRoutesById {
   '/_authenticated/documentation/': typeof AuthenticatedDocumentationIndexRoute
   '/_authenticated/documents/': typeof AuthenticatedDocumentsIndexRoute
   '/_authenticated/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/_authenticated/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/_authenticated/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/_authenticated/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/_authenticated/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
@@ -764,6 +774,7 @@ export interface FileRouteTypes {
     | '/documentation/'
     | '/documents/'
     | '/employers/'
+    | '/innstillinger/'
     | '/interview-prep/'
     | '/next-steps/'
     | '/offer-analysis/'
@@ -834,6 +845,7 @@ export interface FileRouteTypes {
     | '/documentation'
     | '/documents'
     | '/employers'
+    | '/innstillinger'
     | '/interview-prep'
     | '/next-steps'
     | '/offer-analysis'
@@ -908,6 +920,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documentation/'
     | '/_authenticated/documents/'
     | '/_authenticated/employers/'
+    | '/_authenticated/innstillinger/'
     | '/_authenticated/interview-prep/'
     | '/_authenticated/next-steps/'
     | '/_authenticated/offer-analysis/'
@@ -1194,6 +1207,13 @@ declare module '@tanstack/react-router' {
       path: '/interview-prep'
       fullPath: '/interview-prep/'
       preLoaderRoute: typeof AuthenticatedInterviewPrepIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/innstillinger/': {
+      id: '/_authenticated/innstillinger/'
+      path: '/innstillinger'
+      fullPath: '/innstillinger/'
+      preLoaderRoute: typeof AuthenticatedInnstillingerIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/employers/': {
@@ -1494,6 +1514,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDocumentationIndexRoute: typeof AuthenticatedDocumentationIndexRoute
   AuthenticatedDocumentsIndexRoute: typeof AuthenticatedDocumentsIndexRoute
   AuthenticatedEmployersIndexRoute: typeof AuthenticatedEmployersIndexRoute
+  AuthenticatedInnstillingerIndexRoute: typeof AuthenticatedInnstillingerIndexRoute
   AuthenticatedInterviewPrepIndexRoute: typeof AuthenticatedInterviewPrepIndexRoute
   AuthenticatedNextStepsIndexRoute: typeof AuthenticatedNextStepsIndexRoute
   AuthenticatedOfferAnalysisIndexRoute: typeof AuthenticatedOfferAnalysisIndexRoute
@@ -1540,6 +1561,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentationIndexRoute: AuthenticatedDocumentationIndexRoute,
   AuthenticatedDocumentsIndexRoute: AuthenticatedDocumentsIndexRoute,
   AuthenticatedEmployersIndexRoute: AuthenticatedEmployersIndexRoute,
+  AuthenticatedInnstillingerIndexRoute: AuthenticatedInnstillingerIndexRoute,
   AuthenticatedInterviewPrepIndexRoute: AuthenticatedInterviewPrepIndexRoute,
   AuthenticatedNextStepsIndexRoute: AuthenticatedNextStepsIndexRoute,
   AuthenticatedOfferAnalysisIndexRoute: AuthenticatedOfferAnalysisIndexRoute,
