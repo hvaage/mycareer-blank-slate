@@ -93,11 +93,27 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
   }
 
   const segmentHashes = await computeSegmentHashes(segments);
+
+  // Regenerering er en eksplisitt brukerhandling: tidligere avviste forslag
+  // settes til «erstattet», og epoken gjør kildesignaturen ny.
+  let regenerationEpoch = 0;
+  if (input.regenerate === true) {
+    const { data: regenJson, error: regenError } = await adminClient.rpc(
+      "internal_ai_begin_regeneration",
+      { p_user_id: userId, p_import_id: cvImportId },
+    );
+    if (regenError) {
+      return fail(500, "database_error", "Kunne ikke starte en ny analyse.");
+    }
+    regenerationEpoch = Number((regenJson as { epoch?: number } | null)?.epoch ?? 0);
+  }
+
   const inputSignature = await computeInputSignature(
     cvImportId,
     segments,
-    NORMALIZATION_PROMPT_VERSION,
+    `${NORMALIZATION_PROMPT_VERSION}+out${OUTPUT_CONTRACT_VERSION}`,
     NORMALIZER_VERSION,
+    regenerationEpoch,
   );
 
   // -------------------------------------------------------- idempotens
