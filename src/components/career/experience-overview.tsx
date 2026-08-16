@@ -341,30 +341,36 @@ export function ExperienceOverview() {
               const period = rolePeriod(role);
               return (
                 <Card key={role.id} className="overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => toggle(role.id)}
-                    aria-expanded={open}
-                    className="flex w-full items-start gap-2 px-4 py-2.5 text-left hover:bg-accent/40"
-                  >
-                    <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">
-                        {[role.content_no ?? "Rolle", employer, period].filter(Boolean).join(" · ")}
+                  <div className="flex items-start gap-1 pr-2">
+                    <button
+                      type="button"
+                      onClick={() => toggle(role.id)}
+                      aria-expanded={open}
+                      className="flex min-w-0 flex-1 items-start gap-2 px-4 py-2.5 text-left hover:bg-accent/40"
+                    >
+                      <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">
+                          {[role.content_no ?? "Rolle", employer, period].filter(Boolean).join(" · ")}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {roleResults.length} resultater · {roleSkills.length} kompetanser ·{" "}
+                          {roleExposure.length} eksponering
+                        </span>
                       </span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        {roleResults.length} resultater · {roleSkills.length} kompetanser ·{" "}
-                        {roleExposure.length} eksponering
-                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                          open && "rotate-180",
+                        )}
+                        aria-hidden
+                      />
+                    </button>
+                    <span className="pt-2.5">
+                      <AtomActions row={role} />
                     </span>
-                    <ChevronDown
-                      className={cn(
-                        "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                        open && "rotate-180",
-                      )}
-                      aria-hidden
-                    />
-                  </button>
+                  </div>
+
 
                   {open ? (
                     <CardContent className="space-y-3 border-t px-4 py-3">
