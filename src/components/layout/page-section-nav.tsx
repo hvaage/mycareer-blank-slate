@@ -5,14 +5,18 @@
 // ============================================================
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { StatusMark, type SectionStatus } from "@/components/form/form-section";
 
 export type PageSection = {
   id: string;
   label: string;
   count?: number;
+  /** Fremdrift for skjemaseksjoner. Vises som merke i stedet for antall. */
+  status?: SectionStatus;
   /** Sett false for å skjule seksjonen fra menyen. Default: count !== 0 */
   show?: boolean;
 };
+
 
 export function PageSectionNav({
   sections,
