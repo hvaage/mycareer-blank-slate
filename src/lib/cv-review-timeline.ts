@@ -118,6 +118,33 @@ export function isCurrentRole(sd: Sd): boolean {
   return Boolean(end && /^(n[åa]|nu|present|current|d\.d\.?)$/i.test(end));
 }
 
+/**
+ * En stillingstittel er kort og setningsløs. Rollebeskrivelser («Ledet den
+ * kommersielle omstillingen …») er ikke titler, og skal aldri vises som det —
+ * da spør vi heller brukeren.
+ */
+export function looksLikeJobTitle(raw: string | null): boolean {
+  if (!raw) return false;
+  const v = raw.trim();
+  if (v.length < 2 || v.length > 70) return false;
+  if (/[.!?]\s/.test(v)) return false;
+  if (/[.!?]$/.test(v)) return false;
+  return v.split(/\s+/).length <= 9;
+}
+
+/** Tittelen tas fra strukturfeltene, aldri fra rollebeskrivelsen. */
+export function extractRoleTitle(sd: Sd): string | null {
+  const t = str(sd, ["title", "stilling", "stillingstittel", "position", "job_title", "role"]);
+  return looksLikeJobTitle(t) ? t : null;
+}
+
+function summaryOf(content: string | null, title: string | null): string | null {
+  const v = content?.trim() ?? "";
+  if (!v) return null;
+  if (title && v.toLowerCase() === title.toLowerCase()) return null;
+  return v;
+}
+
 export function roleFromCandidate(c: CvParseCandidateRow): TimelineRole {
   const sd = (c.structured_data as Sd | null) ?? {};
   const start = normalizeDate(str(sd, ["start_date", "startDate", "fra", "from", "startdato"]));
@@ -125,10 +152,14 @@ export function roleFromCandidate(c: CvParseCandidateRow): TimelineRole {
   const startIso = start.iso;
   const endIso = end.iso;
   const current = isCurrentRole(sd);
+  const title = extractRoleTitle(sd);
+  const content = c.content_no ?? c.content_en ?? null;
   return {
     id: c.id,
     kind: "kandidat",
-    title: (c.content_no ?? c.content_en ?? "Uten tittel").trim(),
+    title: title ?? "",
+    titleMissing: !title,
+    summary: summaryOf(content, title),
     employer: str(sd, ["employer", "company", "arbeidsgiver", "organisasjon"]),
     startIso,
     endIso: current ? null : endIso,
