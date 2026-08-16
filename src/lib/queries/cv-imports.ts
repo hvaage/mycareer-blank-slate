@@ -248,6 +248,7 @@ export function useRegisterCvUpload(userId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cv-imports", userId] });
+      qc.invalidateQueries({ queryKey: ["cv-import-resumable", userId] });
     },
   });
 }
@@ -259,6 +260,7 @@ export function useRunCvParse(userId: string) {
     mutationFn: (importId: string) => invokeParseWithTimeout(importId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cv-imports", userId] });
+      qc.invalidateQueries({ queryKey: ["cv-import-resumable", userId] });
     },
   });
 }
@@ -300,6 +302,7 @@ export function useCommitImport(userId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cv-imports", userId] });
       qc.invalidateQueries({ queryKey: ["cv-atom-counts", userId] });
+      qc.invalidateQueries({ queryKey: ["cv-import-resumable", userId] });
     },
   });
 }
