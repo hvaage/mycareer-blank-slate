@@ -55,6 +55,7 @@ import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/s
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
+import { Route as ApiInternalCvGenerationWorkerRouteImport } from './routes/api/internal/cv-generation-worker'
 import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
@@ -334,6 +335,12 @@ const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
   path: '/api/public/ingest-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiInternalCvGenerationWorkerRoute =
+  ApiInternalCvGenerationWorkerRouteImport.update({
+    id: '/api/internal/cv-generation-worker',
+    path: '/api/internal/cv-generation-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiCvProposeCvAtomsRoute = ApiCvProposeCvAtomsRouteImport.update({
   id: '/api/cv/propose-cv-atoms',
   path: '/api/cv/propose-cv-atoms',
@@ -556,6 +563,7 @@ export interface FileRoutesByFullPath {
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
+  '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -629,6 +637,7 @@ export interface FileRoutesByTo {
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
+  '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -707,6 +716,7 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
+  '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -785,6 +795,7 @@ export interface FileRouteTypes {
     | '/innstillinger/konto'
     | '/karriere/erfaring'
     | '/api/cv/propose-cv-atoms'
+    | '/api/internal/cv-generation-worker'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -858,6 +869,7 @@ export interface FileRouteTypes {
     | '/innstillinger/konto'
     | '/karriere/erfaring'
     | '/api/cv/propose-cv-atoms'
+    | '/api/internal/cv-generation-worker'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -935,6 +947,7 @@ export interface FileRouteTypes {
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
     | '/api/cv/propose-cv-atoms'
+    | '/api/internal/cv-generation-worker'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -977,6 +990,7 @@ export interface RootRouteChildren {
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ApiCvProposeCvAtomsRoute: typeof ApiCvProposeCvAtomsRoute
+  ApiInternalCvGenerationWorkerRoute: typeof ApiInternalCvGenerationWorkerRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicOpsWatchdogRoute: typeof ApiPublicOpsWatchdogRoute
@@ -1310,6 +1324,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/ingest-report'
       fullPath: '/api/public/ingest-report'
       preLoaderRoute: typeof ApiPublicIngestReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/cv-generation-worker': {
+      id: '/api/internal/cv-generation-worker'
+      path: '/api/internal/cv-generation-worker'
+      fullPath: '/api/internal/cv-generation-worker'
+      preLoaderRoute: typeof ApiInternalCvGenerationWorkerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cv/propose-cv-atoms': {
@@ -1685,6 +1706,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ApiCvProposeCvAtomsRoute: ApiCvProposeCvAtomsRoute,
+  ApiInternalCvGenerationWorkerRoute: ApiInternalCvGenerationWorkerRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicOpsWatchdogRoute: ApiPublicOpsWatchdogRoute,
