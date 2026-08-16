@@ -45,7 +45,6 @@ type Props = {
   /** Funn brukeren har gått gjennom og som kan analyseres. */
   candidates: AnalysisCandidate[];
   /** Antall funn som fortsatt venter på manuell opprydding. */
-  unresolvedCount: number;
 };
 
 function proposalTitle(row: AtomEnrichmentProposalRow): string {
@@ -64,7 +63,7 @@ function proposalKindLabel(row: AtomEnrichmentProposalRow): string {
   return "Forslag";
 }
 
-export function CvAnalysisPanel({ userId, importId, candidates, unresolvedCount }: Props) {
+export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
   const qc = useQueryClient();
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [lastError, setLastError] = useState<{ message: string; retryable: boolean } | null>(null);
@@ -227,7 +226,7 @@ export function CvAnalysisPanel({ userId, importId, candidates, unresolvedCount 
           title={CV_PROPOSAL_REVIEW_STATE_TEXT.new}
           icon={<Sparkles className="h-4 w-4" aria-hidden />}
           rows={pending}
-          emptyText="Ingen nye forslag akkurat nå."
+          emptyText=""
           onDecide={(id, decision) => decide.mutate({ id, decision })}
           busy={decide.isPending}
         />
