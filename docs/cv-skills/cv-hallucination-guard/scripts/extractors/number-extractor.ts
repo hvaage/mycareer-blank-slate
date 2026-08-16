@@ -9,7 +9,7 @@ import type { ExtractedClaim } from "../types.ts";
 
 // Beløp med valuta: "USD 45 mill.", "NOK 4,5 mrd.", "$45M"
 const CURRENCY_PATTERN =
-  /\b(NOK|USD|EUR|GBP|SEK|DKK|\$|€|£)\s*([\d.,\s]+?)\s*(mill\.?|millioner?|mrd\.?|milliarder?|k|tusen|M|B|bn)?\b/gi;
+  /\b(NOK|USD|EUR|GBP|SEK|DKK|\$|€|£)\s*([\d.,\s]+?)\s*(mill\.?|millioner?|millions?|mrd\.?|milliarder?|billions?|k|tusen|thousands?|M|B|bn)?\b/gi;
 
 // Prosent: "40 %", "40%", "40 prosent"
 const PERCENT_PATTERN = /\b([\d.,]+)\s*(?:%|prosent|percent)\b/gi;
@@ -118,9 +118,9 @@ function parseNorwegianNumber(raw: string): number {
 function normalizeUnit(raw: string | undefined): string | null {
   if (!raw) return null;
   const lower = raw.toLowerCase().replace(".", "");
-  if (["mill", "millioner", "m"].includes(lower)) return "million";
-  if (["mrd", "milliarder", "b", "bn"].includes(lower)) return "billion";
-  if (["k", "tusen"].includes(lower)) return "thousand";
+  if (["mill", "million", "millioner", "millions", "m"].includes(lower)) return "million";
+  if (["mrd", "milliard", "milliarder", "billion", "billions", "b", "bn"].includes(lower)) return "billion";
+  if (["k", "tusen", "thousand", "thousands"].includes(lower)) return "thousand";
   return null;
 }
 

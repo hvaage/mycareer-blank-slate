@@ -2,6 +2,7 @@
 // Matcher hard claims (tall, datoer, entiteter) eksakt mot atoms.
 
 import type { AtomLike, ClaimMatch, ExtractedClaim, MatchVerdict } from "../types.ts";
+import { extractNumberClaims } from "../extractors/number-extractor.ts";
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -97,8 +98,27 @@ function matchCurrencyClaim(claim: ExtractedClaim, atoms: AtomLike[]): ClaimMatc
     }
   }
 
+  // Samme beløp uttrykt på et annet språk i atom-teksten
+  // (f.eks. "NOK 3 billion" i grunnlaget vs. "NOK 3 milliarder" i teksten).
+  for (const atom of atoms) {
+    for (const atomClaim of extractNumberClaims(atomTextHaystack(atom))) {
+      const p = atomClaim.parsed as { kind?: string; currency?: string; normalized_value?: number };
+      if (p.kind !== "currency") continue;
+      if (p.currency !== parsed.currency) continue;
+      if (p.normalized_value !== parsed.normalized_value) continue;
+      return {
+        claim,
+        verdict: "verified",
+        confidence: 0.85,
+        supporting_atom_ids: [atom.id],
+        reasoning: "Samme beløp finnes i atom-innholdet.",
+      };
+    }
+  }
+
   return defaultUnverified(claim, "Ingen matchende beløp funnet i atoms.");
 }
+
 
 function matchPercentClaim(claim: ExtractedClaim, atoms: AtomLike[]): ClaimMatch {
   const parsed = claim.parsed as { value: number };
@@ -160,6 +180,22 @@ function matchHeadcountClaim(claim: ExtractedClaim, atoms: AtomLike[]): ClaimMat
         reasoning: verdict === "verified"
           ? `Match mot scope_team_size (${teamSize}).`
           : `Lignende team-størrelse (${teamSize}), men avvik over toleranse.`,
+      };
+    }
+  }
+
+  // Samme antall personer uttrykt på et annet språk i atom-teksten
+  // (f.eks. "25 people" i grunnlaget vs. "25 personer" i teksten).
+  for (const atom of atoms) {
+    for (const atomClaim of extractNumberClaims(atomTextHaystack(atom))) {
+      const p = atomClaim.parsed as { kind?: string; value?: number };
+      if (p.kind !== "headcount" || p.value !== parsed.value) continue;
+      return {
+        claim,
+        verdict: "verified",
+        confidence: 0.85,
+        supporting_atom_ids: [atom.id],
+        reasoning: "Samme antall personer finnes i atom-innholdet.",
       };
     }
   }

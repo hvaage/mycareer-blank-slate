@@ -1535,11 +1535,113 @@ export type Database = {
           },
         ]
       }
+      cv_document_blocks: {
+        Row: {
+          block_id: string
+          claim_ids: string[]
+          created_at: string
+          document_id: string
+          id: string
+          ordinal: number
+          requirement_atom_ids: string[]
+          section: string
+          source_snapshot_hash: string
+          supporting_atom_ids: string[]
+          text: string
+          user_id: string
+        }
+        Insert: {
+          block_id: string
+          claim_ids?: string[]
+          created_at?: string
+          document_id: string
+          id?: string
+          ordinal?: number
+          requirement_atom_ids?: string[]
+          section: string
+          source_snapshot_hash: string
+          supporting_atom_ids?: string[]
+          text: string
+          user_id: string
+        }
+        Update: {
+          block_id?: string
+          claim_ids?: string[]
+          created_at?: string
+          document_id?: string
+          id?: string
+          ordinal?: number
+          requirement_atom_ids?: string[]
+          section?: string
+          source_snapshot_hash?: string
+          supporting_atom_ids?: string[]
+          text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_document_blocks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cv_document_claims: {
+        Row: {
+          block_id: string
+          claim_id: string
+          claim_type: string
+          created_at: string
+          document_id: string
+          id: string
+          supporting_atom_ids: string[]
+          user_id: string
+          value: string
+          verification: string
+        }
+        Insert: {
+          block_id: string
+          claim_id: string
+          claim_type: string
+          created_at?: string
+          document_id: string
+          id?: string
+          supporting_atom_ids?: string[]
+          user_id: string
+          value: string
+          verification?: string
+        }
+        Update: {
+          block_id?: string
+          claim_id?: string
+          claim_type?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          supporting_atom_ids?: string[]
+          user_id?: string
+          value?: string
+          verification?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_document_claims_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cv_generation_jobs: {
         Row: {
           attempt_count: number
           created_at: string
+          current_step: string | null
           document_group_id: string
+          document_id: string | null
           error_code: string | null
           finished_at: string | null
           id: string
@@ -1556,16 +1658,20 @@ export type Database = {
           priority: number
           profile_id: string | null
           result_payload: Json | null
+          rewrite_count: number
           run_after: string
           status: string
           step_budget_ms: number
+          step_state: Json
           updated_at: string
           user_id: string
         }
         Insert: {
           attempt_count?: number
           created_at?: string
+          current_step?: string | null
           document_group_id: string
+          document_id?: string | null
           error_code?: string | null
           finished_at?: string | null
           id?: string
@@ -1582,16 +1688,20 @@ export type Database = {
           priority?: number
           profile_id?: string | null
           result_payload?: Json | null
+          rewrite_count?: number
           run_after?: string
           status?: string
           step_budget_ms?: number
+          step_state?: Json
           updated_at?: string
           user_id: string
         }
         Update: {
           attempt_count?: number
           created_at?: string
+          current_step?: string | null
           document_group_id?: string
+          document_id?: string | null
           error_code?: string | null
           finished_at?: string | null
           id?: string
@@ -1608,13 +1718,22 @@ export type Database = {
           priority?: number
           profile_id?: string | null
           result_payload?: Json | null
+          rewrite_count?: number
           run_after?: string
           status?: string
           step_budget_ms?: number
+          step_state?: Json
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cv_generation_jobs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cv_generation_jobs_opportunity_id_fkey"
             columns: ["opportunity_id"]
@@ -5698,6 +5817,19 @@ export type Database = {
         }
         Returns: Json
       }
+      internal_ai_create_cv_generation: {
+        Args: {
+          p_atom_ids: string[]
+          p_presentation: Json
+          p_profile_id: string
+          p_readiness: Json
+          p_snapshot: Json
+          p_snapshot_hash: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       internal_ai_create_enrichment_batch: {
         Args: { p_batch: Json; p_proposals: Json; p_user_id: string }
         Returns: Json
@@ -5741,8 +5873,33 @@ export type Database = {
         }
         Returns: undefined
       }
+      internal_ai_generation_commit_step: {
+        Args: {
+          p_ats: Json
+          p_blocks: Json
+          p_claims: Json
+          p_content_text: string
+          p_error_code: string
+          p_guard: Json
+          p_job_id: string
+          p_model_run_id: string
+          p_new_version: boolean
+          p_next_step: string
+          p_output_hash: string
+          p_quality: Json
+          p_state_patch: Json
+          p_step: string
+          p_terminal: string
+          p_worker_id: string
+        }
+        Returns: Json
+      }
       internal_ai_get_active_profile: {
         Args: { p_task_key: string }
+        Returns: Json
+      }
+      internal_ai_get_cv_generation: {
+        Args: { p_job_id: string; p_user_id: string }
         Returns: Json
       }
       internal_ai_get_job_status: {
