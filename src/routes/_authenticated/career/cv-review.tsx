@@ -5,11 +5,19 @@
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, HelpCircle, Loader2, Undo2, XCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { CvAnalysisPanel } from "@/components/cv/CvAnalysisPanel";
+import { CvReviewTimelineStep } from "@/components/cv/CvReviewTimelineStep";
+import { candidateSetSignature, roleFromAtom } from "@/lib/cv-review-timeline";
+import {
+  cvReviewProgressQuery,
+  invalidateReviewProgress,
+  syncReviewProgress,
+} from "@/lib/queries/cv-review-progress";
+
 import {
   ATOM_TYPE_CLASS,
   ATOM_TYPE_LABEL,
@@ -73,7 +81,9 @@ type PointerAtom = {
   atom_type: string | null;
   atom_class: string | null;
   content_no: string | null;
+  structured_data?: unknown;
 };
+
 
 function CvReviewPage() {
   const { user } = useAuth();
@@ -100,6 +110,43 @@ function CvReviewPage() {
       a.atom_class === "kvalifikasjon" ||
       a.atom_class === "resultat",
   );
+
+  // Trinnvis gjennomgang: fremdriften er bundet til kandidatsettet. Endres
+  // settet, blir en påbegynt gjennomgang foreldet og starter på nytt.
+  const signature = useMemo(
+    () => candidateSetSignature(rows.map((r) => ({ id: r.id, updated_at: r.updated_at }))),
+    [rows],
+  );
+  const progress = useQuery(cvReviewProgressQuery(userId, activeImportId));
+  const progressRow = progress.data ?? null;
+  const needsSync =
+    Boolean(activeImportId) &&
+    rows.length > 0 &&
+    !progress.isLoading &&
+    progressRow?.candidate_set_signature !== signature;
+
+  useEffect(() => {
+    if (!activeImportId || !needsSync) return;
+    let cancelled = false;
+    void syncReviewProgress(activeImportId, signature)
+      .then(() => {
+        if (!cancelled) invalidateReviewProgress(qc, userId);
+      })
+      .catch((e: Error) => toast.error(e.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [activeImportId, needsSync, signature, qc, userId]);
+
+  const currentStep =
+    progressRow && progressRow.candidate_set_signature === signature ? progressRow.current_step : 1;
+  const roleCandidates = rows.filter(
+    (r) => (r.resolved_atom_type ?? r.suggested_atom_type) === "role",
+  );
+  const savedRoles = roleAtoms.map((a) =>
+    roleFromAtom({ id: a.id, content_no: a.content_no, structured_data: a.structured_data }),
+  );
+
 
   const promoted = useMemo(
     () => new Map(confirmed.map((c) => [c.local_ref, c.promoted_atom_id])),
@@ -287,7 +334,18 @@ function CvReviewPage() {
         />
       )}
 
+      {activeImportId && currentStep === 1 ? (
+        <CvReviewTimelineStep
+          userId={userId}
+          importId={activeImportId}
+          signature={signature}
+          roleCandidates={roleCandidates}
+          savedRoles={savedRoles}
+          onContinue={() => invalidateReviewProgress(qc, userId)}
+        />
+      ) : (
       <Tabs defaultValue="pending">
+
         <TabsList>
           <TabsTrigger value="pending">Til gjennomgang ({pending.length})</TabsTrigger>
           <TabsTrigger value="confirmed">Bekreftet ({confirmed.length})</TabsTrigger>
@@ -385,6 +443,8 @@ function CvReviewPage() {
           )}
         </TabsContent>
       </Tabs>
+      )}
+
     </div>
   );
 }

@@ -493,6 +493,197 @@ export type Database = {
         }
         Relationships: []
       }
+      career_atom_evidence_projection: {
+        Row: {
+          atom_id: string
+          created_at: string
+          id: string
+          link_id: string
+          referenced_atom_id: string
+          user_id: string
+        }
+        Insert: {
+          atom_id: string
+          created_at?: string
+          id?: string
+          link_id: string
+          referenced_atom_id: string
+          user_id: string
+        }
+        Update: {
+          atom_id?: string
+          created_at?: string
+          id?: string
+          link_id?: string
+          referenced_atom_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_atom_evidence_projection_atom_id_fkey"
+            columns: ["atom_id"]
+            isOneToOne: false
+            referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_atom_evidence_projection_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "career_atom_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_atom_evidence_projection_referenced_atom_id_fkey"
+            columns: ["referenced_atom_id"]
+            isOneToOne: false
+            referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      career_atom_links: {
+        Row: {
+          confidence: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string
+          decided_by_user_id: string | null
+          from_atom_id: string
+          id: string
+          link_type: string
+          reasons: Json
+          review_import_id: string
+          source_candidate_id: string | null
+          status: string
+          superseded_at: string | null
+          superseded_reason: string | null
+          supersedes_link_id: string | null
+          to_atom_id: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string
+          decided_by_user_id?: string | null
+          from_atom_id: string
+          id?: string
+          link_type: string
+          reasons?: Json
+          review_import_id: string
+          source_candidate_id?: string | null
+          status?: string
+          superseded_at?: string | null
+          superseded_reason?: string | null
+          supersedes_link_id?: string | null
+          to_atom_id: string
+          user_id: string
+        }
+        Update: {
+          confidence?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string
+          decided_by_user_id?: string | null
+          from_atom_id?: string
+          id?: string
+          link_type?: string
+          reasons?: Json
+          review_import_id?: string
+          source_candidate_id?: string | null
+          status?: string
+          superseded_at?: string | null
+          superseded_reason?: string | null
+          supersedes_link_id?: string | null
+          to_atom_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_atom_links_from_atom_id_fkey"
+            columns: ["from_atom_id"]
+            isOneToOne: false
+            referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_atom_links_review_import_id_fkey"
+            columns: ["review_import_id"]
+            isOneToOne: false
+            referencedRelation: "cv_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_atom_links_source_candidate_id_fkey"
+            columns: ["source_candidate_id"]
+            isOneToOne: false
+            referencedRelation: "cv_parse_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_atom_links_supersedes_link_id_fkey"
+            columns: ["supersedes_link_id"]
+            isOneToOne: false
+            referencedRelation: "career_atom_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_atom_links_to_atom_id_fkey"
+            columns: ["to_atom_id"]
+            isOneToOne: false
+            referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      career_atom_parent_projection: {
+        Row: {
+          atom_id: string
+          created_at: string
+          link_id: string
+          parent_atom_id: string
+          user_id: string
+        }
+        Insert: {
+          atom_id: string
+          created_at?: string
+          link_id: string
+          parent_atom_id: string
+          user_id: string
+        }
+        Update: {
+          atom_id?: string
+          created_at?: string
+          link_id?: string
+          parent_atom_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_atom_parent_projection_atom_id_fkey"
+            columns: ["atom_id"]
+            isOneToOne: true
+            referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_atom_parent_projection_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "career_atom_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "career_atom_parent_projection_parent_atom_id_fkey"
+            columns: ["parent_atom_id"]
+            isOneToOne: false
+            referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       career_atoms: {
         Row: {
           atom_class: string | null
@@ -2001,6 +2192,103 @@ export type Database = {
             columns: ["promoted_atom_id"]
             isOneToOne: false
             referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cv_review_progress: {
+        Row: {
+          analysis_version: string
+          candidate_set_signature: string
+          created_at: string
+          current_step: number
+          id: string
+          import_id: string
+          is_stale: boolean
+          stale_reason: string | null
+          step_state: Json
+          superseded_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_version: string
+          candidate_set_signature: string
+          created_at?: string
+          current_step?: number
+          id?: string
+          import_id: string
+          is_stale?: boolean
+          stale_reason?: string | null
+          step_state?: Json
+          superseded_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_version?: string
+          candidate_set_signature?: string
+          created_at?: string
+          current_step?: number
+          id?: string
+          import_id?: string
+          is_stale?: boolean
+          stale_reason?: string | null
+          step_state?: Json
+          superseded_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_review_progress_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "cv_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cv_review_timeline_context: {
+        Row: {
+          category: string
+          created_at: string
+          gap_end: string
+          gap_start: string
+          id: string
+          import_id: string | null
+          note: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          gap_end: string
+          gap_start: string
+          id?: string
+          import_id?: string | null
+          note?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          gap_end?: string
+          gap_start?: string
+          id?: string
+          import_id?: string | null
+          note?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_review_timeline_context_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "cv_imports"
             referencedColumns: ["id"]
           },
         ]
@@ -5566,6 +5854,42 @@ export type Database = {
       brreg_full_start_run: { Args: { p_strict?: boolean }; Returns: Json }
       career_atom_delete: { Args: { p_atom_id: string }; Returns: Json }
       career_atom_delete_impact: { Args: { p_atom_id: string }; Returns: Json }
+      career_atom_delete_impact_links: {
+        Args: { p_atom_id: string }
+        Returns: Json
+      }
+      career_atom_link_decide: {
+        Args: { p_decision: string; p_link_id: string; p_reason?: string }
+        Returns: Json
+      }
+      career_atom_link_override: {
+        Args: { p_link_id: string; p_new_to_atom_id: string; p_reason?: string }
+        Returns: string
+      }
+      career_atom_link_suggest: {
+        Args: {
+          p_confidence?: string
+          p_from_atom_id: string
+          p_link_type: string
+          p_reasons?: Json
+          p_review_import_id: string
+          p_source_candidate_id?: string
+          p_to_atom_id: string
+        }
+        Returns: string
+      }
+      career_atom_links_mark_recheck: {
+        Args: { p_atom_id: string }
+        Returns: number
+      }
+      career_atom_project_evidence: {
+        Args: { p_atom_id: string }
+        Returns: undefined
+      }
+      career_atom_project_parent: {
+        Args: { p_atom_id: string }
+        Returns: undefined
+      }
       career_atom_promote_parse_candidate: {
         Args: { p_atom: Json; p_candidate_id: string }
         Returns: Json
@@ -5707,6 +6031,61 @@ export type Database = {
           table_bytes: number
           total_bytes: number
         }[]
+      }
+      cv_review_progress_advance: {
+        Args: {
+          p_import_id: string
+          p_signature: string
+          p_step: number
+          p_step_state?: Json
+        }
+        Returns: {
+          analysis_version: string
+          candidate_set_signature: string
+          created_at: string
+          current_step: number
+          id: string
+          import_id: string
+          is_stale: boolean
+          stale_reason: string | null
+          step_state: Json
+          superseded_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cv_review_progress"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cv_review_progress_sync: {
+        Args: {
+          p_analysis_version: string
+          p_import_id: string
+          p_signature: string
+        }
+        Returns: {
+          analysis_version: string
+          candidate_set_signature: string
+          created_at: string
+          current_step: number
+          id: string
+          import_id: string
+          is_stale: boolean
+          stale_reason: string | null
+          step_state: Json
+          superseded_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cv_review_progress"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       cv_variant_db: { Args: { p_variant: string }; Returns: string }
       delete_email: {
