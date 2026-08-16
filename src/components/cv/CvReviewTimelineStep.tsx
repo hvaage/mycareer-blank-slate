@@ -172,7 +172,7 @@ export function CvReviewTimelineStep({
         <CardContent className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{timeline.length} roller</Badge>
           <Badge variant="secondary">{pendingRoles.length} til gjennomgang</Badge>
-          {gaps.length > 0 && <Badge variant="outline">{gaps.length} hull i tidslinjen</Badge>}
+          {gaps.length > 0 && <Badge variant="outline">{gaps.length} tidsrom å avklare</Badge>}
           <div className="ml-auto flex gap-2">
             {datedPending.length > 1 && (
               <Button
@@ -243,11 +243,11 @@ export function CvReviewTimelineStep({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <CalendarClock className="h-4 w-4" /> Hull i tidslinjen
+              <CalendarClock className="h-4 w-4" /> Mulig tidsrom å avklare
             </CardTitle>
             <CardDescription>
-              Et hull er ikke et problem. Du kan forklare det for deg selv her, eller la det
-              stå. Forklaringen er privat og brukes aldri i CV eller søknad.
+              Et tidsrom uten registrert rolle er ikke et problem. Du kan forklare det for deg
+              selv her, eller la det stå. Forklaringen er privat og brukes aldri i CV eller søknad.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
