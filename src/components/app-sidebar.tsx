@@ -345,7 +345,7 @@ export function AppSidebar() {
 
   const desktopSubPanel = subPanelOpen && activeGroup ? (
     <div
-      className="hidden shrink-0 flex-col border-r bg-sidebar/60 text-sidebar-foreground md:flex"
+      className="hidden shrink-0 flex-col border-r bg-sidebar/60 text-sidebar-foreground sm:flex"
       style={{ width: SUBPANEL_WIDTH }}
       id={`subpanel-${activeGroup.id}`}
       role="region"
@@ -556,7 +556,7 @@ export function AppSidebar() {
   // falle bort i gråsonen der JS-bredden avrundes annerledes enn media query.
   return (
     <>
-      <div className="hidden md:flex">
+      <div className="hidden sm:flex">
         {desktopRail}
         {desktopSubPanel}
       </div>
