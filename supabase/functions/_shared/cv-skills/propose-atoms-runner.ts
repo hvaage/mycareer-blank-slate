@@ -29,10 +29,16 @@ import {
 const TASK_KEY = "cv_atom_language_no";
 const CLAUDE_TIMEOUT_MS = 60_000;
 
-/** Harde grenser per forespørsel. Overskridelse gir 400/429, aldri modellkall. */
+/**
+ * Harde grenser per forespørsel. Overskridelse gir 400/429, aldri modellkall.
+ * Ett kall = én delbatch. Frontend deler større utvalg deterministisk og kjører
+ * delbatchene etter hverandre; grensen for hele utvalget håndheves der.
+ */
 export const RUN_LIMITS = {
-  maxCandidatesPerRequest: 120,
-  maxTotalInputChars: 120_000,
+  maxCandidatesPerRequest: 20,
+  maxTotalInputChars: 20_000,
+  maxCandidatesPerSelection: 120,
+  maxSelectionChars: 120_000,
   maxActiveRunsPerUser: 2,
   maxActiveRunsPerImport: 1,
   maxRunsPerHourPerUserTask: 12,
