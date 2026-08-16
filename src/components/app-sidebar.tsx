@@ -216,10 +216,20 @@ export function AppSidebar() {
         navigate({ to: group.to });
         return;
       }
-      setOpenGroup((cur) => (cur === group.id ? null : group.id));
+      // Et klikk på en hovedmenylinje er også et valg: åpne undermenyen og
+      // gå rett til den øverste siden, med mindre du allerede står i gruppen.
+      const first = group.items?.[0]?.to;
+      const alreadyInside = routeGroup === group.id;
+      if (openGroup === group.id && alreadyInside) {
+        setOpenGroup(null);
+        return;
+      }
+      setOpenGroup(group.id);
+      if (first && !alreadyInside) navigate({ to: first });
     },
-    [navigate],
+    [navigate, openGroup, routeGroup],
   );
+
 
   const handleLogout = useCallback(async () => {
     try {
