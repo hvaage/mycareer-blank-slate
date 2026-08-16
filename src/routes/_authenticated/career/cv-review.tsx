@@ -185,6 +185,13 @@ function CvReviewPage() {
       roleAtomId: a.parent_atom_id ?? null,
     }));
 
+  const stepStatuses = [
+    { step: 1, label: "Roller", ...countStep(roleCandidates) },
+    { step: 2, label: "Resultater", ...countStep(resultCandidates) },
+    { step: 3, label: "Kompetanse", ...countStep(skillCandidates) },
+    { step: 4, label: "Kvalifikasjoner", ...countStep(qualificationCandidates) },
+  ];
+
   function goToStep(step: number) {
     if (!activeImportId) return;
     void advanceReviewProgress(activeImportId, signature, step)
