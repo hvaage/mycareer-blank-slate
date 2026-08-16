@@ -118,9 +118,9 @@ function parseNorwegianNumber(raw: string): number {
 function normalizeUnit(raw: string | undefined): string | null {
   if (!raw) return null;
   const lower = raw.toLowerCase().replace(".", "");
-  if (["mill", "millioner", "m"].includes(lower)) return "million";
-  if (["mrd", "milliarder", "b", "bn"].includes(lower)) return "billion";
-  if (["k", "tusen"].includes(lower)) return "thousand";
+  if (["mill", "million", "millioner", "millions", "m"].includes(lower)) return "million";
+  if (["mrd", "milliard", "milliarder", "billion", "billions", "b", "bn"].includes(lower)) return "billion";
+  if (["k", "tusen", "thousand", "thousands"].includes(lower)) return "thousand";
   return null;
 }
 
