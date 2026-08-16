@@ -144,13 +144,19 @@ function AboutMePage() {
           <JobBoardIntegrations />
         </TabsContent>
 
-        <TabsContent value="cv" className="mt-6">
+        <TabsContent value="cv" className="mt-6 space-y-4">
+          <div className="rounded-lg border border-amber-500/50 bg-muted/40 p-4 text-sm">
+            Filene her er et <strong>arkiv</strong> — de lagres som de er, uten analyse. Skal
+            innholdet bli karrieredata du kan bekrefte i gjennomgangen, laster du opp CV-en under
+            fanen <strong>Karriereoversikt</strong> og kjører «Analyser CV».
+          </div>
           <CvUploader
             userId={user.id}
             profile={p}
             onChanged={() => qc.invalidateQueries({ queryKey: ["profile", user.id] })}
           />
         </TabsContent>
+
 
         <TabsContent value="karriereoversikt" className="mt-6">
           <AboutMeCvSection userId={user.id} />
