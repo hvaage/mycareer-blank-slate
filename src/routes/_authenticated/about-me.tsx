@@ -72,10 +72,12 @@ function AboutMePage() {
 
   const { user } = useAuth();
   const qc = useQueryClient();
+  const collapse = usePersistedCollapse("about-me:sections", true);
   const { data: p, isLoading } = useQuery({
     ...profileQuery(user?.id ?? ""),
     enabled: !!user,
   });
+
 
   if (!user) return null;
   if (isLoading || !p) return <div className="p-8 max-w-3xl mx-auto"><Skeleton className="h-96 w-full" /></div>;
