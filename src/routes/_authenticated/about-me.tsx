@@ -72,6 +72,9 @@ function AboutMePage() {
 
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate({ from: "/about-me" });
+  const search = useSearch({ from: "/_authenticated/about-me" });
+  const activeTab = (search.tab as string) || "kort_om_meg";
   const collapse = usePersistedCollapse("about-me:sections", true);
   const { data: p, isLoading } = useQuery({
     ...profileQuery(user?.id ?? ""),
