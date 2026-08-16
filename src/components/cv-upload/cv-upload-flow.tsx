@@ -44,9 +44,11 @@ function reducer(state: FlowState, action: Action): FlowState {
         ? { kind: "uploading", file: state.file }
         : state;
     case "upload_done":
-      return state.kind === "uploading"
+      // Gjelder både filopplasting ("uploading") og valg fra CV-arkivet ("idle").
+      return state.kind === "uploading" || state.kind === "idle"
         ? { kind: "await_parse", importId: action.importId, fileName: action.fileName }
         : state;
+
     case "parse_start":
       return state.kind === "await_parse" && state.importId === action.importId
         ? { kind: "parsing", importId: action.importId, fileName: action.fileName }
