@@ -66,3 +66,30 @@ BEGIN
 END $$;
 
 SELECT 'cv-generation-contract-tests: OK' AS result;
+
+-- 6. En bruker skal ikke kunne bekrefte en annen brukers påstand.
+DO $$
+DECLARE ok boolean;
+BEGIN
+  SELECT bool_and(
+    with_check LIKE '%attested_by_user_id = auth.uid()%'
+    AND with_check LIKE '%c.user_id = auth.uid()%')
+    INTO ok
+    FROM pg_policies
+   WHERE tablename = 'cv_claim_attestations' AND cmd = 'INSERT';
+  IF ok IS NOT TRUE THEN
+    RAISE EXCEPTION 'Innsettingsregelen for bekreftelser er ikke bundet til den innloggede brukeren';
+  END IF;
+END $$;
+
+-- 7. Alle aktive bekreftelser skal ha proveniens og versjon.
+DO $$
+DECLARE n integer;
+BEGIN
+  SELECT count(*) INTO n FROM public.cv_claim_attestations
+   WHERE withdrawn_at IS NULL AND invalidated_at IS NULL
+     AND (provenance = '{}'::jsonb OR attested_claim_version IS NULL);
+  IF n > 0 THEN
+    RAISE EXCEPTION 'Bekreftelser uten proveniens/versjon: %', n;
+  END IF;
+END $$;
