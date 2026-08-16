@@ -334,7 +334,18 @@ function CvReviewPage() {
         />
       )}
 
+      {activeImportId && currentStep === 1 ? (
+        <CvReviewTimelineStep
+          userId={userId}
+          importId={activeImportId}
+          signature={signature}
+          roleCandidates={roleCandidates}
+          savedRoles={savedRoles}
+          onContinue={() => invalidateReviewProgress(qc, userId)}
+        />
+      ) : (
       <Tabs defaultValue="pending">
+
         <TabsList>
           <TabsTrigger value="pending">Til gjennomgang ({pending.length})</TabsTrigger>
           <TabsTrigger value="confirmed">Bekreftet ({confirmed.length})</TabsTrigger>
