@@ -57,27 +57,33 @@ Regler ved apply:
 - `user_locked` og `user_confirmed` atoms overskrives aldri av AI eller import.
 
 ### Kanonisk eligibility-funksjon
-Én funksjon `eligibleAtomsForGeneration(user_id, { mode, opportunity_id })` er eneste kilde til hvilke atoms som kan brukes. Den krever `is_active = true`, godkjent `state`, `confidence = verified`, gyldig `attestation`, `user_confirmed = true`, ikke utløpt `stale_at`, akseptabelt `mangel_state`, og filtrerer på `target_position_id`: målspesifikke atoms kan aldri lekke inn i generell CV. `imported` og `inferred` blir aldri faktagrunnlag. Avledet kompetanse kan brukes til utvalg og rangering, men i teksten er det rolle-/resultat-atomene den er avledet fra som er supporting evidence.
+`eligibleAtomsForGeneration({ mode, opportunity_id })` er eneste kilde til hvilke atoms som kan brukes. **Identiteten hentes fra verifisert JWT** — aldri fra `user_id` i request — og valgt opportunity må tilhøre samme bruker, ellers avvises kallet.
+
+Predikat: `is_active = true`, godkjent `state`, `confidence = verified`, gyldig `attestation`, `user_confirmed = true`, akseptabelt `mangel_state`, og filter på `target_position_id` slik at målspesifikke atoms aldri lekker inn i generell CV. `imported` og `inferred` blir aldri faktagrunnlag. `stale_at` gir **varsel**, ikke automatisk blokkering: historiske fakta blir ikke ugyldige av alder. Avledet kompetanse brukes bare til utvalg og rangering; supporting evidence i teksten er alltid de underliggende rolle-/resultat-atomene.
+
+Funksjonen returnerer readiness-status i stedet for et ja/nei: `ready`, `ready_with_gaps`, `needs_review`, `blocked_no_evidence`. Ingen massebekreftelse av eksisterende data.
 
 ### Blokk- og claimkontrakt
-Generering returnerer blokker, ikke fritekst:
+Generering returnerer strukturert JSON, ikke fritekst:
 
 ```text
-blockId, section, text, supportingAtomIds[], requirementAtomIds[], claimIds[], sourceSnapshotHash
+document: { documentVersionId, outputHash, snapshotHash }
+blocks[]: { blockId, section, text, supportingAtomIds[], requirementAtomIds[], claimIds[], sourceSnapshotHash }
+claims[]: { claimId, blockId, type: hard|soft, value, supportingAtomIds[], verification }
 ```
 
-Én blokk = én punktlinje eller én sammenhengende claim. Hele dokumentets tekst har en `outputHash`. Quality-, guard- og ATS-resultater lagres alltid med den `outputHash` de ble kjørt på; enhver senere endring — også manuell brukerredigering — ugyldiggjør alle kontroller og krever ny kjøring.
+`claimId`, `blockId` og alle hasher genereres av serveren, aldri av modellen. Hver Claude-respons runtime-valideres mot kontrakten før lagring; ugyldig respons lagres ikke og gir `blocked_validation`. Én blokk = én punktlinje eller én sammenhengende claim. Quality-, guard- og ATS-resultater lagres alltid med den `outputHash` de ble kjørt på; enhver senere endring — også manuell brukerredigering — ugyldiggjør kontrollene og krever ny kjøring.
 
 ### Generell CV
-eligible atoms → frys atom-snapshot i samme transaksjon som ny dokumentversjon → `cv_general_generation` → `checkQuality()` → evt. `cv_quality_rewrite` → `validateRewriteResponse()` → guard på endelig tekst → `validateCvDraft()` (ATS/GDPR) → render av godkjent versjon.
+eligible atoms → ny dokumentversjon + frosset atom-snapshot i **én DB-transaksjon** via én autorisert RPC → `cv_general_generation` → `checkQuality()` → evt. `cv_quality_rewrite` → `validateRewriteResponse()` → guard på endelig tekst → `validateCvDraft()` (ATS/GDPR) → render av godkjent versjon.
 
 ### Tilpasset CV
-eligible atoms + krav-atoms fra `opportunity_requirement_atoms` → `evaluateKeywordCoverage()` før generering (exact / normalized / semantic_alias / unsupported) → utvalg og rangering → frys atom- og kravsnapshot → `cv_tailored_generation` → quality → rewrite-validering → guard → ATS-format + endelig dekning → render. Unsupported krav vises som gap og skrives aldri inn.
+eligible atoms + krav-atoms fra `opportunity_requirement_atoms` → `evaluateKeywordCoverage()` før generering (exact / normalized / semantic_alias / unsupported) → utvalg og rangering → dokumentversjon + atom- og kravsnapshot i samme transaksjon → `cv_tailored_generation` → quality → rewrite-validering → guard → ATS-format + endelig dekning → render. Unsupported krav vises som gap og skrives aldri inn.
 
 Hvert steg returnerer `ok | needs_review | blocked_validation | blocked_guard | provider_error | timeout`.
 
 ### Immutable dokumentversjoner
-Ny generering eller rewrite oppretter alltid **ny** dokumentversjon. Godkjente og tidligere versjoner endres aldri. Atom- og kravsnapshot fryses i samme transaksjon som versjonen. `ai_model_runs` får FK til dokumentversjonen, ikke bare en id-liste på dokumentet. Unik constraint på (dokumentrot, versjonsnummer).
+Ny generering eller rewrite oppretter alltid **ny** dokumentversjon gjennom samme transaksjonelle RPC. Godkjente og tidligere versjoner endres aldri. Flere sekvensielle klientkall er ikke en akseptabel erstatning for transaksjonen. `ai_model_runs` får FK til dokumentversjonen. Dokumentrot håndteres med `document_group_id` (se preflight punkt c), med unik constraint på (`document_group_id`, `version`) etter at eksisterende rader er migrert.
 
 ## 4. Claude-klient, secrets og modellprofil
 
