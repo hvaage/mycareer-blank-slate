@@ -238,17 +238,18 @@ export type DocumentEvidenceReport = {
 };
 
 /**
- * Endringer som gjør en tidligere bekreftelse ugyldig.
- * Endres tall, dato, marked, geografi, årsakssammenheng eller styrken i en
- * sammenligning, må brukeren bekrefte på nytt.
+ * En bekreftelse gjelder nøyaktig den påstandsteksten brukeren bekreftet.
+ * Enhver faktisk endring av teksten — tall, år, marked, geografi,
+ * sammenligning eller styrke — gjør bekreftelsen ugyldig. Bare en teknisk
+ * no-op (identisk lagret tekst, kun ytre blanktegn kan avvike) bevarer den.
+ * Verken modell eller deterministisk omskriving kan videreføre eller
+ * opprette user_attested; det krever en ny handling fra brukeren.
+ * Speiler databasetriggeren, som sammenligner md5(btrim(tekst)).
  */
 export function attestationSurvivesRewrite(previousText: string, nextText: string): boolean {
-  const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
-  // Bare ren formatering (mellomrom, store/små bokstaver) bevarer bekreftelsen.
-  // Endres tall, dato, marked, geografi, årsakssammenheng eller styrken i en
-  // sammenligning, må brukeren bekrefte på nytt.
-  return norm(previousText) === norm(nextText);
+  return previousText.trim() === nextText.trim();
 }
+
 
 export function summarizeEvidence(
   documentId: string,

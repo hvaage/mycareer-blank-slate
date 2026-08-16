@@ -99,13 +99,30 @@ describe("handlinger i gjennomgangen", () => {
 describe("bekreftelse og omskriving", () => {
   const text = "Bygget opp virksomheten fra oppstart og ledet den til markedsledende posisjon i 2003.";
 
-  it("ren formatering bevarer bekreftelsen", () => {
-    expect(attestationSurvivesRewrite(text, `  ${text.toUpperCase()} `)).toBe(true);
+  it("teknisk no-op (identisk tekst) bevarer bekreftelsen", () => {
+    expect(attestationSurvivesRewrite(text, `  ${text} `)).toBe(true);
+  });
+
+  it("endret store/små bokstaver er en faktisk endring og krever ny bekreftelse", () => {
+    expect(attestationSurvivesRewrite(text, text.toUpperCase())).toBe(false);
+  });
+
+  it("endret ordstilling eller mellomrom inne i teksten krever ny bekreftelse", () => {
+    expect(attestationSurvivesRewrite(text, text.replace(" og ", "  og  "))).toBe(false);
   });
 
   it("endret årstall krever ny bekreftelse", () => {
     expect(attestationSurvivesRewrite(text, text.replace("2003", "2004"))).toBe(false);
   });
+
+  it("endret tall/omfang krever ny bekreftelse", () => {
+    expect(attestationSurvivesRewrite("Ledet 25 personer.", "Ledet 40 personer.")).toBe(false);
+  });
+
+  it("endret geografi krever ny bekreftelse", () => {
+    expect(attestationSurvivesRewrite("Størst i Norge.", "Størst i Norden.")).toBe(false);
+  });
+
 
   it("endret markedsomfang krever ny bekreftelse", () => {
     expect(

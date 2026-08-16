@@ -93,3 +93,40 @@ BEGIN
     RAISE EXCEPTION 'Bekreftelser uten proveniens/versjon: %', n;
   END IF;
 END $$;
+
+-- Invariant: attestasjoner er immutable bortsett fra tilbaketrekking/ugyldiggjøring.
+-- Kjøres i transaksjon; ingen rader endres.
+DO $$
+DECLARE v_id uuid;
+BEGIN
+  SELECT id INTO v_id FROM public.cv_claim_attestations LIMIT 1;
+  IF v_id IS NULL THEN RAISE NOTICE 'ingen attestasjoner – hopper over'; RETURN; END IF;
+
+  BEGIN
+    UPDATE public.cv_claim_attestations SET attested_claim_text = attested_claim_text || ' x' WHERE id = v_id;
+    RAISE EXCEPTION 'FAIL: attested_claim_text kunne endres';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM <> 'attestation_immutable' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    UPDATE public.cv_claim_attestations
+       SET provenance = '{}'::jsonb, attested_by_user_id = gen_random_uuid(), attested_at = now(),
+           attested_claim_version = 99, verification_at_attestation = 'supported',
+           document_output_hash = 'x', external_source_name = 'Annen kilde',
+           external_source_year = 1999, external_document_available = true
+     WHERE id = v_id;
+    RAISE EXCEPTION 'FAIL: proveniens/kilde kunne endres';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM <> 'attestation_immutable' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    UPDATE public.cv_claim_attestations SET withdrawn_at = now(), withdrawn_reason = 'test' WHERE id = v_id;
+    RAISE EXCEPTION 'ROLLBACK_OK';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM <> 'ROLLBACK_OK' THEN RAISE EXCEPTION 'FAIL: tilbaketrekking blokkert: %', SQLERRM; END IF;
+  END;
+
+  RAISE NOTICE 'attestasjon-immutabilitet ok';
+END $$;
