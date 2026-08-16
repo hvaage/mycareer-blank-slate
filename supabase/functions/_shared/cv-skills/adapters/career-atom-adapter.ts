@@ -1,5 +1,5 @@
 // Adapter mellom kanonisk v4-runtime (public.career_atoms) og isolert
-// leverandørkode (src/lib/cv-skills/vendor/**, skill-v2).
+// leverandørkode (supabase/functions/_shared/cv-skills/vendor/**, skill-v2).
 //
 // Prinsipp: v2 og v4 slås ALDRI sammen. v4 er kanonisk. Leverandørkoden er
 // uendret og kjenner ikke v4. Denne filen er eneste kobling mellom dem, og
