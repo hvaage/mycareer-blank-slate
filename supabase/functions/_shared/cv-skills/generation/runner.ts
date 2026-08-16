@@ -25,6 +25,7 @@ import {
   type GeneratedClaim,
   type GenerationSnapshot,
 } from "./contract.ts";
+import { accountClaims } from "./claim-accounting.ts";
 import { checkCvQuality, QUALITY_VERSION } from "../vendor/cv-quality-no/scripts/quality.ts";
 import {
   buildRewriteUserPrompt,
