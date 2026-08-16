@@ -13,7 +13,7 @@ import type {
   CvAtom,
   SourceType as VendorSourceType,
 } from "../vendor/cv-evidence-graph/scripts/types.ts";
-import type { ReadinessReason, ReadinessReport } from "@/lib/cv-skills-contract";
+import type { ReadinessReason, ReadinessReport } from "../contract.ts";
 
 /** Rad slik den ligger i public.career_atoms (v4). Kun feltene adapteret bruker. */
 export type CareerAtomRow = {
