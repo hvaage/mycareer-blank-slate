@@ -59,16 +59,25 @@ const primaryGroups: GroupNode[] = [
   },
   {
     id: "career",
-    label: "Karriere",
-    title: "Karriere og profil",
+    label: "Min karriere",
+    title: "Min karriere",
     icon: BookOpen,
     items: [
       { label: "Om meg", to: "/about-me" },
       { label: "Erfaring og kompetanse", to: "/karriere/erfaring" },
       { label: "Karriereprofil", to: "/preferences" },
+      { label: "Min dokumentasjon", to: "/documentation" },
+      { label: "Dokumenter", to: "/documents" },
       { label: "AI-forslag", to: "/career/atom-review" },
     ],
-    matchPrefixes: ["/about-me", "/preferences", "/career", "/karriere"],
+    matchPrefixes: [
+      "/about-me",
+      "/preferences",
+      "/career",
+      "/karriere",
+      "/documentation",
+      "/documents",
+    ],
   },
   {
     id: "market",
@@ -91,8 +100,8 @@ const primaryGroups: GroupNode[] = [
   },
   {
     id: "apply",
-    label: "Søknad",
-    title: "Søknadsprosessen",
+    label: "Søknader",
+    title: "Søknader",
     icon: Send,
     items: [
       { label: "Søknadsbrev", to: "/cover-letters" },
@@ -107,18 +116,8 @@ const primaryGroups: GroupNode[] = [
       "/next-steps",
     ],
   },
-  {
-    id: "archive",
-    label: "Arkiv",
-    title: "Dokumentasjon og dokumenter",
-    icon: FolderOpen,
-    items: [
-      { label: "Min dokumentasjon", to: "/documentation" },
-      { label: "Dokumenter", to: "/documents" },
-    ],
-    matchPrefixes: ["/documentation", "/documents"],
-  },
 ];
+
 
 const adminGroup: GroupNode = {
   id: "admin",
