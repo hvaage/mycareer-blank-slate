@@ -143,7 +143,16 @@ kandidat-id: `id`, `local_ref`, kanonisk innholds-/kildehash (normalisert
 hashes settet sammen med analyse-/normaliseringsversjonen fra den kanoniske
 kontrakten. Normalisert tekst alene brukes ikke.
 
+Skrivetilgang: `authenticated` får kun `SELECT` på egen rad (RLS `auth.uid()`).
+`current_step`, `step_state` og `is_stale` oppdateres bare gjennom
+`cv_review_progress_advance` (`security definer`), som verifiserer eierskap,
+sammenligner `candidate_set_signature` med dagens kandidatsett, nekter
+oppdatering av en foreldet rad, håndhever trinnrekkefølgen og tar
+`select ... for update` på den aktive raden slik at parallelle oppdateringer
+serialiseres.
+
 Endres signaturen, skjer overgangen atomisk i én server-side RPC: gammel rad får
+
 `is_stale = true`, `stale_reason` og `superseded_at`, og den nye raden opprettes i
 samme transaksjon. Brukeren får «Start gjennomgangen på nytt» eller «Se hva som er
 endret». Systemet gjenopptar aldri en progresjon hvis signaturen ikke stemmer med
