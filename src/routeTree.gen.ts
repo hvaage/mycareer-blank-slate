@@ -54,6 +54,7 @@ import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/s
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
+import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
 import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
 import { Route as AuthenticatedDocumentsNewRouteImport } from './routes/_authenticated/documents/new'
@@ -324,6 +325,12 @@ const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
   path: '/api/public/ingest-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedInnstillingerKontoRoute =
+  AuthenticatedInnstillingerKontoRouteImport.update({
+    id: '/innstillinger/konto',
+    path: '/innstillinger/konto',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInnstillingerIntegrasjonerRoute =
   AuthenticatedInnstillingerIntegrasjonerRouteImport.update({
     id: '/innstillinger/integrasjoner',
@@ -526,6 +533,7 @@ export interface FileRoutesByFullPath {
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
+  '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -595,6 +603,7 @@ export interface FileRoutesByTo {
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
+  '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -669,6 +678,7 @@ export interface FileRoutesById {
   '/_authenticated/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
+  '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -743,6 +753,7 @@ export interface FileRouteTypes {
     | '/documents/new'
     | '/employers/$companyId'
     | '/innstillinger/integrasjoner'
+    | '/innstillinger/konto'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -812,6 +823,7 @@ export interface FileRouteTypes {
     | '/documents/new'
     | '/employers/$companyId'
     | '/innstillinger/integrasjoner'
+    | '/innstillinger/konto'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -885,6 +897,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documents/new'
     | '/_authenticated/employers/$companyId'
     | '/_authenticated/innstillinger/integrasjoner'
+    | '/_authenticated/innstillinger/konto'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -1253,6 +1266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicIngestReportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/innstillinger/konto': {
+      id: '/_authenticated/innstillinger/konto'
+      path: '/innstillinger/konto'
+      fullPath: '/innstillinger/konto'
+      preLoaderRoute: typeof AuthenticatedInnstillingerKontoRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/innstillinger/integrasjoner': {
       id: '/_authenticated/innstillinger/integrasjoner'
       path: '/innstillinger/integrasjoner'
@@ -1467,6 +1487,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDocumentsNewRoute: typeof AuthenticatedDocumentsNewRoute
   AuthenticatedEmployersCompanyIdRoute: typeof AuthenticatedEmployersCompanyIdRoute
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
+  AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedApplicationsIndexRoute: typeof AuthenticatedApplicationsIndexRoute
   AuthenticatedCvBuilderIndexRoute: typeof AuthenticatedCvBuilderIndexRoute
@@ -1512,6 +1533,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedEmployersCompanyIdRoute: AuthenticatedEmployersCompanyIdRoute,
   AuthenticatedInnstillingerIntegrasjonerRoute:
     AuthenticatedInnstillingerIntegrasjonerRoute,
+  AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedApplicationsIndexRoute: AuthenticatedApplicationsIndexRoute,
   AuthenticatedCvBuilderIndexRoute: AuthenticatedCvBuilderIndexRoute,
