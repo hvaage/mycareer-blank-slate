@@ -45,25 +45,46 @@ provenance krever derfor en smal koblingstabell.
 |---|---|
 | `id` | uuid pk |
 | `user_id` | eier, alle policyer på `auth.uid()` |
-| `from_atom_id` | FK `career_atoms` on delete cascade — kompetansen/eksponeringen |
-| `to_atom_id` | FK `career_atoms` on delete cascade — rollen eller resultatet |
+| `from_atom_id` | FK `career_atoms` **on delete restrict** — kompetansen/eksponeringen/resultatet |
+| `to_atom_id` | FK `career_atoms` **on delete restrict** — rollen eller resultatet |
 | `link_type` | `belegges_av` (kompetanse → rolle/resultat), `oppnadd_i` (resultat → rolle), `avledet_av` (eksponering → rolle) |
 | `decided_by` | `machine_suggested`, `user_confirmed`, `user_overridden` |
 | `status` | `foreslatt`, `aktiv`, `avvist`, `trenger_ny_vurdering` |
 | `confidence` | `hoy`, `lav` — maskinens sikkerhet ved forslag |
 | `reasons` | jsonb: signalene bak forslaget |
 | `source_candidate_id` | FK `cv_parse_candidates`, null for brukerlagte |
-| `superseded_by` | FK til samme tabell — historikk uten sletting |
+| `supersedes_link_id` | FK til samme tabell — den nye lenken peker tilbake på den den erstatter |
+| `superseded_at`, `superseded_reason` | settes på den *gamle* lenken når den erstattes |
 | `created_at`, `decided_at`, `decided_by_user_id` | |
 
-- Unikhet: `unique (user_id, from_atom_id, to_atom_id, link_type) where superseded_by is null` — hindrer duplikatkoblinger, tillater historiske rader.
-- Ingenting slettes: en overstyring setter `superseded_by` på den gamle raden og skriver en ny.
-- `evidence_atom_ids` beholdes som avledet speiling for eksisterende lesere, oppdatert fra koblingstabellen av en trigger, slik at generering og matching ikke må endres i denne fasen.
-- GRANT select/insert/update til `authenticated`, ALL til `service_role`, ingen `anon`. RLS på `auth.uid() = user_id`.
+- Unikhet: `unique (user_id, from_atom_id, to_atom_id, link_type) where superseded_at is null` — hindrer duplikatkoblinger uten å binde unikheten til en FK som peker fremover i tid.
+- Overstyring skjer atomisk i én RPC: gammel rad får `superseded_at`/`superseded_reason`, ny rad settes inn med `supersedes_link_id` mot den gamle. Ingenting slettes.
+- Sletting: `on delete restrict` på begge FK-ene. Fjerner brukeren et atom fra visningen, skjer det som kontrollert arkivering (`career_atoms.is_active = false` via eksisterende `career_atom_delete`-flyt), ikke som rad-sletting. Koblingshistorikken blir stående.
+- Skrivetilgang: `GRANT SELECT` til `authenticated` (RLS `auth.uid() = user_id`), `GRANT ALL` til `service_role`, ingen `anon`, **ingen INSERT/UPDATE/DELETE til `authenticated`**. All opprettelse, bekreftelse, avvisning, overstyring og merking for ny vurdering går gjennom `security definer`-RPC-er (`career_atom_link_suggest`, `_confirm`, `_reject`, `_override`, `_mark_recheck`) som verifiserer `auth.uid()` og eierskap på begge atomene.
+
+### Databaseinvarianter (trigger, håndheves også mot service role)
+
+Avvises: lenke mellom atomer med ulik `user_id`; lenke der `user_id` ikke matcher
+atomenes eier; `from_atom_id = to_atom_id`; ugyldig kombinasjon av `atom_type`/
+`atom_class` og `link_type` (f.eks. `belegges_av` fra noe som ikke er kompetanse,
+eller mot noe som ikke er rolle/resultat/kvalifikasjon); `supersedes_link_id` som
+peker på en lenke med annet atompar, annen `link_type` eller annen eier;
+supersedering av en allerede supersedert lenke; og sirkulær supersederingskjede
+(rekursiv sjekk). Vaktene ligger i triggere, ikke i RLS, slik at de også gjelder
+`service_role` — testene kjøres både som innlogget bruker og som service role.
 
 `suggestion jsonb` på forslagsraden bærer bare forklaringen (confidence,
 reasons, maskinens opprinnelige forslag, snapshot ved overstyring). Relasjonen
 selv ligger i tabellen over.
+
+### `career_atoms.evidence_atom_ids` i dag — ingen speilingstrigger nå
+
+- **Innhold i dag**: `uuid[] not null default '{}'`, tenkt som pekere fra en indirekte klasse (kompetanse/eksponering) til atomene som belegger den. I databasen nå: 9 atomer (5 roller, 1 resultat, 3 kvalifikasjoner), **null referanser totalt** og null `parent_atom_id`. Feltet er altså i praksis ubrukt, men leses av `dashboard-status.ts`, `career-atoms.ts`, `career_atom_delete_impact`/`career_atom_delete` (som fjerner fjernede atomer fra arrayet og nedgraderer atomer som mister sitt siste belegg) og av CHECK-regelen «kompetanse med `confidence='verified'` krever minst én oppføring».
+- **Hva som eventuelt skal speiles**: kun `belegges_av` og `avledet_av` med `status='aktiv'` og `superseded_at is null`. `oppnadd_i` (resultat → rolle) speiles aldri — den hører til `parent_atom_id`-aksen, ikke til evidenspekere.
+- **Backfill**: ingen. Det finnes ingen eksisterende arrays å migrere.
+- **Bevaring av referanser**: en fremtidig trigger skal kun legge til og fjerne de id-ene som stammer fra koblingstabellen, aldri skrive hele arrayet på nytt og aldri nullstille id-er som ikke har en tilsvarende lenke.
+- **Beslutning i denne fasen**: ingen trigger. Koblingstabellen er kilden, og `evidence_atom_ids` skrives fortsatt bare av dagens eksplisitte flyt. Speiling vurderes som et eget, dokumentert steg når lenker faktisk finnes i drift.
+
 
 ## 3. Resultatplassering
 
@@ -99,17 +120,28 @@ til bulk i første versjon. Da vises ingen bulk-knapp, og alle går én og én.
 
 `public.cv_review_progress`: `user_id`, `import_id`, `candidate_set_signature`,
 `analysis_version`, `current_step`, `step_state` jsonb (status og
-`needs_recheck` per trinn), `is_stale`, `stale_reason`, tidsstempler.
-Unik på `(user_id, import_id, candidate_set_signature)`.
+`needs_recheck` per trinn), `is_stale`, `stale_reason`, `superseded_at`,
+tidsstempler.
 
-`candidate_set_signature` er en stabil hash av kandidatsettet for importen
-(`local_ref`, `suggested_atom_type`, normalisert tekst, `dedupe_key`) sammen med
-analyse-/normaliseringsversjonen fra den kanoniske kontrakten. Ved ny analyse,
-regenerering eller vesentlig endring av settet endres signaturen: den gamle
-raden markeres `is_stale`, og brukeren får valget «Start gjennomgangen på nytt»
-eller «Se hva som er endret». Systemet gjenopptar aldri en progresjon hvis
-signatur ikke stemmer med dagens kandidatsett. Allerede bekreftede atomer og
-lenker påvirkes ikke — bare fremdriften.
+- Unik på `(user_id, import_id, candidate_set_signature)`.
+- Partial unique `(user_id, import_id) where is_stale = false` — maksimalt én aktiv, ikke-foreldet rad per bruker og import.
+
+`candidate_set_signature` bygges deterministisk av, per kandidat, sortert på
+kandidat-id: `id`, `local_ref`, kanonisk innholds-/kildehash (normalisert
+`content_no`/`content_en` + `source_type` + `source_ref` + `source_quote`),
+`suggested_atom_type`, `dedupe_key`, `parent_local_ref` og de relevante feltene i
+`structured_data` (for roller: `employer_normalized`, `title`, `start_date`,
+`end_date`; for kompetanse: `name_normalized`, `source_category`). Til slutt
+hashes settet sammen med analyse-/normaliseringsversjonen fra den kanoniske
+kontrakten. Normalisert tekst alene brukes ikke.
+
+Endres signaturen, skjer overgangen atomisk i én server-side RPC: gammel rad får
+`is_stale = true`, `stale_reason` og `superseded_at`, og den nye raden opprettes i
+samme transaksjon. Brukeren får «Start gjennomgangen på nytt» eller «Se hva som er
+endret». Systemet gjenopptar aldri en progresjon hvis signaturen ikke stemmer med
+dagens kandidatsett. Allerede bekreftede atomer og lenker påvirkes ikke — bare
+fremdriften.
+
 
 ## 6. Privat tidslinjekontekst
 
