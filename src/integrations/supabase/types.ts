@@ -5197,6 +5197,8 @@ export type Database = {
         Returns: Json
       }
       brreg_full_start_run: { Args: { p_strict?: boolean }; Returns: Json }
+      career_atom_delete: { Args: { p_atom_id: string }; Returns: Json }
+      career_atom_delete_impact: { Args: { p_atom_id: string }; Returns: Json }
       careerjet_canonical_has_visible: {
         Args: { p_canonical: string }
         Returns: boolean

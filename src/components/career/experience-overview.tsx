@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { careerAtomsQuery, type CareerAtomRow } from "@/lib/queries/career-atoms";
+import { AtomActions } from "@/components/career/atom-actions";
+
 import { ATOM_TYPE_LABEL, ATOM_TYPE_CLASS } from "@/lib/queries/cv-parse-candidates";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +84,7 @@ function AtomLine({ row, extra }: { row: CareerAtomRow; extra?: string }) {
     (cls === "kompetanse" || cls === "eksponering") && links.length === 0 && !row.parent_atom_id;
 
   return (
-    <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1">
+    <li className="group flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-1">
       <span className="min-w-0 flex-1 basis-48 text-sm leading-snug">
         {row.content_no ?? "(uten tekst)"}
       </span>
@@ -106,10 +108,12 @@ function AtomLine({ row, extra }: { row: CareerAtomRow; extra?: string }) {
           </Badge>
         ) : null}
         <span className="text-[11px] text-muted-foreground">{sourceLabel(row)}</span>
+        <AtomActions row={row} />
       </span>
     </li>
   );
 }
+
 
 /** Seksjon med korte elementer uten hierarki — tåler to–tre kolonner. */
 function Group({
@@ -337,30 +341,36 @@ export function ExperienceOverview() {
               const period = rolePeriod(role);
               return (
                 <Card key={role.id} className="overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => toggle(role.id)}
-                    aria-expanded={open}
-                    className="flex w-full items-start gap-2 px-4 py-2.5 text-left hover:bg-accent/40"
-                  >
-                    <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">
-                        {[role.content_no ?? "Rolle", employer, period].filter(Boolean).join(" · ")}
+                  <div className="flex items-start gap-1 pr-2">
+                    <button
+                      type="button"
+                      onClick={() => toggle(role.id)}
+                      aria-expanded={open}
+                      className="flex min-w-0 flex-1 items-start gap-2 px-4 py-2.5 text-left hover:bg-accent/40"
+                    >
+                      <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">
+                          {[role.content_no ?? "Rolle", employer, period].filter(Boolean).join(" · ")}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {roleResults.length} resultater · {roleSkills.length} kompetanser ·{" "}
+                          {roleExposure.length} eksponering
+                        </span>
                       </span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        {roleResults.length} resultater · {roleSkills.length} kompetanser ·{" "}
-                        {roleExposure.length} eksponering
-                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                          open && "rotate-180",
+                        )}
+                        aria-hidden
+                      />
+                    </button>
+                    <span className="pt-2.5">
+                      <AtomActions row={role} />
                     </span>
-                    <ChevronDown
-                      className={cn(
-                        "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                        open && "rotate-180",
-                      )}
-                      aria-hidden
-                    />
-                  </button>
+                  </div>
+
 
                   {open ? (
                     <CardContent className="space-y-3 border-t px-4 py-3">
@@ -466,8 +476,11 @@ export function ExperienceOverview() {
 
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <FileText className="h-3.5 w-3.5" />
-        Visning uten handlinger. Redigering, sletting og bekreftelse kommer i neste leveranse.
+
+        Bruk menyen til høyre på hver linje for å bekrefte, endre eller slette. Sletting viser først
+        hva annet som henger sammen med den.
       </p>
+
     </div>
   );
 }
