@@ -43,6 +43,7 @@ Deno.test("unsupported_prefill: ingen API-kall, configuration_error, jobb failed
         correlationId: "corr-cfg-001",
         jobId: "22222222-2222-4222-8222-222222222222",
         workerId: "worker-test",
+        runtime: { apiKey: "test-key" },
       },
       {
         startModelRun: () => Promise.resolve("33333333-3333-4333-8333-333333333333"),

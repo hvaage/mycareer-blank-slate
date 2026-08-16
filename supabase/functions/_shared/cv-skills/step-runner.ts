@@ -10,7 +10,12 @@
 // Portene injiseres slik at kallene kan verifiseres i test uten database
 // og uten nettverk.
 
-import { callClaude, type ClaudeCallResult, type ModelProfile } from "../claude/client.ts";
+import {
+  callClaude,
+  type ClaudeCallResult,
+  type ClaudeRuntimePort,
+  type ModelProfile,
+} from "../claude/client.ts";
 import type { StepOutcome } from "./contract.ts";
 
 export type ModelRunPorts = {
@@ -60,6 +65,8 @@ export async function runModelStep(
     correlationId: string;
     jobId: string;
     workerId: string;
+    /** Injisert runtime med API-nøkkel. Klienten leser aldri env selv. */
+    runtime: ClaudeRuntimePort;
     timeoutMs?: number;
     maxRetries?: number;
   },
@@ -76,6 +83,7 @@ export async function runModelStep(
     system: input.system,
     messages: input.messages,
     correlationId: input.correlationId,
+    runtime: input.runtime,
     ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {}),
     ...(input.maxRetries !== undefined ? { maxRetries: input.maxRetries } : {}),
   });

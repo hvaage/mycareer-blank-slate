@@ -52,8 +52,8 @@ export type ClaudeCallInput = {
   correlationId: string;
   timeoutMs?: number;
   maxRetries?: number;
-  /** Injisert runtime. Uten denne faller klienten tilbake til process.env (Deno-funksjoner). */
-  runtime?: ClaudeRuntimePort;
+  /** Injisert runtime. Påkrevd: klienten leser aldri env selv. */
+  runtime: ClaudeRuntimePort;
 };
 
 export type ClaudeUsage = {
@@ -179,10 +179,8 @@ function readText(payload: any): string {
 }
 
 export async function callClaude(input: ClaudeCallInput): Promise<ClaudeCallResult> {
-  // Injisert runtime har forrang. Fallback kun for Deno-funksjonsmiljøet.
-  const apiKey =
-    input.runtime?.apiKey ??
-    (typeof process !== "undefined" ? process.env["ANTHROPIC_API_KEY"] : undefined);
+  // API-nøkkelen injiseres alltid av handleren. Ingen env-fallback her.
+  const apiKey = input.runtime?.apiKey;
   const started = Date.now();
   if (!apiKey) {
     console.error("[claude] missing_configuration", JSON.stringify({ correlationId: input.correlationId }));
