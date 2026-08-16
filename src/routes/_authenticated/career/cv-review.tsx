@@ -150,13 +150,20 @@ function CvReviewPage() {
   // Første gangs oppstart: ingen fremdrift finnes, så vi oppretter den.
   const needsFirstSync =
     Boolean(activeImportId) && hasRows && !progress.isLoading && progressRow === null;
+  const storedSignature = progressRow?.candidate_set_signature ?? null;
+  // Samme antall kandidater ⇒ settet er uendret; signaturen er bare lagret i
+  // et eldre format (den inkluderte tidsstempler). Da oppdaterer vi den stille
+  // i stedet for å påstå at innholdet er endret.
+  const signatureIsLegacy =
+    Boolean(storedSignature) &&
+    storedSignature !== signature &&
+    storedSignature!.split("-")[0] === String(rows.length);
   // Foreldet kandidatsett: aldri gjenoppta som om ingenting har skjedd.
-  const isStale =
-    Boolean(progressRow) && progressRow?.candidate_set_signature !== signature && hasRows;
+  const isStale = Boolean(progressRow) && storedSignature !== signature && hasRows && !signatureIsLegacy;
   const [showChanges, setShowChanges] = useState(false);
 
   useEffect(() => {
-    if (!activeImportId || !needsFirstSync) return;
+    if (!activeImportId || (!needsFirstSync && !signatureIsLegacy)) return;
     let cancelled = false;
     void syncReviewProgress(activeImportId, signature)
       .then(() => {
@@ -166,10 +173,14 @@ function CvReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeImportId, needsFirstSync, signature, qc, userId]);
+  }, [activeImportId, needsFirstSync, signatureIsLegacy, signature, qc, userId]);
+
 
   const currentStep =
-    progressRow && progressRow.candidate_set_signature === signature ? progressRow.current_step : 1;
+    progressRow && (storedSignature === signature || signatureIsLegacy)
+      ? progressRow.current_step
+      : 1;
+
   const roleCandidates = rows.filter(
     (r) => (r.resolved_atom_type ?? r.suggested_atom_type) === "role",
   );

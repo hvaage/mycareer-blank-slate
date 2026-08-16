@@ -232,14 +232,18 @@ export function detectGaps(roles: TimelineRole[]): TimelineGap[] {
 }
 
 /**
- * Signatur for kandidatsettet. Endres settet, er en påbegynt gjennomgang
- * ikke lenger gyldig, og brukeren må starte trinnene på nytt.
+ * Signatur for kandidatsettet. Bygges kun på hvilke kandidater som finnes
+ * (id-ene), ikke på når de sist ble endret. Bekrefter brukeren et element,
+ * endres `updated_at` — det er normal fremdrift og skal aldri gjøre en
+ * påbegynt gjennomgang foreldet. Bare nye eller fjernede kandidater
+ * (f.eks. en ny import) endrer signaturen.
  */
 export function candidateSetSignature(rows: { id: string; updated_at?: string | null }[]): string {
   const basis = rows
-    .map((r) => `${r.id}:${r.updated_at ?? ""}`)
+    .map((r) => r.id)
     .sort()
     .join("|");
+
   let h1 = 0x811c9dc5;
   let h2 = 0x01000193;
   for (let i = 0; i < basis.length; i += 1) {

@@ -171,9 +171,13 @@ describe("candidateSetSignature", () => {
     expect(a).toBe(b);
   });
 
+  it("er upåvirket av at en kandidat blir bekreftet", () => {
+    const a = candidateSetSignature([{ id: "1", updated_at: "x" }]);
+    expect(a).toBe(candidateSetSignature([{ id: "1", updated_at: "z" }]));
+  });
+
   it("endres når settet endres", () => {
     const a = candidateSetSignature([{ id: "1", updated_at: "x" }]);
-    expect(a).not.toBe(candidateSetSignature([{ id: "1", updated_at: "z" }]));
     expect(a).not.toBe(
       candidateSetSignature([
         { id: "1", updated_at: "x" },
@@ -182,6 +186,7 @@ describe("candidateSetSignature", () => {
     );
   });
 });
+
 
 describe("monthsBetween", () => {
   it("regner i hele måneder", () => {
