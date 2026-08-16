@@ -199,7 +199,22 @@ export function accountClaims(
     let reason: string;
     let matched: string[] = [];
 
-    if (hardMatches.length > 0) {
+    const periods = extractNorwegianPeriods(claim.value);
+    const periodAtom = periods.length > 0
+      ? scoped.find((a) => {
+        const dates = atomDates(a);
+        return periods.every((p) => dates.includes(p));
+      })
+      : undefined;
+
+    if (periods.length > 0 && periodAtom) {
+      verification = "supported";
+      reason = `period_match:${periods.join(",")}`;
+      matched = [periodAtom.id];
+    } else if (periods.length > 0 && scoped.some((a) => atomDates(a).length > 0)) {
+      verification = "unsupported";
+      reason = `period_mismatch:${periods.join(",")}`;
+    } else if (hardMatches.length > 0) {
       verification = worstVerdict(hardMatches);
       reason = `hard_match:${hardMatches.length}`;
       matched = hardMatches.flatMap((m) => m.supporting_atom_ids);
@@ -208,6 +223,7 @@ export function accountClaims(
       reason = `soft_match:${softMatches.length}`;
       matched = softMatches.flatMap((m) => m.supporting_atom_ids);
     } else {
+
       const cov = coverage(claim.value, scoped);
       if (cov.ratio >= 0.7) {
         verification = "supported";
