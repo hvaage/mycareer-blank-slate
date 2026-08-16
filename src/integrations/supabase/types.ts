@@ -5682,6 +5682,25 @@ export type Database = {
         }
         Returns: Json
       }
+      internal_ai_finish_model_run: {
+        Args: {
+          p_duration_ms?: number
+          p_error_code?: string
+          p_http_status?: number
+          p_input_tokens?: number
+          p_model_run_id: string
+          p_outcome?: string
+          p_output_tokens?: number
+          p_request_id?: string
+          p_retry_count?: number
+          p_status: string
+        }
+        Returns: undefined
+      }
+      internal_ai_get_active_profile: {
+        Args: { p_task_key: string }
+        Returns: Json
+      }
       internal_ai_get_job_status: {
         Args: { p_job_id: string; p_user_id: string }
         Returns: Json
@@ -5699,6 +5718,19 @@ export type Database = {
           p_worker_id: string
         }
         Returns: Json
+      }
+      internal_ai_start_model_run: {
+        Args: {
+          p_api_version?: string
+          p_correlation_id: string
+          p_job_id?: string
+          p_model_id: string
+          p_profile_id?: string
+          p_profile_snapshot?: Json
+          p_task_key: string
+          p_user_id: string
+        }
+        Returns: string
       }
       link_canonical_to_source: {
         Args: {
