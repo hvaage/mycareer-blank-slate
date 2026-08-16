@@ -27,7 +27,33 @@ Fra `score-pending-opportunities` (v3, `loadProfileAndEvidence`):
 - **Hardfilter:** kun `profiles`-felter (`target_city`, `target_region`, `willing_to_relocate`, `preferred_work_extents`, `preferred_engagement_types`).
 - **Leses ikke av noe:** lønnsforventning (begge steder), `preferred_company_sizes`, `travel_preference`, `remote_preference`, `preferred_work_styles`, `primary_industry`, alle sju motivasjonsskalaer.
 
-Konklusjon: `profiles` er tabellen matching hviler på. `user_career_profiles` bidrar bare med støy i unionene, og resten av kolonnene der er ubrukte.
+Konklusjon: `profiles` er tabellen matching hviler på. `user_career_profiles` bidrar bare med støy i unionene.
+
+### Korreksjon til «leses ikke av noe»
+
+Ny sjekk av alle lesere endrer to punkter:
+
+- **`profiles.salary_expectation_min/max` leses.** `fetch-careerjet-listings` sender dem med i søkekonteksten, og `analyze-company` legger dem i profilteksten til arbeidsgiveranalysen. `user_career_profiles.salary_expectation_*` leses av ingen. Lønn beholdes altså i Om meg og fjernes fra Karriereprofil — bevisst, ikke oversett.
+- **`user_career_profiles.career_stage` leses.** Det sendes til AI-konteksten i screeningen. `leadership_level` leses bare som fallback når `profiles.target_seniority` er tom.
+
+Uten leser er da: `preferred_company_sizes`, `travel_preference`, `remote_preference`, `preferred_work_styles`, `primary_industry`, `user_career_profiles.salary_expectation_*` og de sju motivasjonsskalaene.
+
+### Svar: de sju skalaene skjules til de har en leser
+
+Valg 1 av tre. Samme regel som Match-dimensjoner: en seksjon som ikke gjør noe, skal ikke ta plass. Verdiene slettes ikke — kolonnene står urørt i basen, så de kan hentes fram den dagen scoringen faktisk vekter dem. Alternativ 2 ville gitt fire skjermbilder med en ærlig unnskyldning, og alternativ 3 ville betydd å endre matching-koden i en frontend-oppgave.
+
+### Eierskap for senioritet og karrierestadium
+
+Tre felter, samme sak:
+
+| Felt | Eier | Begrunnelse |
+|---|---|---|
+| `profiles.target_seniority` (Om meg) | **eier** ønsket nivå | leses først av matching |
+| `user_career_profiles.leadership_level` | fjernes fra skjemaet | bare fallback; dupliserer target_seniority |
+| `user_career_profiles.career_stage` | **eier** hvor i karrieren du er | leses av AI-konteksten, har ingen motpart i `profiles` |
+
+Karrierestadium er ikke det samme spørsmålet som senioritet: det ene er hvor du er, det andre hvilket nivå du søker. De beholdes begge, men med en linje hver som gjør skillet tydelig, og de står på hver sin eierside.
+
 
 ### Hva de manuelle skjemaene skriver til
 
