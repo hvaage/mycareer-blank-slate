@@ -697,6 +697,9 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
             quality_gates: gated.report,
             phase_metrics: allMetrics,
             skill_merge: merged.report,
+            skill_evidence: linked.report,
+            skill_evidence_phase_version: SKILL_EVIDENCE_PHASE_VERSION,
+
             failed_blocks: failedBlocks,
             complete,
             issues: gated.output.issues.slice(0, 20),
