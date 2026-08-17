@@ -268,6 +268,9 @@ export function buildResultLedger(args: {
     resultCandidateSpans,
     achievementProposals: achievements.length,
     distribution: {
+      rolePlaced: achievements.filter(
+        (a) => a.status === "proposed" && Boolean(a.roleLocalId),
+      ).length,
       high: achievements.filter((a) => a.placementConfidence === "high").length,
       low: achievements.filter((a) => a.placementConfidence === "low").length,
       needsReview: achievements.filter((a) => a.status === "needs_review").length,
