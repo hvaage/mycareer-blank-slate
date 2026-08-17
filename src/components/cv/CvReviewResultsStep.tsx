@@ -260,11 +260,37 @@ export function CvReviewResultsStep({
                     · fra importen
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {!g.roleAtomId && selectableRoles.length > 0 && (
+                    <Select
+                      value={roleChoice[c.id] ?? ""}
+                      onValueChange={(v) => setRoleChoice((p) => ({ ...p, [c.id]: v }))}
+                    >
+                      <SelectTrigger className="w-56">
+                        <SelectValue placeholder="Velg rolle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectableRoles.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.title}
+                            {r.employer ? ` · ${r.employer}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <Button
                     size="sm"
-                    disabled={busy}
-                    onClick={() => confirm.mutate({ rows: [c], parentAtomId: g.roleAtomId })}
+                    disabled={
+                      busy ||
+                      (!g.roleAtomId && selectableRoles.length > 0 && !(roleChoice[c.id] ?? bulkRole))
+                    }
+                    onClick={() =>
+                      confirm.mutate({
+                        rows: [c],
+                        parentAtomId: g.roleAtomId ?? roleChoice[c.id] ?? bulkRole ?? null,
+                      })
+                    }
                   >
                     <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Bekreft
                   </Button>
