@@ -630,7 +630,7 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
     cvImportId: job.cv_import_id,
     inputSignature: job.input_signature,
     modelRunId: modelRunId!,
-    promptVersion: `${profile.promptVersion}+hier${HIERARCHICAL_PIPELINE_VERSION}`,
+    promptVersion: `${profile.promptVersion}+hier${HIERARCHICAL_PIPELINE_VERSION}+se${SKILL_EVIDENCE_PHASE_VERSION}`,
     normalizerVersion: PREPARSER_VERSION,
     candidatesByRef,
     spanHashes,
