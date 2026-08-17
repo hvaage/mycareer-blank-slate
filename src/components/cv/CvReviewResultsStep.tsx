@@ -111,6 +111,7 @@ export function CvReviewResultsStep({
   const [roleChoice, setRoleChoice] = useState<Record<string, string>>({});
   const [bulkRole, setBulkRole] = useState<string>("");
 
+
   const confirm = useMutation({
     mutationFn: async (v: { rows: CvParseCandidateRow[]; parentAtomId: string | null }) => {
       for (const c of v.rows) {
