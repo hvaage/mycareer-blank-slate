@@ -628,6 +628,22 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
     batchId = (writeJson as { batch_id: string }).batch_id;
   }
 
+  // Gjennomgangsgrunnlaget må speile v2.1: rolleutnevnelser er roller (trinn 1),
+  // og resultater henger under den rollen v2.1 knyttet dem til (trinn 2).
+  let reconcile: ReconcilePlan | null = null;
+  if (built.kept.length > 0) {
+    try {
+      reconcile = await reconcileReviewBasisFromV2(adminClient, {
+        userId,
+        cvImportId: job.cv_import_id,
+        proposals: built.kept as unknown as ReconcileProposal[],
+      });
+    } catch {
+      reconcile = null;
+    }
+  }
+
+
   if (consolidateBlock) {
     await adminClient
       .from("cv_atomization_job_blocks")
