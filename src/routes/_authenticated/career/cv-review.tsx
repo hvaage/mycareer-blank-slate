@@ -99,7 +99,12 @@ export const Route = createFileRoute("/_authenticated/career/cv-review")({
 function countStep(list: CvParseCandidateRow[]): { total: number; remaining: number } {
   return {
     total: list.length,
-    remaining: list.filter((c) => c.status === "til_gjennomgang").length,
+    // Fremdrift = faktiske beslutninger. Ubehandlede elementer teller som
+    // gjenstående, ellers ser en uberørt liste ut som ferdig gjennomgått.
+    remaining: list.filter(
+      (c) => c.status !== "bekreftet" && c.status !== "avvist" && c.status !== "ble_sporsmal",
+    ).length,
+
   };
 }
 
