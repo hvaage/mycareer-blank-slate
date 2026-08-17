@@ -28,6 +28,8 @@ import {
 import { CvReviewProgressBar } from "@/components/cv/CvReviewProgressBar";
 import { CvReviewSummary, CvReviewStaleNotice } from "@/components/cv/CvReviewSummary";
 import { isSkillCandidate } from "@/lib/cv-review-skill-suggestions";
+import { buildSkillBasis } from "@/lib/cv-review-skill-basis";
+import { importProposalsQuery } from "@/lib/queries/cv-skill-proposals";
 
 
 
@@ -97,7 +99,12 @@ export const Route = createFileRoute("/_authenticated/career/cv-review")({
 function countStep(list: CvParseCandidateRow[]): { total: number; remaining: number } {
   return {
     total: list.length,
-    remaining: list.filter((c) => c.status === "til_gjennomgang").length,
+    // Fremdrift = faktiske beslutninger. Ubehandlede elementer teller som
+    // gjenstående, ellers ser en uberørt liste ut som ferdig gjennomgått.
+    remaining: list.filter(
+      (c) => c.status !== "bekreftet" && c.status !== "avvist" && c.status !== "ble_sporsmal",
+    ).length,
+
   };
 }
 
@@ -204,12 +211,34 @@ function CvReviewPage() {
       roleAtomId: a.parent_atom_id ?? null,
     }));
 
+  const promoted = useMemo(
+    () => new Map(confirmed.map((c) => [c.local_ref, c.promoted_atom_id])),
+    [confirmed],
+  );
+
+  // Trinn 3 leser v2.1-forslagene som autoritet for kompetanseplassering.
+  const proposals = useQuery(importProposalsQuery(activeImportId));
+  const skillBasis = useMemo(
+    () =>
+      buildSkillBasis({
+        proposals: proposals.data ?? [],
+        skillCandidates,
+        roles: suggestionRoles,
+        results: suggestionResults,
+        promotedByLocalRef: promoted,
+      }),
+    [proposals.data, skillCandidates, suggestionRoles, suggestionResults, promoted],
+  );
+  const skillReviewCandidates = skillBasis.items.map((i) => i.candidate);
+
+
   const stepStatuses = [
     { step: 1, label: "Roller", ...countStep(roleCandidates) },
     { step: 2, label: "Resultater", ...countStep(resultCandidates) },
-    { step: 3, label: "Kompetanse", ...countStep(skillCandidates) },
+    { step: 3, label: "Kompetanse", ...countStep(skillReviewCandidates) },
     { step: 4, label: "Kvalifikasjoner", ...countStep(qualificationCandidates) },
   ];
+
 
   function goToStep(step: number) {
     if (!activeImportId) return;
@@ -230,10 +259,6 @@ function CvReviewPage() {
 
 
 
-  const promoted = useMemo(
-    () => new Map(confirmed.map((c) => [c.local_ref, c.promoted_atom_id])),
-    [confirmed],
-  );
 
   const promote = useMutation({
     mutationFn: (v: {
@@ -465,10 +490,10 @@ function CvReviewPage() {
           userId={userId}
           importId={activeImportId}
           signature={signature}
-          skillCandidates={skillCandidates}
+          basis={skillBasis}
           roles={suggestionRoles}
           results={suggestionResults}
-          promotedByLocalRef={promoted}
+
           onContinue={() => invalidateReviewProgress(qc, userId)}
           onBack={() => goToStep(2)}
         />
