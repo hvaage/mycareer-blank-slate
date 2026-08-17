@@ -316,3 +316,61 @@ export async function setRoleEmployer(input: {
     .eq("user_id", input.userId);
   if (error) throw error;
 }
+
+// ---------------------------------------------------- rollevalg i trinn 2
+
+/**
+ * Et påbegynt rollevalg for et resultat er review-state, ikke evidens. Det
+ * lagres i `cv_review_progress.step_state.role_choices` (nøkkel =
+ * kandidat-id) gjennom den kontrollerte RPC-en
+ * `cv_review_set_role_choice`. Ingenting skrives til `career_atoms` eller
+ * `career_atom_links` før brukeren bekrefter.
+ */
+export function readRoleChoices(row: CvReviewProgressRow | null): Record<string, string> {
+  const state = (row?.step_state as Record<string, unknown> | null) ?? {};
+  const raw = state["role_choices"];
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim()) out[k] = v;
+  }
+  return out;
+}
+
+export async function setResultRoleChoice(input: {
+  importId: string;
+  signature: string;
+  candidateId: string;
+  choice: string | null;
+}): Promise<void> {
+  const { error } = await supabase.rpc("cv_review_set_role_choice", {
+    p_import_id: input.importId,
+    p_signature: input.signature,
+    p_candidate_id: input.candidateId,
+    p_choice: input.choice,
+  });
+  if (error) throw error;
+}
+
+/**
+ * Kanonisk bekreftelse av et resultat under en valgt rolle. RPC-en
+ * `cv_review_promote_result` oppretter resultatatomet, oppretter/gjenbruker
+ * den aktive `oppnadd_i`-lenken og kjører `career_atom_project_parent`.
+ * `parent_atom_id` skrives aldri direkte herfra. Dette er atom-tillit og
+ * påvirker ikke claim-attestasjoner (`user_attested`).
+ */
+export async function promoteResultToRole(input: {
+  candidateId: string;
+  roleAtomId: string;
+  resolvedType: string;
+}): Promise<{ atomId: string; linkId: string }> {
+  const { data, error } = await supabase.rpc("cv_review_promote_result", {
+    p_candidate_id: input.candidateId,
+    p_role_atom_id: input.roleAtomId,
+    p_resolved_type: input.resolvedType,
+  });
+  if (error) throw error;
+  const res = data as { atom_id?: string; link_id?: string } | null;
+  if (!res?.atom_id) throw new Error("Kunne ikke bekrefte resultatet.");
+  return { atomId: res.atom_id, linkId: res.link_id ?? "" };
+}
