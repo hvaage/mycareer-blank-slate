@@ -80,6 +80,26 @@ const HINT_PATTERNS: Array<{ hint: string; re: RegExp }> = [
   { hint: "role_label_in_text", re: /\b(as|som)\s+(COO|CTO|CEO|CCO|CFO|VP|Director|Lead|Manager|Head of)\b/i },
 ];
 
+/**
+ * Eksplisitt navngitt utnevnelse inne i en rolleblokk, f.eks.
+ * «... as COO, Cisco Norway (2019–2024)». Kun det som står i kilden — her
+ * utledes ingen tittel og ingen periode som ikke er skrevet.
+ */
+const INNER_APPOINTMENT_RE =
+  /\b(?:as|som)\s+([A-Za-zÆØÅæøå&/. ]{3,60}?)\s*(?:,[^()]{0,60})?\((\d{4})\s*[–-]\s*(\d{4}|nå|present)\)/gi;
+
+export function detectInnerAppointments(texts: string[]): string[] {
+  const out = new Set<string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(INNER_APPOINTMENT_RE)) {
+      const title = (match[1] ?? "").trim().replace(/\s+/g, " ");
+      if (!title) continue;
+      out.add(`inner_appointment:${title}|${match[2]}-${match[3]}`);
+    }
+  }
+  return [...out];
+}
+
 function hintsFor(texts: string[]): string[] {
   const found = new Set<string>();
   for (const text of texts) {
@@ -87,6 +107,7 @@ function hintsFor(texts: string[]): string[] {
       if (re.test(text)) found.add(hint);
     }
   }
+  for (const appointment of detectInnerAppointments(texts)) found.add(appointment);
   return [...found].sort();
 }
 
