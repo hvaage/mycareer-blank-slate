@@ -209,11 +209,19 @@ export function buildResultLedger(args: {
       ? candidateByRef.get(spanById.get(primarySpanId)?.localRef ?? primarySpanId)
       : undefined;
 
+    const role = achievement.roleLocalId
+      ? output.roles.find((r) => r.localId === achievement.roleLocalId)
+      : undefined;
+    const kind =
+      (achievement as { contentKind?: "result" | "deliverable" | "role_evidence" }).contentKind ??
+      "result";
+
     let disposition: ResultDisposition;
     if (dropped.has(achievement.localId)) {
       disposition = "dropped_no_verbatim_source";
     } else if (achievement.status === "proposed" && achievement.roleLocalId) {
-      continue; // teller fortsatt som resultat
+      if (kind === "result") continue; // teller fortsatt som resultat
+      disposition = kind === "deliverable" ? "role_placed_deliverable" : "role_placed_local_signal";
     } else if (achievement.status === "unassigned" || !achievement.roleLocalId) {
       disposition = "unassigned_result";
     } else {
@@ -234,8 +242,32 @@ export function buildResultLedger(args: {
       placementSource: achievement.placementSource ?? null,
       reason: t.reason,
       visibleIn: t.visibleIn,
+      roleLocalId: achievement.roleLocalId ?? null,
+      provisionalRole: role?.provisional === true,
     });
   }
+
+  // 1b) Provisoriske roller: én linje per rolle, ikke per resultat under den.
+  for (const role of output.roles) {
+    if (!role.provisional) continue;
+    const t = DISPOSITION_TEXT["provisional_role_needs_clarification"];
+    const span = role.sourceEvidence[0]?.sourceSpanId ?? role.localId;
+    entries.push({
+      sourceSpanId: span,
+      excerpt: excerptOf(
+        [role.employer, role.startDate, role.endDate].filter(Boolean).join(" · ") || role.localId,
+      ),
+      previousClassification: "role",
+      newClassification: "provisional_role_needs_clarification",
+      placementConfidence: "high",
+      placementSource: "role_block_parent",
+      reason: t.reason,
+      visibleIn: t.visibleIn,
+      roleLocalId: role.localId,
+      provisionalRole: true,
+    });
+  }
+
 
   // 2) Kildespenn som kunne vært resultater, men som ingen resultatforslag brukte.
   for (const span of input.sourceSpans) {
