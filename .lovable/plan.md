@@ -1,46 +1,38 @@
-# Korriger CV-gjennomgangen mot den avtalte trinnvise flyten
+# Én sammenhengende flyt: opplasting → analyse → trinn 1–4
 
-## Observert nå (fra kode og skjermbildet fra /career/cv-review)
+## Problemet
 
-- AI-panelet «Analyser erfaringene dine» rendres alltid øverst, foran trinnene. Det får analysekandidater = kun bekreftede funn (tom liste), derav «Ingen funn å analysere i dette utvalget» ved klikk.
-- Samme panel viser «59 funn er ikke gjennomgått» — hele den flate parse-køen, uten rolle- eller tidsgruppering. Det står i direkte motstrid med trinn 2 sitt «19 til gjennomgang · 5 grupper».
-- Trinn 1 og 2 finnes (`CvReviewTimelineStep`, `CvReviewResultsStep`). Trinn 3 (kompetanse) og trinn 4 (kvalifikasjoner) finnes ikke som komponenter — flyten faller tilbake til den flate fanevisningen (Til gjennomgang / Bekreftet / Spørsmål / Avvist).
-- Ingen synlig fremdriftslinje «Roller ✓ | Resultater 3 av 5 | Kompetanse | Kvalifikasjoner».
-- Ingen «Gå gjennom nå / Senere»-valg etter fullført atomisering.
+I dag er CV-import tre manuelle trinn før gjennomgangen i det hele tatt starter:
 
-## Gap-matrise (verifiseres og utvides med faktisk browsergjennomgang før retting)
+1. Last opp fil
+2. Trykk «Analyser CV»
+3. Gå gjennom en flat avhukingsliste («Vi fant 43 elementer …», skjermbildet du sendte) og trykk «Bekreft og lagre»
 
-| Krav | Observert | Berørt del | Retting |
-| --- | --- | --- | --- |
-| Ingen konkurrerende flat kø | AI-panel + 59-teller øverst | `cv-review.tsx`, `CvAnalysisPanel.tsx` | Fjern panelet fra trinnflyten; ingen rå-teller |
-| Trinn 1 tidslinje komplett | Finnes, må verifiseres mot Cisco/NetApp | `CvReviewTimelineStep.tsx` | Verifiser felt, handlinger, hulldeteksjon |
-| Trinn 2 «Hvor hører dette hjemme?» | Har «Resultater uten kjent rolle» | `CvReviewResultsStep.tsx` | Omdøp bolk, legg til rollevalg per resultat |
-| Trinn 3 kompetanse med forslag | Mangler | ny `CvReviewSkillsStep.tsx` | Bygg forslag + begrunnelse + confidence |
-| Trinn 4 kvalifikasjoner | Mangler | ny `CvReviewQualificationsStep.tsx` | Bygg samlet bekreftelse |
-| Fremdrift/gjenopptak synlig | Mangler visning | ny `CvReviewProgressBar` | Trinn, gjenstående, «trenger ny vurdering» |
-| Oppstart etter analyse | Går ikke direkte til trinn 1 | opplastingsflyten | «Gå gjennom nå» / «Senere» |
+Denne flate listen gjør samme jobb som trinn 1–4 gjør bedre — og den lar deg ikke definere roller, som er hele poenget med trinn 1.
 
-## Rettinger i prioritert rekkefølge
+## Slik skal det bli
 
-1. **Fjern den flate køen fra trinnflyten.** AI-panelet flyttes ut av toppen og vises bare etter siste trinn, og bare når det finnes bekreftede funn å analysere. Tomme tilstander («Ingen nye forslag akkurat nå») og rå-telleren «59 funn» fjernes. Fanevisningen blir et fallback for foreldede/ferdige importer, ikke standardvisning.
-2. **Fremdriftslinje øverst i alle fire trinn:** gjeldende trinn, antall gjenstående per trinn, markering av trinn som trenger ny vurdering etter endringer høyere i kjeden, og en tydelig «du kan fortsette senere». Fremdriften leses fra eksisterende `cv_review_progress` + kandidatsett-signatur; foreldet signatur gjenopptas aldri som uendret.
-3. **Trinn 1 verifiseres og korrigeres mot kravene:** alle roller samtidig i kronologisk tidslinje med rolle, arbeidsgiver, periode, antall roller, og handlingene Endre / Legg til rolle / Bekreft alle. Hulldeteksjon vises som «Mulig tidsrom å avklare» kun ved ≥3 måneder og måned-/dagspresisjon i begge avgrensende roller — aldri ved årspresisjon, manglende eller placeholderdato, pågående rolle eller overlapp. Privat tidslinjekontekst merkes og holdes utenfor CV, eksport, modellinput og ATS-grunnlag.
-4. **Trinn 2 justeres:** én rolle om gangen med alle resultater samlet, bekreft alle per rolle, endre/avvis enkeltresultat, legg til resultat, neste rolle / tilbake. Bolken for resultater uten sikker strukturell kobling blir «Hvor hører dette hjemme?» med eksplisitt rollevalg eller «la stå frittstående». Manuelt resultat fortsetter gjennom eksisterende RPC (`career_atom_add_manual_result`) — klienten skriver aldri `parent_atom_id`.
-5. **Trinn 3 (nytt): kompetanse med foreslått plassering.** Hvert forslag viser kompetanse, foreslått rolle/roller, foreslåtte resultater når relevant, confidence og en konkret begrunnelse basert på faktiske signaler i parsedata. Handlinger: Bekreft / Rett / Hopp over. Én kompetanse kan kobles til flere roller uten duplikat. «Bekreft alle N» vises kun når forslagene har minst ett strukturelt eller eksplisitt kildebasert signal i tillegg til et tekstsignal; to varianter av samme ordlikhet teller som ett. Mangler parseren kildeposisjon, `parent_local_ref` eller tid, vises kompetansen som lav sikkerhet / «trenger vurdering» og bulk-knappen skjules helt. Ingen mekanisk splitting på «og», «&», «/» eller komma i UI.
-6. **Trinn 4 (nytt): kvalifikasjoner og resten.** Utdanning, sertifiseringer, språk og verktøy samlet, med bekreft alle, endre enkeltpost og avvis uten sletting.
-7. **Oppstart:** når atomiseringen er ferdig sendes brukeren som standard til trinn 1, med valgene «Gå gjennom nå» og «Senere». «Senere» legger importen i Til gjennomgang-køen.
+```text
+Velg/slipp fil  →  Laster opp …  →  Analyserer …  →  Trinn 1 av 4: Roller
+                   (automatisk)      (automatisk)      (gjennomgangen)
+```
 
-## Grenser som holdes
+- Analysen starter av seg selv så snart opplastingen er bekreftet fullført. Ingen «Analyser CV»-knapp i normalflyten.
+- Den flate avhukingslisten fjernes fra normalflyten. Ingenting «bekreftes» der lenger — bekreftelsen skjer i trinn 1–4.
+- Når analysen er ferdig vises en kort kvittering med hva som ble funnet («Vi fant X roller, Y resultater, Z kompetanser») og to valg: **Gå gjennom nå** (til trinn 1) eller **Senere**. Dette er allerede bygget og beholdes.
+- Velger du «Gå gjennom nå» lander du i trinn 1 av 4 — karrieretidslinjen — der roller defineres, rettes, slås sammen og suppleres (Privat/Freelance osv.), akkurat som vi bygget.
+- Gjenopptak: kommer du tilbake til en import som allerede er analysert, sendes du rett til gjennomgangen i stedet for tilbake til opplastingsskjermen.
+- Feiler analysen, vises feilmelding med «Prøv analysen på nytt» — den manuelle startknappen finnes altså fortsatt, men bare som gjenoppretting.
+- «Avbryt» beholdes i alle mellomtilstandene.
 
-- Ingen sletting av brukerdata, importer eller filer.
-- Ingen endring av CV-generering, attestasjonspanel, eksport eller cron.
-- Ingen nye tabeller eller migrasjoner med mindre en dokumentert mangel gjør kravet umulig; da rapporteres det først.
-- Ingen handling i importgjennomgangen oppretter `user_attested` — verken enkeltvis eller i bulk.
-- Ingen klientskriving til `career_atoms`, `career_atom_links`, `cv_review_progress` eller projeksjonstabellene; alt går via eksisterende promotering og RPC-er. `parent_atom_id` og `evidence_atom_ids` behandles som projeksjoner.
-- Brukerredigerte elementer legges ikke inn i `cv_parse_candidates`.
+## Teknisk
 
-## Verifisering og leveranse
+Endringer i `src/components/cv-upload/cv-upload-flow.tsx`:
 
-Ekte browsergjennomgang av testimporten på desktop og mobil, med skjermbilder per trinn, og gjennomgang av alle 14 akseptansekriteriene — inkludert Cisco/NetApp-representasjon, 2- vs 3-måneders hull, placeholderdatoer, manuell resultatlenke (aktiv `oppnadd_i` + korrekt projeksjon), lav-sikkerhet uten bulk, flere roller per kompetanse uten duplikat, fravær av `user_attested`, privat kontekst utenfor alt CV-grunnlag, ny vurdering ved rolleendring, gjenopptak på riktig trinn, og ingen overlapp/horisontal overflow.
+- Etter `upload_done` (både filopplasting og valg fra CV-arkivet) kalles `runAnalyze` automatisk.
+- `await_parse`-tilstanden vises bare når analysen har feilet (gjenoppretting), ikke som ordinært mellomsteg.
+- `parsed_preview` med `PreviewSummary`/`PreviewDetails`/avhuking fjernes fra normalflyten; etter vellykket analyse går flyten rett til commit av hele det analyserte settet og deretter til `done`-kvitteringen. `selected`-tilstand, `filterParsedData`-skrivingen og de tilhørende hjelpefunksjonene ryddes bort der de ikke lenger brukes.
+- `discovered`-tellingene settes fra `countsFromParsed(raw)` slik at kvitteringsteksten fortsatt stemmer.
+- Gjenopptakslogikken (`useResumableImport`) peker mot `/career/cv-review?import=…` når importen allerede har lesbare parse-data.
 
-Til slutt rapporteres måletallene (brukerhandlinger til fullført gjennomgang, antall roller/resultater/kompetanser/kvalifikasjoner, andel forslag godkjent uten korreksjon, kompetanser uten plasseringsgrunnlag, kompetanser med flere roller, brukerlagte elementer, oppdagede tidsrom, bulk-bekreftelser og senere korreksjoner) samt en liste over konkrete parsefeil som må håndteres i cv-evidence-graph v2.
+Ingen backend-endringer: samme `register` → `runParse` → `commit`-kjede, samme grenser for v2.1-jobbveien, og gjennomgangen i trinn 1–4 er uendret.
