@@ -37,10 +37,14 @@ export type JobBlockProgress = {
 };
 
 export type JobOutcome = {
-  status: "complete" | "partial" | "failed";
+  status: "complete" | "partial" | "failed" | "cancelled";
   proposalsCreated: number;
   failedBlocks: { label: string }[];
+  /** Blokker som ikke ble ferdige (avbrutt eller feilet) — kan startes igjen. */
+  unfinishedBlocks: { label: string; status: JobBlockProgress["status"] }[];
+  blocks: JobBlockProgress[];
 };
+
 
 export type JobError = { message: string; retryable: boolean };
 
