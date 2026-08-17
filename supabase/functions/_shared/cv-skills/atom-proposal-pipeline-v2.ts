@@ -287,6 +287,16 @@ export type QualityGateReport = {
     concurrentWithRoleLocalIds: string[];
     appointmentRelation: AppointmentRelation;
   }>;
+  /** Provisoriske roller: strukturelt sikre, men trenger én avklaring. */
+  provisionalRoles: Array<{
+    localId: string;
+    employer: string | null;
+    startDate: string | null;
+    endDate: string | null;
+    reason: string;
+    attachedContentLocalIds: string[];
+  }>;
+  contentKinds: { result: number; deliverable: number; roleEvidence: number };
   placement: {
     high: number;
     low: number;
@@ -296,7 +306,33 @@ export type QualityGateReport = {
   };
 };
 
+/**
+ * Innholdstype ut fra språket i utsagnet. Dette avgjør IKKE plassering:
+ * alt strukturelt koblet innhold blir værende på rollen sin.
+ */
+export function classifyContentKind(
+  text: string,
+): "result" | "deliverable" | "role_evidence" {
+  const t = (text ?? "").toLowerCase();
+  const roleEvidence =
+    /\b(served on|sat on|member of|part of the .*team|medlem av|satt i|deltok i)\b/.test(t);
+  if (roleEvidence) return "role_evidence";
+  const measurable =
+    /\d|\b(exceeded|grew|increased|reduced|delivered|won|achieved|økte|reduserte|leverte|oppnådde)\b/.test(
+      t,
+    );
+  if (measurable) return "result";
+  const deliverable =
+    /\b(built|co-developed|developed|designed|led .*(training|program)|implemented|etablerte|utviklet|innførte)\b/.test(
+      t,
+    );
+  if (deliverable) return "deliverable";
+  return "result";
+}
+
 const MAX_SKILL_WORDS = 6;
+
+
 
 // --- datohjelpere: kun sammenligning, aldri utfylling av manglende datoer ---
 
