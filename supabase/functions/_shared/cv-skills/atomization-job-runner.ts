@@ -183,8 +183,24 @@ export async function startAtomizationJob(args: StartJobInput): Promise<JobRunne
     .limit(1)
     .maybeSingle();
   if (existing) {
+    // En avbrutt jobb startes igjen uten å kjøre ferdige blokker på nytt:
+    // fullførte blokker beholder resultat og provenance, bare køen åpnes.
+    if (existing.status === "cancelled") {
+      await adminClient
+        .from("cv_atomization_jobs")
+        .update({
+          status: "queued",
+          error_code: null,
+          attempts: 0,
+          lease_owner: null,
+          lease_expires_at: null,
+          finished_at: null,
+        })
+        .eq("id", existing.id);
+    }
     return { status: 200, body: { ok: true, job_id: existing.id, reused: true } };
   }
+
 
   const { data: job, error: jobError } = await adminClient
     .from("cv_atomization_jobs")
