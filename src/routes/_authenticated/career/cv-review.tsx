@@ -452,7 +452,9 @@ function CvReviewPage() {
           importId={activeImportId}
           signature={signature}
           resultCandidates={resultCandidates}
+          roleCandidates={roleCandidates}
           savedRoles={savedRoles}
+          roleChoices={readRoleChoices(progressRow)}
           promotedByLocalRef={promoted}
           onContinue={() => invalidateReviewProgress(qc, userId)}
           onBack={() => goToStep(1)}
