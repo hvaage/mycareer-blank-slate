@@ -167,15 +167,57 @@ export function buildResultLedger(args: {
 
   const entries: ResultLedgerEntry[] = [];
   let resultCandidateSpans = 0;
+  const accountedAchievementSpans = new Set<string>();
 
+  // 1) Hvert resultatforslag som ikke ble et rolleplassert resultat får en
+  //    egen linje, uansett hvilket kildespenn det kom fra.
+  for (const achievement of output.achievements) {
+    const spanIds = (achievement.evidence ?? [])
+      .map((e) => e.sourceSpanId)
+      .filter((id): id is string => Boolean(id));
+    for (const id of spanIds) accountedAchievementSpans.add(id);
+    const primarySpanId = spanIds[0] ?? null;
+    const candidate = primarySpanId
+      ? candidateByRef.get(spanById.get(primarySpanId)?.localRef ?? primarySpanId)
+      : undefined;
+
+    let disposition: ResultDisposition;
+    if (dropped.has(achievement.localId)) {
+      disposition = "dropped_no_verbatim_source";
+    } else if (achievement.status === "proposed" && achievement.roleLocalId) {
+      continue; // teller fortsatt som resultat
+    } else if (achievement.status === "unassigned" || !achievement.roleLocalId) {
+      disposition = "unassigned_result";
+    } else {
+      disposition = "needs_review_result";
+    }
+
+    const t = DISPOSITION_TEXT[disposition];
+    entries.push({
+      sourceSpanId: primarySpanId ?? achievement.localId,
+      excerpt: excerptOf(
+        (primarySpanId ? spanById.get(primarySpanId)?.text : "") || achievement.contentNo || "",
+      ),
+      previousClassification: candidate?.suggested_atom_type ?? "achievement",
+      newClassification: disposition,
+      placementConfidence: achievement.placementConfidence ?? null,
+      placementSource: achievement.placementSource ?? null,
+      reason: t.reason,
+      visibleIn: t.visibleIn,
+    });
+  }
+
+  // 2) Kildespenn som kunne vært resultater, men som ingen resultatforslag brukte.
   for (const span of input.sourceSpans) {
     const candidate = candidateByRef.get(span.localRef ?? span.id);
     const previous = candidate?.suggested_atom_type ?? span.sectionHint ?? "ukjent";
     const isResultCandidate = RESULT_CANDIDATE_TYPES.has(previous);
     if (isResultCandidate) resultCandidateSpans += 1;
+    if (accountedAchievementSpans.has(span.id)) continue;
 
     const use = spanUse.get(span.id) ?? {};
     const achievement = use.achievement;
+
 
     let disposition: ResultDisposition;
     if (achievement && dropped.has(achievement.localId)) {
