@@ -685,6 +685,16 @@ export function buildProposalRows(
 
   for (const s of output.skills) {
     const evidence = s.evidence.flatMap((e) => e.sourceEvidence);
+    // Kalibrering fra konsolideringsfasen, når den er kjørt. Lokale
+    // evidenssignaler lagres fortsatt — de er bare ikke en gjennomgangsoppgave.
+    const calibrated = s as typeof s & {
+      tier?: "reviewable" | "local_signal";
+      tierReasons?: string[];
+      roleCount?: number;
+      achievementCount?: number;
+      explicit?: boolean;
+    };
+    const tier = calibrated.tier ?? "reviewable";
     push({
       localId: s.localId,
       atomType: "skill",
@@ -699,6 +709,11 @@ export function buildProposalRows(
         display_label: s.displayLabel,
         inferred: s.inferred,
         placement_confidence: s.placementConfidence,
+        skill_tier: tier,
+        skill_tier_reasons: calibrated.tierReasons ?? [],
+        skill_role_count: calibrated.roleCount ?? null,
+        skill_achievement_count: calibrated.achievementCount ?? null,
+        skill_explicit: calibrated.explicit ?? null,
         evidence_refs: s.evidence.map((e) => ({
           role_local_id: e.roleLocalId ?? null,
           achievement_local_id: e.achievementLocalId ?? null,
@@ -708,6 +723,7 @@ export function buildProposalRows(
       },
     });
   }
+
 
   for (const q of output.qualifications) {
     push({
