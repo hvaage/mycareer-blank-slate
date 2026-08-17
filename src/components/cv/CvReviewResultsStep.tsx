@@ -41,6 +41,23 @@ import {
 
 const RESULT_TYPES: CareerAtomType[] = ["achievement", "metric", "project", "volunteer"];
 
+/**
+ * Provisorisk rolle: perioden og arbeidsgiveren er strukturelt sikre, men
+ * stillingstittelen mangler. Da stilles ett spørsmål på rollen — ikke ett per
+ * resultat under den.
+ */
+function isProvisionalRole(role: TimelineRole): boolean {
+  return role.titleMissing || !role.title.trim();
+}
+
+function rolePeriodLabel(role: TimelineRole): string {
+  const fmt = (iso: string | null) => (iso ? iso.slice(0, 7) : null);
+  const start = fmt(role.startIso);
+  const end = role.isCurrent ? "i dag" : fmt(role.endIso);
+  if (!start && !end) return "";
+  return [start, end].filter(Boolean).join("–");
+}
+
 export interface ResultGroup {
   role: TimelineRole | null;
   roleAtomId: string | null;
@@ -208,7 +225,7 @@ export function CvReviewResultsStep({
         <Card key={g.roleAtomId ?? "uten-rolle"}>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">
-              {g.role ? g.role.title : "Resultater uten kjent rolle"}
+              {g.role ? (isProvisionalRole(g.role) ? "Stilling ikke avklart" : g.role.title) : "Resultater uten kjent rolle"}
               {g.role?.employer ? (
                 <span className="text-muted-foreground"> · {g.role.employer}</span>
               ) : null}
@@ -220,6 +237,19 @@ export function CvReviewResultsStep({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            {g.role && isProvisionalRole(g.role) && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed p-3">
+                <p className="text-sm">
+                  Hva var rollen din hos {g.role.employer ?? "denne arbeidsgiveren"}
+                  {rolePeriodLabel(g.role) ? ` i perioden ${rolePeriodLabel(g.role)}` : ""}?
+                  Innholdet under hører til denne perioden — du trenger bare svare én gang.
+                </p>
+                <Button variant="outline" size="sm" disabled={busy} onClick={onBack}>
+                  Legg inn stillingen i trinn 1
+                </Button>
+              </div>
+            )}
+
             {!g.roleAtomId && (
               <Button variant="outline" size="sm" disabled={busy} onClick={onBack}>
                 Stilling mangler – legg den til i trinn 1

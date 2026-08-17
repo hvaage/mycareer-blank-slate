@@ -19,6 +19,9 @@ const RESULT_CANDIDATE_TYPES = new Set(["achievement", "metric", "project", "res
 
 export type ResultDisposition =
   | "role_placed_result"
+  | "role_placed_deliverable"
+  | "role_placed_local_signal"
+  | "provisional_role_needs_clarification"
   | "unassigned_result"
   | "needs_review_result"
   | "local_signal"
@@ -38,6 +41,9 @@ export type ResultLedgerEntry = {
   placementSource: string | null;
   reason: string;
   visibleIn: string;
+  /** Rollen innholdet er strukturelt knyttet til, når den finnes. */
+  roleLocalId?: string | null;
+  provisionalRole?: boolean;
 };
 
 export type ResultLedger = {
@@ -48,6 +54,10 @@ export type ResultLedger = {
   achievementProposals: number;
   distribution: {
     rolePlaced: number;
+    rolePlacedResult: number;
+    rolePlacedDeliverable: number;
+    rolePlacedLocalSignal: number;
+    provisionalRoles: number;
     high: number;
     low: number;
     needsReview: number;
@@ -58,6 +68,7 @@ export type ResultLedger = {
   nonResultEntries: ResultLedgerEntry[];
 };
 
+
 const DISPOSITION_TEXT: Record<
   ResultDisposition,
   { reason: string; visibleIn: string }
@@ -66,6 +77,22 @@ const DISPOSITION_TEXT: Record<
     reason: "Resultatet har strukturelt belegg i rolleblokken.",
     visibleIn: "Trinn 2: Resultater per rolle",
   },
+  role_placed_deliverable: {
+    reason:
+      "Innholdet er en leveranse i rollen, ikke et målbart resultat. Kildebelegget beholdes på rollen.",
+    visibleIn: "Trinn 2: under rollen, merket «leveranse»",
+  },
+  role_placed_local_signal: {
+    reason:
+      "Innholdet beskriver rolle- eller ledelseserfaring, ikke et resultat. Det beholdes som rollebelegg.",
+    visibleIn: "Trinn 1/2: rollebelegg under rollen (ingen egen avgjørelse)",
+  },
+  provisional_role_needs_clarification: {
+    reason:
+      "Rolleblokken er strukturelt sikker, men stillingstittelen mangler. Avklaringen gjøres én gang på rollen.",
+    visibleIn: "Trinn 1: spørsmål på rollen",
+  },
+
   unassigned_result: {
     reason:
       "Innholdet er et resultat, men kilden viser ingen strukturell tilhørighet til en rolle. Tekstlikhet alene teller ikke som plassering.",
@@ -182,11 +209,19 @@ export function buildResultLedger(args: {
       ? candidateByRef.get(spanById.get(primarySpanId)?.localRef ?? primarySpanId)
       : undefined;
 
+    const role = achievement.roleLocalId
+      ? output.roles.find((r) => r.localId === achievement.roleLocalId)
+      : undefined;
+    const kind =
+      (achievement as { contentKind?: "result" | "deliverable" | "role_evidence" }).contentKind ??
+      "result";
+
     let disposition: ResultDisposition;
     if (dropped.has(achievement.localId)) {
       disposition = "dropped_no_verbatim_source";
     } else if (achievement.status === "proposed" && achievement.roleLocalId) {
-      continue; // teller fortsatt som resultat
+      if (kind === "result") continue; // teller fortsatt som resultat
+      disposition = kind === "deliverable" ? "role_placed_deliverable" : "role_placed_local_signal";
     } else if (achievement.status === "unassigned" || !achievement.roleLocalId) {
       disposition = "unassigned_result";
     } else {
@@ -207,8 +242,32 @@ export function buildResultLedger(args: {
       placementSource: achievement.placementSource ?? null,
       reason: t.reason,
       visibleIn: t.visibleIn,
+      roleLocalId: achievement.roleLocalId ?? null,
+      provisionalRole: role?.provisional === true,
     });
   }
+
+  // 1b) Provisoriske roller: én linje per rolle, ikke per resultat under den.
+  for (const role of output.roles) {
+    if (!role.provisional) continue;
+    const t = DISPOSITION_TEXT["provisional_role_needs_clarification"];
+    const span = role.sourceEvidence[0]?.sourceSpanId ?? role.localId;
+    entries.push({
+      sourceSpanId: span,
+      excerpt: excerptOf(
+        [role.employer, role.startDate, role.endDate].filter(Boolean).join(" · ") || role.localId,
+      ),
+      previousClassification: "role",
+      newClassification: "provisional_role_needs_clarification",
+      placementConfidence: "high",
+      placementSource: "role_block_parent",
+      reason: t.reason,
+      visibleIn: t.visibleIn,
+      roleLocalId: role.localId,
+      provisionalRole: true,
+    });
+  }
+
 
   // 2) Kildespenn som kunne vært resultater, men som ingen resultatforslag brukte.
   for (const span of input.sourceSpans) {
@@ -263,6 +322,13 @@ export function buildResultLedger(args: {
   }
 
   const achievements = output.achievements.filter((a) => !dropped.has(a.localId));
+  const rolePlacedOf = (kind: "result" | "deliverable" | "role_evidence") =>
+    achievements.filter(
+      (a) =>
+        a.status === "proposed" &&
+        Boolean(a.roleLocalId) &&
+        ((a as { contentKind?: typeof kind }).contentKind ?? "result") === kind,
+    ).length;
   return {
     version: RESULT_LEDGER_VERSION,
     resultCandidateSpans,
@@ -271,6 +337,10 @@ export function buildResultLedger(args: {
       rolePlaced: achievements.filter(
         (a) => a.status === "proposed" && Boolean(a.roleLocalId),
       ).length,
+      rolePlacedResult: rolePlacedOf("result"),
+      rolePlacedDeliverable: rolePlacedOf("deliverable"),
+      rolePlacedLocalSignal: rolePlacedOf("role_evidence"),
+      provisionalRoles: output.roles.filter((r) => r.provisional).length,
       high: achievements.filter((a) => a.placementConfidence === "high").length,
       low: achievements.filter((a) => a.placementConfidence === "low").length,
       needsReview: achievements.filter((a) => a.status === "needs_review").length,
@@ -283,4 +353,5 @@ export function buildResultLedger(args: {
     },
     nonResultEntries: entries,
   };
+
 }

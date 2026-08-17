@@ -287,6 +287,16 @@ export type QualityGateReport = {
     concurrentWithRoleLocalIds: string[];
     appointmentRelation: AppointmentRelation;
   }>;
+  /** Provisoriske roller: strukturelt sikre, men trenger én avklaring. */
+  provisionalRoles: Array<{
+    localId: string;
+    employer: string | null;
+    startDate: string | null;
+    endDate: string | null;
+    reason: string;
+    attachedContentLocalIds: string[];
+  }>;
+  contentKinds: { result: number; deliverable: number; roleEvidence: number };
   placement: {
     high: number;
     low: number;
@@ -296,7 +306,33 @@ export type QualityGateReport = {
   };
 };
 
+/**
+ * Innholdstype ut fra språket i utsagnet. Dette avgjør IKKE plassering:
+ * alt strukturelt koblet innhold blir værende på rollen sin.
+ */
+export function classifyContentKind(
+  text: string,
+): "result" | "deliverable" | "role_evidence" {
+  const t = (text ?? "").toLowerCase();
+  const roleEvidence =
+    /\b(served on|sat on|member of|part of the .*team|medlem av|satt i|deltok i)\b/.test(t);
+  if (roleEvidence) return "role_evidence";
+  const measurable =
+    /\d|\b(exceeded|grew|increased|reduced|delivered|won|achieved|økte|reduserte|leverte|oppnådde)\b/.test(
+      t,
+    );
+  if (measurable) return "result";
+  const deliverable =
+    /\b(built|co-developed|developed|designed|led .*(training|program)|implemented|etablerte|utviklet|innførte)\b/.test(
+      t,
+    );
+  if (deliverable) return "deliverable";
+  return "result";
+}
+
 const MAX_SKILL_WORDS = 6;
+
+
 
 // --- datohjelpere: kun sammenligning, aldri utfylling av manglende datoer ---
 
@@ -471,6 +507,8 @@ export function applyQualityGates(
       source === "role_block_span" ||
       source === "inner_appointment_span";
 
+    achievement.contentKind = classifyContentKind(achievement.normalizedText);
+
     if (!structural) {
       // Tekstlikhet alene er ikke plassering. Resultatet går tilbake i kø.
       if (achievement.placementConfidence === "high") downgradedFromHigh.push(achievement.localId);
@@ -480,9 +518,21 @@ export function applyQualityGates(
       if (!achievement.issues.includes("achievement_unassigned")) {
         achievement.issues.push("achievement_unassigned");
       }
-    } else if (achievement.status === "proposed" && !achievement.placementReasons.includes(source)) {
-      achievement.placementReasons = [...achievement.placementReasons, source];
+    } else {
+      // Strukturell kobling er plassering, også når rollen mangler tittel.
+      // Da avklares tittelen én gang på rollen — ikke per resultat.
+      if (role && !(role.title ?? "").trim()) {
+        role.provisional = true;
+        role.needsReviewReason = role.needsReviewReason ?? "missing_role_title";
+        if (!role.issues.includes("missing_role_title")) role.issues.push("missing_role_title");
+      }
+      achievement.status = "proposed";
+      achievement.placementConfidence = "high";
+      if (!achievement.placementReasons.includes(source)) {
+        achievement.placementReasons = [...achievement.placementReasons, source];
+      }
     }
+
   }
 
   // Dedupliser kompetanser på kanonisk nøkkel: ett forslag, flere evidensrefs.
@@ -518,7 +568,25 @@ export function applyQualityGates(
         concurrentWithRoleLocalIds: r.concurrentWithRoleLocalIds,
         appointmentRelation: r.appointmentRelation,
       })),
+      provisionalRoles: output.roles
+        .filter((r) => r.provisional)
+        .map((r) => ({
+          localId: r.localId,
+          employer: r.employer,
+          startDate: r.startDate,
+          endDate: r.endDate,
+          reason: r.needsReviewReason ?? "missing_role_title",
+          attachedContentLocalIds: output.achievements
+            .filter((a) => a.roleLocalId === r.localId)
+            .map((a) => a.localId),
+        })),
+      contentKinds: {
+        result: output.achievements.filter((a) => (a.contentKind ?? "result") === "result").length,
+        deliverable: output.achievements.filter((a) => a.contentKind === "deliverable").length,
+        roleEvidence: output.achievements.filter((a) => a.contentKind === "role_evidence").length,
+      },
       placement: {
+
         high: output.achievements.filter((a) => a.placementConfidence === "high").length,
         low: output.achievements.filter((a) => a.placementConfidence === "low").length,
         needsReview: output.achievements.filter((a) => a.placementConfidence === "needs_review")
@@ -658,15 +726,18 @@ export function buildProposalRows(
         appointment_relation: role.appointmentRelation,
         predecessor_role_local_id: role.predecessorRoleLocalId,
         concurrent_with_role_local_ids: role.concurrentWithRoleLocalIds,
+        provisional: role.provisional === true,
+        needs_review_reason: role.needsReviewReason ?? null,
         issues: role.issues,
       },
     });
   }
 
   for (const a of output.achievements) {
+    const kind = a.contentKind ?? "result";
     push({
       localId: a.localId,
-      atomType: "achievement",
+      atomType: kind === "role_evidence" ? "role_evidence" : "achievement",
       contentNo: a.normalizedText,
       evidence: a.sourceEvidence,
       action: "create_atom",
@@ -675,6 +746,7 @@ export function buildProposalRows(
       extra: {
         local_id: a.localId,
         role_local_id: a.roleLocalId,
+        content_kind: kind,
         placement_confidence: a.placementConfidence,
         placement_source: a.placementSource,
         placement_reasons: a.placementReasons,
@@ -682,6 +754,7 @@ export function buildProposalRows(
       },
     });
   }
+
 
   for (const s of output.skills) {
     const evidence = s.evidence.flatMap((e) => e.sourceEvidence);
