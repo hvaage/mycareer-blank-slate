@@ -47,6 +47,7 @@ export type ResultLedger = {
   /** Antall resultatforslag som faktisk står igjen etter kvalitetsportene. */
   achievementProposals: number;
   distribution: {
+    rolePlaced: number;
     high: number;
     low: number;
     needsReview: number;
