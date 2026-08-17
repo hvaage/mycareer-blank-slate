@@ -277,7 +277,7 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
   };
 
   const onUseArchived = async (source: ArchivedCvSource) => {
-    setStage({ kind: "uploading", fileName: source.fileName ?? "CV" });
+    setStage({ kind: "uploading", fileName: source.filename ?? "CV" });
     try {
       const res = await importArchived.mutateAsync(source);
       await runPipeline(res.import_id, res.source_filename);
