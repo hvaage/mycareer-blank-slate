@@ -46,8 +46,11 @@ const bodySchema = z
   .object({
     cvImportId: UUID,
     // Én forespørsel = én delbatch. Frontend deler større utvalg selv.
-    candidateIds: z.array(UUID).min(1).max(20).optional(),
+    candidateIds: z.array(UUID).min(1).max(80).optional(),
     regenerate: z.boolean().optional(),
+    // Atomiseringsprofil. v2_1 er standard; v1 beholdes kun for kontrollert
+    // evaluering og skal ikke brukes i vanlig brukerflyt.
+    profile: z.enum(["v1", "v2_1"]).optional(),
     correlation_id: UUID.optional(),
   })
   .strict();
@@ -109,6 +112,7 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
           );
         }
         const { cvImportId, candidateIds, regenerate } = parsed.data;
+        const profileChoice = parsed.data.profile ?? "v2_1";
 
         // -------------------------------------------------------------- jwt
         const authHeader = request.headers.get("authorization") ?? "";
@@ -144,7 +148,7 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
         const { data: candidateRows, error: candError } = await userClient
           .from("cv_parse_candidates")
           .select(
-            "id, local_ref, suggested_atom_type, content_no, content_en, source_quote, structured_data, status, promoted_atom_id",
+            "id, local_ref, parent_local_ref, suggested_atom_type, content_no, content_en, source_quote, structured_data, status, promoted_atom_id",
           )
           .eq("import_id", cvImportId)
           .eq("user_id", userId);
@@ -154,6 +158,7 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
 
         const all = (candidateRows ?? []) as unknown as {
           id: string;
+          local_ref: string;
           status: string | null;
           promoted_atom_id: string | null;
         }[];
@@ -186,18 +191,38 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
 
         // ---------------------------- service-credential først etter eierskap
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { runProposeCvAtoms } = await import(
-          "../../../../supabase/functions/_shared/cv-skills/propose-atoms-runner.ts"
-        );
 
         try {
-          const outcome = await runProposeCvAtoms({
+          if (profileChoice === "v1") {
+            const { runProposeCvAtoms } = await import(
+              "../../../../supabase/functions/_shared/cv-skills/propose-atoms-runner.ts"
+            );
+            const outcome = await runProposeCvAtoms({
+              userClient,
+              adminClient: supabaseAdmin,
+              anthropicApiKey: modelKey,
+              userId,
+              cvImportId,
+              candidates: eligible as never,
+              correlationId,
+              startedAt,
+              regenerate: regenerate === true,
+            });
+            return Response.json(outcome.body, { status: outcome.status });
+          }
+
+          const { runProposeCvAtomsV2 } = await import(
+            "../../../../supabase/functions/_shared/cv-skills/propose-atoms-runner-v2.ts"
+          );
+          const outcome = await runProposeCvAtomsV2({
             userClient,
             adminClient: supabaseAdmin,
             anthropicApiKey: modelKey,
             userId,
             cvImportId,
-            candidates: eligible as never,
+            // Hele importen er kontekst; rolleblokkene bygges deterministisk.
+            allCandidates: all as never,
+            selectedRefs: (eligible as unknown as { local_ref: string }[]).map((c) => c.local_ref),
             correlationId,
             startedAt,
             regenerate: regenerate === true,
