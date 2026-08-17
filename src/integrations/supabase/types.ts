@@ -1796,14 +1796,19 @@ export type Database = {
       }
       cv_atomization_jobs: {
         Row: {
+          attempts: number
           batch_id: string | null
           correlation_id: string
           created_at: string
           cv_import_id: string
           error_code: string | null
           finished_at: string | null
+          heartbeat_at: string | null
           id: string
           input_signature: string
+          last_reaped_at: string | null
+          lease_expires_at: string | null
+          lease_owner: string | null
           metrics: Json
           model_run_id: string | null
           phase: string
@@ -1815,14 +1820,19 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          attempts?: number
           batch_id?: string | null
           correlation_id: string
           created_at?: string
           cv_import_id: string
           error_code?: string | null
           finished_at?: string | null
+          heartbeat_at?: string | null
           id?: string
           input_signature: string
+          last_reaped_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
           metrics?: Json
           model_run_id?: string | null
           phase?: string
@@ -1834,14 +1844,19 @@ export type Database = {
           user_id: string
         }
         Update: {
+          attempts?: number
           batch_id?: string | null
           correlation_id?: string
           created_at?: string
           cv_import_id?: string
           error_code?: string | null
           finished_at?: string | null
+          heartbeat_at?: string | null
           id?: string
           input_signature?: string
+          last_reaped_at?: string | null
+          lease_expires_at?: string | null
+          lease_owner?: string | null
           metrics?: Json
           model_run_id?: string | null
           phase?: string
@@ -6572,6 +6587,33 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      internal_cv_atomization_claim: {
+        Args: {
+          p_job_id?: string
+          p_lease_seconds?: number
+          p_max_attempts?: number
+          p_owner: string
+        }
+        Returns: {
+          attempts: number
+          cv_import_id: string
+          job_id: string
+          status: string
+          user_id: string
+        }[]
+      }
+      internal_cv_atomization_heartbeat: {
+        Args: { p_job_id: string; p_lease_seconds?: number; p_owner: string }
+        Returns: boolean
+      }
+      internal_cv_atomization_reap: {
+        Args: { p_max_attempts?: number }
+        Returns: Json
+      }
+      internal_cv_atomization_release: {
+        Args: { p_job_id: string; p_owner: string }
+        Returns: boolean
       }
       link_canonical_to_source: {
         Args: {

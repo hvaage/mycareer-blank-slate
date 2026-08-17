@@ -107,3 +107,95 @@ export async function loadJobContext(args: {
     selectedRefs: eligible.map((c) => c.local_ref),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Bakgrunnsarbeider: kontekst uten brukersesjon
+// ---------------------------------------------------------------------------
+//
+// Modellarbeidet kjøres av en kontrollert arbeider med egen autentisering
+// (delt hemmelighet), ikke av brukerens egne kall. Arbeideren tar lås på
+// jobben, henter kandidatgrunnlaget med service-credential og slipper låsen
+// når steget er ferdig. Eierskap er allerede fastslått da jobben ble opprettet.
+
+export type WorkerJobContext = {
+  ok: true;
+  jobId: string;
+  userId: string;
+  cvImportId: string;
+  attempts: number;
+  adminClient: any;
+  anthropicApiKey: string;
+  allCandidates: unknown[];
+  selectedRefs: string[];
+  leaseOwner: string;
+};
+
+export async function reapStaleAtomizationJobs(): Promise<Record<string, unknown> | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await (supabaseAdmin as any).rpc("internal_cv_atomization_reap", {
+    p_max_attempts: 6,
+  });
+  return (data as Record<string, unknown> | null) ?? null;
+}
+
+export async function claimWorkerJobContext(args: {
+  leaseOwner: string;
+  jobId?: string | null;
+  leaseSeconds?: number;
+}): Promise<WorkerJobContext | JobContextError | { ok: false; status: 204; code: "no_job"; message: string }> {
+  const err = (status: number, code: string, message: string): JobContextError => ({
+    ok: false,
+    status,
+    code,
+    message,
+  });
+
+  const modelKey = process.env["ANTHROPIC" + "_API_KEY"];
+  if (!modelKey) return err(500, "server_misconfigured", "Backend er ikke ferdig konfigurert.");
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const adminClient: any = supabaseAdmin;
+
+  const { data: claimed, error: claimError } = await adminClient.rpc(
+    "internal_cv_atomization_claim",
+    {
+      p_owner: args.leaseOwner,
+      p_lease_seconds: args.leaseSeconds ?? 180,
+      p_job_id: args.jobId ?? null,
+      p_max_attempts: 6,
+    },
+  );
+  if (claimError) return err(500, "database_error", "Kunne ikke ta jobben.");
+  const row = Array.isArray(claimed) ? claimed[0] : claimed;
+  if (!row) return { ok: false, status: 204, code: "no_job", message: "Ingen jobb å kjøre." };
+
+  const { data: candidateRows, error: candError } = await adminClient
+    .from("cv_parse_candidates")
+    .select(
+      "id, local_ref, parent_local_ref, suggested_atom_type, content_no, content_en, source_quote, structured_data, status, promoted_atom_id",
+    )
+    .eq("import_id", row.cv_import_id)
+    .eq("user_id", row.user_id);
+  if (candError) return err(500, "database_error", "Kunne ikke lese kandidatene.");
+
+  const all = (candidateRows ?? []) as {
+    id: string;
+    local_ref: string;
+    status: string | null;
+    promoted_atom_id: string | null;
+  }[];
+  const eligible = all.filter((c) => c.promoted_atom_id === null && c.status !== "bekreftet");
+
+  return {
+    ok: true,
+    jobId: row.job_id as string,
+    userId: row.user_id as string,
+    cvImportId: row.cv_import_id as string,
+    attempts: Number(row.attempts ?? 1),
+    adminClient,
+    anthropicApiKey: modelKey,
+    allCandidates: all,
+    selectedRefs: eligible.map((c) => c.local_ref),
+    leaseOwner: args.leaseOwner,
+  };
+}

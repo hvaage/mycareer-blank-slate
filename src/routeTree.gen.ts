@@ -87,6 +87,7 @@ import { Route as ApiPublicSyncBrregEnheterRouteImport } from './routes/api/publ
 import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './routes/api/public/selskapsanalyse/preview-email'
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
 import { Route as ApiPublicOpsWatchdogRouteImport } from './routes/api/public/ops/watchdog'
+import { Route as ApiPublicCvAtomizationWorkerRouteImport } from './routes/api/public/cv/atomization-worker'
 import { Route as ApiCvGenerationsJobIdRouteImport } from './routes/api/cv/generations.$jobId'
 import { Route as ApiCvAtomizationJobsJobIdRouteImport } from './routes/api/cv/atomization-jobs.$jobId'
 
@@ -525,6 +526,12 @@ const ApiPublicOpsWatchdogRoute = ApiPublicOpsWatchdogRouteImport.update({
   path: '/api/public/ops/watchdog',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCvAtomizationWorkerRoute =
+  ApiPublicCvAtomizationWorkerRouteImport.update({
+    id: '/api/public/cv/atomization-worker',
+    path: '/api/public/cv/atomization-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiCvGenerationsJobIdRoute = ApiCvGenerationsJobIdRouteImport.update({
   id: '/$jobId',
   path: '/$jobId',
@@ -610,6 +617,7 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
+  '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -688,6 +696,7 @@ export interface FileRoutesByTo {
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
+  '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -771,6 +780,7 @@ export interface FileRoutesById {
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
+  '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -854,6 +864,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/analysedatabase/'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
+    | '/api/public/cv/atomization-worker'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -932,6 +943,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/analysedatabase'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
+    | '/api/public/cv/atomization-worker'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1014,6 +1026,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/analysedatabase/'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
+    | '/api/public/cv/atomization-worker'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1044,6 +1057,7 @@ export interface RootRouteChildren {
   ApiInternalCvGenerationWorkerRoute: typeof ApiInternalCvGenerationWorkerRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
+  ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
   ApiPublicOpsWatchdogRoute: typeof ApiPublicOpsWatchdogRoute
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
   ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -1601,6 +1615,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOpsWatchdogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cv/atomization-worker': {
+      id: '/api/public/cv/atomization-worker'
+      path: '/api/public/cv/atomization-worker'
+      fullPath: '/api/public/cv/atomization-worker'
+      preLoaderRoute: typeof ApiPublicCvAtomizationWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cv/generations/$jobId': {
       id: '/api/cv/generations/$jobId'
       path: '/$jobId'
@@ -1812,6 +1833,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInternalCvGenerationWorkerRoute: ApiInternalCvGenerationWorkerRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
+  ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
   ApiPublicOpsWatchdogRoute: ApiPublicOpsWatchdogRoute,
   ApiPublicSelskapsanalyseDownloadRoute: ApiPublicSelskapsanalyseDownloadRoute,
   ApiPublicSelskapsanalysePreviewEmailRoute:
