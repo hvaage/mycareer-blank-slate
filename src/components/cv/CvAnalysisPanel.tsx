@@ -28,16 +28,17 @@ import {
 } from "@/lib/queries/atom-enrichment";
 import {
   planAnalysisChunks,
-  runAnalysisChunks,
   selectionTooLarge,
   type AnalysisCandidate,
-  type ChunkResult,
 } from "@/lib/cv-atom-analysis";
 import {
-  CV_PROPOSAL_LIMITS,
-  CV_PROPOSAL_REVIEW_STATE_TEXT,
-  cvAnalysisProgressText,
-} from "@/lib/cv-skills-contract";
+  jobProgressPercent,
+  runAtomizationJob,
+  startAtomizationJob,
+  type JobBlockProgress,
+} from "@/lib/cv-atomization-job";
+import { CV_PROPOSAL_LIMITS, CV_PROPOSAL_REVIEW_STATE_TEXT } from "@/lib/cv-skills-contract";
+
 
 type Props = {
   userId: string;
