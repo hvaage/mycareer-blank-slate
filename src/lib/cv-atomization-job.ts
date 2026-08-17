@@ -109,6 +109,40 @@ export async function startAtomizationJob(args: {
 }
 
 /**
+ * Avbryter en pågående analyse server-side. Jobben settes i en terminal
+ * tilstand slik at arbeideren ikke gjør flere modellkall. Ferdige deler
+ * beholdes; import, fil og analysegrunnlag slettes aldri.
+ */
+export async function cancelAtomizationJob(jobId: string): Promise<{ ok: true } | { error: JobError }> {
+  let response: Response;
+  try {
+    response = await authedFetch(`/api/cv/atomization-jobs/${jobId}`, { method: "DELETE" });
+  } catch {
+    return { error: { message: ERROR_TEXT["network_error"]!, retryable: true } };
+  }
+  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok || body["ok"] !== true) return { error: toError(body, response.status) };
+  return { ok: true };
+}
+
+/** Starter en avbrutt eller delvis jobb igjen. Ferdige deler kjøres ikke på nytt. */
+export async function resumeAtomizationJob(jobId: string): Promise<{ ok: true } | { error: JobError }> {
+  let response: Response;
+  try {
+    response = await authedFetch(`/api/cv/atomization-jobs/${jobId}`, {
+      method: "POST",
+      body: JSON.stringify({ resume: true }),
+    });
+  } catch {
+    return { error: { message: ERROR_TEXT["network_error"]!, retryable: true } };
+  }
+  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok || body["ok"] !== true) return { error: toError(body, response.status) };
+  return { ok: true };
+}
+
+
+/**
  * Følger jobben med rene lesekall. Selve analysen kjøres av en bakgrunns-
  * tjeneste, ikke av nettleseren: statuskallene skriver aldri, og analysen
  * fortsetter selv om siden lukkes eller lastes på nytt. Har jobben stått
