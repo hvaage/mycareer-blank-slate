@@ -663,6 +663,15 @@ export function buildProposalRows(
       dropped.push({ local_id: args.localId, reason: "ukjent kildespenn" });
       return;
     }
+    // Flere kompetanser kan dele samme kildespenn (én kompetanseliste i CV-en).
+    // Uten en stabil, kompetansespesifikk nøkkel ville de kollidere med
+    // hverandre i lagringen og bare den første blitt skrevet.
+    const canonicalKey =
+      typeof args.extra["canonical_key"] === "string" ? (args.extra["canonical_key"] as string) : "";
+    const rowHash =
+      (args.atomType === "skill" || args.atomType === "domain") && canonicalKey
+        ? `${hash}:${canonicalKey}`
+        : hash;
     kept.push({
       proposal_action: args.action,
       target_atom_type: "career_atom",
@@ -671,7 +680,8 @@ export function buildProposalRows(
       source_record_id: candidate.id,
       source_id: ctx.cvImportId,
       source_import_id: ctx.cvImportId,
-      source_hash: hash,
+      source_hash: rowHash,
+
       normalizer_version: ctx.normalizerVersion,
       prompt_version: ctx.promptVersion,
       model_run_id: ctx.modelRunId,
