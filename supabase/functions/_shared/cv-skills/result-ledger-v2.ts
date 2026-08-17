@@ -77,6 +77,22 @@ const DISPOSITION_TEXT: Record<
     reason: "Resultatet har strukturelt belegg i rolleblokken.",
     visibleIn: "Trinn 2: Resultater per rolle",
   },
+  role_placed_deliverable: {
+    reason:
+      "Innholdet er en leveranse i rollen, ikke et målbart resultat. Kildebelegget beholdes på rollen.",
+    visibleIn: "Trinn 2: under rollen, merket «leveranse»",
+  },
+  role_placed_local_signal: {
+    reason:
+      "Innholdet beskriver rolle- eller ledelseserfaring, ikke et resultat. Det beholdes som rollebelegg.",
+    visibleIn: "Trinn 1/2: rollebelegg under rollen (ingen egen avgjørelse)",
+  },
+  provisional_role_needs_clarification: {
+    reason:
+      "Rolleblokken er strukturelt sikker, men stillingstittelen mangler. Avklaringen gjøres én gang på rollen.",
+    visibleIn: "Trinn 1: spørsmål på rollen",
+  },
+
   unassigned_result: {
     reason:
       "Innholdet er et resultat, men kilden viser ingen strukturell tilhørighet til en rolle. Tekstlikhet alene teller ikke som plassering.",
