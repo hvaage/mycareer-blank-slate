@@ -257,22 +257,14 @@ export function CvReviewResultsStep({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {!g.roleAtomId && selectableRoles.length > 0 && (
-                    <Select
+                    <RoleSelect
+                      roles={selectableRoles}
                       value={roleChoice[c.id] ?? ""}
-                      onValueChange={(v) => setRoleChoice((p) => ({ ...p, [c.id]: v }))}
-                    >
-                      <SelectTrigger className="w-56">
-                        <SelectValue placeholder="Velg rolle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {selectableRoles.map((r) => (
-                          <SelectItem key={r.id} value={r.id}>
-                            {r.title}
-                            {r.employer ? ` · ${r.employer}` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(v) => setRoleChoice((p) => ({ ...p, [c.id]: v }))}
+                      onMissing={onBack}
+                      placeholder="Velg rolle"
+                      className="w-56"
+                    />
                   )}
                   <Button
                     size="sm"
