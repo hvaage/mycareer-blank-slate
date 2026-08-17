@@ -111,6 +111,7 @@ export function CvReviewResultsStep({
   const [roleChoice, setRoleChoice] = useState<Record<string, string>>({});
   const [bulkRole, setBulkRole] = useState<string>("");
 
+
   const confirm = useMutation({
     mutationFn: async (v: { rows: CvParseCandidateRow[]; parentAtomId: string | null }) => {
       for (const c of v.rows) {
@@ -206,23 +207,22 @@ export function CvReviewResultsStep({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            {!g.roleAtomId && (
+              <Button variant="outline" size="sm" disabled={busy} onClick={onBack}>
+                Stilling mangler – legg den til i trinn 1
+              </Button>
+            )}
             {!g.roleAtomId && selectableRoles.length > 0 && (
               <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
                 <div className="min-w-56 flex-1 space-y-1">
                   <Label className="text-xs">Knytt alle til rolle</Label>
-                  <Select value={bulkRole} onValueChange={setBulkRole}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Velg rolle fra trinn 1" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectableRoles.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.title}
-                          {r.employer ? ` · ${r.employer}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <RoleSelect
+                    roles={selectableRoles}
+                    value={bulkRole}
+                    onChange={setBulkRole}
+                    onMissing={onBack}
+                    placeholder="Velg rolle fra trinn 1"
+                  />
                 </div>
                 <Button
                   variant="outline"
@@ -262,22 +262,14 @@ export function CvReviewResultsStep({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {!g.roleAtomId && selectableRoles.length > 0 && (
-                    <Select
+                    <RoleSelect
+                      roles={selectableRoles}
                       value={roleChoice[c.id] ?? ""}
-                      onValueChange={(v) => setRoleChoice((p) => ({ ...p, [c.id]: v }))}
-                    >
-                      <SelectTrigger className="w-56">
-                        <SelectValue placeholder="Velg rolle" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {selectableRoles.map((r) => (
-                          <SelectItem key={r.id} value={r.id}>
-                            {r.title}
-                            {r.employer ? ` · ${r.employer}` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(v) => setRoleChoice((p) => ({ ...p, [c.id]: v }))}
+                      onMissing={onBack}
+                      placeholder="Velg rolle"
+                      className="w-56"
+                    />
                   )}
                   <Button
                     size="sm"
@@ -325,6 +317,51 @@ export function CvReviewResultsStep({
         </Button>
       </div>
     </div>
+  );
+}
+
+/** Sentinelverdi: brukeren finner ikke stillingen og sendes tilbake til trinn 1. */
+const MISSING_ROLE = "__mangler__";
+
+/** Rollevelger. Arbeidsgiver vises først, så stilling. */
+function RoleSelect({
+  roles,
+  value,
+  onChange,
+  onMissing,
+  placeholder,
+  className,
+}: {
+  roles: TimelineRole[];
+  value: string;
+  onChange: (v: string) => void;
+  onMissing: () => void;
+  placeholder: string;
+  className?: string;
+}) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(v) => {
+        if (v === MISSING_ROLE) {
+          onMissing();
+          return;
+        }
+        onChange(v);
+      }}
+    >
+      <SelectTrigger className={className}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {roles.map((r) => (
+          <SelectItem key={r.id} value={r.id}>
+            {r.employer ? `${r.employer} · ${r.title}` : r.title}
+          </SelectItem>
+        ))}
+        <SelectItem value={MISSING_ROLE}>Stilling mangler – legg den til i trinn 1</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 
