@@ -243,7 +243,25 @@ for (const p of phases) {
     ` - ${p.phase} | ${p.key} | spenn=${p.spans} | ${p.durationMs}ms | in=${p.inputTokens} ut=${p.outputTokens} | ${p.ok ? "ok" : `FEIL:${p.errorCode}`} | sig=${String(p.subBatchSignature).slice(0, 12)}`,
   );
 }
-console.log("kompetanseflette:", JSON.stringify(merge));
+console.log("kompetanseflette:", JSON.stringify({
+  before: merge?.before,
+  after: merge?.after,
+  mergedKeys: merge?.mergedKeys?.length ?? 0,
+  conflicting: merge?.conflictingNormalizations?.length ?? 0,
+}));
+const cons = merge?.consolidation;
+if (cons) {
+  console.log("\n--- Kompetansekalibrering ---");
+  console.log(
+    "raa:", cons.before,
+    "| etter synonymfletting:", cons.after,
+    "| gjennomgabare:", cons.reviewable,
+    "| lokale signaler:", cons.localSignals,
+  );
+  console.log("grunnlag:", JSON.stringify(cons.reasons));
+  console.log("synonymfletting:", JSON.stringify(cons.synonymMerges));
+  console.log("gjennomgabare kompetanser:", cons.reviewableLabels.join(", "));
+}
 console.log(
   "ufullstendige blokker:",
   failedBlocks.length,
