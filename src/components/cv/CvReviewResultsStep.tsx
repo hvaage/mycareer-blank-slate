@@ -216,9 +216,7 @@ export function CvReviewResultsStep({
             <CardDescription>
               {g.role
                 ? "Bekreft det du kjenner igjen. Resultatet knyttes til denne rollen."
-                : selectableRoles.length > 0
-                  ? "Disse fant vi ingen rolle for. Velg hvilken rolle fra trinn 1 hvert resultat hører til før du bekrefter."
-                  : "Disse fant vi ingen rolle for. Bekreft rollene i trinn 1 først, så kan du koble resultatene hit."}
+                : "Disse fant vi ingen rolle for. Velg hvilken rolle resultatet hører til — også «Privat» eller «Freelance» — før du bekrefter."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -227,7 +225,7 @@ export function CvReviewResultsStep({
                 Stilling mangler – legg den til i trinn 1
               </Button>
             )}
-            {!g.roleAtomId && selectableRoles.length > 0 && (
+            {!g.roleAtomId && (
               <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
                 <div className="min-w-56 flex-1 space-y-1">
                   <Label className="text-xs">Knytt alle til rolle</Label>
@@ -276,7 +274,7 @@ export function CvReviewResultsStep({
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {!g.roleAtomId && selectableRoles.length > 0 && (
+                  {!g.roleAtomId && (
                     <RoleSelect
                       roles={selectableRoles}
                       value={roleChoice[c.id] ?? ""}
@@ -290,7 +288,7 @@ export function CvReviewResultsStep({
                     size="sm"
                     disabled={
                       busy ||
-                      (!g.roleAtomId && selectableRoles.length > 0 && !(roleChoice[c.id] ?? bulkRole))
+                      (!g.roleAtomId && !(roleChoice[c.id] ?? bulkRole))
                     }
                     onClick={() =>
                       confirm.mutate({
