@@ -679,7 +679,8 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
           source_id: job.cv_import_id,
           source_record_id: job.cv_import_id,
           source_hash: job.input_signature,
-          input_signature: job.input_signature,
+          input_signature: `${job.input_signature}+se${SKILL_EVIDENCE_PHASE_VERSION}`,
+
           normalizer_version: PREPARSER_VERSION,
           model_run_id: modelRunId,
           title: "Rollebevisst analyse av CV-import",
