@@ -315,6 +315,51 @@ export function CvReviewResultsStep({
   );
 }
 
+/** Sentinelverdi: brukeren finner ikke stillingen og sendes tilbake til trinn 1. */
+const MISSING_ROLE = "__mangler__";
+
+/** Rollevelger. Arbeidsgiver vises først, så stilling. */
+function RoleSelect({
+  roles,
+  value,
+  onChange,
+  onMissing,
+  placeholder,
+  className,
+}: {
+  roles: TimelineRole[];
+  value: string;
+  onChange: (v: string) => void;
+  onMissing: () => void;
+  placeholder: string;
+  className?: string;
+}) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(v) => {
+        if (v === MISSING_ROLE) {
+          onMissing();
+          return;
+        }
+        onChange(v);
+      }}
+    >
+      <SelectTrigger className={className}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {roles.map((r) => (
+          <SelectItem key={r.id} value={r.id}>
+            {r.employer ? `${r.employer} · ${r.title}` : r.title}
+          </SelectItem>
+        ))}
+        <SelectItem value={MISSING_ROLE}>Stilling mangler – legg den til i trinn 1</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
 function ManualResultForm({
   busy,
   onSubmit,
