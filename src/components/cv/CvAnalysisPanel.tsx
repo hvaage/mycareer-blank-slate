@@ -198,21 +198,45 @@ export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
               Analyser på nytt
             </Button>
           )}
-          {chunks.length > 1 && !running && !progress && (
+          {chunks.length > 1 && !running && !blocks && (
             <span className="text-sm text-muted-foreground">
-              Kjøres som {chunks.length} analyser etter hverandre.
+              Analysen kjøres i flere trinn og viser fremdrift underveis.
             </span>
           )}
         </div>
 
-        {progress && (
-          <div className="space-y-1">
-            <Progress value={(progress.done / Math.max(progress.total, 1)) * 100} />
+        {blocks && (
+          <div className="space-y-2">
+            <Progress value={jobProgressPercent(blocks)} />
             <p className="text-sm text-muted-foreground">
-              {cvAnalysisProgressText(progress.done, progress.total)}
+              {blocks.length === 0
+                ? "Forbereder analysen …"
+                : `${blocks.filter((b) => b.status !== "queued" && b.status !== "running").length} av ${blocks.length} deler er ferdige.`}
             </p>
+            <ul className="space-y-1">
+              {blocks.map((block) => (
+                <li
+                  key={`${block.phase}:${block.block_key}`}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  {block.status === "running" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  ) : block.status === "complete" ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                  ) : block.status === "queued" ? (
+                    <span className="h-3.5 w-3.5 rounded-full border" aria-hidden />
+                  ) : (
+                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                  )}
+                  <span className={block.status === "queued" ? "text-muted-foreground" : ""}>
+                    {block.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
+
 
         {lastError && (
           <Alert variant="destructive">
