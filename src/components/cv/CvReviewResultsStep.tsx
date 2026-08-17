@@ -200,11 +200,41 @@ export function CvReviewResultsStep({
             <CardDescription>
               {g.role
                 ? "Bekreft det du kjenner igjen. Resultatet knyttes til denne rollen."
-                : "Disse fant vi ingen rolle for. Bekreft dem gjerne — de blir stående uten rolle til du kobler dem."}
+                : selectableRoles.length > 0
+                  ? "Disse fant vi ingen rolle for. Velg hvilken rolle fra trinn 1 hvert resultat hører til før du bekrefter."
+                  : "Disse fant vi ingen rolle for. Bekreft rollene i trinn 1 først, så kan du koble resultatene hit."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {g.candidates.length > 1 && (
+            {!g.roleAtomId && selectableRoles.length > 0 && (
+              <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
+                <div className="min-w-56 flex-1 space-y-1">
+                  <Label className="text-xs">Knytt alle til rolle</Label>
+                  <Select value={bulkRole} onValueChange={setBulkRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Velg rolle fra trinn 1" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectableRoles.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.title}
+                          {r.employer ? ` · ${r.employer}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || !bulkRole}
+                  onClick={() => confirm.mutate({ rows: g.candidates, parentAtomId: bulkRole })}
+                >
+                  Bekreft alle ({g.candidates.length})
+                </Button>
+              </div>
+            )}
+            {g.roleAtomId && g.candidates.length > 1 && (
               <Button
                 variant="outline"
                 size="sm"
