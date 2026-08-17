@@ -102,6 +102,19 @@ export async function loadJobContext(args: {
     return err(400, "no_candidates", "Ingen kandidater til analyse i denne importen.");
   }
 
+  // Grensene for jobbruten håndheves eksplisitt her, slik at frontend aldri
+  // kan sende inn et utvalg som denne ruten avviser senere.
+  if (eligible.length > CV_ATOMIZATION_JOB_LIMITS.perJob.maxCandidates) {
+    return err(400, "too_many_candidates", "Utvalget er for stort til én analyse.");
+  }
+  const totalChars = eligible.reduce(
+    (n, c) => n + candidateCharSize(c as unknown as Record<string, unknown>),
+    0,
+  );
+  if (totalChars > CV_ATOMIZATION_JOB_LIMITS.perJob.maxChars) {
+    return err(400, "input_too_large", "Utvalget er for stort til én analyse.");
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   return {
