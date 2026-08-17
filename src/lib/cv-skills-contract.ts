@@ -349,15 +349,41 @@ export type StepOutcome = (typeof STEP_OUTCOMES)[number];
 export const NON_RETRYABLE_STEP_OUTCOMES = ["configuration_error", "blocked_guard"] as const;
 
 /**
- * Operative grenser for CV-analysen.
- * perCall gjelder ett modellkall. perSelection gjelder hele importutvalget
- * frontend kan dele opp i stabile delbatcher.
+ * Operative grenser for den rolleblokkbaserte v2.1-atomiseringen.
+ * perCall gjelder ett modellkall (én rolleblokk med kontekst).
+ * perSelection gjelder hele importutvalget som planlegges i én jobb.
+ *
+ * Disse grensene gjelder KUN den aktive jobbruten
+ * (POST /api/cv/atomization-jobs). Den eldre engangsruten har egne,
+ * lavere grenser — se CV_PROPOSAL_LEGACY_LIMITS. Ikke slå dem sammen i UI.
  */
 export const CV_PROPOSAL_LIMITS = {
   // v2.1 sender rolleblokker med kontekst, ikke løsrevne segmenter.
   perCall: { maxCandidates: 80, maxChars: 60_000 },
   perSelection: { maxCandidates: 120, maxChars: 120_000 },
 } as const;
+
+/**
+ * Grenser for den aktive v2.1-jobbruten POST /api/cv/atomization-jobs.
+ * Serveren håndhever nøyaktig disse tallene; UI må aldri vise høyere tall.
+ */
+export const CV_ATOMIZATION_JOB_LIMITS = {
+  perJob: {
+    maxCandidates: CV_PROPOSAL_LIMITS.perSelection.maxCandidates,
+    maxChars: CV_PROPOSAL_LIMITS.perSelection.maxChars,
+  },
+} as const;
+
+/**
+ * Grenser for den eldre engangsruten POST /api/cv/propose-cv-atoms.
+ * Ruten er ikke en del av den ordinære brukerreisen, og håndhever egne,
+ * lavere grenser eksplisitt.
+ */
+export const CV_PROPOSAL_LEGACY_LIMITS = {
+  perCall: { maxCandidates: 20, maxChars: 20_000 },
+  perSelection: { maxCandidates: 60, maxChars: 60_000 },
+} as const;
+
 
 /** Alle feilkoder POST /api/cv/propose-cv-atoms kan svare med. Frontend definerer ingen egne. */
 export const CV_PROPOSAL_ERROR_CODES = [

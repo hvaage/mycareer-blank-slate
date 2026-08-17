@@ -13,13 +13,14 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { CV_ATOMIZATION_JOB_LIMITS } from "@/lib/cv-skills-contract";
 
 const UUID = z.string().uuid();
 
 const bodySchema = z
   .object({
     cvImportId: UUID,
-    candidateIds: z.array(UUID).min(1).max(200).optional(),
+    candidateIds: z.array(UUID).min(1).max(CV_ATOMIZATION_JOB_LIMITS.perJob.maxCandidates).optional(),
     regenerate: z.boolean().optional(),
   })
   .strict();

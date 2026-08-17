@@ -24,6 +24,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import { CV_PROPOSAL_LEGACY_LIMITS } from "@/lib/cv-skills-contract";
 
 type ErrorCode =
   | "method_not_allowed"
@@ -33,6 +34,8 @@ type ErrorCode =
   | "not_found"
   | "invalid_candidates"
   | "no_candidates"
+  | "too_many_candidates"
+  | "input_too_large"
   | "server_misconfigured"
   | "database_error";
 
@@ -46,7 +49,13 @@ const bodySchema = z
   .object({
     cvImportId: UUID,
     // Én forespørsel = én delbatch. Frontend deler større utvalg selv.
-    candidateIds: z.array(UUID).min(1).max(80).optional(),
+    // Den eldre ruten er ikke del av den ordinære brukerreisen og håndhever
+    // sine egne, lavere grenser eksplisitt (se CV_PROPOSAL_LEGACY_LIMITS).
+    candidateIds: z
+      .array(UUID)
+      .min(1)
+      .max(CV_PROPOSAL_LEGACY_LIMITS.perCall.maxCandidates)
+      .optional(),
     regenerate: z.boolean().optional(),
     // Atomiseringsprofil. v1 er ordinær standard. v2_1 er foreløpig en
     // feature-flagget canary og kjøres bare når den bes om eksplisitt.
@@ -187,6 +196,23 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
         );
         if (eligible.length === 0) {
           return fail(400, "no_candidates", "Ingen kandidater til normalisering i denne importen.");
+        }
+
+        // Egne, lavere grenser for den eldre ruten. Jobbruten har andre tall.
+        if (eligible.length > CV_PROPOSAL_LEGACY_LIMITS.perCall.maxCandidates) {
+          return fail(400, "too_many_candidates", "Utvalget er for stort for denne ruten.");
+        }
+        const legacyChars = (selected as unknown as Record<string, unknown>[]).reduce(
+          (n, c) =>
+            n +
+            [c["content_no"], c["content_en"], c["source_quote"]].reduce<number>(
+              (m, v) => m + (typeof v === "string" ? v.length : 0),
+              0,
+            ),
+          0,
+        );
+        if (legacyChars > CV_PROPOSAL_LEGACY_LIMITS.perCall.maxChars) {
+          return fail(400, "input_too_large", "Utvalget er for stort for denne ruten.");
         }
 
         if (!modelKey) {
