@@ -356,7 +356,8 @@ export const NON_RETRYABLE_STEP_OUTCOMES = ["configuration_error", "blocked_guar
  * frontend kan dele opp i stabile delbatcher.
  */
 export const CV_PROPOSAL_LIMITS = {
-  perCall: { maxCandidates: 20, maxChars: 20_000 },
+  // v2.1 sender rolleblokker med kontekst, ikke løsrevne segmenter.
+  perCall: { maxCandidates: 80, maxChars: 60_000 },
   perSelection: { maxCandidates: 120, maxChars: 120_000 },
 } as const;
 
