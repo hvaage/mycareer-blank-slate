@@ -726,15 +726,18 @@ export function buildProposalRows(
         appointment_relation: role.appointmentRelation,
         predecessor_role_local_id: role.predecessorRoleLocalId,
         concurrent_with_role_local_ids: role.concurrentWithRoleLocalIds,
+        provisional: role.provisional === true,
+        needs_review_reason: role.needsReviewReason ?? null,
         issues: role.issues,
       },
     });
   }
 
   for (const a of output.achievements) {
+    const kind = a.contentKind ?? "result";
     push({
       localId: a.localId,
-      atomType: "achievement",
+      atomType: kind === "role_evidence" ? "role_evidence" : "achievement",
       contentNo: a.normalizedText,
       evidence: a.sourceEvidence,
       action: "create_atom",
@@ -743,6 +746,7 @@ export function buildProposalRows(
       extra: {
         local_id: a.localId,
         role_local_id: a.roleLocalId,
+        content_kind: kind,
         placement_confidence: a.placementConfidence,
         placement_source: a.placementSource,
         placement_reasons: a.placementReasons,
@@ -750,6 +754,7 @@ export function buildProposalRows(
       },
     });
   }
+
 
   for (const s of output.skills) {
     const evidence = s.evidence.flatMap((e) => e.sourceEvidence);
