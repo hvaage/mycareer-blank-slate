@@ -15,6 +15,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ATOM_TYPE_LABEL,
   candidateTitle,
   invalidateCandidateQueries,
@@ -96,6 +103,13 @@ export function CvReviewResultsStep({
     () => groupResultsByRole(pending, savedRoles, promotedByLocalRef),
     [pending, savedRoles, promotedByLocalRef],
   );
+  /** Roller fra trinn 1 som er lagret, og som resultater kan knyttes til. */
+  const selectableRoles = useMemo(
+    () => savedRoles.filter((r) => r.kind === "lagret"),
+    [savedRoles],
+  );
+  const [roleChoice, setRoleChoice] = useState<Record<string, string>>({});
+  const [bulkRole, setBulkRole] = useState<string>("");
 
   const confirm = useMutation({
     mutationFn: async (v: { rows: CvParseCandidateRow[]; parentAtomId: string | null }) => {
@@ -186,11 +200,41 @@ export function CvReviewResultsStep({
             <CardDescription>
               {g.role
                 ? "Bekreft det du kjenner igjen. Resultatet knyttes til denne rollen."
-                : "Disse fant vi ingen rolle for. Bekreft dem gjerne — de blir stående uten rolle til du kobler dem."}
+                : selectableRoles.length > 0
+                  ? "Disse fant vi ingen rolle for. Velg hvilken rolle fra trinn 1 hvert resultat hører til før du bekrefter."
+                  : "Disse fant vi ingen rolle for. Bekreft rollene i trinn 1 først, så kan du koble resultatene hit."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {g.candidates.length > 1 && (
+            {!g.roleAtomId && selectableRoles.length > 0 && (
+              <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
+                <div className="min-w-56 flex-1 space-y-1">
+                  <Label className="text-xs">Knytt alle til rolle</Label>
+                  <Select value={bulkRole} onValueChange={setBulkRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Velg rolle fra trinn 1" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectableRoles.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.title}
+                          {r.employer ? ` · ${r.employer}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || !bulkRole}
+                  onClick={() => confirm.mutate({ rows: g.candidates, parentAtomId: bulkRole })}
+                >
+                  Bekreft alle ({g.candidates.length})
+                </Button>
+              </div>
+            )}
+            {g.roleAtomId && g.candidates.length > 1 && (
               <Button
                 variant="outline"
                 size="sm"
@@ -216,11 +260,37 @@ export function CvReviewResultsStep({
                     · fra importen
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {!g.roleAtomId && selectableRoles.length > 0 && (
+                    <Select
+                      value={roleChoice[c.id] ?? ""}
+                      onValueChange={(v) => setRoleChoice((p) => ({ ...p, [c.id]: v }))}
+                    >
+                      <SelectTrigger className="w-56">
+                        <SelectValue placeholder="Velg rolle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectableRoles.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.title}
+                            {r.employer ? ` · ${r.employer}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <Button
                     size="sm"
-                    disabled={busy}
-                    onClick={() => confirm.mutate({ rows: [c], parentAtomId: g.roleAtomId })}
+                    disabled={
+                      busy ||
+                      (!g.roleAtomId && selectableRoles.length > 0 && !(roleChoice[c.id] ?? bulkRole))
+                    }
+                    onClick={() =>
+                      confirm.mutate({
+                        rows: [c],
+                        parentAtomId: g.roleAtomId ?? roleChoice[c.id] ?? bulkRole ?? null,
+                      })
+                    }
                   >
                     <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Bekreft
                   </Button>
