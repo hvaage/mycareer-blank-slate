@@ -68,6 +68,13 @@ export type RoleAtomProposal = {
   predecessorRoleLocalId: string | null;
   concurrentWithRoleLocalIds: string[];
   status: "proposed" | "needs_review";
+  /**
+   * Provisorisk rolleblokk: perioden og arbeidsgiveren er strukturelt sikre,
+   * men noe mangler (typisk stillingstittel). Avklaringen hører hjemme på
+   * rollen — ikke på hvert enkelt resultat under den.
+   */
+  provisional?: boolean;
+  needsReviewReason?: "missing_role_title" | "merged_role_detected" | null;
   issues: string[];
 };
 
