@@ -302,3 +302,25 @@ if (monolithic?.body["ok"]) {
 } else if (monolithic) {
   console.log("\nmonolittisk kjøring feilet:", JSON.stringify(monolithic.body));
 }
+
+// --- regnskap: hva som ikke lenger teller som resultat ----------------------
+import { buildResultLedger } from "../../supabase/functions/_shared/cv-skills/result-ledger-v2.ts";
+
+const ledger = buildResultLedger({
+  input: preparsed,
+  output: out,
+  candidates: rows as never,
+  droppedLocalIds: ((result.body["dropped"] ?? []) as any[]).map((d) => d.local_id),
+});
+
+console.log("\n=== Regnskap for resultater ===");
+console.log(
+  "kildespenn klassifisert som mulig resultat:", ledger.resultCandidateSpans,
+  "| resultatforslag etter kvalitetsporter:", ledger.achievementProposals,
+);
+console.log("fordeling:", JSON.stringify(ledger.distribution));
+for (const e of ledger.nonResultEntries) {
+  console.log(
+    `\n - span ${e.sourceSpanId}\n   utdrag: ${e.excerpt}\n   fra: ${e.previousClassification} -> ${e.newClassification} (plassering=${e.placementConfidence ?? "-"}/${e.placementSource ?? "-"})\n   hvorfor: ${e.reason}\n   synlig: ${e.visibleIn}`,
+  );
+}

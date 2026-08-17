@@ -72,6 +72,25 @@ export const Route = createFileRoute("/api/cv/atomization-jobs")({
             correlationId,
             regenerate: parsed.data.regenerate === true,
           });
+
+          // Modellarbeidet drives av den interne arbeideren, ikke av brukerens
+          // kall. Her sendes bare startsignalet; jobben fortsetter server-side
+          // selv om nettleseren lukkes.
+          const startedJobId = outcome.body["job_id"];
+          const workerSecret = process.env["CV_ATOMIZATION_WORKER_SECRET"];
+          if (outcome.status < 400 && typeof startedJobId === "string" && workerSecret) {
+            try {
+              await fetch(new URL("/api/public/cv/atomization-worker", request.url), {
+                method: "POST",
+                headers: { "content-type": "application/json", "x-cv-worker-secret": workerSecret },
+                body: JSON.stringify({ jobId: startedJobId }),
+                signal: AbortSignal.timeout(1_500),
+              });
+            } catch {
+              // Arbeideren kjører videre server-side; reaperen fanger opp resten.
+            }
+          }
+
           return Response.json(outcome.body, { status: outcome.status });
         } catch (err) {
           console.error(

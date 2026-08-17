@@ -33,7 +33,7 @@ import {
 } from "@/lib/cv-atom-analysis";
 import {
   jobProgressPercent,
-  runAtomizationJob,
+  followAtomizationJob,
   startAtomizationJob,
   type JobBlockProgress,
 } from "@/lib/cv-atomization-job";
@@ -90,9 +90,9 @@ export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
         regenerate,
       });
       if ("error" in started) return { error: started.error };
-      return await runAtomizationJob({
+      return await followAtomizationJob({
         jobId: started.jobId,
-        onProgress: (next) => setBlocks(next),
+        onProgress: (next: JobBlockProgress[]) => setBlocks(next),
       });
     },
     onSuccess: (result) => {
@@ -208,6 +208,10 @@ export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
         {blocks && (
           <div className="space-y-2">
             <Progress value={jobProgressPercent(blocks)} />
+            <p className="text-xs text-muted-foreground">
+              Analysen kjører i bakgrunnen. Du kan lukke eller oppdatere siden — den fortsetter,
+              og fremdriften vises her når du kommer tilbake.
+            </p>
             <p className="text-sm text-muted-foreground">
               {blocks.length === 0
                 ? "Forbereder analysen …"

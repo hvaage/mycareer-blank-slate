@@ -25,6 +25,7 @@ import {
   hydrateEvidence,
 } from "./atom-proposal-pipeline-v2.ts";
 import { canonicalizeSourceText, computeSourceHash } from "./atom-proposal-pipeline.ts";
+import { buildResultLedger } from "./result-ledger-v2.ts";
 import { ATOMIZATION_OUTPUT_CONTRACT_VERSION } from "./vendor/cv-atom-language-no/v2/prompt.ts";
 import {
   DEFAULT_MAX_CONCURRENCY,
@@ -530,6 +531,15 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
     spanTexts,
   });
 
+  // Regnskap: hvert kildespenn som kunne vært et resultat får en eksplisitt
+  // klassifisering, begrunnelse og et sted brukeren finner det igjen.
+  const resultLedger = buildResultLedger({
+    input: modelInput,
+    output: gated.output,
+    candidates: sorted,
+    droppedLocalIds: built.dropped.map((d) => d.local_id),
+  });
+
   const allMetrics = blocks
     .filter((b) => b.phase !== "consolidate")
     .map((b) => b.metrics as unknown as PhaseMetric)
@@ -585,6 +595,7 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
             complete,
             issues: gated.output.issues.slice(0, 20),
             dropped: built.dropped,
+            result_ledger: resultLedger,
           },
         },
         p_proposals: built.kept,
@@ -627,6 +638,13 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
         achievements: gated.output.achievements.length,
         skills_reviewable: merged.report.consolidation?.reviewable ?? null,
         skills_local_signals: merged.report.consolidation?.localSignals ?? null,
+        result_ledger: {
+          version: resultLedger.version,
+          result_candidate_spans: resultLedger.resultCandidateSpans,
+          achievement_proposals: resultLedger.achievementProposals,
+          distribution: resultLedger.distribution,
+          non_result_entries: resultLedger.nonResultEntries.length,
+        },
       },
     })
     .eq("id", jobId);
@@ -640,6 +658,7 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
       batch_id: batchId,
       proposals_created: built.kept.length,
       failed_blocks: failedBlocks,
+      result_ledger: resultLedger,
     },
   };
 }

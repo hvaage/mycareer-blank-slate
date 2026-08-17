@@ -85,19 +85,28 @@ export async function startAtomizationJob(args: {
 }
 
 /**
- * Kjører jobben videre steg for steg til den er ferdig. Hvert steg gjør et
- * begrenset antall samtidige kall på serveren, og gir oppdatert blokkstatus.
+ * Følger jobben med rene lesekall. Selve analysen kjøres av en bakgrunns-
+ * tjeneste, ikke av nettleseren: statuskallene skriver aldri, og analysen
+ * fortsetter selv om siden lukkes eller lastes på nytt. Har jobben stått
+ * stille en stund, sendes ett vekkesignal (ingen analyse i selve kallet).
  */
-export async function runAtomizationJob(args: {
+export async function followAtomizationJob(args: {
   jobId: string;
   onProgress?: (blocks: JobBlockProgress[]) => void;
-  maxSteps?: number;
+  onStatus?: (status: { stalled: boolean; jobStatus: string }) => void;
+  pollMs?: number;
+  timeoutMs?: number;
+  signal?: AbortSignal;
 }): Promise<{ outcome: JobOutcome } | { error: JobError }> {
-  const maxSteps = args.maxSteps ?? 40;
-  for (let step = 0; step < maxSteps; step += 1) {
+  const pollMs = args.pollMs ?? 2_500;
+  const deadline = Date.now() + (args.timeoutMs ?? 15 * 60_000);
+  let lastResumeAt = 0;
+
+  while (Date.now() < deadline) {
+    if (args.signal?.aborted) return { error: { message: "Avbrutt.", retryable: true } };
     let response: Response;
     try {
-      response = await authedFetch(`/api/cv/atomization-jobs/${args.jobId}`, { method: "POST" });
+      response = await authedFetch(`/api/cv/atomization-jobs/${args.jobId}`, { method: "GET" });
     } catch {
       return { error: { message: ERROR_TEXT["network_error"]!, retryable: true } };
     }
@@ -107,20 +116,42 @@ export async function runAtomizationJob(args: {
     if (Array.isArray(body["blocks"])) {
       args.onProgress?.(body["blocks"] as JobBlockProgress[]);
     }
+    const jobStatus = String(body["job_status"] ?? "queued");
+    args.onStatus?.({ stalled: body["stalled"] === true, jobStatus });
+
     if (body["done"] === true) {
+      const job = (body["job"] ?? {}) as Record<string, unknown>;
+      const metrics = (job["metrics"] ?? {}) as Record<string, unknown>;
+      const failed = (metrics["failed_blocks"] as { label?: string }[] | undefined) ?? [];
       return {
         outcome: {
-          status: (body["job_status"] as JobOutcome["status"]) ?? "complete",
-          proposalsCreated: Number(body["proposals_created"] ?? 0),
-          failedBlocks: ((body["failed_blocks"] as { label?: string }[] | undefined) ?? []).map(
-            (b) => ({ label: b.label ?? "Ukjent del" }),
-          ),
+          status: (jobStatus as JobOutcome["status"]) ?? "complete",
+          proposalsCreated: Number(metrics["proposals_created"] ?? 0),
+          failedBlocks: failed.map((b) => ({ label: b.label ?? "Ukjent del" })),
         },
       };
     }
+
+    // Gjenopptakelse: ett signal per 60 sekunder, aldri modellarbeid herfra.
+    if (body["resumable"] === true && Date.now() - lastResumeAt > 60_000) {
+      lastResumeAt = Date.now();
+      try {
+        await authedFetch(`/api/cv/atomization-jobs/${args.jobId}`, { method: "POST" });
+      } catch {
+        // Bakgrunnstjenesten plukker jobben opp uansett.
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
   }
-  return { error: { message: "Analysen tok for lang tid. Prøv igjen.", retryable: true } };
+  return {
+    error: {
+      message: "Analysen tar lengre tid enn vanlig. Den fortsetter i bakgrunnen — kom tilbake litt senere.",
+      retryable: true,
+    },
+  };
 }
+
 
 export function jobProgressPercent(blocks: JobBlockProgress[]): number {
   if (blocks.length === 0) return 0;
