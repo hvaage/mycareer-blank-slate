@@ -26,18 +26,16 @@ import {
   TARGET_ATOM_TYPE_LABELS,
   type AtomEnrichmentProposalRow,
 } from "@/lib/queries/atom-enrichment";
+import { type AnalysisCandidate } from "@/lib/cv-atom-analysis";
 import {
-  planAnalysisChunks,
-  selectionTooLarge,
-  type AnalysisCandidate,
-} from "@/lib/cv-atom-analysis";
-import {
+  ACTIVE_ANALYSIS_LIMITS,
+  analysisSelectionTooLarge,
   jobProgressPercent,
   followAtomizationJob,
   startAtomizationJob,
   type JobBlockProgress,
 } from "@/lib/cv-atomization-job";
-import { CV_PROPOSAL_LIMITS, CV_PROPOSAL_REVIEW_STATE_TEXT } from "@/lib/cv-skills-contract";
+import { CV_PROPOSAL_REVIEW_STATE_TEXT } from "@/lib/cv-skills-contract";
 
 
 type Props = {
@@ -72,8 +70,9 @@ export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
   const proposalsQuery = useQuery(atomEnrichmentProposalsByImportQuery(userId, importId));
   const proposals = proposalsQuery.data ?? [];
 
-  const chunks = useMemo(() => planAnalysisChunks(candidates), [candidates]);
-  const tooLarge = useMemo(() => selectionTooLarge(candidates), [candidates]);
+  // Grensene her er de samme som den aktive analysen håndhever server-side.
+  const tooLarge = useMemo(() => analysisSelectionTooLarge(candidates), [candidates]);
+  const hasCandidates = candidates.length > 0;
 
   const pending = proposals.filter((p) => p.status === "pending_review");
   const needsContext = proposals.filter((p) => p.status === "needs_more_context");
@@ -176,7 +175,7 @@ export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
             <AlertTriangle className="h-4 w-4" aria-hidden />
             <AlertTitle>Utvalget er for stort</AlertTitle>
             <AlertDescription>
-              Velg færre funn — maks {CV_PROPOSAL_LIMITS.perSelection.maxCandidates} om gangen.
+              Velg færre funn — maks {ACTIVE_ANALYSIS_LIMITS.maxCandidates} om gangen.
             </AlertDescription>
           </Alert>
         )}
@@ -184,7 +183,7 @@ export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             onClick={() => analyze.mutate(false)}
-            disabled={running || tooLarge || chunks.length === 0}
+            disabled={running || tooLarge || !hasCandidates}
           >
             {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
             Start analyse
@@ -193,12 +192,12 @@ export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
             <Button
               variant="outline"
               onClick={() => analyze.mutate(true)}
-              disabled={running || tooLarge || chunks.length === 0}
+              disabled={running || tooLarge || !hasCandidates}
             >
               Analyser på nytt
             </Button>
           )}
-          {chunks.length > 1 && !running && !blocks && (
+          {hasCandidates && !running && !blocks && (
             <span className="text-sm text-muted-foreground">
               Analysen kjøres i flere trinn og viser fremdrift underveis.
             </span>

@@ -6,6 +6,13 @@
 
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { CV_ATOMIZATION_JOB_LIMITS } from "./contract.ts";
+
+/** Tegnvekt for én kandidat. Samme mål som frontend bruker før start. */
+export function candidateCharSize(candidate: Record<string, unknown>): number {
+  const parts = [candidate["content_no"], candidate["content_en"], candidate["source_quote"]];
+  return parts.reduce<number>((n, v) => n + (typeof v === "string" ? v.length : 0), 0);
+}
 
 export type JobContext = {
   ok: true;
@@ -93,6 +100,19 @@ export async function loadJobContext(args: {
   const eligible = selected.filter((c) => c.promoted_atom_id === null && c.status !== "bekreftet");
   if (args.requireEligible && eligible.length === 0) {
     return err(400, "no_candidates", "Ingen kandidater til analyse i denne importen.");
+  }
+
+  // Grensene for jobbruten håndheves eksplisitt her, slik at frontend aldri
+  // kan sende inn et utvalg som denne ruten avviser senere.
+  if (eligible.length > CV_ATOMIZATION_JOB_LIMITS.perJob.maxCandidates) {
+    return err(400, "too_many_candidates", "Utvalget er for stort til én analyse.");
+  }
+  const totalChars = eligible.reduce(
+    (n, c) => n + candidateCharSize(c as unknown as Record<string, unknown>),
+    0,
+  );
+  if (totalChars > CV_ATOMIZATION_JOB_LIMITS.perJob.maxChars) {
+    return err(400, "input_too_large", "Utvalget er for stort til én analyse.");
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
