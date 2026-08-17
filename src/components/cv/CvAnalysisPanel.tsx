@@ -66,7 +66,7 @@ function proposalKindLabel(row: AtomEnrichmentProposalRow): string {
 
 export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
   const qc = useQueryClient();
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [blocks, setBlocks] = useState<JobBlockProgress[] | null>(null);
   const [lastError, setLastError] = useState<{ message: string; retryable: boolean } | null>(null);
 
   const proposalsQuery = useQuery(atomEnrichmentProposalsByImportQuery(userId, importId));
@@ -83,42 +83,48 @@ export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
   const analyze = useMutation({
     mutationFn: async (regenerate: boolean) => {
       setLastError(null);
-      setProgress({ done: 0, total: chunks.length });
-      return runAnalysisChunks({
+      setBlocks([]);
+      const started = await startAtomizationJob({
         cvImportId: importId,
-        chunks,
+        candidateIds: candidates.map((c) => c.id),
         regenerate,
-        onProgress: (done, total) => setProgress({ done, total }),
+      });
+      if ("error" in started) return { error: started.error };
+      return await runAtomizationJob({
+        jobId: started.jobId,
+        onProgress: (next) => setBlocks(next),
       });
     },
-    onSuccess: ({ results, failedAt }) => {
-      const failure = results.find((r): r is Extract<ChunkResult, { ok: false }> => !r.ok);
-      if (failure) {
-        const wait =
-          failure.retryAfterSeconds != null
-            ? ` Prøv igjen om ${failure.retryAfterSeconds} sekunder.`
-            : "";
-        setLastError({ message: failure.message + wait, retryable: failure.retryable });
-        toast.error(failure.message + wait);
+    onSuccess: (result) => {
+      if ("error" in result) {
+        setLastError(result.error);
+        toast.error(result.error.message);
       } else {
-        const created = results.reduce((n, r) => n + (r.ok ? r.created : 0), 0);
-        toast.success(
-          created > 0
-            ? `Analysen fant ${created} nye forslag til gjennomgang.`
-            : "Analysen er ferdig. Ingen nye forslag denne gangen.",
-        );
+        const { outcome } = result;
+        if (outcome.failedBlocks.length > 0) {
+          toast.warning(
+            `Analysen er ferdig, men ${outcome.failedBlocks.length} del(er) må gjennomgås manuelt.`,
+          );
+        } else {
+          toast.success(
+            outcome.proposalsCreated > 0
+              ? `Analysen fant ${outcome.proposalsCreated} nye forslag til gjennomgang.`
+              : "Analysen er ferdig. Ingen nye forslag denne gangen.",
+          );
+        }
+        setBlocks(null);
       }
-      if (failedAt === null) setProgress(null);
       void qc.invalidateQueries({
         queryKey: ["atom-enrichment-proposals", userId, "import", importId],
       });
       invalidateAtomEnrichmentQueries(qc, userId);
     },
     onError: () => {
-      setProgress(null);
+      setBlocks(null);
       setLastError({ message: "Kunne ikke analyseres akkurat nå. Prøv igjen.", retryable: true });
     },
   });
+
 
   const decide = useMutation({
     mutationFn: async (args: {
