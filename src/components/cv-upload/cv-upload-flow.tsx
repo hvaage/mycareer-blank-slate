@@ -143,7 +143,18 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
       setStage({ kind: "parsing", importId, fileName });
       let raw: unknown = null;
       try {
-        await runParse.mutateAsync(importId);
+        // En import som allerede er tolket skal ikke tolkes på nytt: tjenesten
+        // godtar bare «pending»/«failed», og et nytt kall ville gitt en feil
+        // som ser ut som at analysen mislyktes.
+        const { data: existing } = await supabase
+          .from("cv_imports")
+          .select("raw_parsed_data, status")
+          .eq("id", importId)
+          .maybeSingle();
+        const alreadyParsed =
+          !!existing?.raw_parsed_data && parsedShapeIsReadable(existing.raw_parsed_data);
+        if (!alreadyParsed) await runParse.mutateAsync(importId);
+
         const { data: row, error } = await supabase
           .from("cv_imports")
           .select("raw_parsed_data, source_filename")
