@@ -172,7 +172,7 @@ export function buildResultLedger(args: {
   // 1) Hvert resultatforslag som ikke ble et rolleplassert resultat får en
   //    egen linje, uansett hvilket kildespenn det kom fra.
   for (const achievement of output.achievements) {
-    const spanIds = (achievement.evidence ?? [])
+    const spanIds = (achievement.sourceEvidence ?? [])
       .map((e) => e.sourceSpanId)
       .filter((id): id is string => Boolean(id));
     for (const id of spanIds) accountedAchievementSpans.add(id);
@@ -196,8 +196,10 @@ export function buildResultLedger(args: {
     entries.push({
       sourceSpanId: primarySpanId ?? achievement.localId,
       excerpt: excerptOf(
-        (primarySpanId ? spanById.get(primarySpanId)?.text : "") || achievement.contentNo || "",
+        (primarySpanId ? spanById.get(primarySpanId)?.text : "") ||
+          achievement.normalizedText || "",
       ),
+
       previousClassification: candidate?.suggested_atom_type ?? "achievement",
       newClassification: disposition,
       placementConfidence: achievement.placementConfidence ?? null,
