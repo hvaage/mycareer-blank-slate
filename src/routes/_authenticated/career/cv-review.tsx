@@ -204,12 +204,27 @@ function CvReviewPage() {
       roleAtomId: a.parent_atom_id ?? null,
     }));
 
+  // Trinn 3 leser v2.1-forslagene som autoritet for kompetanseplassering.
+  const skillBasis = useMemo(
+    () =>
+      buildSkillBasis({
+        proposals: proposals.data ?? [],
+        skillCandidates,
+        roles: suggestionRoles,
+        results: suggestionResults,
+        promotedByLocalRef: promoted,
+      }),
+    [proposals.data, skillCandidates, suggestionRoles, suggestionResults, promoted],
+  );
+  const skillReviewCandidates = skillBasis.items.map((i) => i.candidate);
+
   const stepStatuses = [
     { step: 1, label: "Roller", ...countStep(roleCandidates) },
     { step: 2, label: "Resultater", ...countStep(resultCandidates) },
-    { step: 3, label: "Kompetanse", ...countStep(skillCandidates) },
+    { step: 3, label: "Kompetanse", ...countStep(skillReviewCandidates) },
     { step: 4, label: "Kvalifikasjoner", ...countStep(qualificationCandidates) },
   ];
+
 
   function goToStep(step: number) {
     if (!activeImportId) return;
