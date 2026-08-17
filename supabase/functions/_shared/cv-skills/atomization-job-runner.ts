@@ -689,6 +689,13 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
           distribution: resultLedger.distribution,
           non_result_entries: resultLedger.nonResultEntries.length,
         },
+        review_basis_reconcile: reconcile
+          ? {
+              updates: reconcile.updates.length,
+              unmapped_roles: reconcile.unmappedRoles,
+              blocked: reconcile.blocked,
+            }
+          : null,
       },
     })
     .eq("id", jobId);
