@@ -6192,6 +6192,20 @@ export type Database = {
           total_bytes: number
         }[]
       }
+      cv_atomization_job_cancel: {
+        Args: { p_job_id: string }
+        Returns: {
+          job_id: string
+          job_status: string
+        }[]
+      }
+      cv_atomization_job_resume: {
+        Args: { p_job_id: string }
+        Returns: {
+          job_id: string
+          job_status: string
+        }[]
+      }
       cv_review_progress_advance: {
         Args: {
           p_import_id: string
