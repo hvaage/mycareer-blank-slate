@@ -207,6 +207,11 @@ export function CvReviewResultsStep({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            {!g.roleAtomId && (
+              <Button variant="outline" size="sm" disabled={busy} onClick={onBack}>
+                Stilling mangler – legg den til i trinn 1
+              </Button>
+            )}
             {!g.roleAtomId && selectableRoles.length > 0 && (
               <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
                 <div className="min-w-56 flex-1 space-y-1">
