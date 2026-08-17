@@ -26,6 +26,16 @@ Regler:
   utnevnelse returneres som eget rolleforslag med appointmentRelation
   successive eller concurrent, predecessorRoleLocalId og
   concurrentWithRoleLocalIds satt.
+- appointmentHints med prefikset inner_appointment: er deterministisk funnet i
+  kilden og angir en navngitt stilling med egen periode. Hver slik utnevnelse
+  SKAL bli et eget rolleforslag med tittel og periode fra hintet, og med
+  sourceEvidence fra spennet der den står. En sammensatt blokktittel skal da
+  ikke også returneres som egen rolle.
+- Overlapper to slike perioder, er relasjonen concurrent. Følger de etter
+  hverandre, er relasjonen successive.
+- Dekker de eksplisitte utnevnelsene bare deler av ansettelsesperioden, legg
+  til ÉN rolle for restperioden med title null, status needs_review og issue
+  missing_role_structure. Ikke dikt opp en tittel for restperioden.
 - Ikke splitt en sammensatt stillingstittel uten kildebelegg for separate eller
   parallelle utnevnelser. Returner da status needs_review med issue
   multi_role_appointment_ambiguous.
