@@ -465,10 +465,10 @@ function CvReviewPage() {
           userId={userId}
           importId={activeImportId}
           signature={signature}
-          skillCandidates={skillCandidates}
+          basis={skillBasis}
           roles={suggestionRoles}
           results={suggestionResults}
-          promotedByLocalRef={promoted}
+
           onContinue={() => invalidateReviewProgress(qc, userId)}
           onBack={() => goToStep(2)}
         />
