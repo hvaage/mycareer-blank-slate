@@ -254,6 +254,16 @@ export async function startAtomizationJob(args: StartJobInput): Promise<JobRunne
     {
       job_id: job.id,
       user_id: userId,
+      phase: "skill_evidence",
+      block_key: "__skill_evidence__",
+      label: "Finner hvilke roller og resultater som belegger kompetansene",
+      sort_order: 850,
+      span_ids: [],
+    },
+    {
+
+      job_id: job.id,
+      user_id: userId,
       phase: "consolidate",
       block_key: "__consolidate__",
       label: "Samler kompetanser på tvers av roller",
