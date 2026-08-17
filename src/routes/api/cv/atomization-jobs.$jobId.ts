@@ -109,16 +109,10 @@ export const Route = createFileRoute("/api/cv/atomization-jobs/$jobId")({
         }
         const secret = process.env["CV_ATOMIZATION_WORKER_SECRET"];
         if (!secret) return fail(500, "server_misconfigured", "Analysen er ikke tilgjengelig nå.");
-        try {
-          await fetch(new URL("/api/public/cv/atomization-worker", request.url), {
-            method: "POST",
-            headers: { "content-type": "application/json", "x-cv-worker-secret": secret },
-            body: JSON.stringify({ jobId: params.jobId }),
-            signal: AbortSignal.timeout(1_500),
-          });
-        } catch {
-          // Arbeideren kjører videre server-side; reaperen fanger opp resten.
-        }
+        const { kickAtomizationWorker } = await import(
+          "../../../../supabase/functions/_shared/cv-skills/worker-kick.server.ts"
+        );
+        kickAtomizationWorker({ baseUrl: request.url, secret, jobId: params.jobId });
         return Response.json({ ok: true, resumed: true, job_status: status });
       },
       // Avbryt: setter jobben i en eksplisitt terminal tilstand server-side.
