@@ -66,7 +66,7 @@ const CLAUDE_TIMEOUT_MS = 240_000;
 
 export type JobBlockRow = {
   id: string;
-  phase: "appointments" | "block_content" | "consolidate";
+  phase: "appointments" | "block_content" | "skill_evidence" | "consolidate";
   block_key: string;
   label: string;
   sort_order: number;
