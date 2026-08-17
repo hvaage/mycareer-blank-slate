@@ -87,6 +87,9 @@ export type HierarchicalResult = {
   /** Blokker/grupper som feilet. Importen er ikke ferdig før disse er løst. */
   failed: Array<{ phase: PhaseMetric["phase"]; key: string; errorCode: string }>;
   skillMerge: SkillMergeReport;
+  /** Fase 4: hvilke kompetanser som fikk konkret rolle-/resultatbelegg. */
+  skillEvidence: SkillEvidenceReport;
+
   modelCalls: number;
   totalInputTokens: number;
   totalOutputTokens: number;
