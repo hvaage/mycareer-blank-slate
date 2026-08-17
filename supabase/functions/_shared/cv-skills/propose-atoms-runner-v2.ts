@@ -26,11 +26,18 @@ import {
   parseAtomizationOutput,
 } from "./atom-proposal-pipeline-v2.ts";
 import { canonicalizeSourceText, computeSourceHash } from "./atom-proposal-pipeline.ts";
+import {
+  DEFAULT_MAX_CONCURRENCY,
+  HIERARCHICAL_PIPELINE_VERSION,
+  runHierarchicalAtomization,
+} from "./hierarchical-atomization-v2.ts";
 
 export const TASK_KEY_V2 = "cv_atom_language_no_v2_1";
 // Rollebevisst analyse av en hel import er et tungt kall. Delbatcher fra
 // frontend er normalt langt mindre enn dette taket.
 const CLAUDE_TIMEOUT_MS = 240_000;
+/** Moderat samtidighet: aldri flere åpne utgående modellkall enn dette. */
+const MAX_MODEL_CONCURRENCY = DEFAULT_MAX_CONCURRENCY;
 
 export const RUN_LIMITS_V2 = {
   maxCandidatesPerRequest: 80,
@@ -55,6 +62,8 @@ export type RunnerV2Input = {
   regenerate?: boolean;
   /** Evaluering: kjør modellen uten å skrive forslag. */
   dryRun?: boolean;
+  /** Standard er hierarkisk. "monolithic" beholdes for måling og kontroll. */
+  pipeline?: "hierarchical" | "monolithic";
 };
 
 export type RunnerResult = { status: number; body: Record<string, unknown> };
@@ -275,6 +284,159 @@ export async function runProposeCvAtomsV2(input: RunnerV2Input): Promise<RunnerR
     });
   };
 
+  // ------------------------------------------------- hierarkisk pipeline
+  if ((input.pipeline ?? "hierarchical") === "hierarchical") {
+    const hier = await runHierarchicalAtomization({
+      input: modelInput,
+      profile,
+      anthropicApiKey: input.anthropicApiKey,
+      correlationId,
+      timeoutMs: CLAUDE_TIMEOUT_MS,
+      maxConcurrency: MAX_MODEL_CONCURRENCY,
+    });
+
+    await finishRun({
+      status: hier.failed.length > 0 && hier.output.roles.length === 0 ? "failed" : "succeeded",
+      outcome: hier.failed.length > 0 ? "partial" : "ok",
+      errorCode: hier.failed[0]?.errorCode ?? null,
+      httpStatus: 200,
+      requestId: null,
+      durationMs: hier.wallClockMs,
+      retryCount: 0,
+      inputTokens: hier.totalInputTokens,
+      outputTokens: hier.totalOutputTokens,
+    });
+
+    const gatedHier = applyQualityGates(hydrateEvidence(hier.output, modelInput), modelInput);
+    const built = buildProposalRows(gatedHier.output, {
+      cvImportId,
+      inputSignature,
+      modelRunId,
+      promptVersion: `${profile.promptVersion}+hier${HIERARCHICAL_PIPELINE_VERSION}`,
+      normalizerVersion: PREPARSER_VERSION,
+      candidatesByRef,
+      spanHashes,
+      spanTexts,
+    });
+
+    const hierUsage = {
+      input_tokens: hier.totalInputTokens,
+      output_tokens: hier.totalOutputTokens,
+      duration_ms: hier.wallClockMs,
+      model_calls: hier.modelCalls,
+    };
+    // Importen er ikke ferdig før alle blokker er behandlet eller tydelig
+    // markert needs_review.
+    const complete = hier.failed.length === 0;
+
+    if (input.dryRun === true) {
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          dry_run: true,
+          pipeline: "hierarchical",
+          skill_version: "2.1.0",
+          model_run_id: modelRunId,
+          input_signature: inputSignature,
+          role_blocks: modelInput.roleBlocks.length,
+          output: gatedHier.output,
+          quality_gates: gatedHier.report,
+          phase_metrics: hier.metrics,
+          skill_merge: hier.skillMerge,
+          failed_blocks: hier.failed,
+          complete,
+          proposals_would_create: built.kept.length,
+          dropped: built.dropped,
+          usage: hierUsage,
+        },
+      };
+    }
+
+    if (built.kept.length === 0) {
+      return fail(422, "blocked_validation", "Ingen forslag besto evidenskontrollen.", {
+        dropped: built.dropped,
+        failed_blocks: hier.failed,
+      });
+    }
+
+    const { data: hWriteJson, error: hWriteError } = await adminClient.rpc(
+      "internal_ai_create_enrichment_batch",
+      {
+        p_user_id: userId,
+        p_batch: {
+          source_type: "cv_import",
+          source_table: "cv_parse_candidates",
+          source_id: cvImportId,
+          source_record_id: cvImportId,
+          source_hash: inputSignature,
+          input_signature: inputSignature,
+          normalizer_version: PREPARSER_VERSION,
+          model_run_id: modelRunId,
+          title: "Rollebevisst analyse av CV-import",
+          status: "open",
+          context: {
+            task_key: TASK_KEY_V2,
+            skill_version: "2.1.0",
+            pipeline: "hierarchical",
+            pipeline_version: HIERARCHICAL_PIPELINE_VERSION,
+            model_run_id: modelRunId,
+            model_id: profile.modelId,
+            prompt_version: profile.promptVersion,
+            preparser_version: PREPARSER_VERSION,
+            correlation_id: correlationId,
+            spans: modelInput.sourceSpans.length,
+            role_blocks: modelInput.roleBlocks.length,
+            quality_gates: gatedHier.report,
+            phase_metrics: hier.metrics,
+            skill_merge: hier.skillMerge,
+            failed_blocks: hier.failed,
+            complete,
+            issues: gatedHier.output.issues.slice(0, 20),
+            dropped: built.dropped,
+          },
+        },
+        p_proposals: built.kept,
+      },
+    );
+    if (hWriteError || !hWriteJson) {
+      return fail(500, "database_error", "Kunne ikke lagre forslagene.");
+    }
+    const hWrite = hWriteJson as { batch_id: string; inserted: number; skipped: number };
+
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        pipeline: "hierarchical",
+        skill_version: "2.1.0",
+        cv_import_id: cvImportId,
+        input_signature: inputSignature,
+        batch_id: hWrite.batch_id,
+        model_run_id: modelRunId,
+        role_blocks: modelInput.roleBlocks.length,
+        roles_proposed: gatedHier.output.roles.length,
+        achievements_proposed: gatedHier.output.achievements.length,
+        skills_proposed: gatedHier.output.skills.length,
+        proposals_created: hWrite.inserted,
+        proposals_skipped: hWrite.skipped,
+        quality_gates: gatedHier.report,
+        phase_metrics: hier.metrics,
+        skill_merge: hier.skillMerge,
+        failed_blocks: hier.failed,
+        complete,
+        dropped: built.dropped,
+        career_atoms_written: 0,
+        usage: hierUsage,
+        note: complete
+          ? "Forslagene venter på gjennomgang. Ingenting er skrevet til karriereoversikten."
+          : "Noen blokker ble ikke behandlet. Analysen er ikke ferdig og må gjennomgås manuelt.",
+        duration_ms: Date.now() - startedAt,
+      },
+    };
+  }
+
+  // ------------------------------------------------- monolittisk pipeline
   const result = await callClaude({
     profile,
     system: `${ATOMIZATION_SYSTEM_PROMPT_NO}\n\n${ATOMIZATION_OUTPUT_CONTRACT_NO}`,

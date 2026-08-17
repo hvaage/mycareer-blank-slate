@@ -51,6 +51,8 @@ const bodySchema = z
     // Atomiseringsprofil. v1 er ordinær standard. v2_1 er foreløpig en
     // feature-flagget canary og kjøres bare når den bes om eksplisitt.
     profile: z.enum(["v1", "v2_1"]).optional(),
+    // v2_1 kjører hierarkisk som standard. "monolithic" beholdes for måling.
+    pipeline: z.enum(["hierarchical", "monolithic"]).optional(),
     correlation_id: UUID.optional(),
   })
   .strict();
@@ -228,6 +230,7 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
             correlationId,
             startedAt,
             regenerate: regenerate === true,
+            pipeline: parsed.data.pipeline ?? "hierarchical",
           });
           return Response.json(outcome.body, { status: outcome.status });
         } catch (err) {

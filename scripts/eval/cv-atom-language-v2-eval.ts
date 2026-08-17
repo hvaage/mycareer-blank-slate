@@ -96,19 +96,28 @@ if (runV1) {
 }
 
 // ------------------------------------------------------------- v2.1 dry run
-const started = Date.now();
-const result = await runProposeCvAtomsV2({
-  userClient: admin,
-  adminClient: admin,
-  anthropicApiKey: process.env["ANTHROPIC_API_KEY"]!,
-  userId: importRow.user_id,
-  cvImportId: importId,
-  allCandidates: rows,
-  selectedRefs: rows.map((c: any) => c.local_ref),
-  correlationId: crypto.randomUUID(),
-  startedAt: started,
-  dryRun: true,
-});
+const runV2 = async (pipeline: "hierarchical" | "monolithic") => {
+  const t0 = Date.now();
+  const res = await runProposeCvAtomsV2({
+    userClient: admin,
+    adminClient: admin,
+    anthropicApiKey: process.env["ANTHROPIC_API_KEY"]!,
+    userId: importRow.user_id,
+    cvImportId: importId,
+    allCandidates: rows,
+    selectedRefs: rows.map((c: any) => c.local_ref),
+    correlationId: crypto.randomUUID(),
+    startedAt: t0,
+    dryRun: true,
+    pipeline,
+  });
+  return res;
+};
+
+// Monolittisk kjøring tas bare med når den bes om: den koster et fullt kall.
+const monolithic = process.argv.includes("--compare") ? await runV2("monolithic") : null;
+
+const result = await runV2("hierarchical");
 
 console.log("\n=== v2.1.0 (dry run) ===");
 if (!result.body["ok"]) {
@@ -222,3 +231,56 @@ const checks: Array<[string, boolean]> = [
   ],
 ];
 for (const [label, ok] of checks) console.log(`${ok ? "OK     " : "MANGLER"} ${label}`);
+
+// --- hierarkisk kjøring: delbatcher, fletting og robusthet -----------------
+const phases = (result.body["phase_metrics"] ?? []) as any[];
+const merge = result.body["skill_merge"] as any;
+const failedBlocks = (result.body["failed_blocks"] ?? []) as any[];
+console.log("\n=== Hierarkisk kjøring ===");
+console.log("modellkall:", usage.model_calls, "| veggklokketid:", usage.duration_ms, "ms");
+for (const p of phases) {
+  console.log(
+    ` - ${p.phase} | ${p.key} | spenn=${p.spans} | ${p.durationMs}ms | in=${p.inputTokens} ut=${p.outputTokens} | ${p.ok ? "ok" : `FEIL:${p.errorCode}`} | sig=${String(p.subBatchSignature).slice(0, 12)}`,
+  );
+}
+console.log("kompetanseflette:", JSON.stringify(merge));
+console.log(
+  "ufullstendige blokker:",
+  failedBlocks.length,
+  failedBlocks.length === 0 ? "(analysen er ferdig)" : JSON.stringify(failedBlocks),
+);
+console.log("skrevet til career_atoms:", result.body["career_atoms_written"] ?? 0);
+console.log(
+  `ytelsesport (<30s): ${usage.duration_ms < 30_000 ? "OK" : "MANGLER"} (${Math.round(usage.duration_ms / 1000)}s)`,
+);
+
+// --- monolittisk mot hierarkisk --------------------------------------------
+if (monolithic?.body["ok"]) {
+  const mOut = monolithic.body["output"] as any;
+  const mUsage = monolithic.body["usage"] as any;
+  const mGates = monolithic.body["quality_gates"] as any;
+  const mCisco = mOut.roles.filter((r: any) =>
+    String(r.employer ?? "").toLowerCase().includes("cisco"),
+  );
+  const row = (label: string, mono: unknown, hier: unknown) =>
+    console.log(`${label.padEnd(34)} mono=${String(mono).padEnd(10)} hier=${String(hier)}`);
+  console.log("\n=== Monolittisk mot hierarkisk (samme frosne input) ===");
+  row("modellkall", 1, usage.model_calls);
+  row("varighet (ms)", mUsage.duration_ms, usage.duration_ms);
+  row("input-tokens", mUsage.input_tokens, usage.input_tokens);
+  row("output-tokens", mUsage.output_tokens, usage.output_tokens);
+  row("roller", mOut.roles.length, out.roles.length);
+  row("Cisco-roller", mCisco.length, cisco.length);
+  row("resultater", mOut.achievements.length, ach.length);
+  row("uplasserte resultater", mGates.achievementsUnassigned, gates.achievementsUnassigned);
+  row("kompetanser", mOut.skills.length, out.skills.length);
+  row("kompetanser needs_review", mGates.skillsNeedsReview, gates.skillsNeedsReview);
+  row("roller needs_review", mGates.rolesNeedsReview, gates.rolesNeedsReview);
+  const noRegression =
+    out.roles.length >= mOut.roles.length &&
+    cisco.length >= mCisco.length &&
+    gates.achievementsUnassigned <= mGates.achievementsUnassigned;
+  console.log(`kvalitetsport (ingen regresjon): ${noRegression ? "OK" : "MANGLER"}`);
+} else if (monolithic) {
+  console.log("\nmonolittisk kjøring feilet:", JSON.stringify(monolithic.body));
+}

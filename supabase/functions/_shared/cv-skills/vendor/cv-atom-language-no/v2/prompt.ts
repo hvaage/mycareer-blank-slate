@@ -123,3 +123,135 @@ finnes i input. Ikke returner sourceQuote, displayLabel eller employmentGroupKey
 export function buildAtomizationUserPrompt(input: unknown): string {
   return JSON.stringify({ task: "atomize_cv_roles_results_skills", input });
 }
+
+// ---------------------------------------------------------------------------
+// Hierarkisk pipeline: fase 1 (ansettelsesforløp) og fase 2 (innhold per blokk)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fase 1 behandler ÉN ansettelsesgruppe samlet, slik at flere utnevnelser hos
+ * samme arbeidsgiver kan forstås som etterfølgende og/eller overlappende.
+ */
+export const APPOINTMENTS_SYSTEM_PROMPT_NO = `Du er en norsk CV-struktureringsmotor. Du får kildespennene for ÉTT
+ansettelsesforhold (én arbeidsgiver) og skal bare bestemme hvilke
+rolleutnevnelser kilden faktisk belegger.
+
+Regler:
+- employmentGroupKey er en gruppenøkkel, ikke en rolleidentitet. Samme
+  arbeidsgiver betyr ikke samme rolle.
+- Ved tittelendring, forfremmelse eller uttrykkelig parallell rolle skal hver
+  utnevnelse returneres som eget rolleforslag.
+- appointmentHints med prefikset inner_appointment: er deterministisk funnet i
+  kilden og angir en navngitt stilling med egen periode. Hver slik utnevnelse
+  SKAL bli et eget rolleforslag med tittel og periode fra hintet. En sammensatt
+  blokktittel skal da ikke også returneres som egen rolle.
+- Dekker de eksplisitte utnevnelsene bare deler av ansettelsesperioden, legg til
+  ÉN rolle for restperioden med title null, status needs_review og issue
+  missing_role_structure. Ikke dikt opp en tittel.
+- Ikke splitt en sammensatt tittel uten kildebelegg. Returner da status
+  needs_review med issue multi_role_appointment_ambiguous.
+- Ikke gjett datoer eller arbeidsgivere.
+- Oppgi belegg som sourceSpanIds. Ikke gjenta kildetekst.
+- Returner bare JSON.`;
+
+export const APPOINTMENTS_OUTPUT_CONTRACT_NO = `Svar med ett JSON-objekt, uten markdown og uten tekst utenfor JSON.
+{
+  "roles": [
+    {
+      "localId": "r1",
+      "roleBlockId": "<id fra roleBlocks eller null>",
+      "title": "<tittel eller null>",
+      "employer": "<arbeidsgiver eller null>",
+      "startDate": "YYYY-MM|YYYY|null",
+      "endDate": "YYYY-MM|YYYY|null",
+      "datePrecision": "day|month|year|null",
+      "sourceSpanIds": ["<id fra input>"],
+      "appointmentRelation": "single|successive|concurrent|ambiguous",
+      "predecessorRoleLocalId": null,
+      "concurrentWithRoleLocalIds": [],
+      "status": "proposed|needs_review",
+      "issues": []
+    }
+  ],
+  "issues": [
+    { "code": "missing_role_structure|merged_role_detected|multi_role_appointment_ambiguous|role_candidate_misclassified",
+      "sourceSpanIds": ["<id fra input>"], "message": "<kort forklaring>" }
+  ]
+}
+Alle felt er obligatoriske. Hvert sourceSpanId må finnes i input.`;
+
+/**
+ * Fase 2 behandler ÉN rolleblokk (eller spennene uten rolle) når utnevnelsene
+ * allerede er bestemt. Modellen skal bare plassere innhold, ikke endre roller.
+ */
+export const BLOCK_CONTENT_SYSTEM_PROMPT_NO = `Du er en norsk CV-struktureringsmotor. Rolleutnevnelsene er allerede bestemt og
+oppgitt i input. Du skal ikke foreslå nye roller og ikke endre de eksisterende.
+
+Oppgaven er å normalisere resultater, kompetanser og kvalifikasjoner som
+kildespennene i denne blokken faktisk belegger.
+
+Regler:
+- roleLocalId må være en av de oppgitte rollene, ellers null.
+- Ikke plasser resultat under rolle på grunnlag av ordlikhet alene. Uten
+  strukturelt eller eksplisitt kildebelegg: status unassigned.
+- Ikke bruk et langt ansvar eller resultat som kompetansenavn. canonicalLabelNo
+  skal være kort, generisk og gjenbrukbart (maks 6 ord).
+- canonicalKey skal være stabil: små bokstaver og bindestrek, samme begrep gir
+  samme nøkkel også i andre blokker.
+- En utledet kompetanse merkes inferred=true.
+- Ikke dikt opp fakta og ikke skriv ferdig CV-tekst.
+- Oppgi belegg som sourceSpanIds. Ikke gjenta kildetekst.
+- Returner bare JSON.`;
+
+export const BLOCK_CONTENT_OUTPUT_CONTRACT_NO = `Svar med ett JSON-objekt, uten markdown og uten tekst utenfor JSON.
+{
+  "achievements": [
+    {
+      "localId": "a1",
+      "roleLocalId": "<localId fra roles i input, eller null>",
+      "normalizedText": "<kort normalisert norsk formulering, maks 25 ord>",
+      "sourceSpanIds": ["<id fra input>"],
+      "placementConfidence": "high|low|needs_review",
+      "placementReasons": ["role_block_structure"],
+      "status": "proposed|unassigned|needs_review",
+      "issues": []
+    }
+  ],
+  "skills": [
+    {
+      "localId": "s1",
+      "canonicalLabelNo": "<kort generisk begrep>",
+      "canonicalKey": "<stabil nøkkel, små bokstaver og bindestrek>",
+      "inferred": true,
+      "evidence": [
+        { "roleLocalId": "r1", "achievementLocalId": "a1", "sourceSpanIds": ["<id fra input>"] }
+      ],
+      "placementConfidence": "high|low|needs_review",
+      "status": "proposed|needs_review",
+      "issues": []
+    }
+  ],
+  "qualifications": [
+    {
+      "localId": "q1",
+      "kind": "education|certification|language|tool",
+      "normalizedText": "<kort normalisert tekst>",
+      "sourceSpanIds": ["<id fra input>"],
+      "status": "proposed|needs_review",
+      "issues": []
+    }
+  ],
+  "issues": [
+    { "code": "achievement_unassigned|skill_needs_review|insufficient_source_evidence|ambiguous_compound_skill",
+      "sourceSpanIds": ["<id fra input>"], "message": "<kort forklaring>" }
+  ]
+}
+Alle felt er obligatoriske. Tomme lister er tillatt. Ikke returner roles.`;
+
+export function buildAppointmentsUserPrompt(input: unknown): string {
+  return JSON.stringify({ task: "resolve_employment_appointments", input });
+}
+
+export function buildBlockContentUserPrompt(input: unknown): string {
+  return JSON.stringify({ task: "atomize_role_block_content", input });
+}
