@@ -147,14 +147,24 @@ export async function followAtomizationJob(args: {
       const job = (body["job"] ?? {}) as Record<string, unknown>;
       const metrics = (job["metrics"] ?? {}) as Record<string, unknown>;
       const failed = (metrics["failed_blocks"] as { label?: string }[] | undefined) ?? [];
+      const blocks = (Array.isArray(body["blocks"]) ? body["blocks"] : []) as JobBlockProgress[];
+      const unfinished = blocks
+        .filter((b) => b.status === "queued" || b.status === "running" || b.status === "failed")
+        .map((b) => ({ label: b.label, status: b.status }));
       return {
         outcome: {
           status: (jobStatus as JobOutcome["status"]) ?? "complete",
           proposalsCreated: Number(metrics["proposals_created"] ?? 0),
-          failedBlocks: failed.map((b) => ({ label: b.label ?? "Ukjent del" })),
+          failedBlocks:
+            failed.length > 0
+              ? failed.map((b) => ({ label: b.label ?? "Ukjent del" }))
+              : blocks.filter((b) => b.status === "failed").map((b) => ({ label: b.label })),
+          unfinishedBlocks: unfinished,
+          blocks,
         },
       };
     }
+
 
     // Gjenopptakelse: ett signal per 60 sekunder, aldri modellarbeid herfra.
     if (body["resumable"] === true && Date.now() - lastResumeAt > 60_000) {
