@@ -53,6 +53,14 @@ import type {
   SkillProposal,
 } from "./vendor/cv-atom-language-no/v2/types.ts";
 import { RUN_LIMITS_V2, TASK_KEY_V2 } from "./propose-atoms-runner-v2.ts";
+import {
+  applySkillEvidence,
+  buildSkillEvidenceRequest,
+  runSkillEvidenceStep,
+  SKILL_EVIDENCE_PHASE_VERSION,
+  type SkillEvidenceAssignment,
+} from "./skill-evidence-v2.ts";
+
 
 const CLAUDE_TIMEOUT_MS = 240_000;
 
