@@ -48,8 +48,8 @@ const bodySchema = z
     // Én forespørsel = én delbatch. Frontend deler større utvalg selv.
     candidateIds: z.array(UUID).min(1).max(80).optional(),
     regenerate: z.boolean().optional(),
-    // Atomiseringsprofil. v2_1 er standard; v1 beholdes kun for kontrollert
-    // evaluering og skal ikke brukes i vanlig brukerflyt.
+    // Atomiseringsprofil. v1 er ordinær standard. v2_1 er foreløpig en
+    // feature-flagget canary og kjøres bare når den bes om eksplisitt.
     profile: z.enum(["v1", "v2_1"]).optional(),
     correlation_id: UUID.optional(),
   })
@@ -112,7 +112,9 @@ export const Route = createFileRoute("/api/cv/propose-cv-atoms")({
           );
         }
         const { cvImportId, candidateIds, regenerate } = parsed.data;
-        const profileChoice = parsed.data.profile ?? "v2_1";
+        // Canary: v2_1 må velges eksplisitt til kvalitets- og ytelsesportene
+        // er grønne. Vanlig brukerflyt kjører fortsatt v1.
+        const profileChoice = parsed.data.profile ?? "v1";
 
         // -------------------------------------------------------------- jwt
         const authHeader = request.headers.get("authorization") ?? "";

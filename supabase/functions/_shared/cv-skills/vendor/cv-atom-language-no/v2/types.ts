@@ -39,6 +39,11 @@ export type CvAtomizationInput = {
   normalizerVersion: string;
 };
 
+/**
+ * Kildebelegg. Modellen returnerer kun sourceSpanId; sourceQuote, side og
+ * offset hydreres av serveren fra det frosne inputtet. Da kan et sitat aldri
+ * avvike fra kilden, og modellen slipper å gjenta lange utdrag.
+ */
 export type SourceEvidence = {
   sourceSpanId: string;
   sourceQuote: string;
@@ -68,12 +73,24 @@ export type RoleAtomProposal = {
 
 export type PlacementConfidence = "high" | "low" | "needs_review";
 
+/**
+ * Strukturell kilde til plasseringen. Utledes deterministisk av serveren, ikke
+ * av modellen. Bare de tre første regnes som strukturelt grunnlag.
+ */
+export type PlacementSource =
+  | "role_block_parent"
+  | "role_block_span"
+  | "inner_appointment_span"
+  | "model_text_only"
+  | "none";
+
 export type AchievementProposal = {
   localId: string;
   roleLocalId: string | null;
   normalizedText: string;
   sourceEvidence: SourceEvidence[];
   placementConfidence: PlacementConfidence;
+  placementSource: PlacementSource;
   placementReasons: string[];
   status: "proposed" | "unassigned" | "needs_review";
   issues: string[];

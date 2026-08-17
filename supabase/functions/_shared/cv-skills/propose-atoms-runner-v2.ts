@@ -22,6 +22,7 @@ import {
 import {
   applyQualityGates,
   buildProposalRows,
+  hydrateEvidence,
   parseAtomizationOutput,
 } from "./atom-proposal-pipeline-v2.ts";
 import { canonicalizeSourceText, computeSourceHash } from "./atom-proposal-pipeline.ts";
@@ -325,7 +326,8 @@ export async function runProposeCvAtomsV2(input: RunnerV2Input): Promise<RunnerR
     });
   }
 
-  const gated = applyQualityGates(parsed.output, modelInput);
+  // Sitatene hydreres fra frosset input før portene kjører.
+  const gated = applyQualityGates(hydrateEvidence(parsed.output, modelInput), modelInput);
   const { kept, dropped } = buildProposalRows(gated.output, {
     cvImportId,
     inputSignature,
