@@ -51,6 +51,7 @@ import {
   timelineContextQuery,
 } from "@/lib/queries/cv-review-progress";
 import { deleteCareerAtom } from "@/lib/queries/career-atom-actions";
+import { STANDARD_ROLES, findExistingStandardRole } from "@/lib/standard-roles";
 
 const GAP_CATEGORIES: { value: string; label: string }[] = [
   { value: "studier", label: "Studier" },
@@ -356,7 +357,7 @@ export function CvReviewTimelineStep({
               <Plus className="mr-1 h-3.5 w-3.5" /> Legg til rolle
             </Button>
             {STANDARD_ROLES.map((sr) => {
-              const exists = Boolean(findExistingStandardRole(roles, sr));
+              const exists = Boolean(findExistingStandardRole(timeline, sr));
               return (
                 <Button
                   key={sr.key}
