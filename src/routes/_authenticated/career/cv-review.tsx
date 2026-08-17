@@ -204,7 +204,13 @@ function CvReviewPage() {
       roleAtomId: a.parent_atom_id ?? null,
     }));
 
+  const promoted = useMemo(
+    () => new Map(confirmed.map((c) => [c.local_ref, c.promoted_atom_id])),
+    [confirmed],
+  );
+
   // Trinn 3 leser v2.1-forslagene som autoritet for kompetanseplassering.
+  const proposals = useQuery(importProposalsQuery(activeImportId));
   const skillBasis = useMemo(
     () =>
       buildSkillBasis({
@@ -217,6 +223,7 @@ function CvReviewPage() {
     [proposals.data, skillCandidates, suggestionRoles, suggestionResults, promoted],
   );
   const skillReviewCandidates = skillBasis.items.map((i) => i.candidate);
+
 
   const stepStatuses = [
     { step: 1, label: "Roller", ...countStep(roleCandidates) },
