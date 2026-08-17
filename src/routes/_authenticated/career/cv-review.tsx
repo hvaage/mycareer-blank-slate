@@ -28,6 +28,8 @@ import {
 import { CvReviewProgressBar } from "@/components/cv/CvReviewProgressBar";
 import { CvReviewSummary, CvReviewStaleNotice } from "@/components/cv/CvReviewSummary";
 import { isSkillCandidate } from "@/lib/cv-review-skill-suggestions";
+import { buildSkillBasis } from "@/lib/cv-review-skill-basis";
+import { importProposalsQuery } from "@/lib/queries/cv-skill-proposals";
 
 
 
@@ -252,10 +254,6 @@ function CvReviewPage() {
 
 
 
-  const promoted = useMemo(
-    () => new Map(confirmed.map((c) => [c.local_ref, c.promoted_atom_id])),
-    [confirmed],
-  );
 
   const promote = useMutation({
     mutationFn: (v: {
