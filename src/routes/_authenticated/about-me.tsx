@@ -25,6 +25,9 @@ import { usePersistedCollapse } from "@/hooks/use-persisted-collapse";
 
 
 export const Route = createFileRoute("/_authenticated/about-me")({
+  validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
+    tab: typeof search.tab === "string" ? search.tab : undefined,
+  }),
   component: AboutMePage,
 });
 
@@ -74,7 +77,7 @@ function AboutMePage() {
   const qc = useQueryClient();
   const navigate = useNavigate({ from: "/about-me" });
   const search = useSearch({ from: "/_authenticated/about-me" });
-  const activeTab = (search.tab as string) || "kort_om_meg";
+  const activeTab = search.tab || "kort_om_meg";
   const collapse = usePersistedCollapse("about-me:sections", true);
   const { data: p, isLoading } = useQuery({
     ...profileQuery(user?.id ?? ""),
