@@ -6265,6 +6265,42 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cv_review_promote_result: {
+        Args: {
+          p_candidate_id: string
+          p_resolved_type?: string
+          p_role_atom_id: string
+        }
+        Returns: Json
+      }
+      cv_review_set_role_choice: {
+        Args: {
+          p_candidate_id: string
+          p_choice: string
+          p_import_id: string
+          p_signature: string
+        }
+        Returns: {
+          analysis_version: string
+          candidate_set_signature: string
+          created_at: string
+          current_step: number
+          id: string
+          import_id: string
+          is_stale: boolean
+          stale_reason: string | null
+          step_state: Json
+          superseded_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cv_review_progress"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cv_variant_db: { Args: { p_variant: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
