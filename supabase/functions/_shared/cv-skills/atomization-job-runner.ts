@@ -758,6 +758,8 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
         dropped: built.dropped.length,
         quality_gates: gated.report,
         skill_merge: merged.report,
+        skill_evidence: linked.report,
+
         failed_blocks: failedBlocks,
         roles: gated.output.roles.length,
         achievements: gated.output.achievements.length,
