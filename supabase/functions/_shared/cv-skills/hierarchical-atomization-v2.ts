@@ -38,6 +38,13 @@ import {
   type SkillConsolidationReport,
   type ConsolidatedSkill,
 } from "./skill-consolidation-v2.ts";
+import {
+  applySkillEvidence,
+  buildSkillEvidenceRequest,
+  runSkillEvidenceStep,
+  type SkillEvidenceReport,
+} from "./skill-evidence-v2.ts";
+
 
 export const HIERARCHICAL_PIPELINE_VERSION = "1.1.0";
 
