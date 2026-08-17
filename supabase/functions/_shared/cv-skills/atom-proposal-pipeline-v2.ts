@@ -103,7 +103,10 @@ export type ParseV2Outcome =
   | { ok: false; errors: string[] };
 
 /** Runtime-validering av modellsvaret. Ingen tillit til formen. */
-export function parseAtomizationOutput(text: string | null): ParseV2Outcome {
+export function parseAtomizationOutput(
+  text: string | null,
+  options: { allowEmpty?: boolean } = {},
+): ParseV2Outcome {
   if (!text || !text.trim()) return { ok: false, errors: ["tomt svar"] };
   const trimmed = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   let raw: unknown;
@@ -244,7 +247,10 @@ export function parseAtomizationOutput(text: string | null): ParseV2Outcome {
     });
   }
 
-  if (roles.length + achievements.length + skills.length + qualifications.length === 0) {
+  if (
+    options.allowEmpty !== true &&
+    roles.length + achievements.length + skills.length + qualifications.length === 0
+  ) {
     return { ok: false, errors: ["svaret inneholdt ingen forslag", ...warnings] };
   }
 
