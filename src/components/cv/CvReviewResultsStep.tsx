@@ -32,6 +32,12 @@ import {
 import { addManualResult, advanceReviewProgress } from "@/lib/queries/cv-review-progress";
 import type { CareerAtomType } from "@/lib/career-atom-v4-mapping";
 import type { TimelineRole } from "@/lib/cv-review-timeline";
+import {
+  STANDARD_ROLES,
+  ensureStandardRole,
+  parseStandardRoleValue,
+  standardRoleValue,
+} from "@/lib/standard-roles";
 
 const RESULT_TYPES: CareerAtomType[] = ["achievement", "metric", "project", "volunteer"];
 
@@ -114,6 +120,15 @@ export function CvReviewResultsStep({
 
   const confirm = useMutation({
     mutationFn: async (v: { rows: CvParseCandidateRow[]; parentAtomId: string | null }) => {
+      const std = v.parentAtomId ? parseStandardRoleValue(v.parentAtomId) : null;
+      const parentAtomId = std
+        ? await ensureStandardRole({
+            userId,
+            importId,
+            role: std,
+            existingRoles: savedRoles,
+          })
+        : v.parentAtomId;
       for (const c of v.rows) {
         const resolved = (c.resolved_atom_type ?? c.suggested_atom_type ?? "achievement") as
           | CareerAtomType
@@ -124,7 +139,7 @@ export function CvReviewResultsStep({
           resolvedType: RESULT_TYPES.includes(resolved as CareerAtomType)
             ? (resolved as CareerAtomType)
             : "achievement",
-          parentAtomId: v.parentAtomId,
+          parentAtomId,
           verified: true,
         });
       }
@@ -357,6 +372,14 @@ function RoleSelect({
         {roles.map((r) => (
           <SelectItem key={r.id} value={r.id}>
             {r.employer ? `${r.employer} · ${r.title}` : r.title}
+          </SelectItem>
+        ))}
+        {STANDARD_ROLES.filter(
+          (sr) =>
+            !roles.some((r) => (r.title ?? "").trim().toLowerCase() === sr.title.toLowerCase()),
+        ).map((sr) => (
+          <SelectItem key={sr.key} value={standardRoleValue(sr)}>
+            {sr.title}
           </SelectItem>
         ))}
         <SelectItem value={MISSING_ROLE}>Stilling mangler – legg den til i trinn 1</SelectItem>
