@@ -58,6 +58,8 @@ export type RunnerInput = {
   startedAt: number;
   /** Eksplisitt brukerhandling: avviste forslag erstattes og analysen kjøres på nytt. */
   regenerate?: boolean;
+  /** Kontrollert evaluering: modellen kalles, men ingen forslag skrives. */
+  dryRun?: boolean;
 };
 
 export type RunnerResult = { status: number; body: Record<string, unknown> };
@@ -126,7 +128,7 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
     .eq("input_signature", inputSignature)
     .maybeSingle();
 
-  if (existingBatch) {
+  if (existingBatch && input.dryRun !== true) {
     const { count } = await userClient
       .from("atom_enrichment_proposals")
       .select("id", { count: "exact", head: true })
@@ -165,7 +167,7 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
     return fail(500, "database_error", "Kunne ikke kontrollere kjøregrensene.");
   }
   const limits = (limitJson ?? {}) as { allowed?: boolean; reason?: string };
-  if (limits.allowed !== true) {
+  if (limits.allowed !== true && input.dryRun !== true) {
     return fail(429, limits.reason ?? "rate_limited", "Analysen er midlertidig sperret.", {
       limits: limitJson,
     });
@@ -359,6 +361,37 @@ export async function runProposeCvAtoms(input: RunnerInput): Promise<RunnerResul
       dropped,
       vendor_errors: vendorCheck.errors.slice(0, 10),
     });
+  }
+
+  if (input.dryRun === true) {
+    await finishRun({
+      status: "succeeded",
+      outcome: "ok",
+      errorCode: null,
+      httpStatus: 200,
+      requestId: result.requestId,
+      durationMs: result.durationMs,
+      retryCount: result.retryCount,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+    });
+    return {
+      status: 200,
+      body: {
+        ok: true,
+        dry_run: true,
+        model_run_id: modelRunId,
+        input_signature: inputSignature,
+        proposals_would_create: kept.length,
+        proposals: kept,
+        dropped,
+        usage: {
+          input_tokens: result.usage.inputTokens,
+          output_tokens: result.usage.outputTokens,
+          duration_ms: result.durationMs,
+        },
+      },
+    };
   }
 
   // -------------------------------------------------------- skriving

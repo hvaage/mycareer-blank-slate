@@ -32,17 +32,67 @@ function normalizeForMatch(v: string): string {
   return v.normalize("NFKC").toLocaleLowerCase("nb-NO").replace(/\s+/g, " ").trim();
 }
 
-function parseEvidence(v: unknown): SourceEvidence[] {
-  if (!Array.isArray(v)) return [];
+/**
+ * Kontrakt v3: modellen sender bare sourceSpanIds. Eldre svar med
+ * sourceEvidence-objekter godtas fortsatt, men sitatet hentes uansett fra
+ * frosset input i hydrateEvidence().
+ */
+function parseEvidence(item: Record<string, unknown>): SourceEvidence[] {
   const out: SourceEvidence[] = [];
-  for (const item of v) {
-    if (!isObject(item)) continue;
-    const id = str(item["sourceSpanId"]);
-    const quote = str(item["sourceQuote"]);
-    if (!id || !quote) continue;
-    out.push({ sourceSpanId: id, sourceQuote: quote });
+  const seen = new Set<string>();
+  const add = (id: string | null) => {
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    out.push({ sourceSpanId: id, sourceQuote: "" });
+  };
+  for (const id of strList(item["sourceSpanIds"])) add(id);
+  const legacy = item["sourceEvidence"];
+  if (Array.isArray(legacy)) {
+    for (const e of legacy) if (isObject(e)) add(str(e["sourceSpanId"]));
   }
   return out;
+}
+
+/**
+ * Fyller ordrett sitat, side og offset fra frosset input. Ukjente span-id-er
+ * forkastes, slik at ingen påstand kan peke på noe kilden ikke har.
+ */
+export function hydrateEvidence(
+  output: CvAtomizationOutput,
+  input: CvAtomizationInput,
+): CvAtomizationOutput {
+  const spans = new Map(input.sourceSpans.map((s) => [s.id, s]));
+  const hydrate = (evidence: SourceEvidence[]): SourceEvidence[] => {
+    const out: SourceEvidence[] = [];
+    for (const e of evidence) {
+      const span = spans.get(e.sourceSpanId);
+      if (!span || !span.text.trim()) continue;
+      out.push({
+        sourceSpanId: span.id,
+        sourceQuote: span.text.trim(),
+        page: span.page ?? null,
+        startOffset: span.startOffset ?? null,
+        endOffset: span.endOffset ?? null,
+      });
+    }
+    return out;
+  };
+  return {
+    ...output,
+    roles: output.roles.map((r) => ({ ...r, sourceEvidence: hydrate(r.sourceEvidence) })),
+    achievements: output.achievements.map((a) => ({
+      ...a,
+      sourceEvidence: hydrate(a.sourceEvidence),
+    })),
+    skills: output.skills.map((s) => ({
+      ...s,
+      evidence: s.evidence.map((e) => ({ ...e, sourceEvidence: hydrate(e.sourceEvidence) })),
+    })),
+    qualifications: output.qualifications.map((q) => ({
+      ...q,
+      sourceEvidence: hydrate(q.sourceEvidence),
+    })),
+  };
 }
 
 const PLACEMENTS: PlacementConfidence[] = ["high", "low", "needs_review"];
@@ -87,7 +137,7 @@ export function parseAtomizationOutput(text: string | null): ParseV2Outcome {
       startDate: str(item["startDate"]),
       endDate: str(item["endDate"]),
       datePrecision: (str(item["datePrecision"]) as RoleAtomProposal["datePrecision"]) ?? null,
-      sourceEvidence: parseEvidence(item["sourceEvidence"]),
+      sourceEvidence: parseEvidence(item),
       appointmentRelation: relation && RELATIONS.includes(relation) ? relation : "ambiguous",
       predecessorRoleLocalId: str(item["predecessorRoleLocalId"]),
       concurrentWithRoleLocalIds: strList(item["concurrentWithRoleLocalIds"]),
@@ -114,9 +164,11 @@ export function parseAtomizationOutput(text: string | null): ParseV2Outcome {
       localId,
       roleLocalId: str(item["roleLocalId"]),
       normalizedText,
-      sourceEvidence: parseEvidence(item["sourceEvidence"]),
+      sourceEvidence: parseEvidence(item),
       placementConfidence:
         placement && PLACEMENTS.includes(placement) ? placement : "needs_review",
+      // Utledes deterministisk i kvalitetsportene; modellen bestemmer den ikke.
+      placementSource: "none",
       placementReasons: strList(item["placementReasons"]),
       status:
         status === "unassigned" || status === "needs_review"
@@ -142,7 +194,7 @@ export function parseAtomizationOutput(text: string | null): ParseV2Outcome {
       ? item["evidence"].filter(isObject).map((e) => ({
           roleLocalId: str(e["roleLocalId"]),
           achievementLocalId: str(e["achievementLocalId"]),
-          sourceEvidence: parseEvidence(e["sourceEvidence"]),
+          sourceEvidence: parseEvidence(e),
         }))
       : [];
     const placement = str(item["placementConfidence"]) as PlacementConfidence | null;
@@ -174,7 +226,7 @@ export function parseAtomizationOutput(text: string | null): ParseV2Outcome {
         ? kind
         : "certification") as QualificationProposal["kind"],
       normalizedText,
-      sourceEvidence: parseEvidence(item["sourceEvidence"]),
+      sourceEvidence: parseEvidence(item),
       status: str(item["status"]) === "needs_review" ? "needs_review" : "proposed",
       issues: strList(item["issues"]),
     });
@@ -218,9 +270,100 @@ export type QualityGateReport = {
   skillsNeedsReview: number;
   mergedRoleSuspicions: string[];
   longSkillLabels: string[];
+  /** Rolleforløp per ansettelsesgruppe, med begge relasjoner bevart. */
+  roleTopology: Array<{
+    localId: string;
+    employmentGroupKey: string | null;
+    title: string | null;
+    startDate: string | null;
+    endDate: string | null;
+    predecessorRoleLocalId: string | null;
+    concurrentWithRoleLocalIds: string[];
+    appointmentRelation: AppointmentRelation;
+  }>;
+  placement: {
+    high: number;
+    low: number;
+    needsReview: number;
+    bySource: Record<string, number>;
+    downgradedFromHigh: string[];
+  };
 };
 
 const MAX_SKILL_WORDS = 6;
+
+// --- datohjelpere: kun sammenligning, aldri utfylling av manglende datoer ---
+
+function dateValue(value: string | null, fallback: number): number {
+  if (!value) return fallback;
+  const m = /^(\d{4})(?:-(\d{2}))?/.exec(value);
+  if (!m) return fallback;
+  return Number(m[1]) * 12 + (m[2] ? Number(m[2]) - 1 : 0);
+}
+
+function overlaps(a: RoleAtomProposal, b: RoleAtomProposal): boolean {
+  if (!a.startDate && !a.endDate) return false;
+  if (!b.startDate && !b.endDate) return false;
+  const aStart = dateValue(a.startDate, -Infinity);
+  const aEnd = dateValue(a.endDate, Infinity);
+  const bStart = dateValue(b.startDate, -Infinity);
+  const bEnd = dateValue(b.endDate, Infinity);
+  return aStart < bEnd && bStart < aEnd;
+}
+
+/**
+ * Utleder rolleforløpet deterministisk fra datoene i forslagene. Én rolle kan
+ * både ha en forgjenger og løpe parallelt med en annen: begge relasjonene
+ * lagres eksplisitt, og appointmentRelation er bare en oppsummerende etikett.
+ */
+export function deriveRoleTopology(roles: RoleAtomProposal[]): void {
+  const groups = new Map<string, RoleAtomProposal[]>();
+  for (const role of roles) {
+    const key = role.employmentGroupKey ?? `role:${role.localId}`;
+    groups.set(key, [...(groups.get(key) ?? []), role]);
+  }
+
+  for (const group of groups.values()) {
+    for (const role of group) {
+      const concurrent = group
+        .filter((other) => other.localId !== role.localId && overlaps(role, other))
+        .map((other) => other.localId);
+      role.concurrentWithRoleLocalIds = [
+        ...new Set([...role.concurrentWithRoleLocalIds, ...concurrent]),
+      ].filter((id) => id !== role.localId && group.some((r) => r.localId === id));
+
+      const roleStart = dateValue(role.startDate, -Infinity);
+      let predecessor: RoleAtomProposal | null = null;
+      for (const other of group) {
+        if (other.localId === role.localId) continue;
+        if (overlaps(role, other)) continue;
+        const otherEnd = dateValue(other.endDate, Infinity);
+        if (otherEnd > roleStart) continue;
+        if (!predecessor || otherEnd > dateValue(predecessor.endDate, Infinity)) {
+          predecessor = other;
+        }
+      }
+      role.predecessorRoleLocalId =
+        predecessor?.localId ??
+        (role.predecessorRoleLocalId &&
+        group.some((r) => r.localId === role.predecessorRoleLocalId)
+          ? role.predecessorRoleLocalId
+          : null);
+
+      const hasConcurrent = role.concurrentWithRoleLocalIds.length > 0;
+      const hasPredecessor = role.predecessorRoleLocalId !== null;
+      if (role.appointmentRelation !== "ambiguous") {
+        role.appointmentRelation = hasConcurrent
+          ? "concurrent"
+          : hasPredecessor
+            ? "successive"
+            : group.length > 1
+              ? "successive"
+              : "single";
+      }
+    }
+  }
+}
 
 /**
  * Sammenslått rolle: én foreslått rolle for en rolleblokk der pre-parseren fant
@@ -276,15 +419,63 @@ export function applyQualityGates(
     }
   }
 
-  const roleIds = new Set(output.roles.map((r) => r.localId));
+  // Rolleforløp utledes av datoene, ikke av modelletiketten.
+  deriveRoleTopology(output.roles);
+
+  const rolesById = new Map(output.roles.map((r) => [r.localId, r]));
+  const spanById = new Map(input.sourceSpans.map((s) => [s.id, s]));
+  const blockById = new Map(input.roleBlocks.map((b) => [b.id, b]));
+  const downgradedFromHigh: string[] = [];
+  const bySource: Record<string, number> = {};
+
   for (const achievement of output.achievements) {
-    if (achievement.roleLocalId && !roleIds.has(achievement.roleLocalId)) {
+    const role = achievement.roleLocalId ? rolesById.get(achievement.roleLocalId) : undefined;
+    if (achievement.roleLocalId && !role) {
+      achievement.roleLocalId = null;
+    }
+
+    let source: AchievementProposal["placementSource"] = "none";
+    if (role) {
+      const block = role.roleBlockId ? blockById.get(role.roleBlockId) : undefined;
+      const blockSpanIds = new Set(block?.sourceSpanIds ?? []);
+      const roleSpanIds = new Set(role.sourceEvidence.map((e) => e.sourceSpanId));
+      for (const evidence of achievement.sourceEvidence) {
+        const span = spanById.get(evidence.sourceSpanId);
+        if (!span) continue;
+        if (block && span.parentLocalRef === block.id) {
+          source = "role_block_parent";
+          break;
+        }
+        if (blockSpanIds.has(span.id)) {
+          source = "role_block_span";
+          break;
+        }
+        if (roleSpanIds.has(span.id)) {
+          source = "inner_appointment_span";
+          break;
+        }
+        source = "model_text_only";
+      }
+    }
+    achievement.placementSource = source;
+    bySource[source] = (bySource[source] ?? 0) + 1;
+
+    const structural =
+      source === "role_block_parent" ||
+      source === "role_block_span" ||
+      source === "inner_appointment_span";
+
+    if (!structural) {
+      // Tekstlikhet alene er ikke plassering. Resultatet går tilbake i kø.
+      if (achievement.placementConfidence === "high") downgradedFromHigh.push(achievement.localId);
       achievement.roleLocalId = null;
       achievement.status = "unassigned";
       achievement.placementConfidence = "needs_review";
-    }
-    if (!achievement.roleLocalId && achievement.status === "proposed") {
-      achievement.status = "unassigned";
+      if (!achievement.issues.includes("achievement_unassigned")) {
+        achievement.issues.push("achievement_unassigned");
+      }
+    } else if (achievement.status === "proposed" && !achievement.placementReasons.includes(source)) {
+      achievement.placementReasons = [...achievement.placementReasons, source];
     }
   }
 
@@ -311,6 +502,24 @@ export function applyQualityGates(
       skillsNeedsReview: skills.filter((s) => s.status === "needs_review").length,
       mergedRoleSuspicions,
       longSkillLabels,
+      roleTopology: output.roles.map((r) => ({
+        localId: r.localId,
+        employmentGroupKey: r.employmentGroupKey,
+        title: r.title,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        predecessorRoleLocalId: r.predecessorRoleLocalId,
+        concurrentWithRoleLocalIds: r.concurrentWithRoleLocalIds,
+        appointmentRelation: r.appointmentRelation,
+      })),
+      placement: {
+        high: output.achievements.filter((a) => a.placementConfidence === "high").length,
+        low: output.achievements.filter((a) => a.placementConfidence === "low").length,
+        needsReview: output.achievements.filter((a) => a.placementConfidence === "needs_review")
+          .length,
+        bySource,
+        downgradedFromHigh,
+      },
     },
   };
 }
@@ -461,6 +670,7 @@ export function buildProposalRows(
         local_id: a.localId,
         role_local_id: a.roleLocalId,
         placement_confidence: a.placementConfidence,
+        placement_source: a.placementSource,
         placement_reasons: a.placementReasons,
         issues: a.issues,
       },

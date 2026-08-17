@@ -4,7 +4,9 @@
 // økes, fordi prompt_version inngår i sporing og idempotens.
 
 export const ATOMIZATION_PROMPT_VERSION = "2.1.0";
-export const ATOMIZATION_OUTPUT_CONTRACT_VERSION = "2";
+// v3: modellen returnerer bare sourceSpanId-er. Serveren hydrerer ordrett
+// sitat, side og offset fra frosset input, slik at svaret blir kort.
+export const ATOMIZATION_OUTPUT_CONTRACT_VERSION = "3";
 
 export const ATOMIZATION_SYSTEM_PROMPT_NO = `Du er en norsk CV-struktureringsmotor. Du arbeider bare med de oppgitte
 kildespennene og rolleblokkene. Målet er sporbare, gjenbrukbare atomer for
@@ -42,7 +44,8 @@ Regler:
 - Ikke bruk et langt ansvar eller resultat som kompetansenavn. canonicalLabelNo
   skal være et kort, generisk og gjenbrukbart begrep (maks 6 ord).
 - Ikke plasser resultat under rolle på grunnlag av ordlikhet alene.
-- Hver kobling må vise konkrete kildeutdrag som finnes ordrett i input.
+- Hver kobling oppgis som sourceSpanIds. Ikke gjenta kildetekst; serveren
+  henter ordrett sitat fra de samme spennene.
 - Bruk high bare når minst én strukturell eller eksplisitt kildebasert kobling
   finnes, samt et selvstendig tekstlig signal.
 - Når data ikke er tilstrekkelige, returner needs_review eller unassigned med
@@ -52,19 +55,19 @@ Regler:
   evidensreferanser, ikke duplikater.
 - Returner bare JSON som oppfyller kontrakten.`;
 
-export const ATOMIZATION_OUTPUT_CONTRACT_NO = `Svar med ett JSON-objekt, uten markdown og uten tekst utenfor JSON:
+export const ATOMIZATION_OUTPUT_CONTRACT_NO = `Svar med ett JSON-objekt, uten markdown og uten tekst utenfor JSON.
+Hold svaret kort: bruk sourceSpanIds, aldri sitert kildetekst.
 {
   "roles": [
     {
       "localId": "r1",
       "roleBlockId": "<id fra roleBlocks eller null>",
-      "employmentGroupKey": "<kopier fra rolleblokken eller null>",
       "title": "<tittel eller null>",
       "employer": "<arbeidsgiver eller null>",
       "startDate": "YYYY-MM|YYYY|null",
       "endDate": "YYYY-MM|YYYY|null",
       "datePrecision": "day|month|year|null",
-      "sourceEvidence": [{ "sourceSpanId": "<id fra input>", "sourceQuote": "<ordrett utdrag>" }],
+      "sourceSpanIds": ["<id fra input>"],
       "appointmentRelation": "single|successive|concurrent|ambiguous",
       "predecessorRoleLocalId": null,
       "concurrentWithRoleLocalIds": [],
@@ -76,8 +79,8 @@ export const ATOMIZATION_OUTPUT_CONTRACT_NO = `Svar med ett JSON-objekt, uten ma
     {
       "localId": "a1",
       "roleLocalId": "r1",
-      "normalizedText": "<kort normalisert norsk formulering>",
-      "sourceEvidence": [{ "sourceSpanId": "<id fra input>", "sourceQuote": "<ordrett utdrag>" }],
+      "normalizedText": "<kort normalisert norsk formulering, maks 25 ord>",
+      "sourceSpanIds": ["<id fra input>"],
       "placementConfidence": "high|low|needs_review",
       "placementReasons": ["role_block_structure"],
       "status": "proposed|unassigned|needs_review",
@@ -88,15 +91,12 @@ export const ATOMIZATION_OUTPUT_CONTRACT_NO = `Svar med ett JSON-objekt, uten ma
     {
       "localId": "s1",
       "canonicalLabelNo": "<kort generisk begrep>",
-      "displayLabel": "<visningsnavn>",
       "canonicalKey": "<stabil nøkkel, små bokstaver og bindestrek>",
       "inferred": true,
       "evidence": [
-        { "roleLocalId": "r1", "achievementLocalId": "a1",
-          "sourceEvidence": [{ "sourceSpanId": "<id fra input>", "sourceQuote": "<ordrett utdrag>" }] }
+        { "roleLocalId": "r1", "achievementLocalId": "a1", "sourceSpanIds": ["<id fra input>"] }
       ],
       "placementConfidence": "high|low|needs_review",
-      "placementReasons": [],
       "status": "proposed|needs_review",
       "issues": []
     }
@@ -106,7 +106,7 @@ export const ATOMIZATION_OUTPUT_CONTRACT_NO = `Svar med ett JSON-objekt, uten ma
       "localId": "q1",
       "kind": "education|certification|language|tool",
       "normalizedText": "<kort normalisert tekst>",
-      "sourceEvidence": [{ "sourceSpanId": "<id fra input>", "sourceQuote": "<ordrett utdrag>" }],
+      "sourceSpanIds": ["<id fra input>"],
       "status": "proposed|needs_review",
       "issues": []
     }
@@ -116,8 +116,9 @@ export const ATOMIZATION_OUTPUT_CONTRACT_NO = `Svar med ett JSON-objekt, uten ma
       "sourceSpanIds": ["<id fra input>"], "message": "<kort forklaring>" }
   ]
 }
-Alle felt er obligatoriske. Tomme lister er tillatt. sourceQuote må finnes
-ordrett i teksten til det oppgitte sourceSpanId.`;
+Alle felt er obligatoriske. Tomme lister er tillatt. Hvert sourceSpanId må
+finnes i input. Ikke returner sourceQuote, displayLabel eller employmentGroupKey
+— serveren fyller dem ut deterministisk.`;
 
 export function buildAtomizationUserPrompt(input: unknown): string {
   return JSON.stringify({ task: "atomize_cv_roles_results_skills", input });
