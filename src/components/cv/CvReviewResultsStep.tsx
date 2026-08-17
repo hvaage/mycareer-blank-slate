@@ -103,6 +103,13 @@ export function CvReviewResultsStep({
     () => groupResultsByRole(pending, savedRoles, promotedByLocalRef),
     [pending, savedRoles, promotedByLocalRef],
   );
+  /** Roller fra trinn 1 som er lagret, og som resultater kan knyttes til. */
+  const selectableRoles = useMemo(
+    () => savedRoles.filter((r) => r.kind === "lagret"),
+    [savedRoles],
+  );
+  const [roleChoice, setRoleChoice] = useState<Record<string, string>>({});
+  const [bulkRole, setBulkRole] = useState<string>("");
 
   const confirm = useMutation({
     mutationFn: async (v: { rows: CvParseCandidateRow[]; parentAtomId: string | null }) => {
