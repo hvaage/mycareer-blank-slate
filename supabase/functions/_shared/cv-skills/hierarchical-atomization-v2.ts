@@ -38,6 +38,13 @@ import {
   type SkillConsolidationReport,
   type ConsolidatedSkill,
 } from "./skill-consolidation-v2.ts";
+import {
+  applySkillEvidence,
+  buildSkillEvidenceRequest,
+  runSkillEvidenceStep,
+  type SkillEvidenceReport,
+} from "./skill-evidence-v2.ts";
+
 
 export const HIERARCHICAL_PIPELINE_VERSION = "1.1.0";
 
@@ -80,6 +87,9 @@ export type HierarchicalResult = {
   /** Blokker/grupper som feilet. Importen er ikke ferdig før disse er løst. */
   failed: Array<{ phase: PhaseMetric["phase"]; key: string; errorCode: string }>;
   skillMerge: SkillMergeReport;
+  /** Fase 4: hvilke kompetanser som fikk konkret rolle-/resultatbelegg. */
+  skillEvidence: SkillEvidenceReport;
+
   modelCalls: number;
   totalInputTokens: number;
   totalOutputTokens: number;
@@ -501,16 +511,50 @@ export async function runHierarchicalAtomization(
 
   const merged = finalizeSkills(rawSkills, input);
 
+  // Fase 4 — kompetansebelegg: knytt gjennomgåbare kompetanser til konkrete
+  // roller og resultater. Ingen ny CV-parsing, bare tidligere v2.1-utdata.
+  const evidenceStep = await runSkillEvidenceStep({
+    profile: args.profile,
+    anthropicApiKey: args.anthropicApiKey,
+    correlationId: args.correlationId,
+    timeoutMs: args.timeoutMs,
+    request: buildSkillEvidenceRequest({
+      skills: merged.skills.filter((s) => s.tier === "reviewable"),
+      roles,
+      achievements,
+      input,
+    }),
+  });
+  metrics.push({
+    phase: "block_content",
+    key: "__skill_evidence__",
+    subBatchSignature: "",
+    spans: 0,
+    ok: evidenceStep.ok,
+    errorCode: evidenceStep.errorCode,
+    durationMs: evidenceStep.durationMs,
+    inputTokens: evidenceStep.inputTokens,
+    outputTokens: evidenceStep.outputTokens,
+  });
+  const linked = applySkillEvidence({
+    skills: merged.skills,
+    assignments: evidenceStep.assignments,
+    roles,
+    achievements,
+  });
+
   return {
-    output: { roles, achievements, skills: merged.skills, qualifications, issues },
+    output: { roles, achievements, skills: linked.skills, qualifications, issues },
     metrics,
     failed,
     skillMerge: merged.report,
+    skillEvidence: linked.report,
     modelCalls: metrics.filter((m) => m.durationMs > 0 || !m.ok).length,
     totalInputTokens: metrics.reduce((n, m) => n + m.inputTokens, 0),
     totalOutputTokens: metrics.reduce((n, m) => n + m.outputTokens, 0),
     wallClockMs: Date.now() - startedAt,
   };
+
 }
 
 // ---------------------------------------------------------------------------

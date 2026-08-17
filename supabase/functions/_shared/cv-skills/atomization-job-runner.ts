@@ -53,12 +53,20 @@ import type {
   SkillProposal,
 } from "./vendor/cv-atom-language-no/v2/types.ts";
 import { RUN_LIMITS_V2, TASK_KEY_V2 } from "./propose-atoms-runner-v2.ts";
+import {
+  applySkillEvidence,
+  buildSkillEvidenceRequest,
+  runSkillEvidenceStep,
+  SKILL_EVIDENCE_PHASE_VERSION,
+  type SkillEvidenceAssignment,
+} from "./skill-evidence-v2.ts";
+
 
 const CLAUDE_TIMEOUT_MS = 240_000;
 
 export type JobBlockRow = {
   id: string;
-  phase: "appointments" | "block_content" | "consolidate";
+  phase: "appointments" | "block_content" | "skill_evidence" | "consolidate";
   block_key: string;
   label: string;
   sort_order: number;
@@ -244,6 +252,16 @@ export async function startAtomizationJob(args: StartJobInput): Promise<JobRunne
       span_ids: b.spanIds,
     })),
     {
+      job_id: job.id,
+      user_id: userId,
+      phase: "skill_evidence",
+      block_key: "__skill_evidence__",
+      label: "Finner hvilke roller og resultater som belegger kompetansene",
+      sort_order: 850,
+      span_ids: [],
+    },
+    {
+
       job_id: job.id,
       user_id: userId,
       phase: "consolidate",
@@ -480,14 +498,7 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
     return await progressResponse(adminClient, jobId, "block_content");
   }
 
-  // ---------------------------------------------------------- fase 3
-  const consolidateBlock = blocks.find((b) => b.phase === "consolidate");
-  if (consolidateBlock && terminal(consolidateBlock)) {
-    return { status: 200, body: { ok: true, done: true, job_status: job.status } };
-  }
-  if (consolidateBlock) await markRunning([consolidateBlock.id]);
-  await adminClient.from("cv_atomization_jobs").update({ phase: "consolidate" }).eq("id", jobId);
-
+  // -------------------------------------- innsamling av fase 1- og 2-utdata
   const achievements: AchievementProposal[] = [];
   const rawSkills: SkillProposal[] = [];
   const qualifications: QualificationProposal[] = [];
@@ -530,14 +541,81 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
     issues.push(...(result.issues ?? []));
   }
 
+  // Deterministisk fletting og kalibrering før beleggfasen.
   const merged = finalizeSkills(rawSkills, modelInput);
+
+  // ------------------------------------------- fase 4: kompetansebelegg
+  const evidenceBlock = blocks.find((b) => b.phase === "skill_evidence");
+  if (evidenceBlock && !terminal(evidenceBlock)) {
+    await markRunning([evidenceBlock.id]);
+    await adminClient
+      .from("cv_atomization_jobs")
+      .update({ phase: "skill_evidence" })
+      .eq("id", jobId);
+
+    const request = buildSkillEvidenceRequest({
+      skills: merged.skills.filter((s) => s.tier === "reviewable"),
+      roles,
+      achievements,
+      input: modelInput,
+    });
+    const step = await runSkillEvidenceStep({
+      profile,
+      anthropicApiKey: args.anthropicApiKey,
+      correlationId: job.correlation_id,
+      timeoutMs: CLAUDE_TIMEOUT_MS,
+      request,
+    });
+    await adminClient
+      .from("cv_atomization_job_blocks")
+      .update({
+        // Feiler beleggfasen, blir kompetansene stående uten kobling — det er
+        // en gjennomgangsoppgave, ikke en tapt analyse.
+        status: step.ok ? "complete" : "needs_review",
+        error_code: step.errorCode,
+        result: { assignments: step.assignments },
+        metrics: {
+          phase: "skill_evidence",
+          key: "__skill_evidence__",
+          spans: request.skills.length,
+          ok: step.ok,
+          errorCode: step.errorCode,
+          durationMs: step.durationMs,
+          inputTokens: step.inputTokens,
+          outputTokens: step.outputTokens,
+        },
+        finished_at: new Date().toISOString(),
+      })
+      .eq("id", evidenceBlock.id);
+
+    return await progressResponse(adminClient, jobId, "skill_evidence");
+  }
+
+  const storedAssignments =
+    ((evidenceBlock?.result ?? {}) as { assignments?: SkillEvidenceAssignment[] }).assignments ?? [];
+  const linked = applySkillEvidence({
+    skills: merged.skills,
+    assignments: storedAssignments,
+    roles,
+    achievements,
+  });
+
+  // ---------------------------------------------------------- fase 3: skriving
+  const consolidateBlock = blocks.find((b) => b.phase === "consolidate");
+  if (consolidateBlock && terminal(consolidateBlock)) {
+    return { status: 200, body: { ok: true, done: true, job_status: job.status } };
+  }
+  if (consolidateBlock) await markRunning([consolidateBlock.id]);
+  await adminClient.from("cv_atomization_jobs").update({ phase: "consolidate" }).eq("id", jobId);
+
   const gated = applyQualityGates(
     hydrateEvidence(
-      { roles, achievements, skills: merged.skills, qualifications, issues },
+      { roles, achievements, skills: linked.skills, qualifications, issues },
       modelInput,
     ),
     modelInput,
   );
+
 
   const { sorted } = buildInput(args.allCandidates, args.selectedRefs);
   const candidatesByRef = new Map(sorted.map((c) => [c.local_ref, c]));
@@ -552,7 +630,7 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
     cvImportId: job.cv_import_id,
     inputSignature: job.input_signature,
     modelRunId: modelRunId!,
-    promptVersion: `${profile.promptVersion}+hier${HIERARCHICAL_PIPELINE_VERSION}`,
+    promptVersion: `${profile.promptVersion}+hier${HIERARCHICAL_PIPELINE_VERSION}+se${SKILL_EVIDENCE_PHASE_VERSION}`,
     normalizerVersion: PREPARSER_VERSION,
     candidatesByRef,
     spanHashes,
@@ -601,7 +679,8 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
           source_id: job.cv_import_id,
           source_record_id: job.cv_import_id,
           source_hash: job.input_signature,
-          input_signature: job.input_signature,
+          input_signature: `${job.input_signature}+se${SKILL_EVIDENCE_PHASE_VERSION}`,
+
           normalizer_version: PREPARSER_VERSION,
           model_run_id: modelRunId,
           title: "Rollebevisst analyse av CV-import",
@@ -619,6 +698,9 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
             quality_gates: gated.report,
             phase_metrics: allMetrics,
             skill_merge: merged.report,
+            skill_evidence: linked.report,
+            skill_evidence_phase_version: SKILL_EVIDENCE_PHASE_VERSION,
+
             failed_blocks: failedBlocks,
             complete,
             issues: gated.output.issues.slice(0, 20),
@@ -677,6 +759,8 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
         dropped: built.dropped.length,
         quality_gates: gated.report,
         skill_merge: merged.report,
+        skill_evidence: linked.report,
+
         failed_blocks: failedBlocks,
         roles: gated.output.roles.length,
         achievements: gated.output.achievements.length,

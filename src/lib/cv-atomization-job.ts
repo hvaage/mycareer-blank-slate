@@ -29,7 +29,7 @@ export function analysisSelectionTooLarge(items: AnalysisSelectionItem[]): boole
 }
 
 export type JobBlockProgress = {
-  phase: "appointments" | "block_content" | "consolidate";
+  phase: "appointments" | "block_content" | "skill_evidence" | "consolidate";
   block_key: string;
   label: string;
   status: "queued" | "running" | "complete" | "needs_review" | "failed";

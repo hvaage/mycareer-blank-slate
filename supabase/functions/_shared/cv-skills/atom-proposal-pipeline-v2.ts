@@ -663,6 +663,15 @@ export function buildProposalRows(
       dropped.push({ local_id: args.localId, reason: "ukjent kildespenn" });
       return;
     }
+    // Flere kompetanser kan dele samme kildespenn (én kompetanseliste i CV-en).
+    // Uten en stabil, kompetansespesifikk nøkkel ville de kollidere med
+    // hverandre i lagringen og bare den første blitt skrevet.
+    const canonicalKey =
+      typeof args.extra["canonical_key"] === "string" ? (args.extra["canonical_key"] as string) : "";
+    const rowHash =
+      (args.atomType === "skill" || args.atomType === "domain") && canonicalKey
+        ? `${hash}:${canonicalKey}`
+        : hash;
     kept.push({
       proposal_action: args.action,
       target_atom_type: "career_atom",
@@ -671,7 +680,8 @@ export function buildProposalRows(
       source_record_id: candidate.id,
       source_id: ctx.cvImportId,
       source_import_id: ctx.cvImportId,
-      source_hash: hash,
+      source_hash: rowHash,
+
       normalizer_version: ctx.normalizerVersion,
       prompt_version: ctx.promptVersion,
       model_run_id: ctx.modelRunId,
@@ -766,8 +776,14 @@ export function buildProposalRows(
       roleCount?: number;
       achievementCount?: number;
       explicit?: boolean;
+      // Fase 4 — kompetansebelegg. Settes bare når fasen har kjørt.
+      skillPlacementConfidence?: "high" | "medium" | "low" | "none";
+      skillPlacementSource?: string;
+      skillPlacementReason?: string;
+      evidenceConflicts?: string[];
     };
     const tier = calibrated.tier ?? "reviewable";
+    const linked = calibrated.skillPlacementConfidence !== undefined;
     push({
       localId: s.localId,
       atomType: "skill",
@@ -775,13 +791,22 @@ export function buildProposalRows(
       evidence,
       action: "suggest_evidence",
       reviewState: s.status === "proposed" ? "ready_for_atom" : s.status,
-      rationale: s.placementReasons.join(", ") || "Kompetanse utledet fra rolle- og resultatbelegg.",
+      rationale:
+        calibrated.skillPlacementReason ||
+        s.placementReasons.join(", ") ||
+        "Kompetanse utledet fra rolle- og resultatbelegg.",
       extra: {
         local_id: s.localId,
         canonical_key: s.canonicalKey,
         display_label: s.displayLabel,
         inferred: s.inferred,
-        placement_confidence: s.placementConfidence,
+        placement_confidence: linked
+          ? calibrated.skillPlacementConfidence
+          : s.placementConfidence,
+        placement_source: calibrated.skillPlacementSource ?? null,
+        placement_reason: calibrated.skillPlacementReason ?? null,
+        evidence_conflicts: calibrated.evidenceConflicts ?? [],
+        skill_evidence_phase: linked ? "1.0.0" : null,
         skill_tier: tier,
         skill_tier_reasons: calibrated.tierReasons ?? [],
         skill_role_count: calibrated.roleCount ?? null,
@@ -795,6 +820,7 @@ export function buildProposalRows(
         issues: s.issues,
       },
     });
+
   }
 
 

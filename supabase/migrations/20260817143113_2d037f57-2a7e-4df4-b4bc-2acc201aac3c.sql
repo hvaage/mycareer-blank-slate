@@ -1,0 +1,4 @@
+ALTER TABLE public.cv_atomization_job_blocks DROP CONSTRAINT cv_atomization_job_blocks_phase_check;
+ALTER TABLE public.cv_atomization_job_blocks ADD CONSTRAINT cv_atomization_job_blocks_phase_check CHECK (phase = ANY (ARRAY['appointments'::text, 'block_content'::text, 'skill_evidence'::text, 'consolidate'::text]));
+ALTER TABLE public.cv_atomization_jobs DROP CONSTRAINT cv_atomization_jobs_phase_check;
+ALTER TABLE public.cv_atomization_jobs ADD CONSTRAINT cv_atomization_jobs_phase_check CHECK (phase = ANY (ARRAY['plan'::text, 'appointments'::text, 'block_content'::text, 'skill_evidence'::text, 'consolidate'::text, 'done'::text]));
