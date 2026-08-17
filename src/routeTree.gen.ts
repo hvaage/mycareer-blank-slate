@@ -58,6 +58,7 @@ import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/i
 import { Route as ApiInternalCvGenerationWorkerRouteImport } from './routes/api/internal/cv-generation-worker'
 import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
 import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generations'
+import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
@@ -353,6 +354,11 @@ const ApiCvGenerationsRoute = ApiCvGenerationsRouteImport.update({
   path: '/api/cv/generations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCvAtomizationJobsRoute = ApiCvAtomizationJobsRouteImport.update({
+  id: '/api/cv/atomization-jobs',
+  path: '/api/cv/atomization-jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedKarriereErfaringRoute =
   AuthenticatedKarriereErfaringRouteImport.update({
     id: '/karriere/erfaring',
@@ -574,6 +580,7 @@ export interface FileRoutesByFullPath {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRoute
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
@@ -650,6 +657,7 @@ export interface FileRoutesByTo {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRoute
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
@@ -731,6 +739,7 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRoute
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
@@ -812,6 +821,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
     | '/api/internal/cv-generation-worker'
@@ -888,6 +898,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
     | '/api/internal/cv-generation-worker'
@@ -968,6 +979,7 @@ export interface FileRouteTypes {
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
+    | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
     | '/api/internal/cv-generation-worker'
@@ -1013,6 +1025,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRoute
   ApiCvGenerationsRoute: typeof ApiCvGenerationsRouteWithChildren
   ApiCvProposeCvAtomsRoute: typeof ApiCvProposeCvAtomsRoute
   ApiInternalCvGenerationWorkerRoute: typeof ApiInternalCvGenerationWorkerRoute
@@ -1370,6 +1383,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cv/generations'
       fullPath: '/api/cv/generations'
       preLoaderRoute: typeof ApiCvGenerationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cv/atomization-jobs': {
+      id: '/api/cv/atomization-jobs'
+      path: '/api/cv/atomization-jobs'
+      fullPath: '/api/cv/atomization-jobs'
+      preLoaderRoute: typeof ApiCvAtomizationJobsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/karriere/erfaring': {
@@ -1755,6 +1775,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRoute,
   ApiCvGenerationsRoute: ApiCvGenerationsRouteWithChildren,
   ApiCvProposeCvAtomsRoute: ApiCvProposeCvAtomsRoute,
   ApiInternalCvGenerationWorkerRoute: ApiInternalCvGenerationWorkerRoute,
