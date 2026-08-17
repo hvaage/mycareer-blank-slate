@@ -29,17 +29,10 @@ function constantTimeEqual(a: string, b: string): boolean {
 
 /** Kjeder arbeideren videre uten å blokkere svaret. */
 async function retrigger(request: Request, secret: string, jobId: string) {
-  try {
-    const url = new URL("/api/public/cv/atomization-worker", request.url);
-    await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-cv-worker-secret": secret },
-      body: JSON.stringify({ jobId }),
-      signal: AbortSignal.timeout(1_500),
-    });
-  } catch {
-    // Neste poll eller reaper plukker jobben opp igjen.
-  }
+  const { kickAtomizationWorker } = await import(
+    "../../../../../supabase/functions/_shared/cv-skills/worker-kick.server.ts"
+  );
+  kickAtomizationWorker({ baseUrl: request.url, secret, jobId });
 }
 
 export const Route = createFileRoute("/api/public/cv/atomization-worker")({
