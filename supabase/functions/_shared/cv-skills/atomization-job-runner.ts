@@ -301,9 +301,16 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
   if (jobError) return fail(500, "database_error", "Kunne ikke lese analysejobben.");
   if (!jobData) return fail(404, "not_found", "Fant ikke analysejobben.");
   const job = jobData as JobRow;
-  if (job.status === "complete" || job.status === "partial" || job.status === "failed") {
+  // «Avbrutt» er terminalt for arbeideren: ingen nye modellkall etter dette.
+  if (
+    job.status === "complete" ||
+    job.status === "partial" ||
+    job.status === "failed" ||
+    job.status === "cancelled"
+  ) {
     return { status: 200, body: { ok: true, done: true, job_status: job.status } };
   }
+
 
   const { data: blockData, error: blocksError } = await adminClient
     .from("cv_atomization_job_blocks")
