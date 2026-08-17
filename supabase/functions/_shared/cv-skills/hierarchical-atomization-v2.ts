@@ -5,10 +5,12 @@
 //         etterfølgende og/eller overlappende.
 // Fase 2: ett modellkall per rolleblokk (og ett for spennene uten rolle), med
 //         begrenset samtidighet.
-// Fase 3: deterministisk sammenslåing av kompetanser på canonicalKey og
-//         kildebelegg. Ingen ekstra modellkall for deduplisering.
+// Fase 3: deterministisk sammenslåing og kalibrering av kompetanser. Ingen
+//         ekstra modellkall for deduplisering.
 //
 // Ren orkestrering: ingen database. Ingenting skrives til career_atoms.
+// Stegene er eksportert enkeltvis slik at en asynkron jobb kan kjøre dem
+// én og én med synlig fremdrift.
 
 import { callClaude, type ModelProfile } from "../claude/client.ts";
 import {
@@ -20,16 +22,24 @@ import {
   buildBlockContentUserPrompt,
 } from "./vendor/cv-atom-language-no/v2/prompt.ts";
 import type {
+  AchievementProposal,
   AtomizationIssue,
   CvAtomizationInput,
   CvAtomizationOutput,
+  QualificationProposal,
   RoleAtomProposal,
+  RoleBlock,
   SkillProposal,
   SourceSpan,
 } from "./vendor/cv-atom-language-no/v2/types.ts";
 import { canonicalSkillKey, parseAtomizationOutput } from "./atom-proposal-pipeline-v2.ts";
+import {
+  consolidateSkills,
+  type SkillConsolidationReport,
+  type ConsolidatedSkill,
+} from "./skill-consolidation-v2.ts";
 
-export const HIERARCHICAL_PIPELINE_VERSION = "1.0.0";
+export const HIERARCHICAL_PIPELINE_VERSION = "1.1.0";
 
 /** Plattformgrense for åpne utgående tilkoblinger tas hensyn til her. */
 export const DEFAULT_MAX_CONCURRENCY = 3;
@@ -58,6 +68,10 @@ export type SkillMergeReport = {
   conflictingNormalizations: string[];
   /** Samme begrep under ulike nøkler — settes needs_review. */
   semanticKeyCollisions: string[];
+  /** Eksempler på hva som faktisk ble slått sammen. */
+  mergeExamples: { canonical_key: string; labels: string[]; roles: number }[];
+  /** Kalibrering: hva som er gjennomgåbart og hva som blir lokalt belegg. */
+  consolidation: SkillConsolidationReport | null;
 };
 
 export type HierarchicalResult = {
@@ -73,14 +87,14 @@ export type HierarchicalResult = {
   wallClockMs: number;
 };
 
-async function sha256Hex(input: string): Promise<string> {
+export async function sha256Hex(input: string): Promise<string> {
   const bytes = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Kjører oppgaver med et tak på samtidige kall. Rekkefølgen på svar bevares. */
-async function mapLimit<T, R>(
+export async function mapLimit<T, R>(
   items: T[],
   limit: number,
   worker: (item: T, index: number) => Promise<R>,
@@ -98,10 +112,303 @@ async function mapLimit<T, R>(
   return results;
 }
 
-function spansFor(input: CvAtomizationInput, ids: Iterable<string>): SourceSpan[] {
+export function spansFor(input: CvAtomizationInput, ids: Iterable<string>): SourceSpan[] {
   const wanted = new Set(ids);
   return input.sourceSpans.filter((s) => wanted.has(s.id));
 }
+
+// ---------------------------------------------------------------------------
+// Deterministisk plan: hvilke blokker som skal kjøres, og i hvilken rekkefølge
+// ---------------------------------------------------------------------------
+
+export type PlannedAppointmentGroup = {
+  phase: "appointments";
+  key: string;
+  label: string;
+  spanIds: string[];
+  blocks: RoleBlock[];
+};
+
+export type PlannedContentBlock = {
+  phase: "block_content";
+  key: string;
+  label: string;
+  spanIds: string[];
+};
+
+export type HierarchicalPlan = {
+  appointments: PlannedAppointmentGroup[];
+  content: PlannedContentBlock[];
+};
+
+function groupLabel(key: string, blocks: RoleBlock[]): string {
+  const employer = blocks.find((b) => b.employer)?.employer;
+  if (employer) return employer;
+  const title = blocks.find((b) => b.title)?.title;
+  return title ?? key.replace(/^emp:/, "");
+}
+
+export function planHierarchicalRun(input: CvAtomizationInput): HierarchicalPlan {
+  const groups = new Map<string, RoleBlock[]>();
+  for (const block of input.roleBlocks) {
+    const key = block.employmentGroupKey ?? `block:${block.id}`;
+    groups.set(key, [...(groups.get(key) ?? []), block]);
+  }
+  const appointments: PlannedAppointmentGroup[] = [...groups.entries()].map(([key, blocks]) => ({
+    phase: "appointments",
+    key,
+    label: groupLabel(key, blocks),
+    spanIds: blocks.flatMap((b) => b.sourceSpanIds),
+    blocks,
+  }));
+
+  const content: PlannedContentBlock[] = input.roleBlocks.map((block) => ({
+    phase: "block_content",
+    key: block.id,
+    label: block.employer ?? block.title ?? block.id,
+    spanIds: block.sourceSpanIds,
+  }));
+  if (input.unassignedSpans.length > 0) {
+    content.push({
+      phase: "block_content",
+      key: "__unassigned__",
+      label: "Øvrig innhold uten rolle",
+      spanIds: input.unassignedSpans,
+    });
+  }
+  return { appointments, content };
+}
+
+// ---------------------------------------------------------------------------
+// Fase 1 — ett steg per ansettelsesgruppe
+// ---------------------------------------------------------------------------
+
+export type StepContext = {
+  input: CvAtomizationInput;
+  profile: ModelProfile;
+  anthropicApiKey: string;
+  correlationId: string;
+  timeoutMs: number;
+};
+
+export type AppointmentStepResult = {
+  metric: PhaseMetric;
+  roles: RoleAtomProposal[];
+  issues: AtomizationIssue[];
+};
+
+export async function runAppointmentGroupStep(
+  ctx: StepContext,
+  group: PlannedAppointmentGroup,
+  index: number,
+): Promise<AppointmentStepResult> {
+  const { input, profile } = ctx;
+  const spans = spansFor(input, group.spanIds);
+  const subBatchSignature = await sha256Hex(
+    JSON.stringify({
+      phase: "appointments",
+      pipeline: HIERARCHICAL_PIPELINE_VERSION,
+      prompt: profile.promptVersion,
+      key: group.key,
+      spans: spans.map((s) => [s.id, s.text]),
+    }),
+  );
+
+  const call = await callClaude({
+    profile,
+    system: `${APPOINTMENTS_SYSTEM_PROMPT_NO}\n\n${APPOINTMENTS_OUTPUT_CONTRACT_NO}`,
+    messages: [
+      {
+        role: "user",
+        content: buildAppointmentsUserPrompt({
+          documentLanguage: input.documentLanguage,
+          employmentGroupKey: group.key,
+          roleBlocks: group.blocks,
+          sourceSpans: spans,
+        }),
+      },
+    ],
+    correlationId: `${ctx.correlationId}:g${index + 1}`,
+    timeoutMs: ctx.timeoutMs,
+    maxRetries: 1,
+    runtime: { apiKey: ctx.anthropicApiKey },
+  });
+
+  const metric: PhaseMetric = {
+    phase: "appointments",
+    key: group.key,
+    subBatchSignature,
+    spans: spans.length,
+    ok: call.ok,
+    errorCode: call.ok ? null : (call.errorCode ?? call.outcome),
+    durationMs: call.durationMs,
+    inputTokens: call.ok ? (call.usage.inputTokens ?? 0) : 0,
+    outputTokens: call.ok ? (call.usage.outputTokens ?? 0) : 0,
+  };
+  if (!call.ok) return { metric, roles: [], issues: [] };
+
+  const parsed = parseAtomizationOutput(call.text, { allowEmpty: true });
+  if (!parsed.ok) {
+    return { metric: { ...metric, ok: false, errorCode: "invalid_output" }, roles: [], issues: [] };
+  }
+
+  // Lokale id-er gjøres globalt entydige før blokkene slås sammen.
+  const prefix = `g${index + 1}`;
+  const rename = new Map(parsed.output.roles.map((r) => [r.localId, `${prefix}${r.localId}`]));
+  const roles = parsed.output.roles.map((role) => ({
+    ...role,
+    localId: rename.get(role.localId)!,
+    employmentGroupKey: group.key.startsWith("emp:")
+      ? group.key
+      : (group.blocks[0]?.employmentGroupKey ?? null),
+    roleBlockId:
+      role.roleBlockId && group.blocks.some((b) => b.id === role.roleBlockId)
+        ? role.roleBlockId
+        : (group.blocks[0]?.id ?? null),
+    predecessorRoleLocalId: role.predecessorRoleLocalId
+      ? (rename.get(role.predecessorRoleLocalId) ?? null)
+      : null,
+    concurrentWithRoleLocalIds: role.concurrentWithRoleLocalIds
+      .map((id) => rename.get(id))
+      .filter((id): id is string => Boolean(id)),
+  }));
+
+  return { metric, roles, issues: parsed.output.issues };
+}
+
+// ---------------------------------------------------------------------------
+// Fase 2 — ett steg per rolleblokk
+// ---------------------------------------------------------------------------
+
+export type BlockContentStepResult = {
+  metric: PhaseMetric;
+  achievements: AchievementProposal[];
+  skills: SkillProposal[];
+  qualifications: QualificationProposal[];
+  issues: AtomizationIssue[];
+};
+
+export async function runBlockContentStep(
+  ctx: StepContext,
+  block: PlannedContentBlock,
+  roles: RoleAtomProposal[],
+  index: number,
+): Promise<BlockContentStepResult> {
+  const { input, profile } = ctx;
+  const spans = spansFor(input, block.spanIds);
+  const subBatchSignature = await sha256Hex(
+    JSON.stringify({
+      phase: "block_content",
+      pipeline: HIERARCHICAL_PIPELINE_VERSION,
+      prompt: profile.promptVersion,
+      key: block.key,
+      roles: roles.map((r) => [r.localId, r.title, r.startDate, r.endDate]),
+      spans: spans.map((s) => [s.id, s.text]),
+    }),
+  );
+
+  const empty = {
+    achievements: [] as AchievementProposal[],
+    skills: [] as SkillProposal[],
+    qualifications: [] as QualificationProposal[],
+    issues: [] as AtomizationIssue[],
+  };
+
+  if (spans.length === 0) {
+    return {
+      metric: {
+        phase: "block_content",
+        key: block.key,
+        subBatchSignature,
+        spans: 0,
+        ok: true,
+        errorCode: null,
+        durationMs: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+      },
+      ...empty,
+    };
+  }
+
+  const call = await callClaude({
+    profile,
+    system: `${BLOCK_CONTENT_SYSTEM_PROMPT_NO}\n\n${BLOCK_CONTENT_OUTPUT_CONTRACT_NO}`,
+    messages: [
+      {
+        role: "user",
+        content: buildBlockContentUserPrompt({
+          documentLanguage: input.documentLanguage,
+          roleBlockId: block.key === "__unassigned__" ? null : block.key,
+          roles: roles.map((r) => ({
+            localId: r.localId,
+            title: r.title,
+            employer: r.employer,
+            startDate: r.startDate,
+            endDate: r.endDate,
+          })),
+          sourceSpans: spans,
+        }),
+      },
+    ],
+    correlationId: `${ctx.correlationId}:b${index + 1}`,
+    timeoutMs: ctx.timeoutMs,
+    maxRetries: 1,
+    runtime: { apiKey: ctx.anthropicApiKey },
+  });
+
+  const metric: PhaseMetric = {
+    phase: "block_content",
+    key: block.key,
+    subBatchSignature,
+    spans: spans.length,
+    ok: call.ok,
+    errorCode: call.ok ? null : (call.errorCode ?? call.outcome),
+    durationMs: call.durationMs,
+    inputTokens: call.ok ? (call.usage.inputTokens ?? 0) : 0,
+    outputTokens: call.ok ? (call.usage.outputTokens ?? 0) : 0,
+  };
+  if (!call.ok) return { metric, ...empty };
+
+  const parsed = parseAtomizationOutput(call.text, { allowEmpty: true });
+  if (!parsed.ok) {
+    return { metric: { ...metric, ok: false, errorCode: "invalid_output" }, ...empty };
+  }
+
+  // Entydige id-er per blokk. Roller er allerede globale og beholdes.
+  const prefix = `b${index + 1}`;
+  const roleIds = new Set(roles.map((r) => r.localId));
+  const achRename = new Map(
+    parsed.output.achievements.map((a) => [a.localId, `${prefix}${a.localId}`]),
+  );
+  const achievements = parsed.output.achievements.map((a) => ({
+    ...a,
+    localId: achRename.get(a.localId)!,
+    roleLocalId: a.roleLocalId && roleIds.has(a.roleLocalId) ? a.roleLocalId : null,
+  }));
+  const skills = parsed.output.skills.map((s) => ({
+    ...s,
+    localId: `${prefix}${s.localId}`,
+    canonicalKey: s.canonicalKey || canonicalSkillKey(s.canonicalLabelNo),
+    evidence: s.evidence.map((e) => ({
+      ...e,
+      roleLocalId: e.roleLocalId && roleIds.has(e.roleLocalId) ? e.roleLocalId : null,
+      achievementLocalId: e.achievementLocalId
+        ? (achRename.get(e.achievementLocalId) ?? null)
+        : null,
+    })),
+  }));
+  const qualifications = parsed.output.qualifications.map((q) => ({
+    ...q,
+    localId: `${prefix}${q.localId}`,
+  }));
+
+  return { metric, achievements, skills, qualifications, issues: parsed.output.issues };
+}
+
+// ---------------------------------------------------------------------------
+// Samlet kjøring (brukes av synkron måling og evaluering)
+// ---------------------------------------------------------------------------
 
 export type HierarchicalInput = {
   input: CvAtomizationInput;
@@ -115,281 +422,115 @@ export type HierarchicalInput = {
 export async function runHierarchicalAtomization(
   args: HierarchicalInput,
 ): Promise<HierarchicalResult> {
-  const { input, profile, correlationId, timeoutMs } = args;
+  const { input } = args;
+  const ctx: StepContext = {
+    input,
+    profile: args.profile,
+    anthropicApiKey: args.anthropicApiKey,
+    correlationId: args.correlationId,
+    timeoutMs: args.timeoutMs,
+  };
   const concurrency = args.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
   const startedAt = Date.now();
+  const plan = planHierarchicalRun(input);
 
   const metrics: PhaseMetric[] = [];
   const failed: HierarchicalResult["failed"] = [];
   const issues: AtomizationIssue[] = [];
-
-  // ------------------------------------------------- fase 1: ansettelsesforløp
-  const groups = new Map<string, typeof input.roleBlocks>();
-  for (const block of input.roleBlocks) {
-    const key = block.employmentGroupKey ?? `block:${block.id}`;
-    groups.set(key, [...(groups.get(key) ?? []), block]);
-  }
-
-  const groupEntries = [...groups.entries()];
   const roles: RoleAtomProposal[] = [];
 
-  const groupResults = await mapLimit(groupEntries, concurrency, async ([key, blocks], index) => {
-    const spanIds = blocks.flatMap((b) => b.sourceSpanIds);
-    const spans = spansFor(input, spanIds);
-    const signature = await sha256Hex(
-      JSON.stringify({
-        phase: "appointments",
-        pipeline: HIERARCHICAL_PIPELINE_VERSION,
-        prompt: profile.promptVersion,
-        key,
-        spans: spans.map((s) => [s.id, s.text]),
-      }),
-    );
-    const call = await callClaude({
-      profile,
-      system: `${APPOINTMENTS_SYSTEM_PROMPT_NO}\n\n${APPOINTMENTS_OUTPUT_CONTRACT_NO}`,
-      messages: [
-        {
-          role: "user",
-          content: buildAppointmentsUserPrompt({
-            documentLanguage: input.documentLanguage,
-            employmentGroupKey: key,
-            roleBlocks: blocks,
-            sourceSpans: spans,
-          }),
-        },
-      ],
-      correlationId: `${correlationId}:g${index + 1}`,
-      timeoutMs,
-      maxRetries: 1,
-      runtime: { apiKey: args.anthropicApiKey },
-    });
+  const groupResults = await mapLimit(plan.appointments, concurrency, (group, index) =>
+    runAppointmentGroupStep(ctx, group, index),
+  );
 
-    const metric: PhaseMetric = {
-      phase: "appointments",
-      key,
-      subBatchSignature: signature,
-      spans: spans.length,
-      ok: call.ok,
-      errorCode: call.ok ? null : (call.errorCode ?? call.outcome),
-      durationMs: call.durationMs,
-      inputTokens: call.ok ? (call.usage.inputTokens ?? 0) : 0,
-      outputTokens: call.ok ? (call.usage.outputTokens ?? 0) : 0,
-    };
-
-    if (!call.ok) {
-      return {
-        metric,
-        key,
-        blocks,
-        roles: [] as RoleAtomProposal[],
-        issues: [] as AtomizationIssue[],
-      };
-    }
-
-    const parsed = parseAtomizationOutput(call.text, { allowEmpty: true });
-    if (!parsed.ok) {
-      return {
-        metric: { ...metric, ok: false, errorCode: "invalid_output" },
-        key,
-        blocks,
-        roles: [] as RoleAtomProposal[],
-        issues: [] as AtomizationIssue[],
-      };
-    }
-
-    // Lokale id-er gjøres globalt entydige før blokkene slås sammen.
-    const prefix = `g${index + 1}`;
-    const rename = new Map(parsed.output.roles.map((r) => [r.localId, `${prefix}${r.localId}`]));
-    const groupRoles = parsed.output.roles.map((role) => ({
-      ...role,
-      localId: rename.get(role.localId)!,
-      employmentGroupKey: key.startsWith("emp:") ? key : (blocks[0]?.employmentGroupKey ?? null),
-      roleBlockId:
-        role.roleBlockId && blocks.some((b) => b.id === role.roleBlockId)
-          ? role.roleBlockId
-          : (blocks[0]?.id ?? null),
-      predecessorRoleLocalId: role.predecessorRoleLocalId
-        ? (rename.get(role.predecessorRoleLocalId) ?? null)
-        : null,
-      concurrentWithRoleLocalIds: role.concurrentWithRoleLocalIds
-        .map((id) => rename.get(id))
-        .filter((id): id is string => Boolean(id)),
-    }));
-    return { metric, key, blocks, roles: groupRoles, issues: parsed.output.issues };
-  });
-
-  for (const r of groupResults) {
+  plan.appointments.forEach((group, i) => {
+    const r = groupResults[i]!;
     metrics.push(r.metric);
     if (!r.metric.ok) {
-      failed.push({ phase: "appointments", key: r.key, errorCode: r.metric.errorCode ?? "error" });
-      // Ansettelsesgruppen mangler rolleforløp: si det, ikke gjett.
+      failed.push({
+        phase: "appointments",
+        key: group.key,
+        errorCode: r.metric.errorCode ?? "error",
+      });
       issues.push({
         code: "missing_role_structure",
-        sourceSpanIds: r.blocks.flatMap((b) => b.sourceSpanIds),
-        message: `Rolleforløpet for ${r.key} kunne ikke fastsettes (${r.metric.errorCode}). Ansettelsen må gjennomgås manuelt.`,
+        sourceSpanIds: group.spanIds,
+        message: `Rolleforløpet for ${group.label} kunne ikke fastsettes (${r.metric.errorCode}). Ansettelsen må gjennomgås manuelt.`,
       });
-      continue;
+      return;
     }
     roles.push(...r.roles);
-    for (const issue of r.issues ?? []) issues.push(issue);
-  }
-
-  // ------------------------------------- fase 2: innhold per rolleblokk
-  type BlockTask = { key: string; spanIds: string[]; roles: RoleAtomProposal[] };
-  const tasks: BlockTask[] = input.roleBlocks.map((block) => ({
-    key: block.id,
-    spanIds: block.sourceSpanIds,
-    roles: roles.filter((r) => r.roleBlockId === block.id),
-  }));
-  if (input.unassignedSpans.length > 0) {
-    tasks.push({ key: "__unassigned__", spanIds: input.unassignedSpans, roles: [] });
-  }
-
-  const blockResults = await mapLimit(tasks, concurrency, async (task, index) => {
-    const spans = spansFor(input, task.spanIds);
-    const signature = await sha256Hex(
-      JSON.stringify({
-        phase: "block_content",
-        pipeline: HIERARCHICAL_PIPELINE_VERSION,
-        prompt: profile.promptVersion,
-        key: task.key,
-        roles: task.roles.map((r) => [r.localId, r.title, r.startDate, r.endDate]),
-        spans: spans.map((s) => [s.id, s.text]),
-      }),
-    );
-    if (spans.length === 0) {
-      return {
-        metric: {
-          phase: "block_content" as const,
-          key: task.key,
-          subBatchSignature: signature,
-          spans: 0,
-          ok: true,
-          errorCode: null,
-          durationMs: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-        },
-        task,
-        output: null,
-      };
-    }
-
-    const call = await callClaude({
-      profile,
-      system: `${BLOCK_CONTENT_SYSTEM_PROMPT_NO}\n\n${BLOCK_CONTENT_OUTPUT_CONTRACT_NO}`,
-      messages: [
-        {
-          role: "user",
-          content: buildBlockContentUserPrompt({
-            documentLanguage: input.documentLanguage,
-            roleBlockId: task.key === "__unassigned__" ? null : task.key,
-            roles: task.roles.map((r) => ({
-              localId: r.localId,
-              title: r.title,
-              employer: r.employer,
-              startDate: r.startDate,
-              endDate: r.endDate,
-            })),
-            sourceSpans: spans,
-          }),
-        },
-      ],
-      correlationId: `${correlationId}:b${index + 1}`,
-      timeoutMs,
-      maxRetries: 1,
-      runtime: { apiKey: args.anthropicApiKey },
-    });
-
-    const metric: PhaseMetric = {
-      phase: "block_content",
-      key: task.key,
-      subBatchSignature: signature,
-      spans: spans.length,
-      ok: call.ok,
-      errorCode: call.ok ? null : (call.errorCode ?? call.outcome),
-      durationMs: call.durationMs,
-      inputTokens: call.ok ? (call.usage.inputTokens ?? 0) : 0,
-      outputTokens: call.ok ? (call.usage.outputTokens ?? 0) : 0,
-    };
-    if (!call.ok) return { metric, task, output: null };
-
-    const parsed = parseAtomizationOutput(call.text, { allowEmpty: true });
-    if (!parsed.ok) {
-      return { metric: { ...metric, ok: false, errorCode: "invalid_output" }, task, output: null };
-    }
-
-    // Entydige id-er per blokk. Roller er allerede globale og beholdes.
-    const prefix = `b${index + 1}`;
-    const roleIds = new Set(task.roles.map((r) => r.localId));
-    const achRename = new Map(
-      parsed.output.achievements.map((a) => [a.localId, `${prefix}${a.localId}`]),
-    );
-    const achievements = parsed.output.achievements.map((a) => ({
-      ...a,
-      localId: achRename.get(a.localId)!,
-      roleLocalId: a.roleLocalId && roleIds.has(a.roleLocalId) ? a.roleLocalId : null,
-    }));
-    const skills = parsed.output.skills.map((s) => ({
-      ...s,
-      localId: `${prefix}${s.localId}`,
-      canonicalKey: s.canonicalKey || canonicalSkillKey(s.canonicalLabelNo),
-      evidence: s.evidence.map((e) => ({
-        ...e,
-        roleLocalId: e.roleLocalId && roleIds.has(e.roleLocalId) ? e.roleLocalId : null,
-        achievementLocalId: e.achievementLocalId
-          ? (achRename.get(e.achievementLocalId) ?? null)
-          : null,
-      })),
-    }));
-    const qualifications = parsed.output.qualifications.map((q) => ({
-      ...q,
-      localId: `${prefix}${q.localId}`,
-    }));
-
-    return {
-      metric,
-      task,
-      output: { achievements, skills, qualifications, issues: parsed.output.issues },
-    };
+    issues.push(...r.issues);
   });
 
-  const achievements: CvAtomizationOutput["achievements"] = [];
-  const rawSkills: SkillProposal[] = [];
-  const qualifications: CvAtomizationOutput["qualifications"] = [];
+  const blockResults = await mapLimit(plan.content, concurrency, (block, index) =>
+    runBlockContentStep(
+      ctx,
+      block,
+      roles.filter((r) => r.roleBlockId === block.key),
+      index,
+    ),
+  );
 
-  for (const r of blockResults) {
+  const achievements: AchievementProposal[] = [];
+  const rawSkills: SkillProposal[] = [];
+  const qualifications: QualificationProposal[] = [];
+
+  plan.content.forEach((block, i) => {
+    const r = blockResults[i]!;
     metrics.push(r.metric);
     if (!r.metric.ok) {
       // Feil i én blokk skal ikke miste godkjente resultater fra andre blokker.
-      failed.push({ phase: "block_content", key: r.task.key, errorCode: r.metric.errorCode ?? "error" });
+      failed.push({
+        phase: "block_content",
+        key: block.key,
+        errorCode: r.metric.errorCode ?? "error",
+      });
       issues.push({
         code: "insufficient_source_evidence",
-        sourceSpanIds: r.task.spanIds,
-        message: `Innholdet i blokken ${r.task.key} ble ikke behandlet (${r.metric.errorCode}). Blokken må gjennomgås manuelt.`,
+        sourceSpanIds: block.spanIds,
+        message: `Innholdet i blokken ${block.label} ble ikke behandlet (${r.metric.errorCode}). Blokken må gjennomgås manuelt.`,
       });
-      continue;
+      return;
     }
-    if (!r.output) continue;
-    achievements.push(...r.output.achievements);
-    rawSkills.push(...r.output.skills);
-    qualifications.push(...r.output.qualifications);
-    issues.push(...r.output.issues);
-  }
+    achievements.push(...r.achievements);
+    rawSkills.push(...r.skills);
+    qualifications.push(...r.qualifications);
+    issues.push(...r.issues);
+  });
 
-  // ------------------------------- fase 3: deterministisk kompetanseflette
-  const { skills, report: skillMerge } = mergeSkills(rawSkills);
+  const merged = finalizeSkills(rawSkills, input);
 
   return {
-    output: { roles, achievements, skills, qualifications, issues },
+    output: { roles, achievements, skills: merged.skills, qualifications, issues },
     metrics,
     failed,
-    skillMerge,
+    skillMerge: merged.report,
     modelCalls: metrics.filter((m) => m.durationMs > 0 || !m.ok).length,
     totalInputTokens: metrics.reduce((n, m) => n + m.inputTokens, 0),
     totalOutputTokens: metrics.reduce((n, m) => n + m.outputTokens, 0),
     wallClockMs: Date.now() - startedAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Fase 3 — deterministisk fletting + kalibrering
+// ---------------------------------------------------------------------------
+
+/**
+ * Global konsolideringsfase: flett på canonicalKey, og skill deretter mellom
+ * gjennomgåbare kompetanser og lokale evidenssignaler. Ingen modellkall, ingen
+ * CV-tekst sendes ut på nytt.
+ */
+export function finalizeSkills(
+  rawSkills: SkillProposal[],
+  input: CvAtomizationInput,
+): { skills: ConsolidatedSkill[]; report: SkillMergeReport } {
+  const { skills, report } = mergeSkills(rawSkills);
+  const consolidated = consolidateSkills(skills, input);
+  return {
+    skills: consolidated.skills,
+    report: { ...report, consolidation: consolidated.report },
   };
 }
 
@@ -408,11 +549,13 @@ export function mergeSkills(input: SkillProposal[]): {
   report: SkillMergeReport;
 } {
   const byKey = new Map<string, SkillProposal>();
+  const labelsByKey = new Map<string, Set<string>>();
   const mergedKeys = new Set<string>();
   const conflictingNormalizations = new Set<string>();
 
   for (const skill of input) {
     const key = skill.canonicalKey || canonicalSkillKey(skill.canonicalLabelNo);
+    labelsByKey.set(key, (labelsByKey.get(key) ?? new Set()).add(skill.canonicalLabelNo));
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, { ...skill, canonicalKey: key, evidence: [...skill.evidence] });
@@ -464,6 +607,15 @@ export function mergeSkills(input: SkillProposal[]): {
     }
   }
 
+  const mergeExamples = [...mergedKeys].slice(0, 20).map((key) => {
+    const skill = byKey.get(key)!;
+    return {
+      canonical_key: key,
+      labels: [...(labelsByKey.get(key) ?? new Set<string>())],
+      roles: new Set(skill.evidence.map((e) => e.roleLocalId).filter(Boolean)).size,
+    };
+  });
+
   return {
     skills: [...byKey.values()],
     report: {
@@ -472,6 +624,8 @@ export function mergeSkills(input: SkillProposal[]): {
       mergedKeys: [...mergedKeys],
       conflictingNormalizations: [...conflictingNormalizations],
       semanticKeyCollisions,
+      mergeExamples,
+      consolidation: null,
     },
   };
 }
