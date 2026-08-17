@@ -41,6 +41,23 @@ import {
 
 const RESULT_TYPES: CareerAtomType[] = ["achievement", "metric", "project", "volunteer"];
 
+/**
+ * Provisorisk rolle: perioden og arbeidsgiveren er strukturelt sikre, men
+ * stillingstittelen mangler. Da stilles ett spørsmål på rollen — ikke ett per
+ * resultat under den.
+ */
+function isProvisionalRole(role: TimelineRole): boolean {
+  return role.titleMissing || !role.title.trim();
+}
+
+function rolePeriodLabel(role: TimelineRole): string {
+  const fmt = (iso: string | null) => (iso ? iso.slice(0, 7) : null);
+  const start = fmt(role.startIso);
+  const end = role.isCurrent ? "i dag" : fmt(role.endIso);
+  if (!start && !end) return "";
+  return [start, end].filter(Boolean).join("–");
+}
+
 export interface ResultGroup {
   role: TimelineRole | null;
   roleAtomId: string | null;
