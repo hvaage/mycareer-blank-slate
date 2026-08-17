@@ -91,6 +91,12 @@ export type PlacementSource =
   | "model_text_only"
   | "none";
 
+/**
+ * Innholdstype. Skiller hva innholdet ER fra hvor det HØRER HJEMME.
+ * Rolleplassering avgjøres av `placementSource`, ikke av denne.
+ */
+export type ContentKind = "result" | "deliverable" | "role_evidence";
+
 export type AchievementProposal = {
   localId: string;
   roleLocalId: string | null;
@@ -99,6 +105,7 @@ export type AchievementProposal = {
   placementConfidence: PlacementConfidence;
   placementSource: PlacementSource;
   placementReasons: string[];
+  contentKind?: ContentKind;
   status: "proposed" | "unassigned" | "needs_review";
   issues: string[];
 };
