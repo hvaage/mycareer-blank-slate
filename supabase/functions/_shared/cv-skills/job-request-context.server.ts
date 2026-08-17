@@ -6,6 +6,13 @@
 
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { CV_ATOMIZATION_JOB_LIMITS } from "./contract.ts";
+
+/** Tegnvekt for én kandidat. Samme mål som frontend bruker før start. */
+export function candidateCharSize(candidate: Record<string, unknown>): number {
+  const parts = [candidate["content_no"], candidate["content_en"], candidate["source_quote"]];
+  return parts.reduce<number>((n, v) => n + (typeof v === "string" ? v.length : 0), 0);
+}
 
 export type JobContext = {
   ok: true;
