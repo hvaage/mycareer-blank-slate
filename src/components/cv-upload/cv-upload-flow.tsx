@@ -1,14 +1,20 @@
-import { useReducer, useEffect, useState } from "react";
+/**
+ * Sammenhengende CV-flyt: velg fil → opplasting → analyse → oppsummering.
+ *
+ * Analysen starter automatisk når opplastingen er verifisert fullført, slik at
+ * brukeren ikke må trykke «Analyser CV» som et eget steg. Den gamle flate
+ * avhukingslisten er borte som brukerflyt: bekreftelse skjer i gjennomgangen
+ * på fire trinn. Ingenting her skriver til karriereoversikten.
+ */
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, CheckCircle2, AlertTriangle, FileText, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import { CvDropzone } from "./dropzone";
 import { ArchiveCvPicker } from "./archive-picker";
-import { PreviewSummary } from "./preview-summary";
-import { PreviewDetails } from "./preview-details";
-import { buildPreviewGroups, filterParsedData, flattenItems } from "@/lib/cv-preview-items";
 import { messageFor } from "./error-messages";
 import {
   cancelImport,
@@ -23,76 +29,43 @@ import {
   useImportArchivedCv,
   type ArchivedCvSource,
 } from "@/lib/queries/cv-archive-sources";
-import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  cancelAtomizationJob,
+  followAtomizationJob,
+  jobProgressPercent,
+  resumeAtomizationJob,
+  startAtomizationJob,
+  type JobBlockProgress,
+  type JobOutcome,
+} from "@/lib/cv-atomization-job";
+import { Link } from "@tanstack/react-router";
 import { useCreateDocumentationDrafts } from "@/lib/queries/cv-documentation-drafts";
 import { supabase } from "@/lib/supabase";
-import type { CommitResponse, FlowState, PreviewCounts } from "@/types/cv-upload";
+import type { CommitResponse, PreviewCounts } from "@/types/cv-upload";
 
-type Action =
-  | { type: "select"; file: File }
-  | { type: "upload_start" }
-  | { type: "upload_done"; importId: string; fileName: string }
-  | { type: "parse_start"; importId: string; fileName: string }
-  | { type: "parse_failed"; message: string }
-  | { type: "parsed"; importId: string; counts: PreviewCounts; fileName: string; raw: any }
-  | { type: "commit_start"; importId: string }
-  | { type: "done"; result: CommitResponse }
-  | { type: "error"; from: "upload" | "parse" | "commit"; errorCode: string; message?: string; importId?: string }
-  | { type: "reset" };
-
-function reducer(state: FlowState, action: Action): FlowState {
-  switch (action.type) {
-    case "select":
-      return { kind: "file_selected", file: action.file };
-    case "upload_start":
-      return state.kind === "file_selected"
-        ? { kind: "uploading", file: state.file }
-        : state;
-    case "upload_done":
-      // Gjelder både filopplasting ("uploading") og valg fra CV-arkivet ("idle").
-      return state.kind === "uploading" || state.kind === "idle"
-        ? { kind: "await_parse", importId: action.importId, fileName: action.fileName }
-        : state;
-
-    case "parse_start":
-      return state.kind === "await_parse" && state.importId === action.importId
-        ? { kind: "parsing", importId: action.importId, fileName: action.fileName }
-        : state;
-    case "parse_failed":
-      return state.kind === "parsing"
-        ? {
-            kind: "await_parse",
-            importId: state.importId,
-            fileName: state.fileName,
-            lastError: action.message,
-          }
-        : state;
-    case "parsed":
-      return {
-        kind: "parsed_preview",
-        importId: action.importId,
-        counts: action.counts,
-        fileName: action.fileName,
-        raw: action.raw,
-      };
-    case "commit_start":
-      return { kind: "committing", importId: action.importId };
-    case "done":
-      return { kind: "done", result: action.result };
-    case "error":
-      return {
-        kind: "error",
-        from: action.from,
-        errorCode: action.errorCode,
-        message: action.message,
-        importId: action.importId,
-      };
-    case "reset":
-      return { kind: "idle" };
-    default:
-      return state;
-  }
-}
+type Stage =
+  | { kind: "idle" }
+  | { kind: "uploading"; fileName: string }
+  | { kind: "parsing"; importId: string; fileName: string }
+  | { kind: "preparing"; importId: string; fileName: string }
+  | { kind: "analyzing"; importId: string; fileName: string; jobId: string }
+  | {
+      kind: "summary";
+      importId: string;
+      fileName: string;
+      jobId: string | null;
+      outcome: JobOutcome | null;
+      counts: PreviewCounts | null;
+      commit: CommitResponse | null;
+    }
+  | {
+      kind: "error";
+      from: "upload" | "parse" | "prepare" | "analyze";
+      errorCode: string;
+      message?: string;
+      importId?: string;
+      fileName?: string;
+    };
 
 interface Props {
   userId: string;
@@ -101,45 +74,270 @@ interface Props {
   compact?: boolean;
 }
 
+const STAGE_LABEL: Record<string, string> = {
+  uploading: "Laster opp filen…",
+  parsing: "Leser innholdet i CV-en…",
+  preparing: "Klargjør analysegrunnlaget…",
+  analyzing: "Analyserer roller, resultater og kompetanser…",
+};
+
 export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
-  const [state, dispatch] = useReducer(reducer, { kind: "idle" } as FlowState);
+  const [stage, setStage] = useState<Stage>({ kind: "idle" });
+  const [blocks, setBlocks] = useState<JobBlockProgress[]>([]);
+  const [counts, setCounts] = useState<PreviewCounts | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const follow = useRef<AbortController | null>(null);
+
   const register = useRegisterCvUpload(userId);
   const runParse = useRunCvParse(userId);
-  const navigate = useNavigate();
   const commit = useCommitImport(userId);
   const importArchived = useImportArchivedCv(userId);
   const docDrafts = useCreateDocumentationDrafts(userId);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  // Hva analysen faktisk fant, slik det skal presenteres i landingsteksten.
-  const [discovered, setDiscovered] = useState<PreviewCounts | null>(null);
   const resumable = useResumableImport(userId);
   const [resumedId, setResumedId] = useState<string | null>(null);
 
-  // Gjenoppta en påbegynt import. Uten dette så brukeren opplastingsskjermen på
-  // nytt etter navigasjon/refresh, og den analyserte CV-en ble aldri bekreftet.
+  useEffect(() => () => follow.current?.abort(), []);
+
+  /** Følger en jobb til den er ferdig, avbrutt eller delvis. */
+  const watchJob = useCallback(
+    async (importId: string, fileName: string, jobId: string, parsedCounts: PreviewCounts | null) => {
+      follow.current?.abort();
+      const controller = new AbortController();
+      follow.current = controller;
+      setStage({ kind: "analyzing", importId, fileName, jobId });
+
+      const res = await followAtomizationJob({
+        jobId,
+        signal: controller.signal,
+        onProgress: (b) => setBlocks(b),
+      });
+      if (controller.signal.aborted) return;
+      if ("error" in res) {
+        setStage({
+          kind: "error",
+          from: "analyze",
+          errorCode: "database_error",
+          message: res.error.message,
+          importId,
+          fileName,
+        });
+        return;
+      }
+      setStage({
+        kind: "summary",
+        importId,
+        fileName,
+        jobId,
+        outcome: res.outcome,
+        counts: parsedCounts,
+        commit: null,
+      });
+    },
+    [],
+  );
+
+  /** Kjører hele kjeden fra en opplastet import: tolkning → grunnlag → analyse. */
+  const runPipeline = useCallback(
+    async (importId: string, fileName: string) => {
+      setBlocks([]);
+      setStage({ kind: "parsing", importId, fileName });
+      let raw: unknown = null;
+      try {
+        await runParse.mutateAsync(importId);
+        const { data: row, error } = await supabase
+          .from("cv_imports")
+          .select("raw_parsed_data, source_filename")
+          .eq("id", importId)
+          .maybeSingle();
+        if (error || !row?.raw_parsed_data || !parsedShapeIsReadable(row.raw_parsed_data)) {
+          setStage({
+            kind: "error",
+            from: "parse",
+            errorCode: "parse_failed",
+            message: error
+              ? `Kunne ikke hente analyseresultat: ${error.message}`
+              : "Vi fikk et svar vi ikke klarte å lese. Det betyr ikke at CV-en er tom — prøv igjen.",
+            importId,
+            fileName,
+          });
+          return;
+        }
+        raw = row.raw_parsed_data;
+      } catch (e: any) {
+        setStage({
+          kind: "error",
+          from: "parse",
+          errorCode: e?.code ?? "parse_failed",
+          message: e?.message,
+          importId,
+          fileName,
+        });
+        return;
+      }
+
+      const parsedCounts = countsFromParsed(raw);
+      setCounts(parsedCounts);
+
+      setStage({ kind: "preparing", importId, fileName });
+      let commitResult: CommitResponse;
+      try {
+        commitResult = await commit.mutateAsync(importId);
+      } catch (e: any) {
+        setStage({
+          kind: "error",
+          from: "prepare",
+          errorCode: e?.code ?? "database_error",
+          message: e?.message,
+          importId,
+          fileName,
+        });
+        return;
+      }
+      onCompleted?.(commitResult);
+
+      const started = await startAtomizationJob({ cvImportId: importId });
+      if ("error" in started) {
+        setStage({
+          kind: "error",
+          from: "analyze",
+          errorCode: "database_error",
+          message: started.error.message,
+          importId,
+          fileName,
+        });
+        return;
+      }
+      await watchJob(importId, fileName, started.jobId, parsedCounts);
+    },
+    [commit, onCompleted, runParse, watchJob],
+  );
+
+  /** Gjenopptar en påbegynt import etter navigasjon eller refresh. */
   useEffect(() => {
-    if (state.kind !== "idle") return;
+    if (stage.kind !== "idle") return;
     const row = resumable.data;
     if (!row || row.id === resumedId) return;
     setResumedId(row.id);
-    dispatch({
-      type: "upload_done",
-      importId: row.id,
-      fileName: (row as any).source_filename ?? "CV",
-    });
+    const fileName = (row as any).source_filename ?? "CV";
     const raw = (row as any).raw_parsed_data;
-    if (raw && parsedShapeIsReadable(raw)) {
-      dispatch({
-        type: "parsed",
-        importId: row.id,
-        counts: countsFromParsed(raw),
-        fileName: (row as any).source_filename ?? "CV",
-        raw,
-      });
-      setSelected(new Set(flattenItems(buildPreviewGroups(raw)).map((i) => i.key)));
-    }
+
+    void (async () => {
+      if (!raw || !parsedShapeIsReadable(raw)) {
+        await runPipeline(row.id, fileName);
+        return;
+      }
+      const parsedCounts = countsFromParsed(raw);
+      setCounts(parsedCounts);
+      const { data: job } = await supabase
+        .from("cv_atomization_jobs")
+        .select("id, status")
+        .eq("cv_import_id", row.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const jobRow = job as { id: string; status: string } | null;
+      if (jobRow && (jobRow.status === "queued" || jobRow.status === "running")) {
+        await watchJob(row.id, fileName, jobRow.id, parsedCounts);
+        return;
+      }
+      if (jobRow) {
+        await watchJob(row.id, fileName, jobRow.id, parsedCounts);
+        return;
+      }
+      const started = await startAtomizationJob({ cvImportId: row.id });
+      if ("error" in started) {
+        setStage({
+          kind: "error",
+          from: "analyze",
+          errorCode: "database_error",
+          message: started.error.message,
+          importId: row.id,
+          fileName,
+        });
+        return;
+      }
+      await watchJob(row.id, fileName, started.jobId, parsedCounts);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.kind, resumable.data?.id]);
+  }, [stage.kind, resumable.data?.id]);
+
+  const onFileSelected = async (file: File) => {
+    setStage({ kind: "uploading", fileName: file.name });
+    try {
+      const res = await register.mutateAsync(file);
+      await runPipeline(res.import_id, res.source_filename);
+    } catch (e: any) {
+      setStage({
+        kind: "error",
+        from: "upload",
+        errorCode: e?.code ?? "upload_failed",
+        message: e?.message,
+      });
+    }
+  };
+
+  const onUseArchived = async (source: ArchivedCvSource) => {
+    setStage({ kind: "uploading", fileName: source.filename ?? "CV" });
+    try {
+      const res = await importArchived.mutateAsync(source);
+      await runPipeline(res.import_id, res.source_filename);
+    } catch (e: any) {
+      setStage({
+        kind: "error",
+        from: "upload",
+        errorCode: e?.code ?? "upload_failed",
+        message: e?.message,
+      });
+    }
+  };
+
+  /** Avbryter analysen server-side. Import, fil og grunnlag beholdes. */
+  const onCancelAnalysis = async (importId: string, fileName: string, jobId: string) => {
+    setCancelling(true);
+    const res = await cancelAtomizationJob(jobId);
+    setCancelling(false);
+    follow.current?.abort();
+    if ("error" in res) {
+      toast.error(`Vi fikk ikke stoppet analysen: ${res.error.message}`);
+      return;
+    }
+    toast.success("Analysen er stoppet. Det som allerede er analysert er beholdt.");
+    setStage({
+      kind: "summary",
+      importId,
+      fileName,
+      jobId,
+      outcome: {
+        status: "cancelled",
+        proposalsCreated: 0,
+        failedBlocks: [],
+        unfinishedBlocks: blocks
+          .filter((b) => b.status === "queued" || b.status === "running" || b.status === "failed")
+          .map((b) => ({ label: b.label, status: b.status })),
+        blocks,
+      },
+      counts,
+      commit: null,
+    });
+  };
+
+  const onResumeAnalysis = async (importId: string, fileName: string, jobId: string) => {
+    const res = await resumeAtomizationJob(jobId);
+    if ("error" in res) {
+      toast.error(`Vi fikk ikke startet analysen igjen: ${res.error.message}`);
+      return;
+    }
+    await watchJob(importId, fileName, jobId, counts);
+  };
+
+  const onDiscardImport = async (importId: string) => {
+    try {
+      await cancelImport(importId);
+    } catch (e: any) {
+      toast.error(`Vi fikk ikke avbrutt importen: ${e?.message ?? "ukjent årsak"}.`);
+    }
+    setStage({ kind: "idle" });
+  };
 
   const onCreateDocumentationDrafts = async (importId: string) => {
     try {
@@ -158,159 +356,15 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
         }.`,
       );
     } catch (e: any) {
-      toast.error(
-        `Kunne ikke lage utkast i Min dokumentasjon: ${e?.message ?? "ukjent årsak"}.`,
-      );
+      toast.error(`Kunne ikke lage utkast i Min dokumentasjon: ${e?.message ?? "ukjent årsak"}.`);
     }
   };
 
-  const toggleSelected = (key: string, checked: boolean) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(key);
-      else next.delete(key);
-      return next;
-    });
-
-  const setManySelected = (keys: string[], checked: boolean) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const k of keys) {
-        if (checked) next.add(k);
-        else next.delete(k);
-      }
-      return next;
-    });
-
-  const onUseArchived = async (source: ArchivedCvSource) => {
-    try {
-      const res = await importArchived.mutateAsync(source);
-      dispatch({
-        type: "upload_done",
-        importId: res.import_id,
-        fileName: res.source_filename,
-      });
-      // Brukeren har allerede valgt filen — analysen starter uten et ekstra trykk.
-      await runAnalyze(res.import_id, res.source_filename);
-    } catch (e: any) {
-      dispatch({
-        type: "error",
-        from: "upload",
-        errorCode: e?.code ?? "upload_failed",
-        message: e?.message,
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (state.kind !== "file_selected") return;
-    const file = state.file;
-    let cancelled = false;
-    (async () => {
-      dispatch({ type: "upload_start" });
-      try {
-        const res = await register.mutateAsync(file);
-        if (cancelled) return;
-        dispatch({
-          type: "upload_done",
-          importId: res.import_id,
-          fileName: res.source_filename,
-        });
-      } catch (e: any) {
-        if (cancelled) return;
-        const code = e?.code ?? "upload_failed";
-        const from = code === "upload_failed" ? "upload" : "parse";
-        dispatch({ type: "error", from, errorCode: code, message: e?.message });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.kind === "file_selected" ? (state as { file: File }).file : null]);
-
-  const runAnalyze = async (importId: string, fileName: string) => {
-    dispatch({ type: "parse_start", importId, fileName });
-    try {
-      const res = await runParse.mutateAsync(importId);
-      const { data: row, error } = await supabase
-        .from("cv_imports")
-        .select("raw_parsed_data, source_filename")
-        .eq("id", res.import_id)
-        .maybeSingle();
-      if (error || !row?.raw_parsed_data) {
-        dispatch({
-          type: "parse_failed",
-          message: error
-            ? `Kunne ikke hente analyseresultat fra databasen: ${error.message}`
-            : "Analysen lagret ingen data for denne filen.",
-        });
-        return;
-      }
-      if (!parsedShapeIsReadable(row.raw_parsed_data)) {
-        // Uleselig svar ga tidligere «0 elementer funnet», som så ut som en tom CV.
-        dispatch({
-          type: "parse_failed",
-          message:
-            "Vi fikk et svar vi ikke klarte å lese. Dette er ikke det samme som at CV-en er tom — prøv analysen på nytt.",
-        });
-        return;
-      }
-      const counts = countsFromParsed(row.raw_parsed_data);
-      dispatch({
-        type: "parsed",
-        importId: res.import_id,
-        counts,
-        fileName: (row.source_filename as string) ?? fileName,
-        raw: row.raw_parsed_data,
-      });
-      setSelected(new Set(flattenItems(buildPreviewGroups(row.raw_parsed_data)).map((i) => i.key)));
-    } catch (e: any) {
-      dispatch({
-        type: "parse_failed",
-        message: e?.message ?? "Analyse feilet.",
-      });
-    }
-  };
-
-  const onCommit = async (importId: string, raw: any) => {
-    dispatch({ type: "commit_start", importId });
-    try {
-      // Bare det brukeren har huket av skal lagres. Vi skriver det valgte
-      // utvalget tilbake til import-raden, slik at commit-funksjonen
-      // konverterer nøyaktig det brukeren bekreftet.
-      const filtered = filterParsedData(raw, selected);
-      const { error: updErr } = await (supabase.from("cv_imports") as any)
-        .update({ raw_parsed_data: filtered })
-        .eq("id", importId);
-      if (updErr) throw Object.assign(new Error(updErr.message), { code: "database_error" });
-      const result = await commit.mutateAsync(importId);
-      setDiscovered(countsFromParsed(filtered));
-      dispatch({ type: "done", result });
-      onCompleted?.(result);
-      // Ingen automatisk videresending: brukeren velger selv «nå» eller «senere».
-    } catch (e: any) {
-      dispatch({
-        type: "error",
-        from: "commit",
-        errorCode: e?.code ?? "database_error",
-        message: e?.message,
-        importId,
-      });
-    }
-  };
-
-  const onCancelAwaitOrPreview = async (importId: string) => {
-    try {
-      await cancelImport(importId);
-    } catch (e: any) {
-      // Avbrytelsen feilet: raden blir liggende og dukker opp igjen i listen.
-      toast.error(
-        `Vi fikk ikke avbrutt importen: ${e?.message ?? "ukjent årsak"}. Den kan fortsatt ligge i listen.`,
-      );
-    }
-    dispatch({ type: "reset" });
-  };
+  const busy =
+    stage.kind === "uploading" ||
+    stage.kind === "parsing" ||
+    stage.kind === "preparing" ||
+    stage.kind === "analyzing";
 
   return (
     <Card>
@@ -319,13 +373,13 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
           Bygg karriereoversikt fra CV
         </CardTitle>
         <CardDescription>
-          Steg 1: Last opp PDF eller DOCX (går raskt). Steg 2: Trykk «Analyser CV» når du er klar —
-          da kjøres AI-tolkning og kan ta et minutt. Steg 3: Gå gjennom forhåndsvisning og trykk
-          «Bekreft og lagre» for å legge data inn i karriereoversikten.
+          Last opp PDF eller DOCX. Analysen starter av seg selv når opplastingen er ferdig, og
+          etterpå går du gjennom innholdet i fire trinn. Ingenting lagres i karriereoversikten før
+          du har bekreftet det.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {state.kind === "idle" && (
+        {stage.kind === "idle" && (
           <div className="space-y-4">
             <ArchiveCvPicker
               userId={userId}
@@ -338,170 +392,191 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
                   toast.error(messageFor(error));
                   return;
                 }
-                dispatch({ type: "select", file });
+                void onFileSelected(file);
               }}
             />
           </div>
         )}
 
-
-        {(state.kind === "file_selected" || state.kind === "uploading") && (
-          <div className="flex items-center gap-3 rounded-md border p-4">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">Laster opp til sikker lagring…</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {(state as { file: File }).file?.name}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {state.kind === "parsing" && (
-          <div className="flex items-center gap-3 rounded-md border p-4">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">Analyserer innhold med AI…</p>
-              <p className="text-xs text-muted-foreground truncate">{state.fileName}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Du kan forlate siden — import-raden oppdateres når analysen er ferdig. Kom tilbake og
-                trykk «Analyser CV» igjen bare hvis status fortsatt er «venter» etter lang tid.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {state.kind === "await_parse" && (
+        {busy && (
           <div className="space-y-3 rounded-md border p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FileText className="h-4 w-4 shrink-0" />
-              <span className="truncate font-medium text-foreground">{state.fileName}</span>
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">{STAGE_LABEL[stage.kind]}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {"fileName" in stage ? stage.fileName : ""}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Filen er lastet opp. Start AI-analyse når du vil — den blokkerer ikke opplastingen.
-            </p>
-            {state.lastError && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Analyse feilet</AlertTitle>
-                <AlertDescription>{state.lastError}</AlertDescription>
-              </Alert>
+
+            {stage.kind === "analyzing" && blocks.length > 0 && (
+              <div className="space-y-2">
+                <Progress value={jobProgressPercent(blocks)} />
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  {blocks.map((b) => (
+                    <li key={b.block_key} className="flex items-center gap-2">
+                      {b.status === "complete" || b.status === "needs_review" ? (
+                        <CheckCircle2 className="h-3 w-3 text-primary" />
+                      ) : b.status === "failed" ? (
+                        <AlertTriangle className="h-3 w-3 text-destructive" />
+                      ) : b.status === "running" ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <span className="inline-block h-3 w-3 rounded-full border" />
+                      )}
+                      <span className="truncate">{b.label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void runAnalyze(state.importId, state.fileName)} disabled={runParse.isPending}>
-                {runParse.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Analyser CV
-              </Button>
+
+            <p className="text-xs text-muted-foreground">
+              Du kan forlate siden — analysen fortsetter, og du kommer tilbake hit til samme sted.
+            </p>
+
+            {stage.kind === "analyzing" && (
               <Button
                 variant="ghost"
-                onClick={() => void onCancelAwaitOrPreview(state.importId)}
-                disabled={runParse.isPending}
-              >
-                <X className="h-4 w-4 mr-1" /> Avbryt
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {state.kind === "parsed_preview" && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FileText className="h-4 w-4" />
-              <span className="truncate">{state.fileName}</span>
-            </div>
-            <PreviewSummary counts={state.counts} />
-            <PreviewDetails
-              userId={userId}
-              raw={state.raw}
-              selected={selected}
-              onToggle={toggleSelected}
-              onSetMany={setManySelected}
-            />
-            <div className="flex gap-2">
-              <Button onClick={() => onCommit(state.importId, state.raw)} disabled={commit.isPending || selected.size === 0}>
-                {commit.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Bekreft og lagre{selected.size > 0 ? ` (${selected.size})` : ""}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => void onCancelAwaitOrPreview(state.importId)}
-                disabled={commit.isPending}
-              >
-                <X className="h-4 w-4 mr-1" /> Avbryt
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {state.kind === "committing" && (
-          <div className="flex items-center gap-3 rounded-md border p-4">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <p className="text-sm font-medium">Lagrer i karriereoversikten…</p>
-          </div>
-        )}
-
-        {state.kind === "done" && (
-          <div className="space-y-3">
-            <Alert>
-              <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>Analysen er ferdig</AlertTitle>
-              <AlertDescription className="space-y-1">
-                <span className="block">
-                  Vi fant {discovered?.experience ?? state.result.roles} roller,{" "}
-                  {(discovered?.experienceBullets ?? state.result.children_with_parent) +
-                    (discovered?.achievements ?? 0)}{" "}
-                  resultater og {discovered?.skills ?? 0} kompetanser
-                  {state.result.candidates_duplicate_skipped > 0
-                    ? ` (${state.result.candidates_duplicate_skipped} var lagret fra før)`
-                    : ""}
-                  .
-                </span>
-                <span className="block">
-                  Ingenting er lagt i karriereoversikten ennå — du bekrefter innholdet i en
-                  gjennomgang på fire trinn.
-                </span>
-              </AlertDescription>
-            </Alert>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm">
-                <Link to="/career/cv-review" search={{ import: state.result.import_id }}>
-                  Gå gjennom nå
-                </Link>
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => dispatch({ type: "reset" })}>
-                Senere
-              </Button>
-              <Button
-                variant="outline"
                 size="sm"
-                disabled={docDrafts.isPending}
-                onClick={() => void onCreateDocumentationDrafts(state.result.import_id)}
+                disabled={cancelling}
+                onClick={() => void onCancelAnalysis(stage.importId, stage.fileName, stage.jobId)}
               >
-                {docDrafts.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Lag utkast i Min dokumentasjon
+                {cancelling ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <X className="mr-1 h-4 w-4" />
+                )}
+                Avbryt analysen
               </Button>
-              <Button variant="outline" size="sm" onClick={() => dispatch({ type: "reset" })}>
-                <RotateCcw className="h-4 w-4 mr-2" /> Last opp en til
-              </Button>
-            </div>
+            )}
           </div>
         )}
 
-        {state.kind === "error" && (
+        {stage.kind === "summary" && (
+          <SummaryView
+            stage={stage}
+            counts={counts}
+            docsPending={docDrafts.isPending}
+            onResume={() =>
+              stage.jobId
+                ? void onResumeAnalysis(stage.importId, stage.fileName, stage.jobId)
+                : undefined
+            }
+            onCreateDrafts={() => void onCreateDocumentationDrafts(stage.importId)}
+            onReset={() => setStage({ kind: "idle" })}
+          />
+        )}
+
+        {stage.kind === "error" && (
           <div className="space-y-3">
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Opplastingen feilet</AlertTitle>
-              <AlertDescription>
-                {messageFor(state.errorCode, state.message)}
-              </AlertDescription>
+              <AlertTitle>Vi kom ikke i mål</AlertTitle>
+              <AlertDescription>{messageFor(stage.errorCode, stage.message)}</AlertDescription>
             </Alert>
-            <Button variant="outline" size="sm" onClick={() => dispatch({ type: "reset" })}>
-              <RotateCcw className="h-4 w-4 mr-2" /> Prøv igjen
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {stage.importId && (
+                <Button
+                  size="sm"
+                  onClick={() => void runPipeline(stage.importId!, stage.fileName ?? "CV")}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" /> Prøv analysen på nytt
+                </Button>
+              )}
+              {stage.importId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void onDiscardImport(stage.importId!)}
+                >
+                  Avbryt importen
+                </Button>
+              )}
+              {!stage.importId && (
+                <Button variant="outline" size="sm" onClick={() => setStage({ kind: "idle" })}>
+                  <RotateCcw className="mr-2 h-4 w-4" /> Prøv igjen
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function SummaryView({
+  stage,
+  counts,
+  docsPending,
+  onResume,
+  onCreateDrafts,
+  onReset,
+}: {
+  stage: Extract<Stage, { kind: "summary" }>;
+  counts: PreviewCounts | null;
+  docsPending: boolean;
+  onResume: () => void;
+  onCreateDrafts: () => void;
+  onReset: () => void;
+}) {
+  const outcome = stage.outcome;
+  const unfinished = outcome?.unfinishedBlocks ?? [];
+  const partial = outcome?.status === "partial" || outcome?.status === "cancelled" || unfinished.length > 0;
+
+  return (
+    <div className="space-y-3">
+      <Alert variant={partial ? "destructive" : "default"}>
+        {partial ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+        <AlertTitle>
+          {outcome?.status === "cancelled"
+            ? "Analysen ble stoppet"
+            : partial
+              ? "Analysen ble bare delvis ferdig"
+              : "Analysen er ferdig"}
+        </AlertTitle>
+        <AlertDescription className="space-y-1">
+          <span className="block">
+            Vi fant {counts?.experience ?? 0} roller,{" "}
+            {(counts?.experienceBullets ?? 0) + (counts?.achievements ?? 0)} resultater og{" "}
+            {counts?.skills ?? 0} kompetanser.
+          </span>
+          {unfinished.length > 0 && (
+            <span className="block">
+              Disse delene mangler fortsatt: {unfinished.map((b) => b.label).join(", ")}. Trinn 1–4
+              bygger bare på det som faktisk er analysert.
+            </span>
+          )}
+          <span className="block">
+            Ingenting er lagt i karriereoversikten ennå — du bekrefter innholdet i en gjennomgang på
+            fire trinn.
+          </span>
+        </AlertDescription>
+      </Alert>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="sm">
+          <Link to="/career/cv-review" search={{ import: stage.importId }}>
+            Gå gjennom nå
+          </Link>
+        </Button>
+        {unfinished.length > 0 && stage.jobId && (
+          <Button variant="outline" size="sm" onClick={onResume}>
+            <RotateCcw className="mr-2 h-4 w-4" /> Fullfør resten av analysen
+          </Button>
+        )}
+        <Button variant="outline" size="sm" onClick={onReset}>
+          Senere
+        </Button>
+        <Button variant="outline" size="sm" disabled={docsPending} onClick={onCreateDrafts}>
+          {docsPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Lag utkast i Min dokumentasjon
+        </Button>
+        <Button variant="outline" size="sm" onClick={onReset}>
+          <FileText className="mr-2 h-4 w-4" /> Last opp en til
+        </Button>
+      </div>
+    </div>
   );
 }

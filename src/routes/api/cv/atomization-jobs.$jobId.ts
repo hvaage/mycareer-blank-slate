@@ -79,13 +79,31 @@ export const Route = createFileRoute("/api/cv/atomization-jobs/$jobId")({
         });
       },
       // Ingen modellkjøring her: bare et signal til bakgrunnsarbeideren.
+      // Med { resume: true } åpnes en avbrutt jobb igjen før signalet sendes.
       POST: async ({ request, params }) => {
         if (!UUID.safeParse(params.jobId).success) {
           return fail(400, "invalid_body", "Ugyldig jobb-id.");
         }
+        let payload: { resume?: boolean } = {};
+        try {
+          payload = ((await request.json()) as { resume?: boolean }) ?? {};
+        } catch {
+          payload = {};
+        }
         const loaded = await loadJob(request, params.jobId);
         if ("error" in loaded) return loaded.error;
-        const status = String(loaded.job["status"] ?? "");
+        let status = String(loaded.job["status"] ?? "");
+
+        if (payload.resume === true && status !== "queued" && status !== "running") {
+          const { data, error } = await loaded.userClient.rpc(
+            "cv_atomization_job_resume" as never,
+            { p_job_id: params.jobId } as never,
+          );
+          if (error) return fail(500, "database_error", "Kunne ikke starte analysen igjen.");
+          const row = Array.isArray(data) ? (data[0] as Record<string, unknown>) : null;
+          status = String(row?.["job_status"] ?? "queued");
+        }
+
         if (status !== "queued" && status !== "running") {
           return Response.json({ ok: true, resumed: false, job_status: status });
         }
@@ -103,6 +121,26 @@ export const Route = createFileRoute("/api/cv/atomization-jobs/$jobId")({
         }
         return Response.json({ ok: true, resumed: true, job_status: status });
       },
+      // Avbryt: setter jobben i en eksplisitt terminal tilstand server-side.
+      // Ferdige blokker beholdes; import, fil og kandidater røres ikke.
+      DELETE: async ({ request, params }) => {
+        if (!UUID.safeParse(params.jobId).success) {
+          return fail(400, "invalid_body", "Ugyldig jobb-id.");
+        }
+        const loaded = await loadJob(request, params.jobId);
+        if ("error" in loaded) return loaded.error;
+        const { data, error } = await loaded.userClient.rpc(
+          "cv_atomization_job_cancel" as never,
+          { p_job_id: params.jobId } as never,
+        );
+        if (error) return fail(500, "database_error", "Kunne ikke avbryte analysen.");
+        const row = Array.isArray(data) ? (data[0] as Record<string, unknown>) : null;
+        return Response.json({
+          ok: true,
+          job_status: String(row?.["job_status"] ?? "cancelled"),
+        });
+      },
+
     },
   },
 });

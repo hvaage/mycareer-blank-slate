@@ -183,8 +183,24 @@ export async function startAtomizationJob(args: StartJobInput): Promise<JobRunne
     .limit(1)
     .maybeSingle();
   if (existing) {
+    // En avbrutt jobb startes igjen uten å kjøre ferdige blokker på nytt:
+    // fullførte blokker beholder resultat og provenance, bare køen åpnes.
+    if (existing.status === "cancelled") {
+      await adminClient
+        .from("cv_atomization_jobs")
+        .update({
+          status: "queued",
+          error_code: null,
+          attempts: 0,
+          lease_owner: null,
+          lease_expires_at: null,
+          finished_at: null,
+        })
+        .eq("id", existing.id);
+    }
     return { status: 200, body: { ok: true, job_id: existing.id, reused: true } };
   }
+
 
   const { data: job, error: jobError } = await adminClient
     .from("cv_atomization_jobs")
@@ -285,9 +301,16 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
   if (jobError) return fail(500, "database_error", "Kunne ikke lese analysejobben.");
   if (!jobData) return fail(404, "not_found", "Fant ikke analysejobben.");
   const job = jobData as JobRow;
-  if (job.status === "complete" || job.status === "partial" || job.status === "failed") {
+  // «Avbrutt» er terminalt for arbeideren: ingen nye modellkall etter dette.
+  if (
+    job.status === "complete" ||
+    job.status === "partial" ||
+    job.status === "failed" ||
+    job.status === "cancelled"
+  ) {
     return { status: 200, body: { ok: true, done: true, job_status: job.status } };
   }
+
 
   const { data: blockData, error: blocksError } = await adminClient
     .from("cv_atomization_job_blocks")

@@ -37,10 +37,14 @@ export type JobBlockProgress = {
 };
 
 export type JobOutcome = {
-  status: "complete" | "partial" | "failed";
+  status: "complete" | "partial" | "failed" | "cancelled";
   proposalsCreated: number;
   failedBlocks: { label: string }[];
+  /** Blokker som ikke ble ferdige (avbrutt eller feilet) — kan startes igjen. */
+  unfinishedBlocks: { label: string; status: JobBlockProgress["status"] }[];
+  blocks: JobBlockProgress[];
 };
+
 
 export type JobError = { message: string; retryable: boolean };
 
@@ -105,6 +109,40 @@ export async function startAtomizationJob(args: {
 }
 
 /**
+ * Avbryter en pågående analyse server-side. Jobben settes i en terminal
+ * tilstand slik at arbeideren ikke gjør flere modellkall. Ferdige deler
+ * beholdes; import, fil og analysegrunnlag slettes aldri.
+ */
+export async function cancelAtomizationJob(jobId: string): Promise<{ ok: true } | { error: JobError }> {
+  let response: Response;
+  try {
+    response = await authedFetch(`/api/cv/atomization-jobs/${jobId}`, { method: "DELETE" });
+  } catch {
+    return { error: { message: ERROR_TEXT["network_error"]!, retryable: true } };
+  }
+  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok || body["ok"] !== true) return { error: toError(body, response.status) };
+  return { ok: true };
+}
+
+/** Starter en avbrutt eller delvis jobb igjen. Ferdige deler kjøres ikke på nytt. */
+export async function resumeAtomizationJob(jobId: string): Promise<{ ok: true } | { error: JobError }> {
+  let response: Response;
+  try {
+    response = await authedFetch(`/api/cv/atomization-jobs/${jobId}`, {
+      method: "POST",
+      body: JSON.stringify({ resume: true }),
+    });
+  } catch {
+    return { error: { message: ERROR_TEXT["network_error"]!, retryable: true } };
+  }
+  const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok || body["ok"] !== true) return { error: toError(body, response.status) };
+  return { ok: true };
+}
+
+
+/**
  * Følger jobben med rene lesekall. Selve analysen kjøres av en bakgrunns-
  * tjeneste, ikke av nettleseren: statuskallene skriver aldri, og analysen
  * fortsetter selv om siden lukkes eller lastes på nytt. Har jobben stått
@@ -143,14 +181,24 @@ export async function followAtomizationJob(args: {
       const job = (body["job"] ?? {}) as Record<string, unknown>;
       const metrics = (job["metrics"] ?? {}) as Record<string, unknown>;
       const failed = (metrics["failed_blocks"] as { label?: string }[] | undefined) ?? [];
+      const blocks = (Array.isArray(body["blocks"]) ? body["blocks"] : []) as JobBlockProgress[];
+      const unfinished = blocks
+        .filter((b) => b.status === "queued" || b.status === "running" || b.status === "failed")
+        .map((b) => ({ label: b.label, status: b.status }));
       return {
         outcome: {
           status: (jobStatus as JobOutcome["status"]) ?? "complete",
           proposalsCreated: Number(metrics["proposals_created"] ?? 0),
-          failedBlocks: failed.map((b) => ({ label: b.label ?? "Ukjent del" })),
+          failedBlocks:
+            failed.length > 0
+              ? failed.map((b) => ({ label: b.label ?? "Ukjent del" }))
+              : blocks.filter((b) => b.status === "failed").map((b) => ({ label: b.label })),
+          unfinishedBlocks: unfinished,
+          blocks,
         },
       };
     }
+
 
     // Gjenopptakelse: ett signal per 60 sekunder, aldri modellarbeid herfra.
     if (body["resumable"] === true && Date.now() - lastResumeAt > 60_000) {
