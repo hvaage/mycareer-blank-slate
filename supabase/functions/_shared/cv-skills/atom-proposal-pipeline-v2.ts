@@ -796,7 +796,7 @@ export function buildProposalRows(
         placement_source: calibrated.skillPlacementSource ?? null,
         placement_reason: calibrated.skillPlacementReason ?? null,
         evidence_conflicts: calibrated.evidenceConflicts ?? [],
-        skill_evidence_phase: linked ? SKILL_EVIDENCE_PHASE_VERSION : null,
+        skill_evidence_phase: linked ? "1.0.0" : null,
         skill_tier: tier,
         skill_tier_reasons: calibrated.tierReasons ?? [],
         skill_role_count: calibrated.roleCount ?? null,
