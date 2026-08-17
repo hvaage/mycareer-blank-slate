@@ -1726,6 +1726,142 @@ export type Database = {
           },
         ]
       }
+      cv_atomization_job_blocks: {
+        Row: {
+          block_key: string
+          created_at: string
+          error_code: string | null
+          finished_at: string | null
+          id: string
+          job_id: string
+          label: string
+          metrics: Json
+          phase: string
+          result: Json | null
+          sort_order: number
+          span_ids: Json
+          started_at: string | null
+          status: string
+          sub_batch_signature: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          block_key: string
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          job_id: string
+          label: string
+          metrics?: Json
+          phase: string
+          result?: Json | null
+          sort_order?: number
+          span_ids?: Json
+          started_at?: string | null
+          status?: string
+          sub_batch_signature?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          block_key?: string
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          job_id?: string
+          label?: string
+          metrics?: Json
+          phase?: string
+          result?: Json | null
+          sort_order?: number
+          span_ids?: Json
+          started_at?: string | null
+          status?: string
+          sub_batch_signature?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_atomization_job_blocks_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "cv_atomization_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cv_atomization_jobs: {
+        Row: {
+          batch_id: string | null
+          correlation_id: string
+          created_at: string
+          cv_import_id: string
+          error_code: string | null
+          finished_at: string | null
+          id: string
+          input_signature: string
+          metrics: Json
+          model_run_id: string | null
+          phase: string
+          pipeline: string
+          profile_key: string
+          regenerate: boolean
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          correlation_id: string
+          created_at?: string
+          cv_import_id: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          input_signature: string
+          metrics?: Json
+          model_run_id?: string | null
+          phase?: string
+          pipeline?: string
+          profile_key?: string
+          regenerate?: boolean
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          correlation_id?: string
+          created_at?: string
+          cv_import_id?: string
+          error_code?: string | null
+          finished_at?: string | null
+          id?: string
+          input_signature?: string
+          metrics?: Json
+          model_run_id?: string | null
+          phase?: string
+          pipeline?: string
+          profile_key?: string
+          regenerate?: boolean
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_atomization_jobs_cv_import_id_fkey"
+            columns: ["cv_import_id"]
+            isOneToOne: false
+            referencedRelation: "cv_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cv_claim_attestation_events: {
         Row: {
           attestation_id: string
