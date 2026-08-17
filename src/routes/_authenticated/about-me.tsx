@@ -25,6 +25,9 @@ import { usePersistedCollapse } from "@/hooks/use-persisted-collapse";
 
 
 export const Route = createFileRoute("/_authenticated/about-me")({
+  validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
+    tab: typeof search.tab === "string" ? search.tab : undefined,
+  }),
   component: AboutMePage,
 });
 
