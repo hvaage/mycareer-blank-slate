@@ -26,6 +26,11 @@ import {
 } from "./atom-proposal-pipeline-v2.ts";
 import { canonicalizeSourceText, computeSourceHash } from "./atom-proposal-pipeline.ts";
 import { buildResultLedger } from "./result-ledger-v2.ts";
+import {
+  reconcileReviewBasisFromV2,
+  type ReconcilePlan,
+  type ReconcileProposal,
+} from "./review-basis-reconcile.ts";
 import { ATOMIZATION_OUTPUT_CONTRACT_VERSION } from "./vendor/cv-atom-language-no/v2/prompt.ts";
 import {
   DEFAULT_MAX_CONCURRENCY,
@@ -628,6 +633,22 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
     batchId = (writeJson as { batch_id: string }).batch_id;
   }
 
+  // Gjennomgangsgrunnlaget må speile v2.1: rolleutnevnelser er roller (trinn 1),
+  // og resultater henger under den rollen v2.1 knyttet dem til (trinn 2).
+  let reconcile: ReconcilePlan | null = null;
+  if (built.kept.length > 0) {
+    try {
+      reconcile = await reconcileReviewBasisFromV2(adminClient, {
+        userId,
+        cvImportId: job.cv_import_id,
+        proposals: built.kept as unknown as ReconcileProposal[],
+      });
+    } catch {
+      reconcile = null;
+    }
+  }
+
+
   if (consolidateBlock) {
     await adminClient
       .from("cv_atomization_job_blocks")
@@ -668,6 +689,13 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
           distribution: resultLedger.distribution,
           non_result_entries: resultLedger.nonResultEntries.length,
         },
+        review_basis_reconcile: reconcile
+          ? {
+              updates: reconcile.updates.length,
+              unmapped_roles: reconcile.unmappedRoles,
+              blocked: reconcile.blocked,
+            }
+          : null,
       },
     })
     .eq("id", jobId);

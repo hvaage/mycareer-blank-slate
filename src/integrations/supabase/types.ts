@@ -6206,6 +6206,10 @@ export type Database = {
           job_status: string
         }[]
       }
+      cv_review_basis_reconcile: {
+        Args: { p_import_id: string }
+        Returns: Json
+      }
       cv_review_progress_advance: {
         Args: {
           p_import_id: string
