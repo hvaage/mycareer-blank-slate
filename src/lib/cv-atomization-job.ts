@@ -8,6 +8,25 @@
  * Modulen viser aldri modellnavn, versjoner eller interne tabellnavn.
  */
 import { supabase } from "@/lib/supabase";
+import { CV_ATOMIZATION_JOB_LIMITS } from "@/lib/cv-skills-contract";
+
+/**
+ * Grensene som gjelder den aktive analysen (jobbruten). Den eldre engangsruten
+ * har egne, lavere grenser og brukes ikke i denne brukerreisen — derfor skal
+ * UI aldri vise en felles grense for begge.
+ */
+export const ACTIVE_ANALYSIS_LIMITS = CV_ATOMIZATION_JOB_LIMITS.perJob;
+
+export type AnalysisSelectionItem = { id: string; text: string };
+
+/** Sant når utvalget er større enn det den aktive analysen godtar. */
+export function analysisSelectionTooLarge(items: AnalysisSelectionItem[]): boolean {
+  const chars = items.reduce((n, item) => n + item.text.length, 0);
+  return (
+    items.length > ACTIVE_ANALYSIS_LIMITS.maxCandidates ||
+    chars > ACTIVE_ANALYSIS_LIMITS.maxChars
+  );
+}
 
 export type JobBlockProgress = {
   phase: "appointments" | "block_content" | "consolidate";
@@ -31,6 +50,7 @@ const ERROR_TEXT: Record<string, string> = {
   no_candidates: "Det er ingen funn å analysere i denne importen.",
   invalid_candidates: "Utvalget hører ikke til denne importen.",
   too_many_candidates: "Utvalget er for stort til én analyse.",
+  input_too_large: "Utvalget er for stort til én analyse.",
   server_misconfigured: "Analysen er ikke tilgjengelig akkurat nå.",
   database_error: "Noe gikk galt. Prøv igjen.",
   network_error: "Vi mistet kontakten. Prøv igjen.",
