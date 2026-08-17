@@ -766,8 +766,14 @@ export function buildProposalRows(
       roleCount?: number;
       achievementCount?: number;
       explicit?: boolean;
+      // Fase 4 — kompetansebelegg. Settes bare når fasen har kjørt.
+      skillPlacementConfidence?: "high" | "medium" | "low" | "none";
+      skillPlacementSource?: string;
+      skillPlacementReason?: string;
+      evidenceConflicts?: string[];
     };
     const tier = calibrated.tier ?? "reviewable";
+    const linked = calibrated.skillPlacementConfidence !== undefined;
     push({
       localId: s.localId,
       atomType: "skill",
@@ -775,13 +781,22 @@ export function buildProposalRows(
       evidence,
       action: "suggest_evidence",
       reviewState: s.status === "proposed" ? "ready_for_atom" : s.status,
-      rationale: s.placementReasons.join(", ") || "Kompetanse utledet fra rolle- og resultatbelegg.",
+      rationale:
+        calibrated.skillPlacementReason ||
+        s.placementReasons.join(", ") ||
+        "Kompetanse utledet fra rolle- og resultatbelegg.",
       extra: {
         local_id: s.localId,
         canonical_key: s.canonicalKey,
         display_label: s.displayLabel,
         inferred: s.inferred,
-        placement_confidence: s.placementConfidence,
+        placement_confidence: linked
+          ? calibrated.skillPlacementConfidence
+          : s.placementConfidence,
+        placement_source: calibrated.skillPlacementSource ?? null,
+        placement_reason: calibrated.skillPlacementReason ?? null,
+        evidence_conflicts: calibrated.evidenceConflicts ?? [],
+        skill_evidence_phase: linked ? SKILL_EVIDENCE_PHASE_VERSION : null,
         skill_tier: tier,
         skill_tier_reasons: calibrated.tierReasons ?? [],
         skill_role_count: calibrated.roleCount ?? null,
@@ -795,6 +810,7 @@ export function buildProposalRows(
         issues: s.issues,
       },
     });
+
   }
 
 
