@@ -322,6 +322,13 @@ export function buildResultLedger(args: {
   }
 
   const achievements = output.achievements.filter((a) => !dropped.has(a.localId));
+  const rolePlacedOf = (kind: "result" | "deliverable" | "role_evidence") =>
+    achievements.filter(
+      (a) =>
+        a.status === "proposed" &&
+        Boolean(a.roleLocalId) &&
+        ((a as { contentKind?: typeof kind }).contentKind ?? "result") === kind,
+    ).length;
   return {
     version: RESULT_LEDGER_VERSION,
     resultCandidateSpans,
@@ -330,6 +337,10 @@ export function buildResultLedger(args: {
       rolePlaced: achievements.filter(
         (a) => a.status === "proposed" && Boolean(a.roleLocalId),
       ).length,
+      rolePlacedResult: rolePlacedOf("result"),
+      rolePlacedDeliverable: rolePlacedOf("deliverable"),
+      rolePlacedLocalSignal: rolePlacedOf("role_evidence"),
+      provisionalRoles: output.roles.filter((r) => r.provisional).length,
       high: achievements.filter((a) => a.placementConfidence === "high").length,
       low: achievements.filter((a) => a.placementConfidence === "low").length,
       needsReview: achievements.filter((a) => a.status === "needs_review").length,
@@ -342,4 +353,5 @@ export function buildResultLedger(args: {
     },
     nonResultEntries: entries,
   };
+
 }
