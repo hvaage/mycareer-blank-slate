@@ -480,14 +480,7 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
     return await progressResponse(adminClient, jobId, "block_content");
   }
 
-  // ---------------------------------------------------------- fase 3
-  const consolidateBlock = blocks.find((b) => b.phase === "consolidate");
-  if (consolidateBlock && terminal(consolidateBlock)) {
-    return { status: 200, body: { ok: true, done: true, job_status: job.status } };
-  }
-  if (consolidateBlock) await markRunning([consolidateBlock.id]);
-  await adminClient.from("cv_atomization_jobs").update({ phase: "consolidate" }).eq("id", jobId);
-
+  // -------------------------------------- innsamling av fase 1- og 2-utdata
   const achievements: AchievementProposal[] = [];
   const rawSkills: SkillProposal[] = [];
   const qualifications: QualificationProposal[] = [];
@@ -530,14 +523,81 @@ export async function stepAtomizationJob(args: StepJobInput): Promise<JobRunnerR
     issues.push(...(result.issues ?? []));
   }
 
+  // Deterministisk fletting og kalibrering før beleggfasen.
   const merged = finalizeSkills(rawSkills, modelInput);
+
+  // ------------------------------------------- fase 4: kompetansebelegg
+  const evidenceBlock = blocks.find((b) => b.phase === "skill_evidence");
+  if (evidenceBlock && !terminal(evidenceBlock)) {
+    await markRunning([evidenceBlock.id]);
+    await adminClient
+      .from("cv_atomization_jobs")
+      .update({ phase: "skill_evidence" })
+      .eq("id", jobId);
+
+    const request = buildSkillEvidenceRequest({
+      skills: merged.skills.filter((s) => s.tier === "reviewable"),
+      roles,
+      achievements,
+      input: modelInput,
+    });
+    const step = await runSkillEvidenceStep({
+      profile,
+      anthropicApiKey: args.anthropicApiKey,
+      correlationId: job.correlation_id,
+      timeoutMs: CLAUDE_TIMEOUT_MS,
+      request,
+    });
+    await adminClient
+      .from("cv_atomization_job_blocks")
+      .update({
+        // Feiler beleggfasen, blir kompetansene stående uten kobling — det er
+        // en gjennomgangsoppgave, ikke en tapt analyse.
+        status: step.ok ? "complete" : "needs_review",
+        error_code: step.errorCode,
+        result: { assignments: step.assignments },
+        metrics: {
+          phase: "skill_evidence",
+          key: "__skill_evidence__",
+          spans: request.skills.length,
+          ok: step.ok,
+          errorCode: step.errorCode,
+          durationMs: step.durationMs,
+          inputTokens: step.inputTokens,
+          outputTokens: step.outputTokens,
+        },
+        finished_at: new Date().toISOString(),
+      })
+      .eq("id", evidenceBlock.id);
+
+    return await progressResponse(adminClient, jobId, "skill_evidence");
+  }
+
+  const storedAssignments =
+    ((evidenceBlock?.result ?? {}) as { assignments?: SkillEvidenceAssignment[] }).assignments ?? [];
+  const linked = applySkillEvidence({
+    skills: merged.skills,
+    assignments: storedAssignments,
+    roles,
+    achievements,
+  });
+
+  // ---------------------------------------------------------- fase 3: skriving
+  const consolidateBlock = blocks.find((b) => b.phase === "consolidate");
+  if (consolidateBlock && terminal(consolidateBlock)) {
+    return { status: 200, body: { ok: true, done: true, job_status: job.status } };
+  }
+  if (consolidateBlock) await markRunning([consolidateBlock.id]);
+  await adminClient.from("cv_atomization_jobs").update({ phase: "consolidate" }).eq("id", jobId);
+
   const gated = applyQualityGates(
     hydrateEvidence(
-      { roles, achievements, skills: merged.skills, qualifications, issues },
+      { roles, achievements, skills: linked.skills, qualifications, issues },
       modelInput,
     ),
     modelInput,
   );
+
 
   const { sorted } = buildInput(args.allCandidates, args.selectedRefs);
   const candidatesByRef = new Map(sorted.map((c) => [c.local_ref, c]));
