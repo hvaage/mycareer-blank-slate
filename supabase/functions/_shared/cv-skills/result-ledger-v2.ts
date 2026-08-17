@@ -19,6 +19,9 @@ const RESULT_CANDIDATE_TYPES = new Set(["achievement", "metric", "project", "res
 
 export type ResultDisposition =
   | "role_placed_result"
+  | "role_placed_deliverable"
+  | "role_placed_local_signal"
+  | "provisional_role_needs_clarification"
   | "unassigned_result"
   | "needs_review_result"
   | "local_signal"
@@ -38,6 +41,9 @@ export type ResultLedgerEntry = {
   placementSource: string | null;
   reason: string;
   visibleIn: string;
+  /** Rollen innholdet er strukturelt knyttet til, når den finnes. */
+  roleLocalId?: string | null;
+  provisionalRole?: boolean;
 };
 
 export type ResultLedger = {
@@ -48,6 +54,10 @@ export type ResultLedger = {
   achievementProposals: number;
   distribution: {
     rolePlaced: number;
+    rolePlacedResult: number;
+    rolePlacedDeliverable: number;
+    rolePlacedLocalSignal: number;
+    provisionalRoles: number;
     high: number;
     low: number;
     needsReview: number;
@@ -57,6 +67,7 @@ export type ResultLedger = {
   /** Kun spenn som ikke endte som rolleplassert resultat. */
   nonResultEntries: ResultLedgerEntry[];
 };
+
 
 const DISPOSITION_TEXT: Record<
   ResultDisposition,
