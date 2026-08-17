@@ -351,11 +351,35 @@ export function CvReviewTimelineStep({
               </li>
             )}
           </ul>
-          <div className="border-t p-3">
+          <div className="flex flex-wrap items-center gap-2 border-t p-3">
             <Button variant="outline" size="sm" onClick={() => setShowAdd((v) => !v)}>
               <Plus className="mr-1 h-3.5 w-3.5" /> Legg til rolle
             </Button>
+            {STANDARD_ROLES.map((sr) => {
+              const exists = Boolean(findExistingStandardRole(roles, sr));
+              return (
+                <Button
+                  key={sr.key}
+                  variant="ghost"
+                  size="sm"
+                  disabled={exists || addRole.isPending}
+                  title={exists ? "Rollen finnes allerede i tidslinjen." : sr.description}
+                  onClick={() =>
+                    addRole.mutate({
+                      title: sr.title,
+                      employer: null,
+                      startIso: null,
+                      endIso: null,
+                      isCurrent: false,
+                    })
+                  }
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" /> {sr.title}
+                </Button>
+              );
+            })}
           </div>
+
         </CardContent>
       </Card>
 
