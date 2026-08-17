@@ -211,19 +211,13 @@ export function CvReviewResultsStep({
               <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
                 <div className="min-w-56 flex-1 space-y-1">
                   <Label className="text-xs">Knytt alle til rolle</Label>
-                  <Select value={bulkRole} onValueChange={setBulkRole}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Velg rolle fra trinn 1" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectableRoles.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.title}
-                          {r.employer ? ` · ${r.employer}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <RoleSelect
+                    roles={selectableRoles}
+                    value={bulkRole}
+                    onChange={setBulkRole}
+                    onMissing={onBack}
+                    placeholder="Velg rolle fra trinn 1"
+                  />
                 </div>
                 <Button
                   variant="outline"
