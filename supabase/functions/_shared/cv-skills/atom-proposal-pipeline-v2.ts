@@ -568,7 +568,25 @@ export function applyQualityGates(
         concurrentWithRoleLocalIds: r.concurrentWithRoleLocalIds,
         appointmentRelation: r.appointmentRelation,
       })),
+      provisionalRoles: output.roles
+        .filter((r) => r.provisional)
+        .map((r) => ({
+          localId: r.localId,
+          employer: r.employer,
+          startDate: r.startDate,
+          endDate: r.endDate,
+          reason: r.needsReviewReason ?? "missing_role_title",
+          attachedContentLocalIds: output.achievements
+            .filter((a) => a.roleLocalId === r.localId)
+            .map((a) => a.localId),
+        })),
+      contentKinds: {
+        result: output.achievements.filter((a) => (a.contentKind ?? "result") === "result").length,
+        deliverable: output.achievements.filter((a) => a.contentKind === "deliverable").length,
+        roleEvidence: output.achievements.filter((a) => a.contentKind === "role_evidence").length,
+      },
       placement: {
+
         high: output.achievements.filter((a) => a.placementConfidence === "high").length,
         low: output.achievements.filter((a) => a.placementConfidence === "low").length,
         needsReview: output.achievements.filter((a) => a.placementConfidence === "needs_review")
