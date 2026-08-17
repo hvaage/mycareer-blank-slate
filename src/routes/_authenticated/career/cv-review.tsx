@@ -17,6 +17,7 @@ import {
   advanceReviewProgress,
   cvReviewProgressQuery,
   invalidateReviewProgress,
+  readRoleChoices,
   syncReviewProgress,
 } from "@/lib/queries/cv-review-progress";
 import { CvReviewSkillsStep } from "@/components/cv/CvReviewSkillsStep";
