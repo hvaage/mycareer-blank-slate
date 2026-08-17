@@ -88,6 +88,7 @@ import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './rout
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
 import { Route as ApiPublicOpsWatchdogRouteImport } from './routes/api/public/ops/watchdog'
 import { Route as ApiCvGenerationsJobIdRouteImport } from './routes/api/cv/generations.$jobId'
+import { Route as ApiCvAtomizationJobsJobIdRouteImport } from './routes/api/cv/atomization-jobs.$jobId'
 
 const UnsubscribeRoute = UnsubscribeRouteImport.update({
   id: '/unsubscribe',
@@ -529,6 +530,12 @@ const ApiCvGenerationsJobIdRoute = ApiCvGenerationsJobIdRouteImport.update({
   path: '/$jobId',
   getParentRoute: () => ApiCvGenerationsRoute,
 } as any)
+const ApiCvAtomizationJobsJobIdRoute =
+  ApiCvAtomizationJobsJobIdRouteImport.update({
+    id: '/$jobId',
+    path: '/$jobId',
+    getParentRoute: () => ApiCvAtomizationJobsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -580,7 +587,7 @@ export interface FileRoutesByFullPath {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
-  '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRoute
+  '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
@@ -601,6 +608,7 @@ export interface FileRoutesByFullPath {
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
+  '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -657,7 +665,7 @@ export interface FileRoutesByTo {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
-  '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRoute
+  '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
@@ -678,6 +686,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
   '/rekruttererundersokelse/resultater': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
+  '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -739,7 +748,7 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
-  '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRoute
+  '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
@@ -760,6 +769,7 @@ export interface FileRoutesById {
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
+  '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -842,6 +852,7 @@ export interface FileRouteTypes {
     | '/onboarding/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
+    | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
@@ -919,6 +930,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/rekruttererundersokelse/resultater'
     | '/selskapsanalyse/analysedatabase'
+    | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
@@ -1000,6 +1012,7 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
+    | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
@@ -1025,7 +1038,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
-  ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRoute
+  ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRouteWithChildren
   ApiCvGenerationsRoute: typeof ApiCvGenerationsRouteWithChildren
   ApiCvProposeCvAtomsRoute: typeof ApiCvProposeCvAtomsRoute
   ApiInternalCvGenerationWorkerRoute: typeof ApiInternalCvGenerationWorkerRoute
@@ -1595,6 +1608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCvGenerationsJobIdRouteImport
       parentRoute: typeof ApiCvGenerationsRoute
     }
+    '/api/cv/atomization-jobs/$jobId': {
+      id: '/api/cv/atomization-jobs/$jobId'
+      path: '/$jobId'
+      fullPath: '/api/cv/atomization-jobs/$jobId'
+      preLoaderRoute: typeof ApiCvAtomizationJobsJobIdRouteImport
+      parentRoute: typeof ApiCvAtomizationJobsRoute
+    }
   }
 }
 
@@ -1749,6 +1769,17 @@ const SelskapsanalyseRouteWithChildren = SelskapsanalyseRoute._addFileChildren(
   SelskapsanalyseRouteChildren,
 )
 
+interface ApiCvAtomizationJobsRouteChildren {
+  ApiCvAtomizationJobsJobIdRoute: typeof ApiCvAtomizationJobsJobIdRoute
+}
+
+const ApiCvAtomizationJobsRouteChildren: ApiCvAtomizationJobsRouteChildren = {
+  ApiCvAtomizationJobsJobIdRoute: ApiCvAtomizationJobsJobIdRoute,
+}
+
+const ApiCvAtomizationJobsRouteWithChildren =
+  ApiCvAtomizationJobsRoute._addFileChildren(ApiCvAtomizationJobsRouteChildren)
+
 interface ApiCvGenerationsRouteChildren {
   ApiCvGenerationsJobIdRoute: typeof ApiCvGenerationsJobIdRoute
 }
@@ -1775,7 +1806,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
-  ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRoute,
+  ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRouteWithChildren,
   ApiCvGenerationsRoute: ApiCvGenerationsRouteWithChildren,
   ApiCvProposeCvAtomsRoute: ApiCvProposeCvAtomsRoute,
   ApiInternalCvGenerationWorkerRoute: ApiInternalCvGenerationWorkerRoute,
