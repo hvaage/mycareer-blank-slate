@@ -26,6 +26,11 @@ import {
 } from "./atom-proposal-pipeline-v2.ts";
 import { canonicalizeSourceText, computeSourceHash } from "./atom-proposal-pipeline.ts";
 import { buildResultLedger } from "./result-ledger-v2.ts";
+import {
+  reconcileReviewBasisFromV2,
+  type ReconcilePlan,
+  type ReconcileProposal,
+} from "./review-basis-reconcile.ts";
 import { ATOMIZATION_OUTPUT_CONTRACT_VERSION } from "./vendor/cv-atom-language-no/v2/prompt.ts";
 import {
   DEFAULT_MAX_CONCURRENCY,
