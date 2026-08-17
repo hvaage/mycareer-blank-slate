@@ -471,6 +471,8 @@ export function applyQualityGates(
       source === "role_block_span" ||
       source === "inner_appointment_span";
 
+    achievement.contentKind = classifyContentKind(achievement.normalizedText);
+
     if (!structural) {
       // Tekstlikhet alene er ikke plassering. Resultatet går tilbake i kø.
       if (achievement.placementConfidence === "high") downgradedFromHigh.push(achievement.localId);
@@ -480,9 +482,21 @@ export function applyQualityGates(
       if (!achievement.issues.includes("achievement_unassigned")) {
         achievement.issues.push("achievement_unassigned");
       }
-    } else if (achievement.status === "proposed" && !achievement.placementReasons.includes(source)) {
-      achievement.placementReasons = [...achievement.placementReasons, source];
+    } else {
+      // Strukturell kobling er plassering, også når rollen mangler tittel.
+      // Da avklares tittelen én gang på rollen — ikke per resultat.
+      if (role && !(role.title ?? "").trim()) {
+        role.provisional = true;
+        role.needsReviewReason = role.needsReviewReason ?? "missing_role_title";
+        if (!role.issues.includes("missing_role_title")) role.issues.push("missing_role_title");
+      }
+      achievement.status = "proposed";
+      achievement.placementConfidence = "high";
+      if (!achievement.placementReasons.includes(source)) {
+        achievement.placementReasons = [...achievement.placementReasons, source];
+      }
     }
+
   }
 
   // Dedupliser kompetanser på kanonisk nøkkel: ett forslag, flere evidensrefs.
