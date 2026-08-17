@@ -7,10 +7,22 @@ import { supabase } from "@/integrations/supabase/client";
 import type { SkillProposalRow } from "@/lib/cv-review-skill-basis";
 
 export async function fetchImportProposals(importId: string): Promise<SkillProposalRow[]> {
+  // Én import kan ha flere analysekjøringer. Bare den nyeste kjøringen er
+  // gjeldende grunnlag — eldre kjøringer skal aldri gi doble kort.
+  const { data: batches, error: batchError } = await supabase
+    .from("atom_enrichment_batches")
+    .select("id")
+    .eq("source_id", importId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (batchError) throw batchError;
+  const batchId = (batches ?? [])[0]?.id;
+  if (!batchId) return [];
+
   const { data, error } = await supabase
     .from("atom_enrichment_proposals")
     .select("id, proposal_payload")
-    .eq("source_import_id", importId)
+    .eq("batch_id", batchId)
     .limit(1000);
   if (error) throw error;
   return ((data ?? []) as { id: string; proposal_payload: unknown }[]).map((r) => ({
@@ -18,6 +30,7 @@ export async function fetchImportProposals(importId: string): Promise<SkillPropo
     payload: (r.proposal_payload ?? {}) as SkillProposalRow["payload"],
   }));
 }
+
 
 export function importProposalsQuery(importId: string | null) {
   return queryOptions({
