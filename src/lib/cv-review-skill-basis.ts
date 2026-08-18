@@ -227,7 +227,10 @@ export function buildSkillBasis(input: {
       directness,
       breadth,
       explicit,
-      reason: str(data["placement_reason"]) ?? buildReason(roles, results, directness),
+      reason: humanizeReason(str(data["placement_reason"]), readableByLocalId, () =>
+        buildReason(roles, results, directness),
+      ),
+
       needsPlacement: !hasConcreteEvidence,
     });
   }
