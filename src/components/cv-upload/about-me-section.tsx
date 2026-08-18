@@ -1,4 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText } from "lucide-react";
@@ -48,8 +50,15 @@ export function AboutMeCvSection({ userId }: Props) {
             </p>
           ) : (
             <p className="text-sm">
-              <strong>{atomCount.data ?? 0}</strong> elementer i karriereoversikten
+              <Link
+                to="/documentation"
+                className="font-semibold underline underline-offset-4 hover:text-primary"
+              >
+                {atomCount.data ?? 0} elementer
+              </Link>{" "}
+              i karriereoversikten
             </p>
+
           )}
         </CardContent>
       </Card>

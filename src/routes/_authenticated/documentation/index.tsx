@@ -93,11 +93,32 @@ function DocumentationOverviewPage() {
           </CardHeader>
           <CardContent>
             <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5 marker:text-muted-foreground/60">
-              <li>Legg inn eller koble dokumenter som støtter påstandene i CV og søknad.</li>
-              <li>Bygg minst ett case med situasjon, ansvar, tiltak og målbar effekt.</li>
-              <li>Registrer 2–3 konkrete resultater (KPI eller leveranse) du kan dokumentere.</li>
-              <li>Forbered en dokumentpakke tilpasset rollen du søker mot.</li>
+              <li>
+                <Link to="/documentation/library" className="underline underline-offset-4 hover:text-foreground">
+                  Legg inn eller koble dokumenter
+                </Link>{" "}
+                som støtter påstandene i CV og søknad.
+              </li>
+              <li>
+                <Link to="/documentation/cases" className="underline underline-offset-4 hover:text-foreground">
+                  Bygg minst ett case
+                </Link>{" "}
+                med situasjon, ansvar, tiltak og målbar effekt.
+              </li>
+              <li>
+                <Link to="/documentation/resultater" className="underline underline-offset-4 hover:text-foreground">
+                  Registrer 2–3 konkrete resultater
+                </Link>{" "}
+                (KPI eller leveranse) du kan dokumentere.
+              </li>
+              <li>
+                <Link to="/documentation/packages" className="underline underline-offset-4 hover:text-foreground">
+                  Forbered en dokumentpakke
+                </Link>{" "}
+                tilpasset rollen du søker mot.
+              </li>
             </ul>
+
           </CardContent>
         </Card>
       </div>
