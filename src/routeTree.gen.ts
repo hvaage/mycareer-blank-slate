@@ -47,6 +47,7 @@ import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedMinProfilIndexRouteImport } from './routes/_authenticated/min-profil/index'
 import { Route as AuthenticatedInterviewPrepIndexRouteImport } from './routes/_authenticated/interview-prep/index'
 import { Route as AuthenticatedInnstillingerIndexRouteImport } from './routes/_authenticated/innstillinger.index'
+import { Route as AuthenticatedForslagIndexRouteImport } from './routes/_authenticated/forslag/index'
 import { Route as AuthenticatedEmployersIndexRouteImport } from './routes/_authenticated/employers/index'
 import { Route as AuthenticatedDocumentsIndexRouteImport } from './routes/_authenticated/documents/index'
 import { Route as AuthenticatedDocumentationIndexRouteImport } from './routes/_authenticated/documentation/index'
@@ -305,6 +306,12 @@ const AuthenticatedInnstillingerIndexRoute =
   AuthenticatedInnstillingerIndexRouteImport.update({
     id: '/innstillinger/',
     path: '/innstillinger/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedForslagIndexRoute =
+  AuthenticatedForslagIndexRouteImport.update({
+    id: '/forslag/',
+    path: '/forslag/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedEmployersIndexRoute =
@@ -701,6 +708,7 @@ export interface FileRoutesByFullPath {
   '/documentation/': typeof AuthenticatedDocumentationIndexRoute
   '/documents/': typeof AuthenticatedDocumentsIndexRoute
   '/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/forslag/': typeof AuthenticatedForslagIndexRoute
   '/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/min-profil/': typeof AuthenticatedMinProfilIndexRoute
@@ -792,6 +800,7 @@ export interface FileRoutesByTo {
   '/documentation': typeof AuthenticatedDocumentationIndexRoute
   '/documents': typeof AuthenticatedDocumentsIndexRoute
   '/employers': typeof AuthenticatedEmployersIndexRoute
+  '/forslag': typeof AuthenticatedForslagIndexRoute
   '/innstillinger': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep': typeof AuthenticatedInterviewPrepIndexRoute
   '/min-profil': typeof AuthenticatedMinProfilIndexRoute
@@ -888,6 +897,7 @@ export interface FileRoutesById {
   '/_authenticated/documentation/': typeof AuthenticatedDocumentationIndexRoute
   '/_authenticated/documents/': typeof AuthenticatedDocumentsIndexRoute
   '/_authenticated/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/_authenticated/forslag/': typeof AuthenticatedForslagIndexRoute
   '/_authenticated/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/_authenticated/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/_authenticated/min-profil/': typeof AuthenticatedMinProfilIndexRoute
@@ -984,6 +994,7 @@ export interface FileRouteTypes {
     | '/documentation/'
     | '/documents/'
     | '/employers/'
+    | '/forslag/'
     | '/innstillinger/'
     | '/interview-prep/'
     | '/min-profil/'
@@ -1075,6 +1086,7 @@ export interface FileRouteTypes {
     | '/documentation'
     | '/documents'
     | '/employers'
+    | '/forslag'
     | '/innstillinger'
     | '/interview-prep'
     | '/min-profil'
@@ -1170,6 +1182,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documentation/'
     | '/_authenticated/documents/'
     | '/_authenticated/employers/'
+    | '/_authenticated/forslag/'
     | '/_authenticated/innstillinger/'
     | '/_authenticated/interview-prep/'
     | '/_authenticated/min-profil/'
@@ -1487,6 +1500,13 @@ declare module '@tanstack/react-router' {
       path: '/innstillinger'
       fullPath: '/innstillinger/'
       preLoaderRoute: typeof AuthenticatedInnstillingerIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/forslag/': {
+      id: '/_authenticated/forslag/'
+      path: '/forslag'
+      fullPath: '/forslag/'
+      preLoaderRoute: typeof AuthenticatedForslagIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/employers/': {
@@ -1925,6 +1945,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDocumentationIndexRoute: typeof AuthenticatedDocumentationIndexRoute
   AuthenticatedDocumentsIndexRoute: typeof AuthenticatedDocumentsIndexRoute
   AuthenticatedEmployersIndexRoute: typeof AuthenticatedEmployersIndexRoute
+  AuthenticatedForslagIndexRoute: typeof AuthenticatedForslagIndexRoute
   AuthenticatedInnstillingerIndexRoute: typeof AuthenticatedInnstillingerIndexRoute
   AuthenticatedInterviewPrepIndexRoute: typeof AuthenticatedInterviewPrepIndexRoute
   AuthenticatedMinProfilIndexRoute: typeof AuthenticatedMinProfilIndexRoute
@@ -1991,6 +2012,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentationIndexRoute: AuthenticatedDocumentationIndexRoute,
   AuthenticatedDocumentsIndexRoute: AuthenticatedDocumentsIndexRoute,
   AuthenticatedEmployersIndexRoute: AuthenticatedEmployersIndexRoute,
+  AuthenticatedForslagIndexRoute: AuthenticatedForslagIndexRoute,
   AuthenticatedInnstillingerIndexRoute: AuthenticatedInnstillingerIndexRoute,
   AuthenticatedInterviewPrepIndexRoute: AuthenticatedInterviewPrepIndexRoute,
   AuthenticatedMinProfilIndexRoute: AuthenticatedMinProfilIndexRoute,
