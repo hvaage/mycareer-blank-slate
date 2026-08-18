@@ -12,9 +12,8 @@ import { AutoSaveInput, AutoSaveTextarea } from "@/components/auto-save";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Download, User as UserIcon, Network } from "lucide-react";
+import { Download, User as UserIcon, Network } from "lucide-react";
 import { toast } from "sonner";
-import { CvUploader } from "@/components/cv-uploader";
 import { AboutMeCvSection } from "@/components/cv-upload/about-me-section";
 import { JobSearchPrefs } from "@/components/job-search-prefs";
 import { getCareerStage } from "@/lib/career-stage";
@@ -77,7 +76,7 @@ function AboutMePage() {
   const qc = useQueryClient();
   const navigate = useNavigate({ from: "/about-me" });
   const search = useSearch({ from: "/_authenticated/about-me" });
-  const activeTab = search.tab || "kort_om_meg";
+  const activeTab = search.tab === "cv" ? "karriereoversikt" : search.tab || "kort_om_meg";
   const collapse = usePersistedCollapse("about-me:sections", true);
   const { data: p, isLoading } = useQuery({
     ...profileQuery(user?.id ?? ""),
