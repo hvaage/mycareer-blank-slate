@@ -49,7 +49,9 @@ export function docRoleLabel(row: DocAtomRow): string {
   const to = d.end_date ?? d.to ?? null;
   const y = (v: any) => (v ? String(v).slice(0, 4) : null);
   const period = from || to ? `${y(from) ?? "?"}–${y(to) ?? "nå"}` : null;
-  return [row.content_no ?? "Rolle", employer, period].filter(Boolean).join(" · ");
+  const title =
+    (typeof d.title === "string" && d.title.trim()) || (row.content_no ?? "").trim() || "Rolle";
+  return [title, employer, period].filter(Boolean).join(" · ");
 }
 
 function classOf(row: DocAtomRow): string | null {
