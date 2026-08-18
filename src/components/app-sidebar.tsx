@@ -32,7 +32,12 @@ import { cn } from "@/lib/utils";
 import logoMark from "@/assets/karrierenmin-mark.svg";
 import logoLockup from "@/assets/karrierenmin-lockup.svg";
 
-type SubItem = { label: string; to: string; indent?: boolean };
+type SubItem = {
+  label: string;
+  to: string;
+  indent?: boolean;
+  search?: Record<string, unknown>;
+};
 
 type GroupNode = {
   id: string;
