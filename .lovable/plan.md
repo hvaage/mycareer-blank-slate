@@ -137,19 +137,25 @@ Steg 5 — sletting: standardhandlingen heter **Arkiver**. Permanent sletting kr
 ## 7. Risiko
 
 - **Dubletter:** samme rolle/resultat fra CV og arbeidsgiverdokument. Motvirkes av «Styrk eksisterende» før «Opprett nytt» og av `content_hash` per dokumentversjon.
-- **Tap av provenance:** hvis kandidater opprettes uten `source_locator` mister vi sporbarheten. Ingen kandidat lagres uten kilde-id, versjon og sitat/lokator.
-- **Feil vedlegg:** kilde-CV sendt som søknadsvedlegg. Motvirkes av serverfiltrert vedleggsvelger.
-- **Brutte gjennomganger:** motvirkes av redirects med bevart importkontekst.
+- **Tap av provenance:** hvis kandidater opprettes uten `source_span` mister vi sporbarheten. Ingen kandidat lagres uten kilde-id, versjon og sitat/lokator.
+- **Feil vedlegg:** kilde-CV eller ikke-ferdig CV sendt som søknadsvedlegg. Motvirkes av at serverkontrakten kun returnerer `application_ready`.
+- **Brutte gjennomganger:** motvirkes av redirects med bevart import-/query-kontekst.
 - **Uønsket AI-eksponering:** motvirkes av samtykkeflagg per dokument.
 
-## 8. Inkrementell rekkefølge med testpunkter
+## 8. Inkrementell rekkefølge med testpunkter (korrigering 4)
 
-1. **Min profil + meny (frontend).** Test: statusstripen viser riktig status for en bruker med og uten data; alle gamle lenker treffer riktig side.
-2. **Legg til kilder / Gjennomgå forslag — omdøping og ruting.** Test: pågående CV-gjennomgang gjenopptas fra gammel og ny URL på riktig trinn.
-3. **Dokumentkatalog (servereid kontrakt).** Test: katalogen returnerer samme dokumenter som dagens visninger, og vedleggsvelgeren viser ingen kilde-CV.
-4. **Arkivering + konsekvensbasert sletting.** Test: sletteforsøk på dokument med avhengigheter viser konsekvens og blokkerer utilsiktet tap.
-5. **Arbeidsgiverdokumenter: tabell + RLS + registrering.** Test: RLS-lesing på tvers av brukere feiler; ingen `career_atoms` opprettes automatisk.
-6. **Arbeidsgivergjennomgang i innboksen.** Test: dokument kan både styrke eksisterende resultat og opprette nytt, med korrekt `provenance`.
-7. **LinkedIn- og kvalifikasjonsflyter.** Test: kompetanse fra LinkedIn kan ikke bekreftes uten kobling til rolle eller resultat.
+Menyen endres til slutt, ikke først.
+
+1. **Nye ruter bygges** (`/kilder`, `/forslag`, `/forslag/cv`, `/forslag/ai`, «Om meg» inn i `/min-profil`) uten at sidebar røres. Test: nye URL-er svarer og viser riktig innhold; gamle URL-er fungerer uendret.
+2. **Redirects med bevart query-/importkontekst.** Test: `/career/cv-review?import=<id>` lander på `/forslag/cv?import=<id>` på riktig trinn; `/about-me?tab=...` bevarer `tab`.
+3. **Gjenopptak verifiseres mot data.** Test: `cv_review_progress` for testbrukeren har samme `current_step` og samme import før og etter redirect; ingen ny rad opprettes.
+4. **Dokumentkatalogen testes mot faktiske data.** Test: katalogen returnerer dagens kilde-CV-er fra `cv_imports`, eldre `profiles.cv_*_path`-filer og `documents`-rader, uten dubletter, med `lifecycle_state` utledet av faktisk tilstand; nedlasting går via signert URL.
+5. **Først når 1–4 er grønne: sidebar byttes** til likeverdige punkter (Min profil, Karriereoversikt, Legg til kilder, Gjennomgå forslag, Min dokumentasjon). «Gjennomgå forslag» vises alltid. Badge/teller starter på `cv_imports` + `cv_parse_candidates` + `atom_enrichment_proposals`, og utvides til alle kildetyper etter hvert som de kommer; telleren bygges som én kildeuavhengig spørring så nye kilder kun legges til i én liste.
+6. **Min profil-opprydding** (statusstripe, «Om meg»-innhold, fjerne repetitive seksjoner). Test: riktig status for bruker med og uten data.
+7. **Vedleggsvelger + arkivering/sletting.** Test: kun `application_ready` er valgbar; sletting med avhengigheter viser konsekvens.
+8. **Arbeidsgiverkilder: to tabeller + RLS + registrering.** Test: kryssbruker-lesing feiler; ingen `career_atoms` skrives automatisk; `user_input` gir ikke dokumentert belegg.
+9. **Arbeidsgivergjennomgang i innboksen.** Test: kandidat kan både styrke eksisterende atom og opprette nytt, alltid via review-/RPC-flyt.
+10. **LinkedIn- og kvalifikasjonsflyter.** Test: kompetanse fra LinkedIn kan ikke bekreftes uten kobling til rolle eller resultat.
 
 Ingen kode, tabeller eller navigasjonsendringer gjennomføres før denne planen er godkjent.
+
