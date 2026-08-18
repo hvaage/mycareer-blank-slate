@@ -312,8 +312,8 @@ function MinProfilPage() {
 
       <Section
         id="karriereretning"
-        title="Karriereretning"
-        description="Hvor du står i dag og hva du søker mot. Svarene redigeres under Om meg."
+        title="Karriereretning og jobbønsker"
+        description="Hvor du står i dag, hva du søker mot og hvilke arbeidsgivere du ønsker deg til. Svarene redigeres under Om meg."
       >
         <Card>
           <CardContent className="pt-6">
@@ -325,6 +325,7 @@ function MinProfilPage() {
             <SummaryRow label="Steder" value={list(profile?.preferred_locations)} />
             <SummaryRow label="Søkeord" value={list(profile?.job_search_keywords)} />
             <SummaryRow label="Lønnsforventning" value={salary} />
+            <SummaryRow label="Ønskede arbeidsgivere" value={targetEmployers} />
             <div className="flex flex-wrap gap-2 pt-4">
               <Button asChild size="sm" variant="outline">
                 <Link to="/about-me" search={{ tab: "kort_om_meg" }}>
@@ -334,75 +335,14 @@ function MinProfilPage() {
               <Button asChild size="sm" variant="ghost">
                 <Link to="/min-profil/karriereretning">Endre karrierestadium</Link>
               </Button>
+              <Button asChild size="sm" variant="ghost">
+                <Link to="/arbeidsgivere">Finn arbeidsgivere</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
       </Section>
 
-      <Section
-        id="karriereoversikt"
-        title="Karriereoversikt"
-        description="Bekreftet innhold fra karriereoversikten. Forslag som ikke er godkjent vises ikke her."
-      >
-        <div className="grid gap-2 sm:grid-cols-4">
-          {[
-            { label: "Roller", value: roles.length },
-            { label: "Resultater", value: results.length },
-            { label: "Kompetanser", value: skills.length },
-            { label: "Kvalifikasjoner", value: qualifications.length },
-          ].map((k) => (
-            <div key={k.label} className="rounded-lg border bg-card p-3">
-              <p className="text-xl font-semibold tabular-nums">{k.value}</p>
-              <p className="text-xs text-muted-foreground">{k.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {roles.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Roller og arbeidsgivere</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1.5">
-              {roles.slice(0, 5).map((r) => (
-                <p key={r.id} className="truncate text-sm">
-                  {docRoleLabel(r)}
-                </p>
-              ))}
-              {roles.length > 5 && (
-                <p className="text-xs text-muted-foreground">+ {roles.length - 5} flere</p>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {skills.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {skills.slice(0, 12).map((s) => (
-              <Badge key={s.id} variant="secondary" className="font-normal">
-                {s.content_no}
-              </Badge>
-            ))}
-            {skills.length > 12 && (
-              <span className="self-center text-xs text-muted-foreground">
-                + {skills.length - 12} flere
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="outline">
-            <Link to="/karriere/erfaring">Åpne erfaring og kompetanse</Link>
-          </Button>
-          <Button asChild size="sm" variant="ghost">
-            <Link to="/documentation/resultater">Resultater</Link>
-          </Button>
-          <Button asChild size="sm" variant="ghost">
-            <Link to="/documentation/kompetanse">Kompetanser</Link>
-          </Button>
-        </div>
-      </Section>
 
       <Section
         id="dokumentasjon"
