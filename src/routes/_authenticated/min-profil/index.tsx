@@ -197,39 +197,30 @@ function MinProfilPage() {
       },
       {
         id: "karriereretning",
-        label: "Karriereretning",
-        status: statusFromCount(direction, 4),
-        counter: `${direction} av 4`,
-        why: "Styrer hvilke stillinger som vurderes for deg.",
-      },
-
-      {
-        id: "karriereoversikt",
-        label: "Erfaring og roller",
-        status: needsReview ? "gjennomgang" : countStatus(roles.length),
-        counter: `${roles.length} bekreftede roller`,
-        why: "Grunnlaget for CV og vurdering av relevans.",
+        label: "Karriereretning og jobbønsker",
+        status: statusFromCount(direction + wishes, 8),
+        counter: `${direction + wishes} av 8`,
+        why: "Retning, arbeidsform, sted, lønn og ønskede arbeidsgivere.",
       },
       {
-        id: "karriereoversikt",
-        label: "Resultater og kompetanse",
-        status: needsReview ? "gjennomgang" : countStatus(results.length + skills.length),
-        counter: `${results.length} resultater · ${skills.length} kompetanser`,
-        why: "Det du kan belegge med konkrete eksempler.",
+        id: "erfaring-kompetanse",
+        label: "Erfaring og kompetanse",
+        status: needsReview
+          ? "gjennomgang"
+          : roles.length + results.length + skills.length > 0
+            ? "fullfort"
+            : "mangler",
+        counter: `${roles.length} roller · ${results.length} resultater · ${skills.length} kompetanser`,
+        why: "Hele erfaringsbildet ditt, rolle for rolle.",
+        to: "/karriere/erfaring",
       },
       {
-        id: "karriereoversikt",
+        id: "kvalifikasjoner",
         label: "Utdanning og kvalifikasjoner",
         status: countStatus(qualifications.length),
         counter: `${qualifications.length} registrert`,
         why: "Formelle krav i utlysninger sjekkes mot dette.",
-      },
-      {
-        id: "karriereretning",
-        label: "Jobbønsker",
-        status: statusFromCount(wishes, 4),
-        counter: `${wishes} av 4`,
-        why: "Arbeidsform, sted, søkeord og lønnsforventning.",
+        to: "/karriere/erfaring",
       },
       {
         id: "dokumentasjon",
@@ -239,16 +230,17 @@ function MinProfilPage() {
         why: "Belegg du kan vedlegge søknader og intervjuer.",
       },
       {
-        id: "karriereoversikt-side",
-        label: "Karriereoversikt",
-        status: needsReview
-          ? "gjennomgang"
-          : roles.length + results.length + skills.length > 0
-            ? "fullfort"
-            : "mangler",
-        counter: `${roles.length + results.length + skills.length} elementer`,
-        why: "Hele erfaringsbildet ditt, rolle for rolle.",
-        to: "/karriere/erfaring",
+        id: "importgjennomgang",
+        label: "Importgjennomgang",
+        status: needsReview ? "gjennomgang" : "fullfort",
+        counter:
+          pending.pendingCandidates > 0
+            ? `${pending.pendingCandidates} venter`
+            : pending.openImports > 0
+              ? "import ikke ferdig"
+              : "ingenting venter",
+        why: "CV, LinkedIn, utdanning og kurs — import og gjennomgang.",
+        to: "/min-profil/importgjennomgang",
       },
       {
         id: "cv-filer",
@@ -270,7 +262,9 @@ function MinProfilPage() {
     needsReview,
     pending.documents,
     pending.openImports,
+    pending.pendingCandidates,
   ]);
+
 
 
   if (!user) return null;
