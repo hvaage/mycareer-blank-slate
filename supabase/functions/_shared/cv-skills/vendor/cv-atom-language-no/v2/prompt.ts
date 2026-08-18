@@ -3,7 +3,7 @@
 // Prompten er ordrett forankret i skill-filen. Endres teksten, må versjonen
 // økes, fordi prompt_version inngår i sporing og idempotens.
 
-export const ATOMIZATION_PROMPT_VERSION = "2.1.1";
+export const ATOMIZATION_PROMPT_VERSION = "2.1.0";
 // v3: modellen returnerer bare sourceSpanId-er. Serveren hydrerer ordrett
 // sitat, side og offset fra frosset input, slik at svaret blir kort.
 export const ATOMIZATION_OUTPUT_CONTRACT_VERSION = "3";
@@ -51,19 +51,6 @@ Regler:
 - Når data ikke er tilstrekkelige, returner needs_review eller unassigned med
   begrunnelse. Ikke gjett datoer, arbeidsgivere eller rolleforløp.
 - En utledet kompetanse må merkes inferred=true.
-- Navngitte verktøy, systemer og programvare skal returneres som kvalifikasjon
-  med kind=tool, ikke som kompetanse. Dette gjelder blant annet CRM- og
-  salgsverktøy (Salesforce, HubSpot, MEDDPICC-verktøy), kontor- og
-  samhandlingsverktøy (Excel, PowerPoint, Teams, Slack, Notion), analyse- og
-  BI-verktøy (Power BI, Tableau, SQL-klienter), prosjekt- og sakssystemer
-  (Jira, Confluence, Asana), fag- og bransjesystemer (ERP, Tripletex, SAP,
-  Visma), utviklings- og skyplattformer, samt navngitte KI-verktøy (ChatGPT,
-  Copilot, Claude). Generiske ferdigheter uten produktnavn (for eksempel
-  «dataanalyse») forblir kompetanse.
-- Verktøy skal hentes fra hele kilden, ikke bare fra en egen verktøyseksjon:
-  også når navnet står midt i et resultat eller en rollebeskrivelse.
-- normalizedText for kind=tool er produktnavnet slik det brukes offisielt,
-  uten versjonsnummer og uten omkringliggende setning.
 - Samme kompetanse i flere roller skal være ETT forslag med flere
   evidensreferanser, ikke duplikater.
 - Returner bare JSON som oppfyller kontrakten.`;
@@ -212,13 +199,6 @@ Regler:
 - canonicalKey skal være stabil: små bokstaver og bindestrek, samme begrep gir
   samme nøkkel også i andre blokker.
 - En utledet kompetanse merkes inferred=true.
-- Navngitte verktøy, systemer og programvare returneres som kvalifikasjon med
-  kind=tool, ikke som kompetanse: CRM- og salgsverktøy, kontor- og
-  samhandlingsverktøy, analyse- og BI-verktøy, prosjekt- og sakssystemer,
-  fag- og bransjesystemer, utviklings- og skyplattformer og navngitte
-  KI-verktøy. Generiske ferdigheter uten produktnavn forblir kompetanse.
-- Let etter verktøynavn i hele blokken, også inne i resultatlinjer.
-  normalizedText er produktnavnet uten versjonsnummer.
 - Ikke dikt opp fakta og ikke skriv ferdig CV-tekst.
 - Oppgi belegg som sourceSpanIds. Ikke gjenta kildetekst.
 - Returner bare JSON.`;
