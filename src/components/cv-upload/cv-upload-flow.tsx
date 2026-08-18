@@ -83,11 +83,12 @@ const STAGE_LABEL: Record<string, string> = {
   analyzing: "Analyserer roller, resultater og kompetanser…",
 };
 
-export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
+export function CvUploadFlow({ userId, onCompleted, compact, hasExistingImport }: Props) {
   const [stage, setStage] = useState<Stage>({ kind: "idle" });
   const [blocks, setBlocks] = useState<JobBlockProgress[]>([]);
   const [counts, setCounts] = useState<PreviewCounts | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [expanded, setExpanded] = useState(!hasExistingImport);
   const follow = useRef<AbortController | null>(null);
 
   const register = useRegisterCvUpload(userId);
