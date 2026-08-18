@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 import logoMark from "@/assets/karrierenmin-mark.svg";
 import logoLockup from "@/assets/karrierenmin-lockup.svg";
 
-type SubItem = { label: string; to: string };
+type SubItem = { label: string; to: string; indent?: boolean };
 
 type GroupNode = {
   id: string;
@@ -62,8 +62,9 @@ const primaryGroups: GroupNode[] = [
     title: "Min karriere",
     icon: BookOpen,
     items: [
-      { label: "Om meg", to: "/about-me" },
       { label: "Min profil", to: "/min-profil" },
+      { label: "Om meg", to: "/about-me", indent: true },
+      { label: "Importgjennomgang", to: "/min-profil/importgjennomgang", indent: true },
       { label: "Erfaring og kompetanse", to: "/karriere/erfaring" },
       { label: "Min dokumentasjon", to: "/documentation" },
       { label: "AI-forslag", to: "/career/atom-review" },
@@ -365,6 +366,7 @@ export function AppSidebar() {
                   to={item.to}
                   className={cn(
                     "block rounded-md px-3 py-2 text-sm transition-colors",
+                    item.indent && "ml-3 border-l pl-3",
                     active
                       ? "bg-primary/10 font-semibold text-primary"
                       : "text-sidebar-foreground hover:bg-sidebar-accent/50",
@@ -446,6 +448,7 @@ export function AppSidebar() {
                       onClick={() => mobileNavigate(item.to)}
                       className={cn(
                         "block w-full rounded-md px-3 py-3 text-left text-base transition-colors",
+                        item.indent && "ml-3 border-l pl-3",
                         active
                           ? "bg-primary/10 font-semibold text-primary"
                           : "hover:bg-accent/50",
