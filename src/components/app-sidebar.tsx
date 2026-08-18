@@ -197,11 +197,45 @@ export function AppSidebar() {
     queryFn: () => isAdmin(user!.id),
   });
 
+  // «CV-gjennomgang» vises bare når en import pågår eller trenger oppfølging.
+  const { data: reviewPending } = useQuery({
+    queryKey: ["sidebar-cv-review-pending", user?.id],
+    enabled: !!user?.id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { supabase } = await import("@/lib/supabase");
+      const [imports, candidates] = await Promise.all([
+        supabase
+          .from("cv_imports")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user!.id)
+          .is("committed_at", null)
+          .in("status", ["pending", "processing", "parsed"]),
+        supabase
+          .from("cv_parse_candidates")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user!.id)
+          .eq("status", "ubehandlet"),
+      ]);
+      return (imports.count ?? 0) + (candidates.count ?? 0) > 0;
+    },
+  });
+
   const allGroups = useMemo(() => {
-    const groups = [...primaryGroups];
+    const groups = primaryGroups.map((g) => {
+      if (g.id !== "career" || !reviewPending || !g.items) return g;
+      const items = [...g.items];
+      const at = items.findIndex((i) => i.to === "/min-profil/importer-cv");
+      items.splice(at + 1, 0, {
+        label: "CV-gjennomgang",
+        to: "/career/cv-review",
+        indent: true,
+      });
+      return { ...g, items };
+    });
     if (admin) groups.push(adminGroup);
     return groups;
-  }, [admin]);
+  }, [admin, reviewPending]);
 
   // Innstillinger ligger i bunnområdet, men må være søkbar for aktiv-gruppe og undermeny.
   const lookupGroups = useMemo(() => [...allGroups, settingsGroup], [allGroups]);
