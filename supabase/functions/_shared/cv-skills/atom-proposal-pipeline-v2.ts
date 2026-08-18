@@ -834,7 +834,9 @@ export function buildProposalRows(
       atomType: q.kind === "tool" ? "tool" : q.kind,
       contentNo: q.normalizedText,
       evidence: q.sourceEvidence,
-      action: q.kind === "tool" ? "suggest_evidence" : "create_atom",
+      // Verktøy er en kvalifikasjon på linje med språk og sertifisering: den
+      // skal kunne bekreftes i trinn 4, ikke bare ligge som evidenshint.
+      action: "create_atom",
       reviewState: q.status === "proposed" ? "ready_for_atom" : q.status,
       rationale: "Kvalifikasjon fra kilden.",
       extra: { local_id: q.localId, kind: q.kind, issues: q.issues },
