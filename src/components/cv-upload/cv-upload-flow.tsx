@@ -41,6 +41,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { useCreateDocumentationDrafts } from "@/lib/queries/cv-documentation-drafts";
 import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 import type { CommitResponse, PreviewCounts } from "@/types/cv-upload";
 
 type Stage =
