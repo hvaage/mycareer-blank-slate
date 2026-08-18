@@ -811,6 +811,8 @@ export function buildProposalRows(
         skill_tier_reasons: calibrated.tierReasons ?? [],
         skill_role_count: calibrated.roleCount ?? null,
         skill_achievement_count: calibrated.achievementCount ?? null,
+        skill_breadth: calibrated.breadth ?? null,
+
         skill_explicit: calibrated.explicit ?? null,
         evidence_refs: s.evidence.map((e) => ({
           role_local_id: e.roleLocalId ?? null,
