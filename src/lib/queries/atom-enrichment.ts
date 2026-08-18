@@ -150,6 +150,76 @@ export const atomEnrichmentProposalsByBatchQuery = (userId: string, batchId: str
     },
   });
 
+/**
+ * Skjuler forslag som ikke lenger er reelle valg for brukeren:
+ *  - forslag som peker på en parsekandidat som allerede er bekreftet i
+ *    trinn 1–4 (databasen nekter dobbeltføring, så godkjenning ville feilet)
+ *  - dobbeltoppførte forslag fra flere analysekjøringer (samme source_hash)
+ */
+export async function filterActionableProposals(
+  userId: string,
+  rows: AtomEnrichmentProposalRow[],
+): Promise<AtomEnrichmentProposalRow[]> {
+  const open = rows.filter(
+    (r) => r.status === "pending_review" || r.status === "needs_more_context",
+  );
+  if (open.length === 0) return rows;
+
+  const candidateIds = Array.from(
+    new Set(
+      open
+        .map((r) => {
+          const sd = asRecord(asRecord(r.proposal_payload)["structured_data"] as Json);
+          const id = sd["parse_candidate_id"];
+          return typeof id === "string" && id.trim() ? id.trim() : null;
+        })
+        .filter((v): v is string => v !== null),
+    ),
+  );
+
+  const promoted = new Set<string>();
+  if (candidateIds.length > 0) {
+    const { data, error } = await supabase
+      .from("cv_parse_candidates")
+      .select("id, promoted_atom_id")
+      .eq("user_id", userId)
+      .in("id", candidateIds);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      if (row.promoted_atom_id) promoted.add(row.id);
+    }
+  }
+
+  const seenHashes = new Set<string>();
+  const byNewestFirst = [...rows].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  const hidden = new Set<string>();
+
+  for (const row of byNewestFirst) {
+    if (row.status !== "pending_review" && row.status !== "needs_more_context") continue;
+    const payload = asRecord(row.proposal_payload);
+    const sd = asRecord(payload["structured_data"] as Json);
+
+    const candidateId = sd["parse_candidate_id"];
+    if (typeof candidateId === "string" && promoted.has(candidateId)) {
+      hidden.add(row.id);
+      continue;
+    }
+
+    const hash = sd["source_hash"];
+    const atomType = payload["atom_type"];
+    if (typeof hash === "string" && hash.trim()) {
+      const key = `${hash}|${typeof atomType === "string" ? atomType : ""}|${row.proposal_action}`;
+      if (seenHashes.has(key)) {
+        hidden.add(row.id);
+        continue;
+      }
+      seenHashes.add(key);
+    }
+  }
+
+  return rows.filter((r) => !hidden.has(r.id));
+}
+
 /** Alle forslag som stammer fra én CV-import. RLS holder dem private per bruker. */
 export const atomEnrichmentProposalsByImportQuery = (userId: string, importId: string | null) =>
   queryOptions({
@@ -164,9 +234,10 @@ export const atomEnrichmentProposalsByImportQuery = (userId: string, importId: s
         .eq("source_import_id", importId!)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as AtomEnrichmentProposalRow[];
+      return await filterActionableProposals(userId, (data ?? []) as AtomEnrichmentProposalRow[]);
     },
   });
+
 
 
 
