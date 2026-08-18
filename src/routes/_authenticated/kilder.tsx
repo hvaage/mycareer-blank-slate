@@ -144,7 +144,7 @@ function KilderPage() {
 
         <SourceCard
           icon={Linkedin}
-          title="LinkedIn-eksport"
+          title="LinkedIn-import"
           description="Profil og LinkedIn Skills. Kompetanser du selv har oppgitt vises som «Trenger vurdering» til de har belegg."
           status="Kommer"
         />
