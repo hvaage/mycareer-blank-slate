@@ -13,7 +13,9 @@ export type PageSection = {
   count?: number;
   /** Fremdrift for skjemaseksjoner. Vises som merke i stedet for antall. */
   status?: SectionStatus;
-  /** Sett false for å skjule seksjonen fra menyen. Default: count !== 0 */
+  /** Kort tilleggstekst, f.eks. «3 av 5». */
+  hint?: string;
+
   show?: boolean;
 };
 
