@@ -110,7 +110,51 @@ export function CvReviewSkillsStep({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const busy = confirm.isPending || advance.isPending;
+  const [adding, setAdding] = useState(false);
+  const [formKey, setFormKey] = useState(0);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  const openDeviations = useMemo(
+    () => basis.deviations.filter((c) => c.status === "ubehandlet" && !dismissed.has(c.id)),
+    [basis.deviations, dismissed],
+  );
+
+  const addSkill = useMutation({
+    mutationFn: (v: {
+      title: string;
+      reason: string;
+      pointerIds: string[];
+      candidate?: CvParseCandidateRow;
+    }) =>
+      addManualSkill({
+        userId,
+        importId,
+        title: v.title,
+        reason: v.reason,
+        evidenceAtomIds: v.pointerIds,
+        candidate: v.candidate ?? null,
+      }),
+    onSuccess: () => {
+      toast.success("Kompetansen er lagt til.");
+      setAdding(false);
+      setFormKey((k) => k + 1);
+      invalidateCandidateQueries(qc, userId);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const dismiss = useMutation({
+    mutationFn: (c: CvParseCandidateRow) =>
+      rejectCandidate(userId, c, "Ikke relevant som kompetanse"),
+    onSuccess: (_d, c) => {
+      setDismissed((prev) => new Set(prev).add(c.id));
+      invalidateCandidateQueries(qc, userId);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const busy =
+    confirm.isPending || advance.isPending || addSkill.isPending || dismiss.isPending;
 
   return (
     <div className="space-y-5">
