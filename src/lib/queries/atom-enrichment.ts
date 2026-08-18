@@ -150,6 +150,76 @@ export const atomEnrichmentProposalsByBatchQuery = (userId: string, batchId: str
     },
   });
 
+/**
+ * Skjuler forslag som ikke lenger er reelle valg for brukeren:
+ *  - forslag som peker på en parsekandidat som allerede er bekreftet i
+ *    trinn 1–4 (databasen nekter dobbeltføring, så godkjenning ville feilet)
+ *  - dobbeltoppførte forslag fra flere analysekjøringer (samme source_hash)
+ */
+export async function filterActionableProposals(
+  userId: string,
+  rows: AtomEnrichmentProposalRow[],
+): Promise<AtomEnrichmentProposalRow[]> {
+  const open = rows.filter(
+    (r) => r.status === "pending_review" || r.status === "needs_more_context",
+  );
+  if (open.length === 0) return rows;
+
+  const candidateIds = Array.from(
+    new Set(
+      open
+        .map((r) => {
+          const sd = asRecord(asRecord(r.proposal_payload)["structured_data"] as Json);
+          const id = sd["parse_candidate_id"];
+          return typeof id === "string" && id.trim() ? id.trim() : null;
+        })
+        .filter((v): v is string => v !== null),
+    ),
+  );
+
+  const promoted = new Set<string>();
+  if (candidateIds.length > 0) {
+    const { data, error } = await supabase
+      .from("cv_parse_candidates")
+      .select("id, promoted_atom_id")
+      .eq("user_id", userId)
+      .in("id", candidateIds);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      if (row.promoted_atom_id) promoted.add(row.id);
+    }
+  }
+
+  const seenHashes = new Set<string>();
+  const byNewestFirst = [...rows].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  const hidden = new Set<string>();
+
+  for (const row of byNewestFirst) {
+    if (row.status !== "pending_review" && row.status !== "needs_more_context") continue;
+    const payload = asRecord(row.proposal_payload);
+    const sd = asRecord(payload["structured_data"] as Json);
+
+    const candidateId = sd["parse_candidate_id"];
+    if (typeof candidateId === "string" && promoted.has(candidateId)) {
+      hidden.add(row.id);
+      continue;
+    }
+
+    const hash = sd["source_hash"];
+    const atomType = payload["atom_type"];
+    if (typeof hash === "string" && hash.trim()) {
+      const key = `${hash}|${typeof atomType === "string" ? atomType : ""}|${row.proposal_action}`;
+      if (seenHashes.has(key)) {
+        hidden.add(row.id);
+        continue;
+      }
+      seenHashes.add(key);
+    }
+  }
+
+  return rows.filter((r) => !hidden.has(r.id));
+}
+
 /** Alle forslag som stammer fra én CV-import. RLS holder dem private per bruker. */
 export const atomEnrichmentProposalsByImportQuery = (userId: string, importId: string | null) =>
   queryOptions({
@@ -164,9 +234,10 @@ export const atomEnrichmentProposalsByImportQuery = (userId: string, importId: s
         .eq("source_import_id", importId!)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as AtomEnrichmentProposalRow[];
+      return await filterActionableProposals(userId, (data ?? []) as AtomEnrichmentProposalRow[]);
     },
   });
+
 
 
 
@@ -437,46 +508,87 @@ async function applyApprovedUserAtomProposal(
 }
 
 
+/**
+ * Databasefeil er ikke Error-objekter. Uten oversettelse endte alt som
+ * «Kunne ikke behandle forslaget» i UI-et, og den reelle årsaken forsvant.
+ */
+export function readableProposalError(e: unknown): Error {
+  if (e instanceof Error) return e;
+  const raw = (() => {
+    if (typeof e === "string") return e;
+    if (e && typeof e === "object") {
+      const rec = e as Record<string, unknown>;
+      const parts = [rec["message"], rec["details"], rec["hint"]].filter(
+        (v): v is string => typeof v === "string" && v.trim().length > 0,
+      );
+      if (parts.length > 0) return parts.join(" — ");
+    }
+    return "";
+  })();
+
+  const lower = raw.toLowerCase();
+  if (lower.includes("allerede bekreftet")) {
+    return new Error(
+      "Dette funnet er allerede bekreftet i CV-gjennomgangen, og kan derfor ikke legges inn en gang til.",
+    );
+  }
+  if (lower.includes("parsekandidat")) {
+    return new Error("Forslaget peker på et funn som ikke lenger finnes i importen.");
+  }
+  if (lower.includes("atom_type=domain") || lower.includes("parent_atom_id")) {
+    return new Error("Forslaget mangler kobling til en rolle og kan ikke godkjennes som det er.");
+  }
+  if (lower.includes("row-level security") || lower.includes("permission denied")) {
+    return new Error("Du har ikke tilgang til å endre dette forslaget.");
+  }
+  return new Error(raw || "Kunne ikke behandle forslaget.");
+}
+
 export async function approveAtomEnrichmentProposal(
   userId: string,
   proposalId: string,
   opts?: { reviewerComment?: string },
 ): Promise<void> {
-  const { data: row, error: fetchErr } = await supabase
-    .from("atom_enrichment_proposals")
-    .select("*")
-    .eq("id", proposalId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (fetchErr) throw fetchErr;
-  if (!row) throw new Error("Fant ikke forslaget.");
-  if (row.status !== "pending_review" && row.status !== "needs_more_context") {
-    throw new Error("Forslaget er ikke lenger til vurdering.");
-  }
+  try {
+    const { data: row, error: fetchErr } = await supabase
+      .from("atom_enrichment_proposals")
+      .select("*")
+      .eq("id", proposalId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (fetchErr) throw fetchErr;
+    if (!row) throw new Error("Fant ikke forslaget.");
+    if (row.status !== "pending_review" && row.status !== "needs_more_context") {
+      throw new Error("Forslaget er ikke lenger til vurdering.");
+    }
 
-  const typed = row as AtomEnrichmentProposalRow;
-  if (proposalApprovalWritesAtoms(typed)) {
-    await applyApprovedUserAtomProposal(userId, typed);
-  }
+    const typed = row as AtomEnrichmentProposalRow;
+    if (proposalApprovalWritesAtoms(typed)) {
+      await applyApprovedUserAtomProposal(userId, typed);
+    }
 
-  const now = new Date().toISOString();
-  const { data: updated, error: upErr } = await supabase
-    .from("atom_enrichment_proposals")
-    .update({
-      status: "approved",
-      reviewed_at: now,
-      reviewed_by: userId,
-      reviewer_comment: opts?.reviewerComment?.trim() || null,
-    })
-    .eq("id", proposalId)
-    .eq("user_id", userId)
-    .in("status", ["pending_review", "needs_more_context"])
-    .select("id")
-    .maybeSingle();
-  if (upErr) throw upErr;
-  if (!updated)
-    throw new Error("Kunne ikke bekrefte forslaget — det kan ha blitt behandlet av noen andre.");
+    const now = new Date().toISOString();
+    const { data: updated, error: upErr } = await supabase
+      .from("atom_enrichment_proposals")
+      .update({
+        status: "approved",
+        reviewed_at: now,
+        reviewed_by: userId,
+        reviewer_comment: opts?.reviewerComment?.trim() || null,
+      })
+      .eq("id", proposalId)
+      .eq("user_id", userId)
+      .in("status", ["pending_review", "needs_more_context"])
+      .select("id")
+      .maybeSingle();
+    if (upErr) throw upErr;
+    if (!updated)
+      throw new Error("Kunne ikke bekrefte forslaget — det kan ha blitt behandlet av noen andre.");
+  } catch (e) {
+    throw readableProposalError(e);
+  }
 }
+
 
 export async function rejectAtomEnrichmentProposal(
   userId: string,
@@ -497,8 +609,9 @@ export async function rejectAtomEnrichmentProposal(
     .in("status", ["pending_review", "needs_more_context"])
     .select("id")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw readableProposalError(error);
   if (!data) throw new Error("Fant ikke forslaget, eller det er allerede behandlet.");
+
 }
 
 export async function markAtomEnrichmentProposalNeedsContext(
@@ -520,8 +633,9 @@ export async function markAtomEnrichmentProposalNeedsContext(
     .eq("status", "pending_review")
     .select("id")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw readableProposalError(error);
   if (!data) throw new Error("Fant ikke forslaget, eller det er allerede behandlet.");
+
 }
 
 export async function reopenAtomEnrichmentProposalToPending(
