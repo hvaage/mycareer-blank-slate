@@ -69,6 +69,7 @@ import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './r
 import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
 import { Route as AuthenticatedDocumentsNewRouteImport } from './routes/_authenticated/documents/new'
 import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenticated/documents/$id'
+import { Route as AuthenticatedDocumentationSoknadsbrevRouteImport } from './routes/_authenticated/documentation/soknadsbrev'
 import { Route as AuthenticatedDocumentationResultaterRouteImport } from './routes/_authenticated/documentation/resultater'
 import { Route as AuthenticatedDocumentationPackagesRouteImport } from './routes/_authenticated/documentation/packages'
 import { Route as AuthenticatedDocumentationLibraryRouteImport } from './routes/_authenticated/documentation/library'
@@ -429,6 +430,12 @@ const AuthenticatedDocumentsIdRoute =
     path: '/documents/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedDocumentationSoknadsbrevRoute =
+  AuthenticatedDocumentationSoknadsbrevRouteImport.update({
+    id: '/documentation/soknadsbrev',
+    path: '/documentation/soknadsbrev',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDocumentationResultaterRoute =
   AuthenticatedDocumentationResultaterRouteImport.update({
     id: '/documentation/resultater',
@@ -648,6 +655,7 @@ export interface FileRoutesByFullPath {
   '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
+  '/documentation/soknadsbrev': typeof AuthenticatedDocumentationSoknadsbrevRoute
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
@@ -735,6 +743,7 @@ export interface FileRoutesByTo {
   '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
+  '/documentation/soknadsbrev': typeof AuthenticatedDocumentationSoknadsbrevRoute
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
@@ -827,6 +836,7 @@ export interface FileRoutesById {
   '/_authenticated/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/_authenticated/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/_authenticated/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
+  '/_authenticated/documentation/soknadsbrev': typeof AuthenticatedDocumentationSoknadsbrevRoute
   '/_authenticated/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/_authenticated/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
@@ -919,6 +929,7 @@ export interface FileRouteTypes {
     | '/documentation/library'
     | '/documentation/packages'
     | '/documentation/resultater'
+    | '/documentation/soknadsbrev'
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
@@ -1006,6 +1017,7 @@ export interface FileRouteTypes {
     | '/documentation/library'
     | '/documentation/packages'
     | '/documentation/resultater'
+    | '/documentation/soknadsbrev'
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
@@ -1097,6 +1109,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documentation/library'
     | '/_authenticated/documentation/packages'
     | '/_authenticated/documentation/resultater'
+    | '/_authenticated/documentation/soknadsbrev'
     | '/_authenticated/documents/$id'
     | '/_authenticated/documents/new'
     | '/_authenticated/employers/$companyId'
@@ -1593,6 +1606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDocumentsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/documentation/soknadsbrev': {
+      id: '/_authenticated/documentation/soknadsbrev'
+      path: '/documentation/soknadsbrev'
+      fullPath: '/documentation/soknadsbrev'
+      preLoaderRoute: typeof AuthenticatedDocumentationSoknadsbrevRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/documentation/resultater': {
       id: '/_authenticated/documentation/resultater'
       path: '/documentation/resultater'
@@ -1828,6 +1848,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDocumentationLibraryRoute: typeof AuthenticatedDocumentationLibraryRoute
   AuthenticatedDocumentationPackagesRoute: typeof AuthenticatedDocumentationPackagesRoute
   AuthenticatedDocumentationResultaterRoute: typeof AuthenticatedDocumentationResultaterRoute
+  AuthenticatedDocumentationSoknadsbrevRoute: typeof AuthenticatedDocumentationSoknadsbrevRoute
   AuthenticatedDocumentsIdRoute: typeof AuthenticatedDocumentsIdRoute
   AuthenticatedDocumentsNewRoute: typeof AuthenticatedDocumentsNewRoute
   AuthenticatedEmployersCompanyIdRoute: typeof AuthenticatedEmployersCompanyIdRoute
@@ -1886,6 +1907,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedDocumentationPackagesRoute,
   AuthenticatedDocumentationResultaterRoute:
     AuthenticatedDocumentationResultaterRoute,
+  AuthenticatedDocumentationSoknadsbrevRoute:
+    AuthenticatedDocumentationSoknadsbrevRoute,
   AuthenticatedDocumentsIdRoute: AuthenticatedDocumentsIdRoute,
   AuthenticatedDocumentsNewRoute: AuthenticatedDocumentsNewRoute,
   AuthenticatedEmployersCompanyIdRoute: AuthenticatedEmployersCompanyIdRoute,
