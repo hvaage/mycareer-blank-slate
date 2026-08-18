@@ -256,10 +256,6 @@ function humanizeReason(
     const pattern = new RegExp(`(^|[^\\w-])${escapeRegExp(localId)}(?![\\w-])`, "g");
     text = text.replace(pattern, (_m, pre: string) => `${pre}${label}`);
   }
-  // Idet en referanse fortsatt ser ut som en intern id, er teksten ubrukelig.
-  if (/(^|[^\w-])(?:role|res|ach|b|s)-?\d[\w-]*/i.test(text) && text !== raw) {
-    // Delvis oversatt tekst er fortsatt bedre enn ingenting hvis resten er lesbar.
-  }
   if (/(^|\s)[a-f0-9]{4}(?=[\s.,:;]|$)/i.test(text) || /\b(?:role|ach|res)-\d+\b/i.test(text)) {
     return fallback();
   }
