@@ -198,7 +198,7 @@ function AboutMePage() {
       <Tabs value={activeTab} onValueChange={(v) => navigate({ search: { ...search, tab: v } })} className="w-full">
         <TabsList className="h-auto gap-1 p-1">
           <TabsTrigger value="kort_om_meg" className="gap-1.5 text-sm">
-            <UserIcon className="h-4 w-4" /> Svarene dine
+            <UserIcon className="h-4 w-4" /> Om meg
           </TabsTrigger>
           <TabsTrigger value="karriereoversikt" className="gap-1.5 text-sm">
             <Network className="h-4 w-4" /> Karriereoversikt

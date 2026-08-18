@@ -43,6 +43,7 @@ import { Route as RekruttererundersokelseResultaterIndexRouteImport } from './ro
 import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated/onboarding/index'
 import { Route as AuthenticatedOfferAnalysisIndexRouteImport } from './routes/_authenticated/offer-analysis/index'
 import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authenticated/next-steps/index'
+import { Route as AuthenticatedMinProfilIndexRouteImport } from './routes/_authenticated/min-profil/index'
 import { Route as AuthenticatedInterviewPrepIndexRouteImport } from './routes/_authenticated/interview-prep/index'
 import { Route as AuthenticatedInnstillingerIndexRouteImport } from './routes/_authenticated/innstillinger.index'
 import { Route as AuthenticatedEmployersIndexRouteImport } from './routes/_authenticated/employers/index'
@@ -272,6 +273,12 @@ const AuthenticatedNextStepsIndexRoute =
   AuthenticatedNextStepsIndexRouteImport.update({
     id: '/next-steps/',
     path: '/next-steps/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMinProfilIndexRoute =
+  AuthenticatedMinProfilIndexRouteImport.update({
+    id: '/min-profil/',
+    path: '/min-profil/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedInterviewPrepIndexRoute =
@@ -634,6 +641,7 @@ export interface FileRoutesByFullPath {
   '/employers/': typeof AuthenticatedEmployersIndexRoute
   '/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
+  '/min-profil/': typeof AuthenticatedMinProfilIndexRoute
   '/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
@@ -716,6 +724,7 @@ export interface FileRoutesByTo {
   '/employers': typeof AuthenticatedEmployersIndexRoute
   '/innstillinger': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep': typeof AuthenticatedInterviewPrepIndexRoute
+  '/min-profil': typeof AuthenticatedMinProfilIndexRoute
   '/next-steps': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
@@ -803,6 +812,7 @@ export interface FileRoutesById {
   '/_authenticated/employers/': typeof AuthenticatedEmployersIndexRoute
   '/_authenticated/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/_authenticated/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
+  '/_authenticated/min-profil/': typeof AuthenticatedMinProfilIndexRoute
   '/_authenticated/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/_authenticated/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
@@ -890,6 +900,7 @@ export interface FileRouteTypes {
     | '/employers/'
     | '/innstillinger/'
     | '/interview-prep/'
+    | '/min-profil/'
     | '/next-steps/'
     | '/offer-analysis/'
     | '/onboarding/'
@@ -972,6 +983,7 @@ export interface FileRouteTypes {
     | '/employers'
     | '/innstillinger'
     | '/interview-prep'
+    | '/min-profil'
     | '/next-steps'
     | '/offer-analysis'
     | '/onboarding'
@@ -1058,6 +1070,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employers/'
     | '/_authenticated/innstillinger/'
     | '/_authenticated/interview-prep/'
+    | '/_authenticated/min-profil/'
     | '/_authenticated/next-steps/'
     | '/_authenticated/offer-analysis/'
     | '/_authenticated/onboarding/'
@@ -1344,6 +1357,13 @@ declare module '@tanstack/react-router' {
       path: '/next-steps'
       fullPath: '/next-steps/'
       preLoaderRoute: typeof AuthenticatedNextStepsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/min-profil/': {
+      id: '/_authenticated/min-profil/'
+      path: '/min-profil'
+      fullPath: '/min-profil/'
+      preLoaderRoute: typeof AuthenticatedMinProfilIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/interview-prep/': {
@@ -1741,6 +1761,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedEmployersIndexRoute: typeof AuthenticatedEmployersIndexRoute
   AuthenticatedInnstillingerIndexRoute: typeof AuthenticatedInnstillingerIndexRoute
   AuthenticatedInterviewPrepIndexRoute: typeof AuthenticatedInterviewPrepIndexRoute
+  AuthenticatedMinProfilIndexRoute: typeof AuthenticatedMinProfilIndexRoute
   AuthenticatedNextStepsIndexRoute: typeof AuthenticatedNextStepsIndexRoute
   AuthenticatedOfferAnalysisIndexRoute: typeof AuthenticatedOfferAnalysisIndexRoute
   AuthenticatedOnboardingIndexRoute: typeof AuthenticatedOnboardingIndexRoute
@@ -1795,6 +1816,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedEmployersIndexRoute: AuthenticatedEmployersIndexRoute,
   AuthenticatedInnstillingerIndexRoute: AuthenticatedInnstillingerIndexRoute,
   AuthenticatedInterviewPrepIndexRoute: AuthenticatedInterviewPrepIndexRoute,
+  AuthenticatedMinProfilIndexRoute: AuthenticatedMinProfilIndexRoute,
   AuthenticatedNextStepsIndexRoute: AuthenticatedNextStepsIndexRoute,
   AuthenticatedOfferAnalysisIndexRoute: AuthenticatedOfferAnalysisIndexRoute,
   AuthenticatedOnboardingIndexRoute: AuthenticatedOnboardingIndexRoute,
