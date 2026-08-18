@@ -25,10 +25,13 @@ import {
 import { advanceReviewProgress } from "@/lib/queries/cv-review-progress";
 import type { SuggestionResult, SuggestionRole } from "@/lib/cv-review-skill-suggestions";
 import {
+  SKILL_BREADTH_LABEL,
+  SKILL_DIRECTNESS_LABEL,
   SKILL_PLACEMENT_CONFIDENCE_LABEL,
   type SkillBasis,
   type SkillBasisItem,
 } from "@/lib/cv-review-skill-basis";
+
 import type { CareerAtomType } from "@/lib/career-atom-v4-mapping";
 
 export function CvReviewSkillsStep({
