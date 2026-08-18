@@ -68,6 +68,7 @@ import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_aut
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
 import { Route as AuthenticatedForslagCvRouteImport } from './routes/_authenticated/forslag/cv'
+import { Route as AuthenticatedForslagAiRouteImport } from './routes/_authenticated/forslag/ai'
 import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
 import { Route as AuthenticatedDocumentsNewRouteImport } from './routes/_authenticated/documents/new'
 import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenticated/documents/$id'
@@ -425,6 +426,11 @@ const AuthenticatedForslagCvRoute = AuthenticatedForslagCvRouteImport.update({
   path: '/forslag/cv',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedForslagAiRoute = AuthenticatedForslagAiRouteImport.update({
+  id: '/forslag/ai',
+  path: '/forslag/ai',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedEmployersCompanyIdRoute =
   AuthenticatedEmployersCompanyIdRouteImport.update({
     id: '/employers/$companyId',
@@ -673,6 +679,7 @@ export interface FileRoutesByFullPath {
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/forslag/ai': typeof AuthenticatedForslagAiRoute
   '/forslag/cv': typeof AuthenticatedForslagCvRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
@@ -763,6 +770,7 @@ export interface FileRoutesByTo {
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/forslag/ai': typeof AuthenticatedForslagAiRoute
   '/forslag/cv': typeof AuthenticatedForslagCvRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
@@ -858,6 +866,7 @@ export interface FileRoutesById {
   '/_authenticated/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/_authenticated/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/_authenticated/forslag/ai': typeof AuthenticatedForslagAiRoute
   '/_authenticated/forslag/cv': typeof AuthenticatedForslagCvRoute
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
@@ -953,6 +962,7 @@ export interface FileRouteTypes {
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
+    | '/forslag/ai'
     | '/forslag/cv'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
@@ -1043,6 +1053,7 @@ export interface FileRouteTypes {
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
+    | '/forslag/ai'
     | '/forslag/cv'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
@@ -1137,6 +1148,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documents/$id'
     | '/_authenticated/documents/new'
     | '/_authenticated/employers/$companyId'
+    | '/_authenticated/forslag/ai'
     | '/_authenticated/forslag/cv'
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
@@ -1624,6 +1636,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedForslagCvRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/forslag/ai': {
+      id: '/_authenticated/forslag/ai'
+      path: '/forslag/ai'
+      fullPath: '/forslag/ai'
+      preLoaderRoute: typeof AuthenticatedForslagAiRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/employers/$companyId': {
       id: '/_authenticated/employers/$companyId'
       path: '/employers/$companyId'
@@ -1892,6 +1911,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDocumentsIdRoute: typeof AuthenticatedDocumentsIdRoute
   AuthenticatedDocumentsNewRoute: typeof AuthenticatedDocumentsNewRoute
   AuthenticatedEmployersCompanyIdRoute: typeof AuthenticatedEmployersCompanyIdRoute
+  AuthenticatedForslagAiRoute: typeof AuthenticatedForslagAiRoute
   AuthenticatedForslagCvRoute: typeof AuthenticatedForslagCvRoute
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
@@ -1954,6 +1974,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentsIdRoute: AuthenticatedDocumentsIdRoute,
   AuthenticatedDocumentsNewRoute: AuthenticatedDocumentsNewRoute,
   AuthenticatedEmployersCompanyIdRoute: AuthenticatedEmployersCompanyIdRoute,
+  AuthenticatedForslagAiRoute: AuthenticatedForslagAiRoute,
   AuthenticatedForslagCvRoute: AuthenticatedForslagCvRoute,
   AuthenticatedInnstillingerIntegrasjonerRoute:
     AuthenticatedInnstillingerIntegrasjonerRoute,
