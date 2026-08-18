@@ -72,6 +72,9 @@ Output-skjema (alle topp-felter er valgfrie):
     }
   ],
   "skills": string[],
+  "tools": [
+    { "name": string, "category": "salg|kontor|analyse|prosjekt|fag|utvikling|ki|annet", "context": string | null }
+  ],
   "languages": [
     { "name": string, "level": string | null }
   ],
