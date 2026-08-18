@@ -62,6 +62,12 @@ export interface ParsedVolunteer {
   description: string | null;
 }
 
+export interface ParsedTool {
+  name: string;
+  category: string | null;
+  context: string | null;
+}
+
 export interface ParsedCv {
   language_detected: "no" | "en";
   name: string | null;
