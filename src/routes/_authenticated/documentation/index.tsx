@@ -108,9 +108,12 @@ function DocumentationOverviewPage() {
 const STAT_LINK_ROUTES = [
   "/documentation/library",
   "/documentation/cases",
+  "/documentation/resultater",
+  "/documentation/kompetanse",
   "/documentation/packages",
 ] as const;
 type StatCardTo = (typeof STAT_LINK_ROUTES)[number];
+
 
 function StatCard({
   to,
