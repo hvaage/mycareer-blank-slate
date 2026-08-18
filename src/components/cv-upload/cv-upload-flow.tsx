@@ -612,7 +612,7 @@ function SummaryView({
       </Alert>
       <div className="flex flex-wrap gap-2">
         <Button asChild size="sm">
-          <Link to="/career/cv-review" search={{ import: stage.importId }}>
+          <Link to="/forslag/cv" search={{ import: stage.importId }}>
             Gå gjennom nå
           </Link>
         </Button>

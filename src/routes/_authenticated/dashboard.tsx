@@ -123,7 +123,7 @@ function Dashboard() {
       id: "candidates",
       title: `${queue.data!.candidates} linjer fra CV-importen venter`,
       detail: "Ingenting telles som grunnlag før du har sett gjennom dem.",
-      to: "/career/cv-review",
+      to: "/forslag/cv",
       cta: "Gå gjennom",
       weight: 90,
     });
@@ -260,7 +260,7 @@ function Dashboard() {
                 </p>
               </div>
               <Button asChild size="sm">
-                <Link to="/career/cv-review">Last opp CV</Link>
+                <Link to="/forslag/cv">Last opp CV</Link>
               </Button>
             </CardContent>
           </Card>
@@ -280,10 +280,10 @@ function Dashboard() {
           <CardContent className="space-y-1 py-0 pb-4">
             <QueueLine
               n={queue.data!.candidates}
-              to="/career/cv-review"
+              to="/forslag/cv"
               text="kandidater fra CV-import"
             />
-            <QueueLine n={queue.data!.proposals} to="/career/atom-review" text="AI-forslag" />
+            <QueueLine n={queue.data!.proposals} to="/forslag/ai" text="AI-forslag" />
             <QueueLine
               n={queue.data!.stale}
               to="/preferences"

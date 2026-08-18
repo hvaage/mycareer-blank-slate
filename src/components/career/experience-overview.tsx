@@ -298,7 +298,7 @@ function PendingWorkNotice() {
       <div className="flex flex-wrap gap-2 pt-1">
         {data.pending > 0 && (
           <Button asChild size="sm">
-            <Link to="/career/cv-review">Fortsett gjennomgangen</Link>
+            <Link to="/forslag/cv">Fortsett gjennomgangen</Link>
           </Button>
         )}
         {data.open > 0 && (

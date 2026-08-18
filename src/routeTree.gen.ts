@@ -33,6 +33,7 @@ import { Route as AuthenticatedSoknadsdokumenterRouteImport } from './routes/_au
 import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenticated/preferences'
 import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
 import { Route as AuthenticatedMarkedRouteImport } from './routes/_authenticated/marked'
+import { Route as AuthenticatedKilderRouteImport } from './routes/_authenticated/kilder'
 import { Route as AuthenticatedJobLeadsRouteImport } from './routes/_authenticated/job-leads'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -47,6 +48,7 @@ import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedMinProfilIndexRouteImport } from './routes/_authenticated/min-profil/index'
 import { Route as AuthenticatedInterviewPrepIndexRouteImport } from './routes/_authenticated/interview-prep/index'
 import { Route as AuthenticatedInnstillingerIndexRouteImport } from './routes/_authenticated/innstillinger.index'
+import { Route as AuthenticatedForslagIndexRouteImport } from './routes/_authenticated/forslag/index'
 import { Route as AuthenticatedEmployersIndexRouteImport } from './routes/_authenticated/employers/index'
 import { Route as AuthenticatedDocumentsIndexRouteImport } from './routes/_authenticated/documents/index'
 import { Route as AuthenticatedDocumentationIndexRouteImport } from './routes/_authenticated/documentation/index'
@@ -67,6 +69,8 @@ import { Route as AuthenticatedMinProfilImporterCvRouteImport } from './routes/_
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
+import { Route as AuthenticatedForslagCvRouteImport } from './routes/_authenticated/forslag/cv'
+import { Route as AuthenticatedForslagAiRouteImport } from './routes/_authenticated/forslag/ai'
 import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
 import { Route as AuthenticatedDocumentsNewRouteImport } from './routes/_authenticated/documents/new'
 import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenticated/documents/$id'
@@ -225,6 +229,11 @@ const AuthenticatedMarkedRoute = AuthenticatedMarkedRouteImport.update({
   path: '/marked',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedKilderRoute = AuthenticatedKilderRouteImport.update({
+  id: '/kilder',
+  path: '/kilder',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedJobLeadsRoute = AuthenticatedJobLeadsRouteImport.update({
   id: '/job-leads',
   path: '/job-leads',
@@ -303,6 +312,12 @@ const AuthenticatedInnstillingerIndexRoute =
   AuthenticatedInnstillingerIndexRouteImport.update({
     id: '/innstillinger/',
     path: '/innstillinger/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedForslagIndexRoute =
+  AuthenticatedForslagIndexRouteImport.update({
+    id: '/forslag/',
+    path: '/forslag/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedEmployersIndexRoute =
@@ -419,6 +434,16 @@ const AuthenticatedInnstillingerIntegrasjonerRoute =
     path: '/innstillinger/integrasjoner',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedForslagCvRoute = AuthenticatedForslagCvRouteImport.update({
+  id: '/forslag/cv',
+  path: '/forslag/cv',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedForslagAiRoute = AuthenticatedForslagAiRouteImport.update({
+  id: '/forslag/ai',
+  path: '/forslag/ai',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedEmployersCompanyIdRoute =
   AuthenticatedEmployersCompanyIdRouteImport.update({
     id: '/employers/$companyId',
@@ -631,6 +656,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/kilder': typeof AuthenticatedKilderRoute
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
@@ -667,6 +693,8 @@ export interface FileRoutesByFullPath {
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/forslag/ai': typeof AuthenticatedForslagAiRoute
+  '/forslag/cv': typeof AuthenticatedForslagCvRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
@@ -687,6 +715,7 @@ export interface FileRoutesByFullPath {
   '/documentation/': typeof AuthenticatedDocumentationIndexRoute
   '/documents/': typeof AuthenticatedDocumentsIndexRoute
   '/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/forslag/': typeof AuthenticatedForslagIndexRoute
   '/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/min-profil/': typeof AuthenticatedMinProfilIndexRoute
@@ -720,6 +749,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/kilder': typeof AuthenticatedKilderRoute
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
@@ -756,6 +786,8 @@ export interface FileRoutesByTo {
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/forslag/ai': typeof AuthenticatedForslagAiRoute
+  '/forslag/cv': typeof AuthenticatedForslagCvRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
@@ -776,6 +808,7 @@ export interface FileRoutesByTo {
   '/documentation': typeof AuthenticatedDocumentationIndexRoute
   '/documents': typeof AuthenticatedDocumentsIndexRoute
   '/employers': typeof AuthenticatedEmployersIndexRoute
+  '/forslag': typeof AuthenticatedForslagIndexRoute
   '/innstillinger': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep': typeof AuthenticatedInterviewPrepIndexRoute
   '/min-profil': typeof AuthenticatedMinProfilIndexRoute
@@ -814,6 +847,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/_authenticated/kilder': typeof AuthenticatedKilderRoute
   '/_authenticated/marked': typeof AuthenticatedMarkedRoute
   '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/_authenticated/preferences': typeof AuthenticatedPreferencesRoute
@@ -850,6 +884,8 @@ export interface FileRoutesById {
   '/_authenticated/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/_authenticated/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/_authenticated/forslag/ai': typeof AuthenticatedForslagAiRoute
+  '/_authenticated/forslag/cv': typeof AuthenticatedForslagCvRoute
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
@@ -870,6 +906,7 @@ export interface FileRoutesById {
   '/_authenticated/documentation/': typeof AuthenticatedDocumentationIndexRoute
   '/_authenticated/documents/': typeof AuthenticatedDocumentsIndexRoute
   '/_authenticated/employers/': typeof AuthenticatedEmployersIndexRoute
+  '/_authenticated/forslag/': typeof AuthenticatedForslagIndexRoute
   '/_authenticated/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/_authenticated/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/_authenticated/min-profil/': typeof AuthenticatedMinProfilIndexRoute
@@ -908,6 +945,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/job-leads'
+    | '/kilder'
     | '/marked'
     | '/my-applications'
     | '/preferences'
@@ -944,6 +982,8 @@ export interface FileRouteTypes {
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
+    | '/forslag/ai'
+    | '/forslag/cv'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
@@ -964,6 +1004,7 @@ export interface FileRouteTypes {
     | '/documentation/'
     | '/documents/'
     | '/employers/'
+    | '/forslag/'
     | '/innstillinger/'
     | '/interview-prep/'
     | '/min-profil/'
@@ -997,6 +1038,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/job-leads'
+    | '/kilder'
     | '/marked'
     | '/my-applications'
     | '/preferences'
@@ -1033,6 +1075,8 @@ export interface FileRouteTypes {
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
+    | '/forslag/ai'
+    | '/forslag/cv'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
@@ -1053,6 +1097,7 @@ export interface FileRouteTypes {
     | '/documentation'
     | '/documents'
     | '/employers'
+    | '/forslag'
     | '/innstillinger'
     | '/interview-prep'
     | '/min-profil'
@@ -1090,6 +1135,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/integrations'
     | '/_authenticated/job-leads'
+    | '/_authenticated/kilder'
     | '/_authenticated/marked'
     | '/_authenticated/my-applications'
     | '/_authenticated/preferences'
@@ -1126,6 +1172,8 @@ export interface FileRouteTypes {
     | '/_authenticated/documents/$id'
     | '/_authenticated/documents/new'
     | '/_authenticated/employers/$companyId'
+    | '/_authenticated/forslag/ai'
+    | '/_authenticated/forslag/cv'
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
@@ -1146,6 +1194,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documentation/'
     | '/_authenticated/documents/'
     | '/_authenticated/employers/'
+    | '/_authenticated/forslag/'
     | '/_authenticated/innstillinger/'
     | '/_authenticated/interview-prep/'
     | '/_authenticated/min-profil/'
@@ -1367,6 +1416,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMarkedRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/kilder': {
+      id: '/_authenticated/kilder'
+      path: '/kilder'
+      fullPath: '/kilder'
+      preLoaderRoute: typeof AuthenticatedKilderRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/job-leads': {
       id: '/_authenticated/job-leads'
       path: '/job-leads'
@@ -1463,6 +1519,13 @@ declare module '@tanstack/react-router' {
       path: '/innstillinger'
       fullPath: '/innstillinger/'
       preLoaderRoute: typeof AuthenticatedInnstillingerIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/forslag/': {
+      id: '/_authenticated/forslag/'
+      path: '/forslag'
+      fullPath: '/forslag/'
+      preLoaderRoute: typeof AuthenticatedForslagIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/employers/': {
@@ -1603,6 +1666,20 @@ declare module '@tanstack/react-router' {
       path: '/innstillinger/integrasjoner'
       fullPath: '/innstillinger/integrasjoner'
       preLoaderRoute: typeof AuthenticatedInnstillingerIntegrasjonerRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/forslag/cv': {
+      id: '/_authenticated/forslag/cv'
+      path: '/forslag/cv'
+      fullPath: '/forslag/cv'
+      preLoaderRoute: typeof AuthenticatedForslagCvRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/forslag/ai': {
+      id: '/_authenticated/forslag/ai'
+      path: '/forslag/ai'
+      fullPath: '/forslag/ai'
+      preLoaderRoute: typeof AuthenticatedForslagAiRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/employers/$companyId': {
@@ -1846,6 +1923,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedJobLeadsRoute: typeof AuthenticatedJobLeadsRoute
+  AuthenticatedKilderRoute: typeof AuthenticatedKilderRoute
   AuthenticatedMarkedRoute: typeof AuthenticatedMarkedRoute
   AuthenticatedMyApplicationsRoute: typeof AuthenticatedMyApplicationsRoute
   AuthenticatedPreferencesRoute: typeof AuthenticatedPreferencesRoute
@@ -1873,6 +1951,8 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDocumentsIdRoute: typeof AuthenticatedDocumentsIdRoute
   AuthenticatedDocumentsNewRoute: typeof AuthenticatedDocumentsNewRoute
   AuthenticatedEmployersCompanyIdRoute: typeof AuthenticatedEmployersCompanyIdRoute
+  AuthenticatedForslagAiRoute: typeof AuthenticatedForslagAiRoute
+  AuthenticatedForslagCvRoute: typeof AuthenticatedForslagCvRoute
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedKarriereErfaringRoute: typeof AuthenticatedKarriereErfaringRoute
@@ -1885,6 +1965,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDocumentationIndexRoute: typeof AuthenticatedDocumentationIndexRoute
   AuthenticatedDocumentsIndexRoute: typeof AuthenticatedDocumentsIndexRoute
   AuthenticatedEmployersIndexRoute: typeof AuthenticatedEmployersIndexRoute
+  AuthenticatedForslagIndexRoute: typeof AuthenticatedForslagIndexRoute
   AuthenticatedInnstillingerIndexRoute: typeof AuthenticatedInnstillingerIndexRoute
   AuthenticatedInterviewPrepIndexRoute: typeof AuthenticatedInterviewPrepIndexRoute
   AuthenticatedMinProfilIndexRoute: typeof AuthenticatedMinProfilIndexRoute
@@ -1900,6 +1981,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedJobLeadsRoute: AuthenticatedJobLeadsRoute,
+  AuthenticatedKilderRoute: AuthenticatedKilderRoute,
   AuthenticatedMarkedRoute: AuthenticatedMarkedRoute,
   AuthenticatedMyApplicationsRoute: AuthenticatedMyApplicationsRoute,
   AuthenticatedPreferencesRoute: AuthenticatedPreferencesRoute,
@@ -1934,6 +2016,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentsIdRoute: AuthenticatedDocumentsIdRoute,
   AuthenticatedDocumentsNewRoute: AuthenticatedDocumentsNewRoute,
   AuthenticatedEmployersCompanyIdRoute: AuthenticatedEmployersCompanyIdRoute,
+  AuthenticatedForslagAiRoute: AuthenticatedForslagAiRoute,
+  AuthenticatedForslagCvRoute: AuthenticatedForslagCvRoute,
   AuthenticatedInnstillingerIntegrasjonerRoute:
     AuthenticatedInnstillingerIntegrasjonerRoute,
   AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
@@ -1949,6 +2033,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentationIndexRoute: AuthenticatedDocumentationIndexRoute,
   AuthenticatedDocumentsIndexRoute: AuthenticatedDocumentsIndexRoute,
   AuthenticatedEmployersIndexRoute: AuthenticatedEmployersIndexRoute,
+  AuthenticatedForslagIndexRoute: AuthenticatedForslagIndexRoute,
   AuthenticatedInnstillingerIndexRoute: AuthenticatedInnstillingerIndexRoute,
   AuthenticatedInterviewPrepIndexRoute: AuthenticatedInterviewPrepIndexRoute,
   AuthenticatedMinProfilIndexRoute: AuthenticatedMinProfilIndexRoute,

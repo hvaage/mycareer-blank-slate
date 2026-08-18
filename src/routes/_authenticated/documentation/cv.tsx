@@ -138,7 +138,7 @@ function DocumentationCvPage() {
               <Link to="/soknadsdokumenter">Lag søknadsklar CV</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link to="/min-profil/importer-cv">
+              <Link to="/kilder">
                 <Upload className="mr-1.5 h-3.5 w-3.5" /> Importer eksisterende CV
               </Link>
             </Button>

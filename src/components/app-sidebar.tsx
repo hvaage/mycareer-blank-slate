@@ -36,6 +36,7 @@ type SubItem = {
   label: string;
   to: string;
   indent?: boolean;
+  badge?: string;
   search?: Record<string, unknown>;
 };
 
@@ -68,11 +69,10 @@ const primaryGroups: GroupNode[] = [
     icon: BookOpen,
     items: [
       { label: "Min profil", to: "/min-profil" },
-      { label: "Om meg", to: "/about-me", indent: true },
-      { label: "Karriereoversikt", to: "/karriere/erfaring", indent: true },
-      { label: "Importer eksisterende CV", to: "/min-profil/importer-cv", indent: true },
+      { label: "Karriereoversikt", to: "/karriere/erfaring" },
+      { label: "Legg til kilder", to: "/kilder" },
+      { label: "Gjennomgå forslag", to: "/forslag" },
       { label: "Min dokumentasjon", to: "/documentation" },
-      { label: "AI-forslag", to: "/career/atom-review" },
     ],
     matchPrefixes: [
       "/about-me",
@@ -80,9 +80,12 @@ const primaryGroups: GroupNode[] = [
       "/preferences",
       "/career",
       "/karriere",
+      "/kilder",
+      "/forslag",
       "/documentation",
       "/documents",
     ],
+
 
   },
   {
@@ -222,20 +225,18 @@ export function AppSidebar() {
   });
 
   const allGroups = useMemo(() => {
+    // «Gjennomgå forslag» ligger alltid i menyen; ventende arbeid markeres på selve punktet.
     const groups = primaryGroups.map((g) => {
       if (g.id !== "career" || !reviewPending || !g.items) return g;
-      const items = [...g.items];
-      const at = items.findIndex((i) => i.to === "/min-profil/importer-cv");
-      items.splice(at + 1, 0, {
-        label: "CV-gjennomgang",
-        to: "/career/cv-review",
-        indent: true,
-      });
+      const items = g.items.map((i) =>
+        i.to === "/forslag" ? { ...i, badge: "Venter" } : i,
+      );
       return { ...g, items };
     });
     if (admin) groups.push(adminGroup);
     return groups;
   }, [admin, reviewPending]);
+
 
   // Innstillinger ligger i bunnområdet, men må være søkbar for aktiv-gruppe og undermeny.
   const lookupGroups = useMemo(() => [...allGroups, settingsGroup], [allGroups]);
@@ -420,6 +421,11 @@ export function AppSidebar() {
                   onClick={() => setOpenMobile(false)}
                 >
                   {item.label}
+                  {item.badge ? (
+                    <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      {item.badge}
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             );
@@ -501,6 +507,11 @@ export function AppSidebar() {
                       aria-current={active ? "page" : undefined}
                     >
                       {item.label}
+                  {item.badge ? (
+                    <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      {item.badge}
+                    </span>
+                  ) : null}
                     </button>
                   </li>
                 );
