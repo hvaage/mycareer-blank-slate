@@ -146,12 +146,7 @@ function KilderPage() {
           icon={Linkedin}
           title="LinkedIn-eksport"
           description="Profil og LinkedIn Skills. Kompetanser du selv har oppgitt vises som «Trenger vurdering» til de har belegg."
-          status="Importer"
-          actions={
-            <Button asChild size="sm" variant="outline">
-              <Link to="/innstillinger/integrasjoner">Åpne integrasjoner</Link>
-            </Button>
-          }
+          status="Kommer"
         />
 
         <SourceCard
