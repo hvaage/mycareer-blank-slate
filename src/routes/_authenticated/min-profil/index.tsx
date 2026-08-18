@@ -187,12 +187,22 @@ function MinProfilPage() {
     const countStatus = (n: number): AreaStatus => (n > 0 ? "fullfort" : "mangler");
     return [
       {
+        id: "om-meg",
+        label: "Om meg",
+        status: statusFromCount(direction + wishes, 8),
+        counter: `${direction + wishes} av 8 svar`,
+        why: "Svarene dine om bakgrunn, situasjon og ønsker.",
+        to: "/about-me",
+        search: { tab: "kort_om_meg" },
+      },
+      {
         id: "karriereretning",
         label: "Karriereretning",
         status: statusFromCount(direction, 4),
         counter: `${direction} av 4`,
         why: "Styrer hvilke stillinger som vurderes for deg.",
       },
+
       {
         id: "karriereoversikt",
         label: "Erfaring og roller",
