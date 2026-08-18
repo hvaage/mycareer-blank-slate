@@ -74,6 +74,15 @@ function roleEmployer(row: CareerAtomRow): string | null {
   return d.employer ?? d.organization ?? d.company ?? null;
 }
 
+/** Stillingstittelen slik den er registrert — content_no kan være en beskrivelse. */
+function roleTitle(row: CareerAtomRow): string {
+  const d = sd(row);
+  const t = typeof d.title === "string" ? d.title.trim() : "";
+  if (t) return t;
+  const c = (row.content_no ?? "").trim();
+  return c || "Rolle";
+}
+
 function rolePeriod(row: CareerAtomRow): string | null {
   const d = sd(row);
   const from = d.start_date ?? d.from ?? null;
