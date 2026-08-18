@@ -68,6 +68,7 @@ import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenti
 import { Route as AuthenticatedDocumentationResultaterRouteImport } from './routes/_authenticated/documentation/resultater'
 import { Route as AuthenticatedDocumentationPackagesRouteImport } from './routes/_authenticated/documentation/packages'
 import { Route as AuthenticatedDocumentationLibraryRouteImport } from './routes/_authenticated/documentation/library'
+import { Route as AuthenticatedDocumentationKompetanseRouteImport } from './routes/_authenticated/documentation/kompetanse'
 import { Route as AuthenticatedDocumentationCasesRouteImport } from './routes/_authenticated/documentation/cases'
 import { Route as AuthenticatedCareerCvReviewRouteImport } from './routes/_authenticated/career/cv-review'
 import { Route as AuthenticatedCareerAtomReviewRouteImport } from './routes/_authenticated/career/atom-review'
@@ -416,6 +417,12 @@ const AuthenticatedDocumentationLibraryRoute =
     path: '/documentation/library',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedDocumentationKompetanseRoute =
+  AuthenticatedDocumentationKompetanseRouteImport.update({
+    id: '/documentation/kompetanse',
+    path: '/documentation/kompetanse',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDocumentationCasesRoute =
   AuthenticatedDocumentationCasesRouteImport.update({
     id: '/documentation/cases',
@@ -593,6 +600,7 @@ export interface FileRoutesByFullPath {
   '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
   '/career/cv-review': typeof AuthenticatedCareerCvReviewRoute
   '/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
+  '/documentation/kompetanse': typeof AuthenticatedDocumentationKompetanseRoute
   '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
@@ -673,6 +681,7 @@ export interface FileRoutesByTo {
   '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
   '/career/cv-review': typeof AuthenticatedCareerCvReviewRoute
   '/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
+  '/documentation/kompetanse': typeof AuthenticatedDocumentationKompetanseRoute
   '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
@@ -758,6 +767,7 @@ export interface FileRoutesById {
   '/_authenticated/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
   '/_authenticated/career/cv-review': typeof AuthenticatedCareerCvReviewRoute
   '/_authenticated/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
+  '/_authenticated/documentation/kompetanse': typeof AuthenticatedDocumentationKompetanseRoute
   '/_authenticated/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/_authenticated/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/_authenticated/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
@@ -843,6 +853,7 @@ export interface FileRouteTypes {
     | '/career/atom-review'
     | '/career/cv-review'
     | '/documentation/cases'
+    | '/documentation/kompetanse'
     | '/documentation/library'
     | '/documentation/packages'
     | '/documentation/resultater'
@@ -923,6 +934,7 @@ export interface FileRouteTypes {
     | '/career/atom-review'
     | '/career/cv-review'
     | '/documentation/cases'
+    | '/documentation/kompetanse'
     | '/documentation/library'
     | '/documentation/packages'
     | '/documentation/resultater'
@@ -1007,6 +1019,7 @@ export interface FileRouteTypes {
     | '/_authenticated/career/atom-review'
     | '/_authenticated/career/cv-review'
     | '/_authenticated/documentation/cases'
+    | '/_authenticated/documentation/kompetanse'
     | '/_authenticated/documentation/library'
     | '/_authenticated/documentation/packages'
     | '/_authenticated/documentation/resultater'
@@ -1495,6 +1508,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDocumentationLibraryRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/documentation/kompetanse': {
+      id: '/_authenticated/documentation/kompetanse'
+      path: '/documentation/kompetanse'
+      fullPath: '/documentation/kompetanse'
+      preLoaderRoute: typeof AuthenticatedDocumentationKompetanseRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/documentation/cases': {
       id: '/_authenticated/documentation/cases'
       path: '/documentation/cases'
@@ -1682,6 +1702,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCareerAtomReviewRoute: typeof AuthenticatedCareerAtomReviewRoute
   AuthenticatedCareerCvReviewRoute: typeof AuthenticatedCareerCvReviewRoute
   AuthenticatedDocumentationCasesRoute: typeof AuthenticatedDocumentationCasesRoute
+  AuthenticatedDocumentationKompetanseRoute: typeof AuthenticatedDocumentationKompetanseRoute
   AuthenticatedDocumentationLibraryRoute: typeof AuthenticatedDocumentationLibraryRoute
   AuthenticatedDocumentationPackagesRoute: typeof AuthenticatedDocumentationPackagesRoute
   AuthenticatedDocumentationResultaterRoute: typeof AuthenticatedDocumentationResultaterRoute
@@ -1728,6 +1749,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCareerAtomReviewRoute: AuthenticatedCareerAtomReviewRoute,
   AuthenticatedCareerCvReviewRoute: AuthenticatedCareerCvReviewRoute,
   AuthenticatedDocumentationCasesRoute: AuthenticatedDocumentationCasesRoute,
+  AuthenticatedDocumentationKompetanseRoute:
+    AuthenticatedDocumentationKompetanseRoute,
   AuthenticatedDocumentationLibraryRoute:
     AuthenticatedDocumentationLibraryRoute,
   AuthenticatedDocumentationPackagesRoute:
