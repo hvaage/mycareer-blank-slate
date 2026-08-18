@@ -71,6 +71,8 @@ export interface ParsedCv {
   experience: ParsedExperience[];
   education: ParsedEducation[];
   skills: string[];
+  /** Navngitte verktøy, systemer og programvare. Valgfritt av bakoverkompatibilitet. */
+  tools?: ParsedTool[];
   languages: ParsedLanguage[];
   certifications: ParsedCertification[];
   projects: ParsedProject[];
