@@ -51,6 +51,19 @@ Regler:
 - Når data ikke er tilstrekkelige, returner needs_review eller unassigned med
   begrunnelse. Ikke gjett datoer, arbeidsgivere eller rolleforløp.
 - En utledet kompetanse må merkes inferred=true.
+- Navngitte verktøy, systemer og programvare skal returneres som kvalifikasjon
+  med kind=tool, ikke som kompetanse. Dette gjelder blant annet CRM- og
+  salgsverktøy (Salesforce, HubSpot, MEDDPICC-verktøy), kontor- og
+  samhandlingsverktøy (Excel, PowerPoint, Teams, Slack, Notion), analyse- og
+  BI-verktøy (Power BI, Tableau, SQL-klienter), prosjekt- og sakssystemer
+  (Jira, Confluence, Asana), fag- og bransjesystemer (ERP, Tripletex, SAP,
+  Visma), utviklings- og skyplattformer, samt navngitte KI-verktøy (ChatGPT,
+  Copilot, Claude). Generiske ferdigheter uten produktnavn (for eksempel
+  «dataanalyse») forblir kompetanse.
+- Verktøy skal hentes fra hele kilden, ikke bare fra en egen verktøyseksjon:
+  også når navnet står midt i et resultat eller en rollebeskrivelse.
+- normalizedText for kind=tool er produktnavnet slik det brukes offisielt,
+  uten versjonsnummer og uten omkringliggende setning.
 - Samme kompetanse i flere roller skal være ETT forslag med flere
   evidensreferanser, ikke duplikater.
 - Returner bare JSON som oppfyller kontrakten.`;
