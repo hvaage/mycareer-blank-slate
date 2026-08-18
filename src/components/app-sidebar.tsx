@@ -36,6 +36,7 @@ type SubItem = {
   label: string;
   to: string;
   indent?: boolean;
+  badge?: string;
   search?: Record<string, unknown>;
 };
 
@@ -420,6 +421,11 @@ export function AppSidebar() {
                   onClick={() => setOpenMobile(false)}
                 >
                   {item.label}
+                  {item.badge ? (
+                    <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      {item.badge}
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             );
@@ -501,6 +507,11 @@ export function AppSidebar() {
                       aria-current={active ? "page" : undefined}
                     >
                       {item.label}
+                  {item.badge ? (
+                    <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      {item.badge}
+                    </span>
+                  ) : null}
                     </button>
                   </li>
                 );
