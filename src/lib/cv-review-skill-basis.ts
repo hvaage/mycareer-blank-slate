@@ -102,22 +102,41 @@ export function buildSkillBasis(input: {
   const roleAtomByLocalId = new Map<string, string>();
   const resultAtomByLocalId = new Map<string, string>();
   const roleLocalIdByResultLocalId = new Map<string, string>();
+  // v2.1 local_id → lesbar omtale (stilling og selskap) for begrunnelsestekst.
+  const roleLabelByLocalId = new Map<string, string>();
+  const resultRoleLocalIdList: { localId: string }[] = [];
 
   for (const p of input.proposals) {
     const type = p.payload.atom_type;
     const data = sd(p);
     const localId = str(data["local_id"]);
     const ref = str(data["parse_local_ref"]);
-    if (!localId || !ref) continue;
-    const atomId = input.promotedByLocalRef.get(ref) ?? null;
+    if (!localId) continue;
+    const atomId = ref ? (input.promotedByLocalRef.get(ref) ?? null) : null;
     if (type === "role") {
       if (atomId) roleAtomByLocalId.set(localId, atomId);
+      const title = str(data["title"]) ?? str(p.payload.content_no ?? null) ?? "rollen";
+      const employer = str(data["employer"]);
+      roleLabelByLocalId.set(localId, employer ? `${title} i ${employer}` : title);
     } else if (type === "achievement" || type === "role_evidence") {
       if (atomId) resultAtomByLocalId.set(localId, atomId);
       const rl = str(data["role_local_id"]);
       if (rl) roleLocalIdByResultLocalId.set(localId, rl);
+      resultRoleLocalIdList.push({ localId });
     }
   }
+
+  // Lesbar omtale av resultater krever rolleetikettene, som er komplette først nå.
+  const readableByLocalId = new Map<string, string>(roleLabelByLocalId);
+  for (const { localId } of resultRoleLocalIdList) {
+    const roleLocalId = roleLocalIdByResultLocalId.get(localId);
+    const roleLabel = roleLocalId ? roleLabelByLocalId.get(roleLocalId) : null;
+    readableByLocalId.set(
+      localId,
+      roleLabel ? `resultatet under ${roleLabel}` : "resultatet i CV-en",
+    );
+  }
+
 
   const items: SkillBasisItem[] = [];
   const localSignals: SkillBasis["localSignals"] = [];
@@ -208,7 +227,10 @@ export function buildSkillBasis(input: {
       directness,
       breadth,
       explicit,
-      reason: str(data["placement_reason"]) ?? buildReason(roles, results, directness),
+      reason: humanizeReason(str(data["placement_reason"]), readableByLocalId, () =>
+        buildReason(roles, results, directness),
+      ),
+
       needsPlacement: !hasConcreteEvidence,
     });
   }
@@ -216,6 +238,34 @@ export function buildSkillBasis(input: {
   const deviations = input.skillCandidates.filter((c) => !usedCandidateIds.has(c.id));
   return { items, localSignals, deviations };
 }
+
+/**
+ * Modellens begrunnelse refererer til interne lokale id-er (f.eks. «b1a6»).
+ * De er meningsløse for brukeren og byttes ut med stilling og selskap.
+ * Gjenstår det uoversettelige id-er, brukes den deterministiske begrunnelsen.
+ */
+function humanizeReason(
+  raw: string | null,
+  readableByLocalId: Map<string, string>,
+  fallback: () => string,
+): string {
+  if (!raw) return fallback();
+  let text = raw;
+  for (const [localId, label] of readableByLocalId) {
+    if (!text.includes(localId)) continue;
+    const pattern = new RegExp(`(^|[^\\w-])${escapeRegExp(localId)}(?![\\w-])`, "g");
+    text = text.replace(pattern, (_m, pre: string) => `${pre}${label}`);
+  }
+  if (/(^|\s)[a-f0-9]{4}(?=[\s.,:;]|$)/i.test(text) || /\b(?:role|ach|res)-\d+\b/i.test(text)) {
+    return fallback();
+  }
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 
 function buildReason(
   roles: SuggestionRole[],
