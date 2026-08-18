@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PreferencesAtomsSection } from "@/components/career/PreferencesAtomsSection";
 import { ProfileConflictResolver } from "@/components/career/ProfileConflictResolver";
 
-export const Route = createFileRoute("/_authenticated/preferences")({
+export const Route = createFileRoute("/_authenticated/min-profil/karriereretning")({
   component: CareerPreferencesPage,
 });
 
