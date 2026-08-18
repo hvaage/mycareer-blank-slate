@@ -239,6 +239,38 @@ export function buildSkillBasis(input: {
   return { items, localSignals, deviations };
 }
 
+/**
+ * Modellens begrunnelse refererer til interne lokale id-er (f.eks. «b1a6»).
+ * De er meningsløse for brukeren og byttes ut med stilling og selskap.
+ * Gjenstår det uoversettelige id-er, brukes den deterministiske begrunnelsen.
+ */
+function humanizeReason(
+  raw: string | null,
+  readableByLocalId: Map<string, string>,
+  fallback: () => string,
+): string {
+  if (!raw) return fallback();
+  let text = raw;
+  for (const [localId, label] of readableByLocalId) {
+    if (!text.includes(localId)) continue;
+    const pattern = new RegExp(`(^|[^\\w-])${escapeRegExp(localId)}(?![\\w-])`, "g");
+    text = text.replace(pattern, (_m, pre: string) => `${pre}${label}`);
+  }
+  // Idet en referanse fortsatt ser ut som en intern id, er teksten ubrukelig.
+  if (/(^|[^\w-])(?:role|res|ach|b|s)-?\d[\w-]*/i.test(text) && text !== raw) {
+    // Delvis oversatt tekst er fortsatt bedre enn ingenting hvis resten er lesbar.
+  }
+  if (/(^|\s)[a-f0-9]{4}(?=[\s.,:;]|$)/i.test(text) || /\b(?:role|ach|res)-\d+\b/i.test(text)) {
+    return fallback();
+  }
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+
 function buildReason(
   roles: SuggestionRole[],
   results: SuggestionResult[],
