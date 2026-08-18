@@ -212,6 +212,13 @@ Regler:
 - canonicalKey skal være stabil: små bokstaver og bindestrek, samme begrep gir
   samme nøkkel også i andre blokker.
 - En utledet kompetanse merkes inferred=true.
+- Navngitte verktøy, systemer og programvare returneres som kvalifikasjon med
+  kind=tool, ikke som kompetanse: CRM- og salgsverktøy, kontor- og
+  samhandlingsverktøy, analyse- og BI-verktøy, prosjekt- og sakssystemer,
+  fag- og bransjesystemer, utviklings- og skyplattformer og navngitte
+  KI-verktøy. Generiske ferdigheter uten produktnavn forblir kompetanse.
+- Let etter verktøynavn i hele blokken, også inne i resultatlinjer.
+  normalizedText er produktnavnet uten versjonsnummer.
 - Ikke dikt opp fakta og ikke skriv ferdig CV-tekst.
 - Oppgi belegg som sourceSpanIds. Ikke gjenta kildetekst.
 - Returner bare JSON.`;
