@@ -15,8 +15,9 @@ export type PageSection = {
   status?: SectionStatus;
   /** Kort tilleggstekst, f.eks. «3 av 5». */
   hint?: string;
-
+  /** Sett false for å skjule seksjonen fra menyen. Default: count !== 0 */
   show?: boolean;
+
 };
 
 
