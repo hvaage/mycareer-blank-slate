@@ -46,21 +46,109 @@ type Props = {
   /** Antall funn som fortsatt venter på manuell opprydding. */
 };
 
+function payloadOf(row: AtomEnrichmentProposalRow): Record<string, unknown> {
+  return (row.proposal_payload ?? {}) as Record<string, unknown>;
+}
+
+function structuredOf(row: AtomEnrichmentProposalRow): Record<string, unknown> {
+  const sd = payloadOf(row)["structured_data"];
+  return sd && typeof sd === "object" && !Array.isArray(sd) ? (sd as Record<string, unknown>) : {};
+}
+
+function str(obj: Record<string, unknown>, key: string): string | null {
+  const v = obj[key];
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+/** Kort, lesbar overskrift. Full CV-setning hører hjemme i brødteksten. */
 function proposalTitle(row: AtomEnrichmentProposalRow): string {
-  const payload = (row.proposal_payload ?? {}) as Record<string, unknown>;
-  const candidates = [payload["content_no"], payload["content"], payload["title"], payload["label"]];
-  for (const value of candidates) {
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return "Forslag uten tekst";
+  const sd = structuredOf(row);
+  const title = str(sd, "title") ?? str(sd, "name") ?? str(sd, "label");
+  const employer = str(sd, "employer") ?? str(sd, "company");
+  if (title) return employer ? `${title} · ${employer}` : title;
+
+  const payload = payloadOf(row);
+  const content = str(payload, "content_no") ?? str(payload, "content") ?? str(payload, "title");
+  if (!content) return "Forslag uten tekst";
+  const firstSentence = content.split(/(?<=[.;])\s/)[0] ?? content;
+  return firstSentence.length > 90 ? `${firstSentence.slice(0, 87)}…` : firstSentence;
+}
+
+/** Full tekst når overskriften er forkortet. */
+function proposalBody(row: AtomEnrichmentProposalRow): string | null {
+  const payload = payloadOf(row);
+  const content = str(payload, "content_no") ?? str(payload, "content");
+  if (!content) return null;
+  return content === proposalTitle(row) ? null : content;
+}
+
+const ATOM_TYPE_GROUPS: Record<string, string> = {
+  role: "Roller",
+  achievement: "Resultater",
+  metric: "Resultater",
+  skill: "Kompetanse",
+  tool: "Verktøy",
+  domain: "Eksponering",
+  education: "Kvalifikasjoner",
+  certification: "Kvalifikasjoner",
+  language: "Språk",
+  project: "Prosjekter",
+  volunteer: "Frivillig arbeid",
+  context: "Kontekst",
+  summary_fragment: "Oppsummering",
+};
+
+const ATOM_TYPE_LABELS: Record<string, string> = {
+  role: "Rolle",
+  achievement: "Resultat",
+  metric: "Måltall",
+  skill: "Kompetanse",
+  tool: "Verktøy",
+  domain: "Eksponering",
+  education: "Utdanning",
+  certification: "Sertifisering",
+  language: "Språk",
+  project: "Prosjekt",
+  volunteer: "Frivillig arbeid",
+  context: "Kontekst",
+  summary_fragment: "Oppsummering",
+};
+
+function atomTypeOf(row: AtomEnrichmentProposalRow): string | null {
+  const t = payloadOf(row)["atom_type"];
+  return typeof t === "string" && t.trim() ? t.trim() : null;
+}
+
+function proposalGroupName(row: AtomEnrichmentProposalRow): string {
+  const t = atomTypeOf(row);
+  return (t && ATOM_TYPE_GROUPS[t]) || "Andre forslag";
 }
 
 function proposalKindLabel(row: AtomEnrichmentProposalRow): string {
-  const payload = (row.proposal_payload ?? {}) as Record<string, unknown>;
-  const type = payload["atom_type"];
-  if (typeof type === "string" && TARGET_ATOM_TYPE_LABELS[type]) return TARGET_ATOM_TYPE_LABELS[type];
+  const t = atomTypeOf(row);
+  if (t && ATOM_TYPE_LABELS[t]) return ATOM_TYPE_LABELS[t];
+  const target = row.target_atom_type;
+  if (typeof target === "string" && TARGET_ATOM_TYPE_LABELS[target])
+    return TARGET_ATOM_TYPE_LABELS[target];
   return "Forslag";
 }
+
+/** Forslag som databasen uansett ville avvist — vis grunnen i stedet for å feile etter klikk. */
+function approvalBlockedReason(row: AtomEnrichmentProposalRow): string | null {
+  if (row.proposal_action !== "create_atom") return null;
+  const t = atomTypeOf(row);
+  const payload = payloadOf(row);
+  const pointers = payload["evidence_atom_ids"];
+  const hasPointers = Array.isArray(pointers) && pointers.length > 0;
+  if ((t === "skill" || t === "domain") && !hasPointers) {
+    return "Mangler kobling til rolle eller resultat. Gå til trinn 3 for å plassere kompetansen.";
+  }
+  if (t === "domain" && !str(payload, "parent_atom_id")) {
+    return "Mangler rollen eksponeringen hører til.";
+  }
+  return null;
+}
+
 
 export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
   const qc = useQueryClient();
