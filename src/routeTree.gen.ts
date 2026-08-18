@@ -67,6 +67,7 @@ import { Route as AuthenticatedMinProfilImporterCvRouteImport } from './routes/_
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
+import { Route as AuthenticatedForslagCvRouteImport } from './routes/_authenticated/forslag/cv'
 import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
 import { Route as AuthenticatedDocumentsNewRouteImport } from './routes/_authenticated/documents/new'
 import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenticated/documents/$id'
@@ -419,6 +420,11 @@ const AuthenticatedInnstillingerIntegrasjonerRoute =
     path: '/innstillinger/integrasjoner',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedForslagCvRoute = AuthenticatedForslagCvRouteImport.update({
+  id: '/forslag/cv',
+  path: '/forslag/cv',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedEmployersCompanyIdRoute =
   AuthenticatedEmployersCompanyIdRouteImport.update({
     id: '/employers/$companyId',
@@ -667,6 +673,7 @@ export interface FileRoutesByFullPath {
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/forslag/cv': typeof AuthenticatedForslagCvRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
@@ -756,6 +763,7 @@ export interface FileRoutesByTo {
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/forslag/cv': typeof AuthenticatedForslagCvRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
@@ -850,6 +858,7 @@ export interface FileRoutesById {
   '/_authenticated/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/_authenticated/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
+  '/_authenticated/forslag/cv': typeof AuthenticatedForslagCvRoute
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
@@ -944,6 +953,7 @@ export interface FileRouteTypes {
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
+    | '/forslag/cv'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
@@ -1033,6 +1043,7 @@ export interface FileRouteTypes {
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
+    | '/forslag/cv'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
@@ -1126,6 +1137,7 @@ export interface FileRouteTypes {
     | '/_authenticated/documents/$id'
     | '/_authenticated/documents/new'
     | '/_authenticated/employers/$companyId'
+    | '/_authenticated/forslag/cv'
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
@@ -1605,6 +1617,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInnstillingerIntegrasjonerRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/forslag/cv': {
+      id: '/_authenticated/forslag/cv'
+      path: '/forslag/cv'
+      fullPath: '/forslag/cv'
+      preLoaderRoute: typeof AuthenticatedForslagCvRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/employers/$companyId': {
       id: '/_authenticated/employers/$companyId'
       path: '/employers/$companyId'
@@ -1873,6 +1892,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDocumentsIdRoute: typeof AuthenticatedDocumentsIdRoute
   AuthenticatedDocumentsNewRoute: typeof AuthenticatedDocumentsNewRoute
   AuthenticatedEmployersCompanyIdRoute: typeof AuthenticatedEmployersCompanyIdRoute
+  AuthenticatedForslagCvRoute: typeof AuthenticatedForslagCvRoute
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedKarriereErfaringRoute: typeof AuthenticatedKarriereErfaringRoute
@@ -1934,6 +1954,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentsIdRoute: AuthenticatedDocumentsIdRoute,
   AuthenticatedDocumentsNewRoute: AuthenticatedDocumentsNewRoute,
   AuthenticatedEmployersCompanyIdRoute: AuthenticatedEmployersCompanyIdRoute,
+  AuthenticatedForslagCvRoute: AuthenticatedForslagCvRoute,
   AuthenticatedInnstillingerIntegrasjonerRoute:
     AuthenticatedInnstillingerIntegrasjonerRoute,
   AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
