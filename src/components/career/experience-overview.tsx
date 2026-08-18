@@ -383,7 +383,9 @@ export function ExperienceOverview() {
 
   return (
     <div className="space-y-6">
+      <PendingWorkNotice />
       <PageSectionNav sections={sections} />
+
 
       {roleBlocks.length > 0 ? (
         <section id="sek-roller" className="scroll-mt-20">

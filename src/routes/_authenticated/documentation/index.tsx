@@ -49,7 +49,7 @@ function DocumentationOverviewPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <StatCard
               to="/documentation/library"
               icon={FileText}
@@ -63,10 +63,16 @@ function DocumentationOverviewPage() {
               value={data?.professionalCases ?? 0}
             />
             <StatCard
-              to="/documentation/cases"
+              to="/documentation/resultater"
               icon={BarChart3}
               label="Resultater"
-              value={data?.professionalResults ?? 0}
+              value={(data?.professionalResults ?? 0) + (data?.careerResults ?? 0)}
+            />
+            <StatCard
+              to="/documentation/kompetanse"
+              icon={Lightbulb}
+              label="Kompetanser"
+              value={data?.careerSkills ?? 0}
             />
             <StatCard
               to="/documentation/packages"
@@ -76,6 +82,7 @@ function DocumentationOverviewPage() {
             />
           </div>
         )}
+
 
         <Card className="max-w-3xl">
           <CardHeader className="pb-2">
@@ -101,9 +108,12 @@ function DocumentationOverviewPage() {
 const STAT_LINK_ROUTES = [
   "/documentation/library",
   "/documentation/cases",
+  "/documentation/resultater",
+  "/documentation/kompetanse",
   "/documentation/packages",
 ] as const;
 type StatCardTo = (typeof STAT_LINK_ROUTES)[number];
+
 
 function StatCard({
   to,
