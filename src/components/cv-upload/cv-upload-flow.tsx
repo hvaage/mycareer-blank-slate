@@ -190,21 +190,34 @@ export function CvUploadFlow({ userId, onCompleted, compact }: Props) {
       setCounts(parsedCounts);
 
       setStage({ kind: "preparing", importId, fileName });
-      let commitResult: CommitResponse;
+      let commitResult: CommitResponse | null = null;
       try {
-        commitResult = await commit.mutateAsync(importId);
+        // Et grunnlag som allerede er lagt skal ikke legges på nytt. Uten dette
+        // ville et nytt forsøk etter en feil senere i kjeden alltid stoppe på
+        // «allerede importert», og brukeren mistet muligheten til å prøve igjen.
+        const { data: state } = await supabase
+          .from("cv_imports")
+          .select("status, committed_at")
+          .eq("id", importId)
+          .maybeSingle();
+        const alreadyCommitted =
+          (state as any)?.status === "committed" || !!(state as any)?.committed_at;
+        if (!alreadyCommitted) commitResult = await commit.mutateAsync(importId);
       } catch (e: any) {
-        setStage({
-          kind: "error",
-          from: "prepare",
-          errorCode: e?.code ?? "database_error",
-          message: e?.message,
-          importId,
-          fileName,
-        });
-        return;
+        if (e?.code !== "already_committed") {
+          setStage({
+            kind: "error",
+            from: "prepare",
+            errorCode: e?.code ?? "database_error",
+            message: e?.message,
+            importId,
+            fileName,
+          });
+          return;
+        }
       }
-      onCompleted?.(commitResult);
+      if (commitResult) onCompleted?.(commitResult);
+
 
       const started = await startAtomizationJob({ cvImportId: importId });
       if ("error" in started) {
