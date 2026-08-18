@@ -73,9 +73,9 @@ export function CvReviewSkillsStep({
   const confirm = useMutation({
     mutationFn: async (items: { item: SkillBasisItem; pointerIds: string[] }[]) => {
       for (const entry of items) {
-        const type = (entry.item.candidate.resolved_atom_type ??
-          entry.item.candidate.suggested_atom_type ??
-          "skill") as CareerAtomType;
+        // Typen kommer fra kompetanseforslaget, ikke fra kilderaden: en
+        // kompetanse kan ha proveniens i en resultatlinje.
+        const type = entry.item.atomType as CareerAtomType;
         await promoteCandidate({
           userId,
           candidate: entry.item.candidate,
@@ -247,8 +247,7 @@ function SkillCard({
 
   const showPicker = editing || item.needsPlacement;
   const pointerIds = [...selectedRoles, ...selectedResults];
-  const isDomain =
-    (item.candidate.resolved_atom_type ?? item.candidate.suggested_atom_type) === "domain";
+  const isDomain = item.atomType === "domain";
   const canConfirm = isDomain ? selectedRoles.size > 0 : pointerIds.length > 0;
 
   // Resultatvalg begrenses til den valgte rollen. Hele CV-ens resultater er

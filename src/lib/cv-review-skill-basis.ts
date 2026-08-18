@@ -46,6 +46,8 @@ export interface SkillBasisItem {
   roles: SuggestionRole[];
   /** Kun resultater som inngår i kompetansens evidence refs. */
   results: SuggestionResult[];
+  /** Atomtypen kompetansen skal promoteres som. Kommer fra forslaget. */
+  atomType: "skill" | "domain";
   /** v2.1s placement_confidence. */
   confidence: string | null;
   /** v2.1s placement_source, uendret. */
@@ -78,6 +80,10 @@ function str(v: unknown): string | null {
 export function buildSkillBasis(input: {
   proposals: SkillProposalRow[];
   skillCandidates: CvParseCandidateRow[];
+  /** Alle kandidater i importen. Et kompetanseforslag kan ha proveniens i en
+   *  resultatlinje (f.eks. en metodikk nevnt i et resultat) — da finnes ikke
+   *  kilderaden blant kompetansekandidatene. */
+  allCandidates?: CvParseCandidateRow[];
   roles: SuggestionRole[];
   results: SuggestionResult[];
   /** local_ref → promotert atom-id, fra bekreftede kandidater. */
@@ -85,8 +91,9 @@ export function buildSkillBasis(input: {
 }): SkillBasis {
   const roleById = new Map(input.roles.map((r) => [r.atomId, r] as const));
   const resultById = new Map(input.results.map((r) => [r.atomId, r] as const));
-  const candidateById = new Map(input.skillCandidates.map((c) => [c.id, c] as const));
-  const candidateByRef = new Map(input.skillCandidates.map((c) => [c.local_ref, c] as const));
+  const lookupRows = [...(input.allCandidates ?? []), ...input.skillCandidates];
+  const candidateById = new Map(lookupRows.map((c) => [c.id, c] as const));
+  const candidateByRef = new Map(lookupRows.map((c) => [c.local_ref, c] as const));
 
   // v2.1 local_id → promotert atom-id, via parselagets local_ref.
   const roleAtomByLocalId = new Map<string, string>();
@@ -186,6 +193,7 @@ export function buildSkillBasis(input: {
       title,
       tier,
       candidate,
+      atomType: p.payload.atom_type === "domain" ? "domain" : "skill",
       roles,
       results,
       confidence: str(data["placement_confidence"]),
