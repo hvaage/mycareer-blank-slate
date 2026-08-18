@@ -102,22 +102,41 @@ export function buildSkillBasis(input: {
   const roleAtomByLocalId = new Map<string, string>();
   const resultAtomByLocalId = new Map<string, string>();
   const roleLocalIdByResultLocalId = new Map<string, string>();
+  // v2.1 local_id → lesbar omtale (stilling og selskap) for begrunnelsestekst.
+  const roleLabelByLocalId = new Map<string, string>();
+  const resultRoleLocalIdList: { localId: string }[] = [];
 
   for (const p of input.proposals) {
     const type = p.payload.atom_type;
     const data = sd(p);
     const localId = str(data["local_id"]);
     const ref = str(data["parse_local_ref"]);
-    if (!localId || !ref) continue;
-    const atomId = input.promotedByLocalRef.get(ref) ?? null;
+    if (!localId) continue;
+    const atomId = ref ? (input.promotedByLocalRef.get(ref) ?? null) : null;
     if (type === "role") {
       if (atomId) roleAtomByLocalId.set(localId, atomId);
+      const title = str(data["title"]) ?? str(p.payload.content_no ?? null) ?? "rollen";
+      const employer = str(data["employer"]);
+      roleLabelByLocalId.set(localId, employer ? `${title} i ${employer}` : title);
     } else if (type === "achievement" || type === "role_evidence") {
       if (atomId) resultAtomByLocalId.set(localId, atomId);
       const rl = str(data["role_local_id"]);
       if (rl) roleLocalIdByResultLocalId.set(localId, rl);
+      resultRoleLocalIdList.push({ localId });
     }
   }
+
+  // Lesbar omtale av resultater krever rolleetikettene, som er komplette først nå.
+  const readableByLocalId = new Map<string, string>(roleLabelByLocalId);
+  for (const { localId } of resultRoleLocalIdList) {
+    const roleLocalId = roleLocalIdByResultLocalId.get(localId);
+    const roleLabel = roleLocalId ? roleLabelByLocalId.get(roleLocalId) : null;
+    readableByLocalId.set(
+      localId,
+      roleLabel ? `resultatet under ${roleLabel}` : "resultatet i CV-en",
+    );
+  }
+
 
   const items: SkillBasisItem[] = [];
   const localSignals: SkillBasis["localSignals"] = [];
