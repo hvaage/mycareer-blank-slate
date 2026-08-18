@@ -33,6 +33,7 @@ import { Route as AuthenticatedSoknadsdokumenterRouteImport } from './routes/_au
 import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenticated/preferences'
 import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
 import { Route as AuthenticatedMarkedRouteImport } from './routes/_authenticated/marked'
+import { Route as AuthenticatedKilderRouteImport } from './routes/_authenticated/kilder'
 import { Route as AuthenticatedJobLeadsRouteImport } from './routes/_authenticated/job-leads'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -226,6 +227,11 @@ const AuthenticatedMyApplicationsRoute =
 const AuthenticatedMarkedRoute = AuthenticatedMarkedRouteImport.update({
   id: '/marked',
   path: '/marked',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedKilderRoute = AuthenticatedKilderRouteImport.update({
+  id: '/kilder',
+  path: '/kilder',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedJobLeadsRoute = AuthenticatedJobLeadsRouteImport.update({
@@ -650,6 +656,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/kilder': typeof AuthenticatedKilderRoute
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
@@ -742,6 +749,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/kilder': typeof AuthenticatedKilderRoute
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
@@ -839,6 +847,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/_authenticated/kilder': typeof AuthenticatedKilderRoute
   '/_authenticated/marked': typeof AuthenticatedMarkedRoute
   '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/_authenticated/preferences': typeof AuthenticatedPreferencesRoute
@@ -936,6 +945,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/job-leads'
+    | '/kilder'
     | '/marked'
     | '/my-applications'
     | '/preferences'
@@ -1028,6 +1038,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/job-leads'
+    | '/kilder'
     | '/marked'
     | '/my-applications'
     | '/preferences'
@@ -1124,6 +1135,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/integrations'
     | '/_authenticated/job-leads'
+    | '/_authenticated/kilder'
     | '/_authenticated/marked'
     | '/_authenticated/my-applications'
     | '/_authenticated/preferences'
@@ -1402,6 +1414,13 @@ declare module '@tanstack/react-router' {
       path: '/marked'
       fullPath: '/marked'
       preLoaderRoute: typeof AuthenticatedMarkedRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/kilder': {
+      id: '/_authenticated/kilder'
+      path: '/kilder'
+      fullPath: '/kilder'
+      preLoaderRoute: typeof AuthenticatedKilderRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/job-leads': {
@@ -1904,6 +1923,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedJobLeadsRoute: typeof AuthenticatedJobLeadsRoute
+  AuthenticatedKilderRoute: typeof AuthenticatedKilderRoute
   AuthenticatedMarkedRoute: typeof AuthenticatedMarkedRoute
   AuthenticatedMyApplicationsRoute: typeof AuthenticatedMyApplicationsRoute
   AuthenticatedPreferencesRoute: typeof AuthenticatedPreferencesRoute
@@ -1961,6 +1981,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedJobLeadsRoute: AuthenticatedJobLeadsRoute,
+  AuthenticatedKilderRoute: AuthenticatedKilderRoute,
   AuthenticatedMarkedRoute: AuthenticatedMarkedRoute,
   AuthenticatedMyApplicationsRoute: AuthenticatedMyApplicationsRoute,
   AuthenticatedPreferencesRoute: AuthenticatedPreferencesRoute,
