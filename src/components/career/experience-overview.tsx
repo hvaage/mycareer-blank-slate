@@ -439,7 +439,7 @@ export function ExperienceOverview() {
                       <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold">
-                          {[role.content_no ?? "Rolle", employer, period].filter(Boolean).join(" · ")}
+                          {[roleTitle(role), employer, period].filter(Boolean).join(" · ")}
                         </span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">
                           {roleResults.length} resultater · {roleSkills.length} kompetanser ·{" "}
