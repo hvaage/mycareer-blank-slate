@@ -66,7 +66,7 @@ const primaryGroups: GroupNode[] = [
       { label: "Erfaring og kompetanse", to: "/karriere/erfaring" },
       { label: "Karriereprofil", to: "/preferences" },
       { label: "Min dokumentasjon", to: "/documentation" },
-      { label: "Dokumenter", to: "/documents" },
+      
       { label: "AI-forslag", to: "/career/atom-review" },
     ],
     matchPrefixes: [
