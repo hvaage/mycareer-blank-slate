@@ -3,17 +3,28 @@
  *
  * Kanonisk regel: for en v2.1-import er `atom_enrichment_proposals` autoritet
  * for kompetansens canonical label/key, hvilke roller og resultater som
- * understøtter den, sikkerhetsnivå og om elementet er en gjennomgåbar
- * kompetanse eller bare et lokalt evidenssignal.
+ * understøtter den, sikkerhetsnivå og direktehet i belegget.
+ *
+ * Modellregel: **bredde er ikke opptaksterskel**. En kompetanse som er
+ * eksplisitt oppgitt, eller som har konkret belegg i én rolle eller ett
+ * resultat, vises i Trinn 3 med sin faktiske beleggstatus. Bredde er
+ * informasjon, ikke filter.
  *
  * `cv_parse_candidates` er kilde og provenance — den styrer aldri alene
  * plasseringen. Modulen gjetter aldri kobling fra tekstlikhet, skriver
- * ingenting, og forhåndsvelger aldri en rolle uten dokumentert belegg.
+ * ingenting, og forhåndsvelger aldri en rolle (heller ikke Privat eller
+ * Freelance) uten dokumentert belegg.
  */
 import type { CvParseCandidateRow } from "@/lib/queries/cv-parse-candidates";
 import type { SuggestionRole, SuggestionResult } from "@/lib/cv-review-skill-suggestions";
 
 export type SkillTier = "reviewable" | "local_signal";
+
+/** Hvor direkte belegget er. */
+export type SkillDirectness = "direct" | "semantic" | "none";
+
+/** Bredden i belegget. Vises som informasjon, aldri som terskel. */
+export type SkillBreadth = "multiple_roles" | "single_role" | "single_result" | "none";
 
 export interface SkillProposalRow {
   id: string;
@@ -37,6 +48,12 @@ export interface SkillBasisItem {
   results: SuggestionResult[];
   /** v2.1s placement_confidence. */
   confidence: string | null;
+  /** v2.1s placement_source, uendret. */
+  placementSource: string | null;
+  directness: SkillDirectness;
+  breadth: SkillBreadth;
+  /** Eksplisitt oppgitt som kompetanse i CV-en. */
+  explicit: boolean;
   reason: string;
   /** Ingen dokumentert rolle/resultat: brukeren må plassere selv. */
   needsPlacement: boolean;
@@ -44,7 +61,7 @@ export interface SkillBasisItem {
 
 export interface SkillBasis {
   items: SkillBasisItem[];
-  /** Kompetanser v2.1 holder som lokale evidenssignaler (vises ikke som kort). */
+  /** Utledede signaler uten konkret rolle-/resultatbelegg — hører til Trinn 2. */
   localSignals: { canonicalKey: string; title: string }[];
   /** Rå kompetansekandidater uten v2.1-forslag — avvik, ikke tomme kort. */
   deviations: CvParseCandidateRow[];
@@ -103,19 +120,12 @@ export function buildSkillBasis(input: {
     const title =
       str(data["display_label"]) ?? str(p.payload.content_no ?? null) ?? canonicalKey ?? "";
     const tier: SkillTier = data["skill_tier"] === "local_signal" ? "local_signal" : "reviewable";
+    const explicit = data["skill_explicit"] === true;
 
     const candidate =
       (str(data["parse_candidate_id"]) && candidateById.get(str(data["parse_candidate_id"])!)) ||
       (str(data["parse_local_ref"]) && candidateByRef.get(str(data["parse_local_ref"])!)) ||
       null;
-
-    if (tier === "local_signal") {
-      localSignals.push({ canonicalKey, title });
-      if (candidate) usedCandidateIds.add(candidate.id);
-      continue;
-    }
-    if (!candidate) continue;
-    usedCandidateIds.add(candidate.id);
 
     // Eksplisitte evidenspekere — aldri tekstlikhet.
     const roleIds = new Set<string>();
@@ -143,7 +153,32 @@ export function buildSkillBasis(input: {
 
     const roles = [...roleIds].map((id) => roleById.get(id)!).filter(Boolean);
     const results = [...resultIds].map((id) => resultById.get(id)!).filter(Boolean);
-    const needsPlacement = roles.length === 0 && results.length === 0;
+    const hasConcreteEvidence = roles.length > 0 || results.length > 0;
+
+    // Bredde skjuler aldri en kompetanse. Et element havner bare i lokale
+    // signaler når det verken er eksplisitt oppgitt eller har konkret belegg.
+    if (!hasConcreteEvidence && !explicit && tier === "local_signal") {
+      localSignals.push({ canonicalKey, title });
+      if (candidate) usedCandidateIds.add(candidate.id);
+      continue;
+    }
+    if (!candidate) continue;
+    usedCandidateIds.add(candidate.id);
+
+    const placementSource = str(data["placement_source"]);
+    const directness: SkillDirectness = !hasConcreteEvidence
+      ? "none"
+      : placementSource === "semantic_evidence_match"
+        ? "semantic"
+        : "direct";
+    const breadth: SkillBreadth =
+      roles.length >= 2
+        ? "multiple_roles"
+        : roles.length === 1
+          ? "single_role"
+          : results.length >= 1
+            ? "single_result"
+            : "none";
 
     items.push({
       proposalId: p.id,
@@ -154,8 +189,12 @@ export function buildSkillBasis(input: {
       roles,
       results,
       confidence: str(data["placement_confidence"]),
-      reason: buildReason(roles, results),
-      needsPlacement,
+      placementSource,
+      directness,
+      breadth,
+      explicit,
+      reason: str(data["placement_reason"]) ?? buildReason(roles, results, directness),
+      needsPlacement: !hasConcreteEvidence,
     });
   }
 
@@ -163,7 +202,11 @@ export function buildSkillBasis(input: {
   return { items, localSignals, deviations };
 }
 
-function buildReason(roles: SuggestionRole[], results: SuggestionResult[]): string {
+function buildReason(
+  roles: SuggestionRole[],
+  results: SuggestionResult[],
+  directness: SkillDirectness,
+): string {
   if (roles.length === 0 && results.length === 0) {
     return "CV-analysen fant ingen rolle eller resultat som belegger kompetansen. Velg selv hvor den hører hjemme.";
   }
@@ -171,9 +214,10 @@ function buildReason(roles: SuggestionRole[], results: SuggestionResult[]): stri
     .map((r) => (r.employer ? `${r.title} i ${r.employer}` : r.title))
     .join(", ");
   const resultText = results.map((r) => `«${shorten(r.title)}»`).join(", ");
-  if (roleText && resultText) return `Koblet til ${roleText} og resultatet ${resultText}.`;
-  if (roleText) return `Koblet til ${roleText}.`;
-  return `Koblet til resultatet ${resultText}.`;
+  const prefix = directness === "semantic" ? "Tolket kobling til" : "Koblet til";
+  if (roleText && resultText) return `${prefix} ${roleText} og resultatet ${resultText}.`;
+  if (roleText) return `${prefix} ${roleText}.`;
+  return `${prefix} resultatet ${resultText}.`;
 }
 
 function shorten(value: string, max = 60): string {
@@ -185,4 +229,17 @@ export const SKILL_PLACEMENT_CONFIDENCE_LABEL: Record<string, string> = {
   high: "Høy sikkerhet",
   medium: "Middels sikkerhet",
   low: "Lav sikkerhet",
+};
+
+export const SKILL_DIRECTNESS_LABEL: Record<SkillDirectness, string> = {
+  direct: "Direkte belegg",
+  semantic: "Semantisk forslag",
+  none: "Uten belegg",
+};
+
+export const SKILL_BREADTH_LABEL: Record<SkillBreadth, string> = {
+  multiple_roles: "Dokumentert i flere roller",
+  single_role: "Dokumentert i én rolle",
+  single_result: "Dokumentert i ett resultat",
+  none: "Ingen dokumentert bredde",
 };
