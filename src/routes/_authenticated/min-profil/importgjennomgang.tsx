@@ -6,6 +6,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
  */
 export const Route = createFileRoute("/_authenticated/min-profil/importgjennomgang")({
   beforeLoad: () => {
-    throw redirect({ to: "/min-profil/importer-cv" });
+    throw redirect({ to: "/kilder" });
   },
 });

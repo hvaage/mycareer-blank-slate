@@ -70,9 +70,9 @@ const primaryGroups: GroupNode[] = [
       { label: "Min profil", to: "/min-profil" },
       { label: "Om meg", to: "/about-me", indent: true },
       { label: "Karriereoversikt", to: "/karriere/erfaring", indent: true },
-      { label: "Importer eksisterende CV", to: "/min-profil/importer-cv", indent: true },
+      { label: "Importer eksisterende CV", to: "/kilder", indent: true },
       { label: "Min dokumentasjon", to: "/documentation" },
-      { label: "AI-forslag", to: "/career/atom-review" },
+      { label: "AI-forslag", to: "/forslag/ai" },
     ],
     matchPrefixes: [
       "/about-me",
@@ -225,10 +225,10 @@ export function AppSidebar() {
     const groups = primaryGroups.map((g) => {
       if (g.id !== "career" || !reviewPending || !g.items) return g;
       const items = [...g.items];
-      const at = items.findIndex((i) => i.to === "/min-profil/importer-cv");
+      const at = items.findIndex((i) => i.to === "/kilder");
       items.splice(at + 1, 0, {
         label: "CV-gjennomgang",
-        to: "/career/cv-review",
+        to: "/forslag/cv",
         indent: true,
       });
       return { ...g, items };

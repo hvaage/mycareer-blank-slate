@@ -249,7 +249,7 @@ function MinProfilPage() {
         status: pending.openImports > 0 ? "gjennomgang" : "fullfort",
         counter: pending.openImports > 0 ? "import ikke ferdig" : "ingen import venter",
         why: "CV-en brukes som kilde til karriereoversikten, ikke som vedlegg i søknader.",
-        to: "/min-profil/importer-cv",
+        to: "/kilder",
       },
     ];
   }, [
@@ -294,7 +294,7 @@ function MinProfilPage() {
           <CardContent className="flex flex-wrap gap-2">
             {pending.pendingCandidates > 0 && (
               <Button asChild size="sm">
-                <Link to="/career/cv-review">Fortsett gjennomgangen</Link>
+                <Link to="/forslag/cv">Fortsett gjennomgangen</Link>
               </Button>
             )}
             {pending.openImports > 0 && (
@@ -424,13 +424,13 @@ function MinProfilPage() {
             </p>
             <div className="flex flex-wrap gap-2 pt-2">
               <Button asChild size="sm" variant="outline">
-                <Link to="/min-profil/importer-cv">Importer eksisterende CV</Link>
+                <Link to="/kilder">Importer eksisterende CV</Link>
               </Button>
               <Button asChild size="sm" variant="ghost">
                 <Link to="/documentation/cv">CV-er</Link>
               </Button>
               <Button asChild size="sm" variant="ghost">
-                <Link to="/career/cv-review">CV-gjennomgang</Link>
+                <Link to="/forslag/cv">CV-gjennomgang</Link>
               </Button>
               <Button asChild size="sm" variant="ghost">
                 <Link to="/documentation">Min dokumentasjon</Link>
