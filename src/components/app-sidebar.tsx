@@ -68,11 +68,10 @@ const primaryGroups: GroupNode[] = [
     icon: BookOpen,
     items: [
       { label: "Min profil", to: "/min-profil" },
-      { label: "Om meg", to: "/about-me", indent: true },
-      { label: "Karriereoversikt", to: "/karriere/erfaring", indent: true },
-      { label: "Importer eksisterende CV", to: "/kilder", indent: true },
+      { label: "Karriereoversikt", to: "/karriere/erfaring" },
+      { label: "Legg til kilder", to: "/kilder" },
+      { label: "Gjennomgå forslag", to: "/forslag" },
       { label: "Min dokumentasjon", to: "/documentation" },
-      { label: "AI-forslag", to: "/forslag/ai" },
     ],
     matchPrefixes: [
       "/about-me",
@@ -80,9 +79,12 @@ const primaryGroups: GroupNode[] = [
       "/preferences",
       "/career",
       "/karriere",
+      "/kilder",
+      "/forslag",
       "/documentation",
       "/documents",
     ],
+
 
   },
   {
