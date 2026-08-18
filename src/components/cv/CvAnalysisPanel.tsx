@@ -149,6 +149,21 @@ function approvalBlockedReason(row: AtomEnrichmentProposalRow): string | null {
   return null;
 }
 
+/** Grupperer forslag etter type, i stabil rekkefølge. */
+function groupRowsByKind(
+  rows: AtomEnrichmentProposalRow[],
+): Array<[string, AtomEnrichmentProposalRow[]]> {
+  const groups = new Map<string, AtomEnrichmentProposalRow[]>();
+  for (const row of rows) {
+    const key = proposalGroupName(row);
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(row);
+    else groups.set(key, [row]);
+  }
+  return Array.from(groups.entries());
+}
+
+
 
 export function CvAnalysisPanel({ userId, importId, candidates }: Props) {
   const qc = useQueryClient();
