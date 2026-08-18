@@ -62,6 +62,7 @@ import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generation
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
 import { Route as AuthenticatedMinProfilKarriereretningRouteImport } from './routes/_authenticated/min-profil/karriereretning'
 import { Route as AuthenticatedMinProfilImportgjennomgangRouteImport } from './routes/_authenticated/min-profil/importgjennomgang'
+import { Route as AuthenticatedMinProfilImporterCvRouteImport } from './routes/_authenticated/min-profil/importer-cv'
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
@@ -385,6 +386,12 @@ const AuthenticatedMinProfilImportgjennomgangRoute =
     path: '/min-profil/importgjennomgang',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedMinProfilImporterCvRoute =
+  AuthenticatedMinProfilImporterCvRouteImport.update({
+    id: '/min-profil/importer-cv',
+    path: '/min-profil/importer-cv',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedKarriereErfaringRoute =
   AuthenticatedKarriereErfaringRouteImport.update({
     id: '/karriere/erfaring',
@@ -639,6 +646,7 @@ export interface FileRoutesByFullPath {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
@@ -724,6 +732,7 @@ export interface FileRoutesByTo {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
@@ -814,6 +823,7 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/_authenticated/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/_authenticated/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/_authenticated/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
@@ -904,6 +914,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
@@ -989,6 +1000,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
@@ -1078,6 +1090,7 @@ export interface FileRouteTypes {
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
+    | '/_authenticated/min-profil/importer-cv'
     | '/_authenticated/min-profil/importgjennomgang'
     | '/_authenticated/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
@@ -1518,6 +1531,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMinProfilImportgjennomgangRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/min-profil/importer-cv': {
+      id: '/_authenticated/min-profil/importer-cv'
+      path: '/min-profil/importer-cv'
+      fullPath: '/min-profil/importer-cv'
+      preLoaderRoute: typeof AuthenticatedMinProfilImporterCvRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/karriere/erfaring': {
       id: '/_authenticated/karriere/erfaring'
       path: '/karriere/erfaring'
@@ -1793,6 +1813,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedKarriereErfaringRoute: typeof AuthenticatedKarriereErfaringRoute
+  AuthenticatedMinProfilImporterCvRoute: typeof AuthenticatedMinProfilImporterCvRoute
   AuthenticatedMinProfilImportgjennomgangRoute: typeof AuthenticatedMinProfilImportgjennomgangRoute
   AuthenticatedMinProfilKarriereretningRoute: typeof AuthenticatedMinProfilKarriereretningRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1850,6 +1871,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedInnstillingerIntegrasjonerRoute,
   AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
   AuthenticatedKarriereErfaringRoute: AuthenticatedKarriereErfaringRoute,
+  AuthenticatedMinProfilImporterCvRoute: AuthenticatedMinProfilImporterCvRoute,
   AuthenticatedMinProfilImportgjennomgangRoute:
     AuthenticatedMinProfilImportgjennomgangRoute,
   AuthenticatedMinProfilKarriereretningRoute:
