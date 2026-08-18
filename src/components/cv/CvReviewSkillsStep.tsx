@@ -22,6 +22,10 @@ import {
   promoteCandidate,
   type CvParseCandidateRow,
 } from "@/lib/queries/cv-parse-candidates";
+import { rejectCandidate } from "@/lib/queries/cv-parse-candidates";
+import { addManualSkill } from "@/lib/queries/cv-review-manual-skills";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { advanceReviewProgress } from "@/lib/queries/cv-review-progress";
 import type { SuggestionResult, SuggestionRole } from "@/lib/cv-review-skill-suggestions";
 import {
