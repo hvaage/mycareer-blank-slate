@@ -633,8 +633,9 @@ export async function markAtomEnrichmentProposalNeedsContext(
     .eq("status", "pending_review")
     .select("id")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw readableProposalError(error);
   if (!data) throw new Error("Fant ikke forslaget, eller det er allerede behandlet.");
+
 }
 
 export async function reopenAtomEnrichmentProposalToPending(
