@@ -13,6 +13,20 @@ Regler:
 8. Bullets fra hver rolle skal splittes til separate strenger i achievements-arrayet.
 9. Hvis en seksjon mangler helt i CV-en (f.eks. ingen sertifiseringer): bruk tom liste [].
 
+VIKTIG om "tools" (verktøy, systemer og programvare):
+- Let etter navngitte verktøy i HELE CV-en: egne verktøyseksjoner, ferdighetslister,
+  rollebeskrivelser og bullets.
+- Typiske eksempler: CRM- og salgsverktøy (Salesforce, HubSpot, Pipedrive),
+  kontor- og samhandlingsverktøy (Excel, PowerPoint, Teams, Slack, Notion),
+  analyse/BI (Power BI, Tableau, SQL, Google Analytics), prosjekt- og sakssystemer
+  (Jira, Confluence, Asana, Trello), fag- og bransjesystemer (SAP, Visma, Tripletex, ERP),
+  utvikling og sky (Git, Docker, AWS, Azure), navngitte KI-verktøy (ChatGPT, Copilot, Claude).
+- "name" er produktnavnet slik det skrives offisielt, uten versjonsnummer.
+- "context" er den korte kildesetningen verktøyet ble nevnt i, eller null.
+- Generiske ferdigheter uten produktnavn (f.eks. "dataanalyse", "prosjektledelse")
+  hører hjemme i "skills", ikke i "tools".
+- Et verktøy som også står i ferdighetslisten skal listes i "tools", og kan da utelates fra "skills".
+
 VIKTIG om experience-feltene:
 - "role_summary": 1–2 setninger som beskriver hva personen faktisk gjorde i rollen (ansvar, scope, team). Aldri en gjentakelse av en bullet. La være null hvis CV-en ikke har en separat rolle-beskrivelse.
 - "bullets": konkrete prestasjoner og oppgaver, én per element. Skal IKKE gjenta innholdet i role_summary.
