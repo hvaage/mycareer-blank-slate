@@ -238,8 +238,40 @@ function MinProfilPage() {
         counter: `${pending.documents} dokumenter`,
         why: "Belegg du kan vedlegge søknader og intervjuer.",
       },
+      {
+        id: "karriereoversikt-side",
+        label: "Karriereoversikt",
+        status: needsReview
+          ? "gjennomgang"
+          : roles.length + results.length + skills.length > 0
+            ? "fullfort"
+            : "mangler",
+        counter: `${roles.length + results.length + skills.length} elementer`,
+        why: "Hele erfaringsbildet ditt, rolle for rolle.",
+        to: "/karriere/erfaring",
+      },
+      {
+        id: "cv-filer",
+        label: "CV-filer",
+        status: pending.openImports > 0 ? "gjennomgang" : "fullfort",
+        counter: pending.openImports > 0 ? "import ikke ferdig" : "ingen import venter",
+        why: "Last opp CV og se filene som er brukt som grunnlag.",
+        to: "/about-me",
+        search: { tab: "cv" },
+      },
     ];
-  }, [careerStage, profile, roles.length, results.length, skills.length, qualifications.length, needsReview, pending.documents]);
+  }, [
+    careerStage,
+    profile,
+    roles.length,
+    results.length,
+    skills.length,
+    qualifications.length,
+    needsReview,
+    pending.documents,
+    pending.openImports,
+  ]);
+
 
   if (!user) return null;
 
