@@ -64,7 +64,11 @@ export function CvReviewSkillsStep({
     [basis.items, skipped],
   );
   const documented = pending.filter((i) => !i.needsPlacement);
+  const narrow = documented.filter(
+    (i) => i.breadth === "single_role" || i.breadth === "single_result",
+  );
   const unresolved = pending.filter((i) => i.needsPlacement);
+
 
   const confirm = useMutation({
     mutationFn: async (items: { item: SkillBasisItem; pointerIds: string[] }[]) => {
