@@ -276,7 +276,7 @@ function MinProfilPage() {
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 p-4 lg:p-6">
+    <div className="mx-auto max-w-5xl space-y-8 p-4 lg:p-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Min profil</h1>
         <p className="max-w-prose text-sm text-muted-foreground">
