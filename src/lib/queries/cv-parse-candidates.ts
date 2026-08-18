@@ -198,6 +198,25 @@ export interface PromoteCandidateInput {
   evidenceAtomIds?: string[];
   /** Brukeren bekrefter innholdet selv → confidence «verified». */
   verified: boolean;
+  /**
+   * Kompetanse som er utledet av en annen kandidatrad (f.eks. en metodikk
+   * nevnt i en resultatlinje). Da eier kompetansen ikke kilderaden: den
+   * dedupliseres på denne nøkkelen, og kandidatens status røres ikke.
+   */
+  derivedKey?: string | null;
+  /** Kanonisk merkelapp når kompetansen ikke arver kilderadens tekst. */
+  titleOverride?: string | null;
+}
+
+/** Ser etter et allerede bekreftet, utledet element (egen nøkkel). */
+async function findExistingDerived(userId: string, derivedKey: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("career_atoms")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("structured_data->>derived_skill_key", derivedKey)
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 /** Ser etter et allerede bekreftet element for kandidaten. */
@@ -234,9 +253,12 @@ export async function promoteCandidate(
   const { userId, candidate, resolvedType, verified } = input;
   const pointers = input.evidenceAtomIds ?? [];
   const parentAtomId = input.parentAtomId ?? null;
-  const title = candidateTitle(candidate);
+  const derivedKey = input.derivedKey ?? null;
+  const title = (input.titleOverride ?? "").trim() || candidateTitle(candidate);
 
-  const already = await findExistingPromotion(userId, candidate.id);
+  const already = derivedKey
+    ? await findExistingDerived(userId, derivedKey)
+    : await findExistingPromotion(userId, candidate.id);
   if (already) return { atomId: already, alreadyPromoted: true };
 
   if (requiresEvidencePointer(resolvedType) && pointers.length === 0) {
@@ -258,6 +280,7 @@ export async function promoteCandidate(
     suggested_atom_type: candidate.suggested_atom_type,
     resolved_by_user: candidate.suggested_atom_type !== resolvedType,
   };
+  if (derivedKey) structured["derived_skill_key"] = derivedKey;
   structured["logical_key"] = careerAtomLogicalKey({
     atom_kind: "evidens",
     atom_type: resolvedType,
@@ -290,10 +313,16 @@ export async function promoteCandidate(
   if (error) {
     // Samtidig bekreftelse eller allerede promotert kandidat: aldri en teknisk
     // feil til brukeren — vi returnerer elementet som allerede finnes.
-    const raced = await findExistingPromotion(userId, candidate.id);
+    const raced = derivedKey
+      ? await findExistingDerived(userId, derivedKey)
+      : await findExistingPromotion(userId, candidate.id);
     if (raced) return { atomId: raced, alreadyPromoted: true };
     throw error;
   }
+
+  // Utledet kompetanse eier ikke kilderaden — den skal fortsatt gjennomgås
+  // som resultat i trinn 2.
+  if (derivedKey) return { atomId: data.id };
 
   const { error: updErr } = await supabase
     .from("cv_parse_candidates")

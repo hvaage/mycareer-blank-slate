@@ -48,6 +48,8 @@ export interface SkillBasisItem {
   results: SuggestionResult[];
   /** Atomtypen kompetansen skal promoteres som. Kommer fra forslaget. */
   atomType: "skill" | "domain";
+  /** Satt når kilderaden tilhører et resultat, ikke kompetansen selv. */
+  derivedKey: string | null;
   /** v2.1s placement_confidence. */
   confidence: string | null;
   /** v2.1s placement_source, uendret. */
