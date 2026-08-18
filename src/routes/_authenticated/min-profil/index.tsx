@@ -13,10 +13,8 @@ import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { PageSectionNav } from "@/components/layout/page-section-nav";
 import { getCareerStage } from "@/lib/career-stage";
-import { docRoleLabel } from "@/lib/queries/documentation-atoms";
 import {
   AREA_STATUS_LABEL,
   filledOf,
@@ -169,6 +167,8 @@ function MinProfilPage() {
   }, [profile]);
 
   const stageDef = careerStage ? getCareerStage(careerStage) : null;
+  // Ønskede arbeidsgivere er ikke registrert som eget felt ennå; vises som «Ikke utfylt».
+  const targetEmployers: string | null = null;
 
   const roles = atoms?.roles ?? [];
   const results = atoms?.results ?? [];
