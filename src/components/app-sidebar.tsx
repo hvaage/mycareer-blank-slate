@@ -63,7 +63,6 @@ const primaryGroups: GroupNode[] = [
     icon: BookOpen,
     items: [
       { label: "Min profil", to: "/min-profil" },
-      { label: "Om meg", to: "/about-me", indent: true },
       { label: "Importgjennomgang", to: "/min-profil/importgjennomgang", indent: true },
       { label: "Erfaring og kompetanse", to: "/karriere/erfaring" },
       { label: "Min dokumentasjon", to: "/documentation" },
