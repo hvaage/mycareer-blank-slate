@@ -203,22 +203,8 @@ function AboutMePage() {
           <TabsTrigger value="karriereoversikt" className="gap-1.5 text-sm">
             <Network className="h-4 w-4" /> Karriereoversikt
           </TabsTrigger>
-          <TabsTrigger value="cv" className="gap-1.5 text-sm">
-            <FileText className="h-4 w-4" /> CV-filer
-          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="cv" className="mt-4 space-y-3">
-          <p className="max-w-prose text-sm text-muted-foreground">
-            Filene her lagres som de er. Skal innholdet bli karrieredata du kan bekrefte, laster du opp CV-en under{" "}
-            <strong>Karriereoversikt</strong>.
-          </p>
-          <CvUploader
-            userId={user.id}
-            profile={p}
-            onChanged={() => qc.invalidateQueries({ queryKey: ["profile", user.id] })}
-          />
-        </TabsContent>
 
         <TabsContent value="karriereoversikt" className="mt-4">
           <AboutMeCvSection userId={user.id} />
