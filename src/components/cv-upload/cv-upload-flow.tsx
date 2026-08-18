@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, CheckCircle2, AlertTriangle, FileText, RotateCcw, X } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, FileText, RotateCcw, X, ChevronDown, ChevronRight, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { CvDropzone } from "./dropzone";
 import { ArchiveCvPicker } from "./archive-picker";
