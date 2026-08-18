@@ -224,20 +224,18 @@ export function AppSidebar() {
   });
 
   const allGroups = useMemo(() => {
+    // «Gjennomgå forslag» ligger alltid i menyen; ventende arbeid markeres på selve punktet.
     const groups = primaryGroups.map((g) => {
       if (g.id !== "career" || !reviewPending || !g.items) return g;
-      const items = [...g.items];
-      const at = items.findIndex((i) => i.to === "/kilder");
-      items.splice(at + 1, 0, {
-        label: "CV-gjennomgang",
-        to: "/forslag/cv",
-        indent: true,
-      });
+      const items = g.items.map((i) =>
+        i.to === "/forslag" ? { ...i, badge: "Venter" } : i,
+      );
       return { ...g, items };
     });
     if (admin) groups.push(adminGroup);
     return groups;
   }, [admin, reviewPending]);
+
 
   // Innstillinger ligger i bunnområdet, men må være søkbar for aktiv-gruppe og undermeny.
   const lookupGroups = useMemo(() => [...allGroups, settingsGroup], [allGroups]);
