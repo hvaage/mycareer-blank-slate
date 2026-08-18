@@ -173,6 +173,9 @@ export function buildSkillBasis(input: {
     }
     if (!candidate) continue;
     usedCandidateIds.add(candidate.id);
+    // Kilderaden er kompetansens egen bare når den faktisk er en
+    // kompetansekandidat. Ellers er kompetansen utledet av raden.
+    const ownsCandidate = skillCandidateIds.has(candidate.id);
 
     const placementSource = str(data["placement_source"]);
     const directness: SkillDirectness = !hasConcreteEvidence
@@ -196,6 +199,7 @@ export function buildSkillBasis(input: {
       tier,
       candidate,
       atomType: p.payload.atom_type === "domain" ? "domain" : "skill",
+      derivedKey: ownsCandidate ? null : `${candidate.import_id}:${canonicalKey || p.id}`,
       roles,
       results,
       confidence: str(data["placement_confidence"]),
