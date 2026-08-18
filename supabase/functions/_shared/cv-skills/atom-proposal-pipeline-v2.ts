@@ -775,6 +775,8 @@ export function buildProposalRows(
       tierReasons?: string[];
       roleCount?: number;
       achievementCount?: number;
+      breadth?: "multiple_roles" | "single_role" | "single_result" | "none";
+
       explicit?: boolean;
       // Fase 4 — kompetansebelegg. Settes bare når fasen har kjørt.
       skillPlacementConfidence?: "high" | "medium" | "low" | "none";
