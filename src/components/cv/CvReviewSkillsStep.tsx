@@ -121,9 +121,13 @@ export function CvReviewSkillsStep({
           {documented.length > 0 && (
             <Badge variant="outline">{documented.length} med belegg</Badge>
           )}
+          {narrow.length > 0 && (
+            <Badge variant="outline">{narrow.length} med belegg fra én rolle/ett resultat</Badge>
+          )}
           {unresolved.length > 0 && (
             <Badge variant="outline">{unresolved.length} trenger vurdering</Badge>
           )}
+
           {documented.length > 1 && (
             <Button
               size="sm"
