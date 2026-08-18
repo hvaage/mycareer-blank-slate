@@ -231,7 +231,9 @@ function AboutMePage() {
               id: s.id,
               label: s.label,
               status: sectionStatus(s.filled, s.total),
+              hint: `${s.filled} av ${s.total}`,
             }))}
+
           />
 
           <FormSection
