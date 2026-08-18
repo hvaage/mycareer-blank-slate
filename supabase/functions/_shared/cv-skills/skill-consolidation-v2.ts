@@ -184,11 +184,26 @@ export function consolidateSkills(
     if (explicit) reasons.push("oppgitt_som_kompetanse");
     if (achievementIds.size >= 2) reasons.push("belegg_fra_flere_resultater");
     if (roleIds.size >= 2) reasons.push("belegg_fra_flere_roller");
+    if (achievementIds.size === 1) reasons.push("belegg_fra_ett_resultat");
+    if (roleIds.size === 1) reasons.push("belegg_fra_en_rolle");
     if (hasEvidence && GENERIC_REVIEWABLE.has(skill.canonicalKey)) {
       reasons.push("generell_kompetanse_med_belegg");
     }
 
-    const tier: SkillTier = reasons.length > 0 && hasEvidence ? "reviewable" : "local_signal";
+    const hasConcreteEvidence = roleIds.size > 0 || achievementIds.size > 0;
+    const breadth: SkillBreadth =
+      roleIds.size >= 2
+        ? "multiple_roles"
+        : roleIds.size === 1
+          ? "single_role"
+          : achievementIds.size >= 1
+            ? "single_result"
+            : "none";
+
+    // Bredde skjuler aldri en kompetanse: eksplisitt oppgitt eller konkret
+    // belagt er nok for gjennomgang i Trinn 3.
+    const tier: SkillTier =
+      (explicit && hasEvidence) || hasConcreteEvidence ? "reviewable" : "local_signal";
     if (tier === "local_signal") {
       reasons.push(hasEvidence ? "lokalt_signal" : "mangler_kildebelegg");
     }
@@ -199,8 +214,10 @@ export function consolidateSkills(
       tierReasons: reasons,
       roleCount: roleIds.size,
       achievementCount: achievementIds.size,
+      breadth,
       explicit,
     };
+
   });
 
   const reviewable = consolidated.filter((s) => s.tier === "reviewable");
