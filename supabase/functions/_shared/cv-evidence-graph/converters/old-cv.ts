@@ -96,6 +96,7 @@ export interface ParsedOldCv {
   experience?: ParsedOldCvExperience[];
   education?: ParsedOldCvEducation[];
   skills?: string[];
+  tools?: ParsedOldCvTool[];
   languages?: ParsedOldCvLanguage[];
   certifications?: ParsedOldCvCertification[];
   projects?: ParsedOldCvProject[];
