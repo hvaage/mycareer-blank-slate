@@ -11,7 +11,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, SkipForward } from "lucide-react";
+import { CheckCircle2, Loader2, Plus, SkipForward } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,10 @@ import {
   promoteCandidate,
   type CvParseCandidateRow,
 } from "@/lib/queries/cv-parse-candidates";
+import { rejectCandidate } from "@/lib/queries/cv-parse-candidates";
+import { addManualSkill } from "@/lib/queries/cv-review-manual-skills";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { advanceReviewProgress } from "@/lib/queries/cv-review-progress";
 import type { SuggestionResult, SuggestionRole } from "@/lib/cv-review-skill-suggestions";
 import {
@@ -106,7 +110,51 @@ export function CvReviewSkillsStep({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const busy = confirm.isPending || advance.isPending;
+  const [adding, setAdding] = useState(false);
+  const [formKey, setFormKey] = useState(0);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  const openDeviations = useMemo(
+    () => basis.deviations.filter((c) => c.status === "ubehandlet" && !dismissed.has(c.id)),
+    [basis.deviations, dismissed],
+  );
+
+  const addSkill = useMutation({
+    mutationFn: (v: {
+      title: string;
+      reason: string;
+      pointerIds: string[];
+      candidate?: CvParseCandidateRow;
+    }) =>
+      addManualSkill({
+        userId,
+        importId,
+        title: v.title,
+        reason: v.reason,
+        evidenceAtomIds: v.pointerIds,
+        candidate: v.candidate ?? null,
+      }),
+    onSuccess: () => {
+      toast.success("Kompetansen er lagt til.");
+      setAdding(false);
+      setFormKey((k) => k + 1);
+      invalidateCandidateQueries(qc, userId);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const dismiss = useMutation({
+    mutationFn: (c: CvParseCandidateRow) =>
+      rejectCandidate(userId, c, "Ikke relevant som kompetanse"),
+    onSuccess: (_d, c) => {
+      setDismissed((prev) => new Set(prev).add(c.id));
+      invalidateCandidateQueries(qc, userId);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const busy =
+    confirm.isPending || advance.isPending || addSkill.isPending || dismiss.isPending;
 
   return (
     <div className="space-y-5">
@@ -190,24 +238,61 @@ export function CvReviewSkillsStep({
         </Card>
       )}
 
-      {basis.deviations.length > 0 && (
+      {openDeviations.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Avvik fra CV-analysen</CardTitle>
             <CardDescription>
-              {basis.deviations.length} funn i råteksten ble ikke tatt med som kompetanse av
-              analysen. De blir ikke egne kort, men er beholdt som kilde.
+              {openDeviations.length} funn i råteksten ble ikke tatt med som kompetanse av
+              analysen. Du kan legge dem til selv: rett teksten, skriv en begrunnelse og velg
+              hvilken rolle eller hvilket resultat de hører til.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {basis.deviations.map((c) => (
-              <Badge key={c.id} variant="outline">
-                {(c.content_no ?? c.content_en ?? "Uten tekst").slice(0, 48)}
-              </Badge>
+          <CardContent className="space-y-3">
+            {openDeviations.map((c) => (
+              <ManualSkillForm
+                key={c.id}
+                initialTitle={(c.content_no ?? c.content_en ?? "").trim()}
+                roles={roles}
+                results={results}
+                busy={busy}
+                submitLabel="Legg til kompetansen"
+                onSubmit={(v) => addSkill.mutate({ ...v, candidate: c })}
+                onDismiss={() => dismiss.mutate(c)}
+              />
             ))}
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Mangler en kompetanse?</CardTitle>
+          <CardDescription>
+            Legg til kompetanse du ser at analysen ikke fanget opp. Den må belegges av minst én
+            rolle eller ett resultat.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {adding ? (
+            <ManualSkillForm
+              key={formKey}
+              initialTitle=""
+              roles={roles}
+              results={results}
+              busy={busy}
+              submitLabel="Legg til kompetansen"
+              onSubmit={(v) => addSkill.mutate(v)}
+              onDismiss={() => setAdding(false)}
+              dismissLabel="Avbryt"
+            />
+          ) : (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => setAdding(true)}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> Legg til kompetanse
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="flex justify-between">
         <Button variant="ghost" disabled={busy} onClick={onBack}>
@@ -399,3 +484,137 @@ function SkillCard({
 }
 
 export type { CvParseCandidateRow };
+
+/**
+ * Kompetanse lagt inn av brukeren — enten et avvik fra CV-analysen eller en
+ * helt ny kompetanse. Belegg er obligatorisk: minst én rolle eller ett resultat.
+ */
+function ManualSkillForm({
+  initialTitle,
+  roles,
+  results,
+  busy,
+  submitLabel,
+  onSubmit,
+  onDismiss,
+  dismissLabel = "Ikke relevant",
+}: {
+  initialTitle: string;
+  roles: SuggestionRole[];
+  results: SuggestionResult[];
+  busy: boolean;
+  submitLabel: string;
+  onSubmit: (v: { title: string; reason: string; pointerIds: string[] }) => void;
+  onDismiss: () => void;
+  dismissLabel?: string;
+}) {
+  const [title, setTitle] = useState(initialTitle);
+  const [reason, setReason] = useState("");
+  const [selectedRoles, setSelectedRoles] = useState<Set<string>>(new Set());
+  const [selectedResults, setSelectedResults] = useState<Set<string>>(new Set());
+
+  const selectableResults = useMemo(
+    () => results.filter((r) => (r.roleAtomId ? selectedRoles.has(r.roleAtomId) : false)),
+    [results, selectedRoles],
+  );
+
+  const pointerIds = [...selectedRoles, ...selectedResults];
+  const canSave = title.trim().length > 0 && pointerIds.length > 0;
+
+  function toggle(set: Set<string>, id: string, apply: (s: Set<string>) => void) {
+    const next = new Set(set);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    apply(next);
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border p-3">
+      <div className="space-y-1.5">
+        <Label className="text-xs">Kompetanse</Label>
+        <Input
+          value={title}
+          disabled={busy}
+          placeholder="F.eks. MEDDPICC salgsmetodikk"
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Begrunnelse (valgfritt)</Label>
+        <Textarea
+          value={reason}
+          disabled={busy}
+          rows={2}
+          placeholder="Hvorfor hører denne kompetansen hjemme, og hvor har du brukt den?"
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs">Hvilke roller gjelder kompetansen?</Label>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {roles.map((r) => (
+            <label key={r.atomId} className="flex items-start gap-2 text-sm">
+              <Checkbox
+                checked={selectedRoles.has(r.atomId)}
+                disabled={busy}
+                onCheckedChange={() => toggle(selectedRoles, r.atomId, setSelectedRoles)}
+              />
+              <span className="min-w-0">
+                {r.employer ? (
+                  <>
+                    <span className="text-muted-foreground">{r.employer} · </span>
+                    {r.title}
+                  </>
+                ) : (
+                  r.title
+                )}
+              </span>
+            </label>
+          ))}
+          {roles.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Ingen bekreftede roller ennå. Gå tilbake til tidslinjen først.
+            </p>
+          )}
+        </div>
+      </div>
+      {selectableResults.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-xs">
+            Resultater under valgt rolle som viser kompetansen (valgfritt)
+          </Label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {selectableResults.map((r) => (
+              <label key={r.atomId} className="flex items-start gap-2 text-sm">
+                <Checkbox
+                  checked={selectedResults.has(r.atomId)}
+                  disabled={busy}
+                  onCheckedChange={() => toggle(selectedResults, r.atomId, setSelectedResults)}
+                />
+                <span className="min-w-0">{r.title}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          disabled={busy || !canSave}
+          onClick={() => onSubmit({ title, reason, pointerIds })}
+        >
+          <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> {submitLabel}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={onDismiss}>
+          {dismissLabel}
+        </Button>
+      </div>
+      {!canSave && (
+        <p className="text-xs text-muted-foreground">
+          Kompetanse belegges alltid indirekte. Skriv en tittel og velg minst én rolle eller ett
+          resultat.
+        </p>
+      )}
+    </div>
+  );
+}
