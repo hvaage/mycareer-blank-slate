@@ -393,20 +393,47 @@ export function CvUploadFlow({ userId, onCompleted, compact, hasExistingImport }
     stage.kind === "preparing" ||
     stage.kind === "analyzing";
 
+  const collapsed = hasExistingImport && !expanded && stage.kind === "idle";
+  const title = hasExistingImport
+    ? "Oppdater karriereoversikten din fra en ny CV"
+    : "Bygg karriereoversikt fra CV";
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className={compact ? "text-base" : undefined}>
-          Bygg karriereoversikt fra CV
-        </CardTitle>
-        <CardDescription>
-          Last opp PDF eller DOCX. Analysen starter av seg selv når opplastingen er ferdig, og
-          etterpå går du gjennom innholdet i fire trinn. Ingenting lagres i karriereoversikten før
-          du har bekreftet det.
-        </CardDescription>
+      <CardHeader
+        className={cn(
+          hasExistingImport && stage.kind === "idle" && "cursor-pointer",
+        )}
+        onClick={() => {
+          if (hasExistingImport && stage.kind === "idle") {
+            setExpanded((v) => !v);
+          }
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <CardTitle className={compact ? "text-base" : undefined}>
+              {title}
+            </CardTitle>
+            <CardDescription>
+              {hasExistingImport
+                ? "Har du en nyere CV, eller vil du legge til en rolle du mangler? Last opp en ny fil og gå gjennom endringene."
+                : "Last opp PDF eller DOCX. Analysen starter av seg selv når opplastingen er ferdig, og etterpå går du gjennom innholdet i fire trinn. Ingenting lagres i karriereoversikten før du har bekreftet det."}
+            </CardDescription>
+          </div>
+          {hasExistingImport && stage.kind === "idle" && (
+            <Button variant="ghost" size="sm" className="shrink-0" onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}>
+              {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {stage.kind === "idle" && (
+        {collapsed ? (
+          <Button onClick={() => setExpanded(true)}>
+            <Upload className="mr-2 h-4 w-4" /> Last opp ny CV
+          </Button>
+        ) : stage.kind === "idle" && (
           <div className="space-y-4">
             <ArchiveCvPicker
               userId={userId}
