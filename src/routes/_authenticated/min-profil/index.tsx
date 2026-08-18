@@ -370,6 +370,9 @@ function MinProfilPage() {
             </p>
             <div className="flex flex-wrap gap-2 pt-2">
               <Button asChild size="sm" variant="outline">
+                <Link to="/min-profil/importgjennomgang">Importgjennomgang</Link>
+              </Button>
+              <Button asChild size="sm" variant="ghost">
                 <Link to="/about-me" search={{ tab: "cv" }}>
                   CV-filer
                 </Link>
