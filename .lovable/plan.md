@@ -97,12 +97,17 @@ Dokument og evidens skilles i to lag.
 `id`, `user_id`, `document_id` (filen ligger i `documents`), `kind` (medarbeidersamtale, 1-til-1, KSO, OKR, salgsmål, prosjektbeskrivelse, kvartalsmål, årsbudsjett, annet), `employer`, `content_hash`, `version`, `ai_processing_consent` (default false), `archived_at`, `created_at`. Ingen mål, resultater eller atomreferanser her.
 
 **Lag 2 — `employer_source_candidates` (evidensoppføringer):**
-`id`, `user_id`, `source_document_id`, `candidate_kind` (målsetting, resultat, tallverdi, rollekontekst), `objective_text`, `result_text`, `result_value`, `result_unit`, `period_start`, `period_end`, `role_context_text` (fritekst, ikke atom-id), `source_span` (side/avsnitt/sitat), `source_hash`, `source_type` (`document_extract` | `user_input`), `review_status` (pending, godkjent, avvist), `created_at`.
+`id`, `user_id`, `source_document_id` (null for manuelle), `candidate_kind` (målsetting, resultat, tallverdi, rollekontekst), `objective_text`, `result_text`, `result_value`, `result_unit`, `period_start`, `period_end`, `role_context_text` (fritekst, ikke atom-id), `source_type` (`document_extract` | `user_input`), `source_document_version`, `source_hash`, `source_span` (strukturert: side/avsnitt/offset + sitat), `review_status` (pending, godkjent, avvist), `created_at`.
+
+Kildekrav (korrigering 2):
+- `document_extract` krever alltid kilde-dokument-id, dokumentversjon eller hash, og strukturert `source_span` med side/avsnitt/offset og sitat der dette finnes.
+- `user_input` krever stabil id for oppføringen, `user_id`, `created_at`, `source_type = 'user_input'` og tydelig provenance i UI. Det lages **aldri** en kunstig `source_span` for manuelt oppgitt innhold; feltet står tomt.
 
 Regler:
 - Ett dokument gir mange kandidater.
 - `user_attested` brukes **ikke** her. Det begrepet er reservert for eksplisitt attestasjon av en konkret CV-claim via `cv_claim_attestations`. Manuelt innskrevne mål/resultater lagres som `source_type = 'user_input'` med brukerprovenance, gir ikke dokumentert belegg og påvirker ikke claim-attestasjon.
 - Dokumentutdrag (`source_type = 'document_extract'`) kan gi dokumentert belegg, men først etter at kandidaten er godkjent i kildegjennomgangen.
+
 - Ingen `role_atom_id` på kildetabellene. Rollekontekst lagres som tekst; rolleplassering og atomlenker skjer utelukkende gjennom kanonisk review-/RPC-flyt (samme mønster som `career_atom_link_decide` / `cv_review_set_role_choice`).
 - Ingen trigger eller kode skriver automatisk til `career_atoms`. Godkjenning i gjennomgangen velger enten «Styrk eksisterende» (evidenslenke til eksisterende atom) eller «Opprett nytt» (kandidat → atom via RPC).
 - RLS på begge tabeller: alle policyer scoper på `auth.uid() = user_id`; ingen anon-tilgang. GRANT til `authenticated` og `service_role`.
