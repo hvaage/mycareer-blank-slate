@@ -87,6 +87,34 @@ export interface ParsedOldCvVolunteer {
   description?: string | null;
 }
 
+/** Kategorien fra parseren er fri tekst; atomet har en lukket verdimengde. */
+function toolKindFromCategory(
+  category: string | null,
+): "crm" | "methodology" | "platform" | "framework" | "other" {
+  switch ((category ?? "").toLowerCase()) {
+    case "salg":
+    case "crm":
+      return "crm";
+    case "utvikling":
+    case "sky":
+    case "ki":
+    case "analyse":
+      return "platform";
+    case "prosjekt":
+    case "fag":
+    case "kontor":
+      return "other";
+    default:
+      return "other";
+  }
+}
+
+export interface ParsedOldCvTool {
+  name: string;
+  category?: string | null;
+  context?: string | null;
+}
+
 export interface ParsedOldCv {
   language_detected?: "no" | "en";
   name?: string | null;
@@ -96,6 +124,7 @@ export interface ParsedOldCv {
   experience?: ParsedOldCvExperience[];
   education?: ParsedOldCvEducation[];
   skills?: string[];
+  tools?: ParsedOldCvTool[];
   languages?: ParsedOldCvLanguage[];
   certifications?: ParsedOldCvCertification[];
   projects?: ParsedOldCvProject[];
@@ -299,11 +328,48 @@ export function convertOldCv(
   }
 
   // -----------------------------------------------------------------------
+  // Tools — navngitte verktøy, systemer og programvare fra hele CV-en.
+  // Parselaget foreslår; brukeren bekrefter i trinn 4.
+  // -----------------------------------------------------------------------
+  const toolNamesSeen = new Set<string>();
+  for (const t of parsed.tools ?? []) {
+    const rawName = typeof t === "string" ? t : t?.name;
+    if (!nonEmpty(rawName)) continue;
+    const name = rawName.trim();
+    const key = name.toLowerCase();
+    if (toolNamesSeen.has(key)) continue;
+    toolNamesSeen.add(key);
+
+    const known = lookupNameSuggestion(name);
+    const canonical = known?.atom_type === "tool" ? known.canonical : name;
+    const context = typeof t === "string" ? null : (t?.context ?? null);
+    candidates.push({
+      ...baseFields,
+      local_ref: ref("tool"),
+      suggested_atom_type: "tool",
+      suggested_from_category: known?.category ?? ("other" as const),
+      content_no: canonical,
+      content_en: canonical,
+      structured_data: {
+        name: canonical,
+        tool_kind: toolKindFromCategory(typeof t === "string" ? null : (t?.category ?? null)),
+        proficiency: null,
+        years_used: null,
+        suggested_from_name_lexicon: known?.atom_type === "tool" ? true : false,
+      } as ToolStructuredData,
+      source_quote: nonEmpty(context) ? context.trim() : null,
+      parse_confidence: known?.atom_type === "tool" ? known.parse_confidence : 0.7,
+    });
+  }
+
+  // -----------------------------------------------------------------------
   // Skills
   // -----------------------------------------------------------------------
   for (const skillName of parsed.skills ?? []) {
     if (!nonEmpty(skillName)) continue;
     const name = skillName.trim();
+    // Verktøy som allerede er fanget over skal ikke dubleres som kompetanse.
+    if (toolNamesSeen.has(name.toLowerCase())) continue;
     // Fritekst-CV gir ingen sikker kategori. "other" betyr eksplisitt ukjent
     // akse. Navneleksikonet kan likevel gi et trygt forhåndsvalg for de mest
     // kjente navnene — forslaget bæres av suggested_atom_type, valget av

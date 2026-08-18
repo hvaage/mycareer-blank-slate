@@ -13,10 +13,8 @@ import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { PageSectionNav } from "@/components/layout/page-section-nav";
 import { getCareerStage } from "@/lib/career-stage";
-import { docRoleLabel } from "@/lib/queries/documentation-atoms";
 import {
   AREA_STATUS_LABEL,
   filledOf,
@@ -169,6 +167,8 @@ function MinProfilPage() {
   }, [profile]);
 
   const stageDef = careerStage ? getCareerStage(careerStage) : null;
+  // Ønskede arbeidsgivere er ikke registrert som eget felt ennå; vises som «Ikke utfylt».
+  const targetEmployers: string | null = null;
 
   const roles = atoms?.roles ?? [];
   const results = atoms?.results ?? [];
@@ -197,39 +197,30 @@ function MinProfilPage() {
       },
       {
         id: "karriereretning",
-        label: "Karriereretning",
-        status: statusFromCount(direction, 4),
-        counter: `${direction} av 4`,
-        why: "Styrer hvilke stillinger som vurderes for deg.",
-      },
-
-      {
-        id: "karriereoversikt",
-        label: "Erfaring og roller",
-        status: needsReview ? "gjennomgang" : countStatus(roles.length),
-        counter: `${roles.length} bekreftede roller`,
-        why: "Grunnlaget for CV og vurdering av relevans.",
+        label: "Karriereretning og jobbønsker",
+        status: statusFromCount(direction + wishes, 8),
+        counter: `${direction + wishes} av 8`,
+        why: "Retning, arbeidsform, sted, lønn og ønskede arbeidsgivere.",
       },
       {
-        id: "karriereoversikt",
-        label: "Resultater og kompetanse",
-        status: needsReview ? "gjennomgang" : countStatus(results.length + skills.length),
-        counter: `${results.length} resultater · ${skills.length} kompetanser`,
-        why: "Det du kan belegge med konkrete eksempler.",
+        id: "erfaring-kompetanse",
+        label: "Erfaring og kompetanse",
+        status: needsReview
+          ? "gjennomgang"
+          : roles.length + results.length + skills.length > 0
+            ? "fullfort"
+            : "mangler",
+        counter: `${roles.length} roller · ${results.length} resultater · ${skills.length} kompetanser`,
+        why: "Hele erfaringsbildet ditt, rolle for rolle.",
+        to: "/karriere/erfaring",
       },
       {
-        id: "karriereoversikt",
+        id: "kvalifikasjoner",
         label: "Utdanning og kvalifikasjoner",
         status: countStatus(qualifications.length),
         counter: `${qualifications.length} registrert`,
         why: "Formelle krav i utlysninger sjekkes mot dette.",
-      },
-      {
-        id: "karriereretning",
-        label: "Jobbønsker",
-        status: statusFromCount(wishes, 4),
-        counter: `${wishes} av 4`,
-        why: "Arbeidsform, sted, søkeord og lønnsforventning.",
+        to: "/karriere/erfaring",
       },
       {
         id: "dokumentasjon",
@@ -239,16 +230,17 @@ function MinProfilPage() {
         why: "Belegg du kan vedlegge søknader og intervjuer.",
       },
       {
-        id: "karriereoversikt-side",
-        label: "Karriereoversikt",
-        status: needsReview
-          ? "gjennomgang"
-          : roles.length + results.length + skills.length > 0
-            ? "fullfort"
-            : "mangler",
-        counter: `${roles.length + results.length + skills.length} elementer`,
-        why: "Hele erfaringsbildet ditt, rolle for rolle.",
-        to: "/karriere/erfaring",
+        id: "importgjennomgang",
+        label: "Importgjennomgang",
+        status: needsReview ? "gjennomgang" : "fullfort",
+        counter:
+          pending.pendingCandidates > 0
+            ? `${pending.pendingCandidates} venter`
+            : pending.openImports > 0
+              ? "import ikke ferdig"
+              : "ingenting venter",
+        why: "CV, LinkedIn, utdanning og kurs — import og gjennomgang.",
+        to: "/min-profil/importgjennomgang",
       },
       {
         id: "cv-filer",
@@ -270,7 +262,9 @@ function MinProfilPage() {
     needsReview,
     pending.documents,
     pending.openImports,
+    pending.pendingCandidates,
   ]);
+
 
 
   if (!user) return null;
@@ -318,8 +312,8 @@ function MinProfilPage() {
 
       <Section
         id="karriereretning"
-        title="Karriereretning"
-        description="Hvor du står i dag og hva du søker mot. Svarene redigeres under Om meg."
+        title="Karriereretning og jobbønsker"
+        description="Hvor du står i dag, hva du søker mot og hvilke arbeidsgivere du ønsker deg til. Svarene redigeres under Om meg."
       >
         <Card>
           <CardContent className="pt-6">
@@ -331,6 +325,7 @@ function MinProfilPage() {
             <SummaryRow label="Steder" value={list(profile?.preferred_locations)} />
             <SummaryRow label="Søkeord" value={list(profile?.job_search_keywords)} />
             <SummaryRow label="Lønnsforventning" value={salary} />
+            <SummaryRow label="Ønskede arbeidsgivere" value={targetEmployers} />
             <div className="flex flex-wrap gap-2 pt-4">
               <Button asChild size="sm" variant="outline">
                 <Link to="/about-me" search={{ tab: "kort_om_meg" }}>
@@ -340,75 +335,14 @@ function MinProfilPage() {
               <Button asChild size="sm" variant="ghost">
                 <Link to="/min-profil/karriereretning">Endre karrierestadium</Link>
               </Button>
+              <Button asChild size="sm" variant="ghost">
+                <Link to="/arbeidsgivere">Finn arbeidsgivere</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
       </Section>
 
-      <Section
-        id="karriereoversikt"
-        title="Karriereoversikt"
-        description="Bekreftet innhold fra karriereoversikten. Forslag som ikke er godkjent vises ikke her."
-      >
-        <div className="grid gap-2 sm:grid-cols-4">
-          {[
-            { label: "Roller", value: roles.length },
-            { label: "Resultater", value: results.length },
-            { label: "Kompetanser", value: skills.length },
-            { label: "Kvalifikasjoner", value: qualifications.length },
-          ].map((k) => (
-            <div key={k.label} className="rounded-lg border bg-card p-3">
-              <p className="text-xl font-semibold tabular-nums">{k.value}</p>
-              <p className="text-xs text-muted-foreground">{k.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {roles.length > 0 && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Roller og arbeidsgivere</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1.5">
-              {roles.slice(0, 5).map((r) => (
-                <p key={r.id} className="truncate text-sm">
-                  {docRoleLabel(r)}
-                </p>
-              ))}
-              {roles.length > 5 && (
-                <p className="text-xs text-muted-foreground">+ {roles.length - 5} flere</p>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {skills.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {skills.slice(0, 12).map((s) => (
-              <Badge key={s.id} variant="secondary" className="font-normal">
-                {s.content_no}
-              </Badge>
-            ))}
-            {skills.length > 12 && (
-              <span className="self-center text-xs text-muted-foreground">
-                + {skills.length - 12} flere
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="outline">
-            <Link to="/karriere/erfaring">Åpne erfaring og kompetanse</Link>
-          </Button>
-          <Button asChild size="sm" variant="ghost">
-            <Link to="/documentation/resultater">Resultater</Link>
-          </Button>
-          <Button asChild size="sm" variant="ghost">
-            <Link to="/documentation/kompetanse">Kompetanser</Link>
-          </Button>
-        </div>
-      </Section>
 
       <Section
         id="dokumentasjon"
