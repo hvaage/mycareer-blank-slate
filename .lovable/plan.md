@@ -89,27 +89,50 @@ Felles innboks som lister ventende arbeid **per kilde** med antall og «Fortsett
 
 Regel: ingen rute slettes. Gjenopptak av en pågående gjennomgang leser fortsatt `cv_review_progress` og `cv_imports`, som ikke røres — flyttingen er ren rutingsendring. Testpunkt før deploy: start en gjennomgang på gammel URL, deploy, åpne samme URL, bekreft at brukeren lander på riktig trinn med samme import.
 
-## 5. Arbeidsgiverdokumenter — datamodell og RLS (korrigering 6)
+## 5. Arbeidsgiverkilder — todelt datamodell og RLS (korrigering 6)
 
-Ny tabell `employer_source_documents`:
-- `id`, `user_id`, `document_id` (peker til `documents`, filen lagres der), `kind` (medarbeidersamtale, 1-til-1, KSO, OKR, salgsmål, prosjektbeskrivelse, kvartalsmål, årsbudsjett, annet), `employer`, `role_atom_id` (nullbar), `period_start`, `period_end`, `objective_text`, `result_text`, `result_value`, `result_unit`, `provenance` (`documented` når verdien står i dokumentet, `user_attested` når brukeren skriver den selv), `content_hash`, `version`, `source_locator` (side/avsnitt/sitat), `ai_processing_consent` (default false), `created_at`, `archived_at`.
-- RLS: alle policyer scoper på `auth.uid() = user_id`; ingen anon-tilgang. GRANT til `authenticated` og `service_role`.
-- Ingen trigger oppretter `career_atoms`. Dokumentet produserer **kandidater** som må gjennom Gjennomgå forslag.
-- Manuelt innskrevne mål/resultat lagres som `user_attested`, aldri som `documented`.
-- Et dokument kan knyttes som **belegg til et eksisterende atom** (via `career_atom_links` / evidensprojeksjonen) uten å opprette et nytt atom — gjennomgangen tilbyr «Styrk eksisterende resultat» før «Opprett nytt».
-- Konfidensielle dokumenter sendes ikke til AI før brukeren aktivt har huket av samtykke per dokument; uten samtykke er kun manuell registrering mulig.
+Dokument og evidens skilles i to lag.
+
+**Lag 1 — `employer_source_documents` (kun dokumentmetadata):**
+`id`, `user_id`, `document_id` (filen ligger i `documents`), `kind` (medarbeidersamtale, 1-til-1, KSO, OKR, salgsmål, prosjektbeskrivelse, kvartalsmål, årsbudsjett, annet), `employer`, `content_hash`, `version`, `ai_processing_consent` (default false), `archived_at`, `created_at`. Ingen mål, resultater eller atomreferanser her.
+
+**Lag 2 — `employer_source_candidates` (evidensoppføringer):**
+`id`, `user_id`, `source_document_id`, `candidate_kind` (målsetting, resultat, tallverdi, rollekontekst), `objective_text`, `result_text`, `result_value`, `result_unit`, `period_start`, `period_end`, `role_context_text` (fritekst, ikke atom-id), `source_span` (side/avsnitt/sitat), `source_hash`, `source_type` (`document_extract` | `user_input`), `review_status` (pending, godkjent, avvist), `created_at`.
+
+Regler:
+- Ett dokument gir mange kandidater.
+- `user_attested` brukes **ikke** her. Det begrepet er reservert for eksplisitt attestasjon av en konkret CV-claim via `cv_claim_attestations`. Manuelt innskrevne mål/resultater lagres som `source_type = 'user_input'` med brukerprovenance, gir ikke dokumentert belegg og påvirker ikke claim-attestasjon.
+- Dokumentutdrag (`source_type = 'document_extract'`) kan gi dokumentert belegg, men først etter at kandidaten er godkjent i kildegjennomgangen.
+- Ingen `role_atom_id` på kildetabellene. Rollekontekst lagres som tekst; rolleplassering og atomlenker skjer utelukkende gjennom kanonisk review-/RPC-flyt (samme mønster som `career_atom_link_decide` / `cv_review_set_role_choice`).
+- Ingen trigger eller kode skriver automatisk til `career_atoms`. Godkjenning i gjennomgangen velger enten «Styrk eksisterende» (evidenslenke til eksisterende atom) eller «Opprett nytt» (kandidat → atom via RPC).
+- RLS på begge tabeller: alle policyer scoper på `auth.uid() = user_id`; ingen anon-tilgang. GRANT til `authenticated` og `service_role`.
+- Konfidensielle dokumenter sendes ikke til AI før samtykke er satt per dokument; uten samtykke er kun manuell registrering mulig.
 
 ## 6. Dokumentlivssyklus (korrigering 7, 8, 9, 10)
 
 Steg 1 — kartlegging (ingen UI-endring): fastslå eksakt hvor hvert dokument bor i dag (`documents`, `cv_imports`, `profiles.cv_*_path`).
 
-Steg 2 — servereid kontrakt: én kanonisk katalog som server-side view/RPC (`user_documents_v1`) med feltene `document_id`, `title`, `doc_type` (kilde-cv, generell cv, stillingstilpasset cv, søknadsbrev, arbeidsgiverdokument, annet), `origin` (opplastet, generert, importert), `status` (aktiv, arkivert), `usage_eligibility` (`source_only` | `submittable`), `provenance` (import-id, generasjons-id, hash), `stable_url`. Frontend slutter å slå sammen paths selv; `cv-archive-sources.ts` bygges om til å lese katalogen.
+Steg 2 — servereid katalog `user_documents_v1` (view/RPC) med feltene `document_key` (stabil identitet), `title`, `doc_type` (kilde-cv, generell cv, stillingstilpasset cv, søknadsbrev, arbeidsgiverdokument, annet), `origin` (opplastet, generert, importert), `lifecycle_state` og `provenance` (import-id, generasjons-id, hash, versjon).
 
-Steg 3 — Min dokumentasjon blir arkivet for alt: kilde-CV-er og kildedokumenter, generelle CV-er, stillingstilpassede CV-er, søknadsbrev. Søknader forblir produksjonsflaten.
+`lifecycle_state` har minst disse verdiene:
+- `source_only` — grunnlag, kan aldri sendes
+- `draft` — generert, ikke ferdig
+- `review_required` — venter kvalitets-/gjennomgangssteg
+- `application_ready` — generert, gjennomgått og eksportert
+- `archived`
 
-Steg 4 — vedleggsvelgeren i søknader filtrerer på `usage_eligibility = 'submittable'` **i spørringen/serverkontrakten**, ikke via badge. Kilde-CV-er kan teknisk ikke velges som vedlegg.
+Statusen utledes av faktisk generasjons-, review- og eksporttilstand (`cv_generation_jobs`, guard/quality-resultat, eksportert fil) — **aldri** av `document_type` alene.
+
+Katalogen dekker kilde-CV-er fra `cv_imports`, eldre `profiles.cv_*_path` og rader i `documents`, og deduplikerer på fil/import slik at samme underliggende fil vises én gang.
+
+Ingen permanent nedlastings-URL lagres eller eksponeres. Katalogen returnerer stabil dokumentidentitet; nedlasting skjer gjennom en autorisert server-funksjon som genererer signed URL ved forespørsel.
+
+Steg 3 — migrering: `documentation/cv.tsx` og `cv-archive-sources.ts` bygges om til å lese katalogen. Det opprettes ingen fjerde parallell dokumentoversikt.
+
+Steg 4 — vedleggsvelgeren i søknader får kun `lifecycle_state = 'application_ready'` fra serverkontrakten. Andre tilstander er ikke valgbare, ikke bare skjult bak badge.
 
 Steg 5 — sletting: standardhandlingen heter **Arkiver**. Permanent sletting krever konsekvensoppslag («dette dokumentet belegger N elementer i karriereoversikten») og eksplisitt bekreftelse, etter samme mønster som `career_atom_delete_impact`.
+
 
 ## 7. Risiko
 
