@@ -22,6 +22,7 @@ interface Props {
 export function AboutMeCvSection({ userId }: Props) {
   const imports = useUserImports(userId);
   const atomCount = useUserAtomCounts(userId);
+  const hasExistingImport = !!imports.data?.length;
 
   return (
     <div className="space-y-6">
@@ -53,7 +54,7 @@ export function AboutMeCvSection({ userId }: Props) {
         </CardContent>
       </Card>
 
-      <CvUploadFlow userId={userId} />
+      <CvUploadFlow userId={userId} hasExistingImport={hasExistingImport} />
 
       <Card>
         <CardHeader>
