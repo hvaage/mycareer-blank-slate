@@ -404,45 +404,70 @@ function ProposalGroup({
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyText}</p>
       ) : (
-        <ul className="space-y-2">
-          {rows.map((row) => (
-            <li key={row.id} className="rounded-md border p-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{proposalTitle(row)}</p>
-                  <p className="text-xs text-muted-foreground">{proposalKindLabel(row)}</p>
-                  {row.rationale && (
-                    <p className="mt-1 text-sm text-muted-foreground">{row.rationale}</p>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" disabled={busy} onClick={() => onDecide(row.id, "approve")}>
-                    Godkjenn
-                  </Button>
-                  {!hideNeedsContext && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => onDecide(row.id, "needs_more_context")}
-                    >
-                      Trenger mer info
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() => onDecide(row.id, "reject")}
-                  >
-                    Avvis
-                  </Button>
-                </div>
-              </div>
-            </li>
+        <div className="space-y-4">
+          {groupRowsByKind(rows).map(([groupName, groupRows]) => (
+            <div key={groupName} className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {groupName} ({groupRows.length})
+              </p>
+              <ul className="space-y-2">
+                {groupRows.map((row) => {
+                  const blocked = approvalBlockedReason(row);
+                  const body = proposalBody(row);
+                  return (
+                    <li key={row.id} className="rounded-md border p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{proposalTitle(row)}</p>
+                          <p className="text-xs text-muted-foreground">{proposalKindLabel(row)}</p>
+                          {body && <p className="mt-1 text-sm text-muted-foreground">{body}</p>}
+                          {row.rationale && (
+                            <p className="mt-1 text-sm text-muted-foreground">{row.rationale}</p>
+                          )}
+                          {blocked && (
+                            <p className="mt-1 text-xs text-amber-700 dark:text-amber-500">
+                              {blocked}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            disabled={busy || !!blocked}
+                            title={blocked ?? undefined}
+                            onClick={() => onDecide(row.id, "approve")}
+                          >
+                            Godkjenn
+                          </Button>
+                          {!hideNeedsContext && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy}
+                              onClick={() => onDecide(row.id, "needs_more_context")}
+                            >
+                              Trenger mer info
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => onDecide(row.id, "reject")}
+                          >
+                            Avvis
+                          </Button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
+
     </section>
   );
 }
