@@ -29,7 +29,6 @@ import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ArbeidsgivereOrgnrRouteImport } from './routes/arbeidsgivere.$orgnr'
-import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenticated/preferences'
 import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
 import { Route as AuthenticatedMarkedRouteImport } from './routes/_authenticated/marked'
 import { Route as AuthenticatedJobLeadsRouteImport } from './routes/_authenticated/job-leads'
@@ -59,6 +58,7 @@ import { Route as ApiInternalCvGenerationWorkerRouteImport } from './routes/api/
 import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
 import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generations'
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
+import { Route as AuthenticatedMinProfilKarriereretningRouteImport } from './routes/_authenticated/min-profil/karriereretning'
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
@@ -194,12 +194,6 @@ const ArbeidsgivereOrgnrRoute = ArbeidsgivereOrgnrRouteImport.update({
   path: '/$orgnr',
   getParentRoute: () => ArbeidsgivereRoute,
 } as any)
-const AuthenticatedPreferencesRoute =
-  AuthenticatedPreferencesRouteImport.update({
-    id: '/preferences',
-    path: '/preferences',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedMyApplicationsRoute =
   AuthenticatedMyApplicationsRouteImport.update({
     id: '/my-applications',
@@ -363,6 +357,12 @@ const ApiCvAtomizationJobsRoute = ApiCvAtomizationJobsRouteImport.update({
   path: '/api/cv/atomization-jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedMinProfilKarriereretningRoute =
+  AuthenticatedMinProfilKarriereretningRouteImport.update({
+    id: '/min-profil/karriereretning',
+    path: '/min-profil/karriereretning',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedKarriereErfaringRoute =
   AuthenticatedKarriereErfaringRouteImport.update({
     id: '/karriere/erfaring',
@@ -577,7 +577,6 @@ export interface FileRoutesByFullPath {
   '/job-leads': typeof AuthenticatedJobLeadsRoute
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
-  '/preferences': typeof AuthenticatedPreferencesRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
@@ -610,6 +609,7 @@ export interface FileRoutesByFullPath {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -658,7 +658,6 @@ export interface FileRoutesByTo {
   '/job-leads': typeof AuthenticatedJobLeadsRoute
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
-  '/preferences': typeof AuthenticatedPreferencesRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
@@ -691,6 +690,7 @@ export interface FileRoutesByTo {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -744,7 +744,6 @@ export interface FileRoutesById {
   '/_authenticated/job-leads': typeof AuthenticatedJobLeadsRoute
   '/_authenticated/marked': typeof AuthenticatedMarkedRoute
   '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
-  '/_authenticated/preferences': typeof AuthenticatedPreferencesRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
@@ -777,6 +776,7 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/_authenticated/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -830,7 +830,6 @@ export interface FileRouteTypes {
     | '/job-leads'
     | '/marked'
     | '/my-applications'
-    | '/preferences'
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
@@ -863,6 +862,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -911,7 +911,6 @@ export interface FileRouteTypes {
     | '/job-leads'
     | '/marked'
     | '/my-applications'
-    | '/preferences'
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
@@ -944,6 +943,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -996,7 +996,6 @@ export interface FileRouteTypes {
     | '/_authenticated/job-leads'
     | '/_authenticated/marked'
     | '/_authenticated/my-applications'
-    | '/_authenticated/preferences'
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
@@ -1029,6 +1028,7 @@ export interface FileRouteTypes {
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
+    | '/_authenticated/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1235,13 +1235,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ArbeidsgivereOrgnrRouteImport
       parentRoute: typeof ArbeidsgivereRoute
     }
-    '/_authenticated/preferences': {
-      id: '/_authenticated/preferences'
-      path: '/preferences'
-      fullPath: '/preferences'
-      preLoaderRoute: typeof AuthenticatedPreferencesRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/my-applications': {
       id: '/_authenticated/my-applications'
       path: '/my-applications'
@@ -1444,6 +1437,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/cv/atomization-jobs'
       preLoaderRoute: typeof ApiCvAtomizationJobsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/min-profil/karriereretning': {
+      id: '/_authenticated/min-profil/karriereretning'
+      path: '/min-profil/karriereretning'
+      fullPath: '/min-profil/karriereretning'
+      preLoaderRoute: typeof AuthenticatedMinProfilKarriereretningRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/karriere/erfaring': {
       id: '/_authenticated/karriere/erfaring'
@@ -1688,7 +1688,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedJobLeadsRoute: typeof AuthenticatedJobLeadsRoute
   AuthenticatedMarkedRoute: typeof AuthenticatedMarkedRoute
   AuthenticatedMyApplicationsRoute: typeof AuthenticatedMyApplicationsRoute
-  AuthenticatedPreferencesRoute: typeof AuthenticatedPreferencesRoute
   AuthenticatedAdminChangelogRoute: typeof AuthenticatedAdminChangelogRoute
   AuthenticatedAdminCvTestRoute: typeof AuthenticatedAdminCvTestRoute
   AuthenticatedAdminIngestionRoute: typeof AuthenticatedAdminIngestionRoute
@@ -1712,6 +1711,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedKarriereErfaringRoute: typeof AuthenticatedKarriereErfaringRoute
+  AuthenticatedMinProfilKarriereretningRoute: typeof AuthenticatedMinProfilKarriereretningRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedApplicationsIndexRoute: typeof AuthenticatedApplicationsIndexRoute
   AuthenticatedCvBuilderIndexRoute: typeof AuthenticatedCvBuilderIndexRoute
@@ -1734,7 +1734,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedJobLeadsRoute: AuthenticatedJobLeadsRoute,
   AuthenticatedMarkedRoute: AuthenticatedMarkedRoute,
   AuthenticatedMyApplicationsRoute: AuthenticatedMyApplicationsRoute,
-  AuthenticatedPreferencesRoute: AuthenticatedPreferencesRoute,
   AuthenticatedAdminChangelogRoute: AuthenticatedAdminChangelogRoute,
   AuthenticatedAdminCvTestRoute: AuthenticatedAdminCvTestRoute,
   AuthenticatedAdminIngestionRoute: AuthenticatedAdminIngestionRoute,
@@ -1764,6 +1763,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedInnstillingerIntegrasjonerRoute,
   AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
   AuthenticatedKarriereErfaringRoute: AuthenticatedKarriereErfaringRoute,
+  AuthenticatedMinProfilKarriereretningRoute:
+    AuthenticatedMinProfilKarriereretningRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedApplicationsIndexRoute: AuthenticatedApplicationsIndexRoute,
   AuthenticatedCvBuilderIndexRoute: AuthenticatedCvBuilderIndexRoute,
