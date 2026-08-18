@@ -223,11 +223,12 @@ function CvReviewPage() {
       buildSkillBasis({
         proposals: proposals.data ?? [],
         skillCandidates,
+        allCandidates: rows,
         roles: suggestionRoles,
         results: suggestionResults,
         promotedByLocalRef: promoted,
       }),
-    [proposals.data, skillCandidates, suggestionRoles, suggestionResults, promoted],
+    [proposals.data, skillCandidates, rows, suggestionRoles, suggestionResults, promoted],
   );
   const skillReviewCandidates = skillBasis.items.map((i) => i.candidate);
 

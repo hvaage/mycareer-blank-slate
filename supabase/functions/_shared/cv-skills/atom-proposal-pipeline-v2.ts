@@ -775,6 +775,8 @@ export function buildProposalRows(
       tierReasons?: string[];
       roleCount?: number;
       achievementCount?: number;
+      breadth?: "multiple_roles" | "single_role" | "single_result" | "none";
+
       explicit?: boolean;
       // Fase 4 — kompetansebelegg. Settes bare når fasen har kjørt.
       skillPlacementConfidence?: "high" | "medium" | "low" | "none";
@@ -811,6 +813,8 @@ export function buildProposalRows(
         skill_tier_reasons: calibrated.tierReasons ?? [],
         skill_role_count: calibrated.roleCount ?? null,
         skill_achievement_count: calibrated.achievementCount ?? null,
+        skill_breadth: calibrated.breadth ?? null,
+
         skill_explicit: calibrated.explicit ?? null,
         evidence_refs: s.evidence.map((e) => ({
           role_local_id: e.roleLocalId ?? null,

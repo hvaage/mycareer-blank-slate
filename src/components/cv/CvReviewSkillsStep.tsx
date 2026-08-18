@@ -25,10 +25,13 @@ import {
 import { advanceReviewProgress } from "@/lib/queries/cv-review-progress";
 import type { SuggestionResult, SuggestionRole } from "@/lib/cv-review-skill-suggestions";
 import {
+  SKILL_BREADTH_LABEL,
+  SKILL_DIRECTNESS_LABEL,
   SKILL_PLACEMENT_CONFIDENCE_LABEL,
   type SkillBasis,
   type SkillBasisItem,
 } from "@/lib/cv-review-skill-basis";
+
 import type { CareerAtomType } from "@/lib/career-atom-v4-mapping";
 
 export function CvReviewSkillsStep({
@@ -61,20 +64,26 @@ export function CvReviewSkillsStep({
     [basis.items, skipped],
   );
   const documented = pending.filter((i) => !i.needsPlacement);
+  const narrow = documented.filter(
+    (i) => i.breadth === "single_role" || i.breadth === "single_result",
+  );
   const unresolved = pending.filter((i) => i.needsPlacement);
+
 
   const confirm = useMutation({
     mutationFn: async (items: { item: SkillBasisItem; pointerIds: string[] }[]) => {
       for (const entry of items) {
-        const type = (entry.item.candidate.resolved_atom_type ??
-          entry.item.candidate.suggested_atom_type ??
-          "skill") as CareerAtomType;
+        // Typen kommer fra kompetanseforslaget, ikke fra kilderaden: en
+        // kompetanse kan ha proveniens i en resultatlinje.
+        const type = entry.item.atomType as CareerAtomType;
         await promoteCandidate({
           userId,
           candidate: entry.item.candidate,
           resolvedType: type,
           verified: true,
           evidenceAtomIds: entry.pointerIds,
+          derivedKey: entry.item.derivedKey,
+          titleOverride: entry.item.title,
           // Eksponering (domain) er alltid avledet av en rolle.
           parentAtomId: type === "domain" ? (entry.item.roles[0]?.atomId ?? null) : null,
         });
@@ -114,9 +123,13 @@ export function CvReviewSkillsStep({
           {documented.length > 0 && (
             <Badge variant="outline">{documented.length} med belegg</Badge>
           )}
+          {narrow.length > 0 && (
+            <Badge variant="outline">{narrow.length} med belegg fra én rolle/ett resultat</Badge>
+          )}
           {unresolved.length > 0 && (
             <Badge variant="outline">{unresolved.length} trenger vurdering</Badge>
           )}
+
           {documented.length > 1 && (
             <Button
               size="sm"
@@ -236,8 +249,7 @@ function SkillCard({
 
   const showPicker = editing || item.needsPlacement;
   const pointerIds = [...selectedRoles, ...selectedResults];
-  const isDomain =
-    (item.candidate.resolved_atom_type ?? item.candidate.suggested_atom_type) === "domain";
+  const isDomain = item.atomType === "domain";
   const canConfirm = isDomain ? selectedRoles.size > 0 : pointerIds.length > 0;
 
   // Resultatvalg begrenses til den valgte rollen. Hele CV-ens resultater er
@@ -263,16 +275,37 @@ function SkillCard({
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <CardTitle className="text-base">{item.title}</CardTitle>
-          <Badge variant={item.needsPlacement ? "outline" : "secondary"}>
-            {item.needsPlacement
-              ? "Trenger vurdering"
-              : (SKILL_PLACEMENT_CONFIDENCE_LABEL[item.confidence ?? ""] ?? "Belagt i CV-en")}
-          </Badge>
+          <div className="min-w-0">
+            <CardTitle className="text-base">{item.title}</CardTitle>
+            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+              {item.canonicalKey}
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-end gap-1.5">
+            <Badge variant={item.needsPlacement ? "outline" : "secondary"}>
+              {item.needsPlacement
+                ? "Trenger vurdering"
+                : (SKILL_PLACEMENT_CONFIDENCE_LABEL[item.confidence ?? ""] ?? "Belagt i CV-en")}
+            </Badge>
+            {!item.needsPlacement && (
+              <>
+                <Badge variant={item.directness === "semantic" ? "outline" : "secondary"}>
+                  {SKILL_DIRECTNESS_LABEL[item.directness]}
+                </Badge>
+                <Badge variant="outline">{SKILL_BREADTH_LABEL[item.breadth]}</Badge>
+              </>
+            )}
+          </div>
         </div>
         <CardDescription>{item.reason}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {item.directness === "semantic" && !showPicker && (
+          <p className="rounded-md border border-dashed p-2 text-xs text-muted-foreground">
+            Dette er et middels sikkert forslag basert på tolkning av konkret belegg. Rett eller
+            fjern plasseringen hvis den ikke stemmer.
+          </p>
+        )}
         {!showPicker && (
           <p className="text-sm">
             Roller: {item.roles.map((r) => r.title).join(", ") || "ingen"}
@@ -281,6 +314,7 @@ function SkillCard({
             )}
           </p>
         )}
+
 
         {showPicker && (
           <div className="space-y-3 rounded-md border p-3">

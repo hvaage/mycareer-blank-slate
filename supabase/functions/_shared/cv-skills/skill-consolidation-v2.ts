@@ -15,14 +15,19 @@ import { canonicalSkillKey } from "./atom-proposal-pipeline-v2.ts";
 
 export type SkillTier = "reviewable" | "local_signal";
 
+/** Bredden i belegget. Informasjon i UI, aldri opptaksterskel. */
+export type SkillBreadth = "multiple_roles" | "single_role" | "single_result" | "none";
+
 export type ConsolidatedSkill = SkillProposal & {
   /** Gjennomgåbart Trinn 3-forslag, eller lokalt belegg på rolle/resultat. */
   tier: SkillTier;
   tierReasons: string[];
   roleCount: number;
   achievementCount: number;
+  breadth: SkillBreadth;
   explicit: boolean;
 };
+
 
 export type SkillConsolidationReport = {
   before: number;
@@ -113,12 +118,15 @@ function countReasons(skills: ConsolidatedSkill[]): Record<string, number> {
  * Slår sammen synonymer og klassifiserer hver kompetanse som gjennomgåbar
  * eller lokalt evidenssignal.
  *
- * Gjennomgåbar krever minst ett av:
- *  - eksplisitt oppgitt som kompetanse i CV-en
- *  - belegg fra minst to uavhengige resultater
- *  - belegg fra minst to roller
- *  - tydelig, selvstendig og relevant generell kompetanse med kildebelegg
+ * Modellregel: bredde er ikke opptaksterskel. En kompetanse er gjennomgåbar
+ * når den er eksplisitt oppgitt i CV-en, eller når den har konkret belegg i
+ * minst én rolle eller ett resultat. Bredde (én rolle, ett resultat, flere
+ * roller) rapporteres som informasjon, ikke som filter.
+ *
+ * Lokalt evidenssignal er forbeholdt utledede kompetanser uten konkret
+ * rolle- eller resultatbelegg.
  */
+
 export function consolidateSkills(
   skills: SkillProposal[],
   input: CvAtomizationInput,
@@ -181,11 +189,26 @@ export function consolidateSkills(
     if (explicit) reasons.push("oppgitt_som_kompetanse");
     if (achievementIds.size >= 2) reasons.push("belegg_fra_flere_resultater");
     if (roleIds.size >= 2) reasons.push("belegg_fra_flere_roller");
+    if (achievementIds.size === 1) reasons.push("belegg_fra_ett_resultat");
+    if (roleIds.size === 1) reasons.push("belegg_fra_en_rolle");
     if (hasEvidence && GENERIC_REVIEWABLE.has(skill.canonicalKey)) {
       reasons.push("generell_kompetanse_med_belegg");
     }
 
-    const tier: SkillTier = reasons.length > 0 && hasEvidence ? "reviewable" : "local_signal";
+    const hasConcreteEvidence = roleIds.size > 0 || achievementIds.size > 0;
+    const breadth: SkillBreadth =
+      roleIds.size >= 2
+        ? "multiple_roles"
+        : roleIds.size === 1
+          ? "single_role"
+          : achievementIds.size >= 1
+            ? "single_result"
+            : "none";
+
+    // Bredde skjuler aldri en kompetanse: eksplisitt oppgitt eller konkret
+    // belagt er nok for gjennomgang i Trinn 3.
+    const tier: SkillTier =
+      (explicit && hasEvidence) || hasConcreteEvidence ? "reviewable" : "local_signal";
     if (tier === "local_signal") {
       reasons.push(hasEvidence ? "lokalt_signal" : "mangler_kildebelegg");
     }
@@ -196,8 +219,10 @@ export function consolidateSkills(
       tierReasons: reasons,
       roleCount: roleIds.size,
       achievementCount: achievementIds.size,
+      breadth,
       explicit,
     };
+
   });
 
   const reviewable = consolidated.filter((s) => s.tier === "reviewable");
