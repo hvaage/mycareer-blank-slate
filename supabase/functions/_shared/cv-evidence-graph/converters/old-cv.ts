@@ -87,6 +87,28 @@ export interface ParsedOldCvVolunteer {
   description?: string | null;
 }
 
+/** Kategorien fra parseren er fri tekst; atomet har en lukket verdimengde. */
+function toolKindFromCategory(
+  category: string | null,
+): "crm" | "methodology" | "platform" | "framework" | "other" {
+  switch ((category ?? "").toLowerCase()) {
+    case "salg":
+    case "crm":
+      return "crm";
+    case "utvikling":
+    case "sky":
+    case "ki":
+    case "analyse":
+      return "platform";
+    case "prosjekt":
+    case "fag":
+    case "kontor":
+      return "other";
+    default:
+      return "other";
+  }
+}
+
 export interface ParsedOldCvTool {
   name: string;
   category?: string | null;
