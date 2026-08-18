@@ -190,24 +190,61 @@ export function CvReviewSkillsStep({
         </Card>
       )}
 
-      {basis.deviations.length > 0 && (
+      {openDeviations.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Avvik fra CV-analysen</CardTitle>
             <CardDescription>
-              {basis.deviations.length} funn i råteksten ble ikke tatt med som kompetanse av
-              analysen. De blir ikke egne kort, men er beholdt som kilde.
+              {openDeviations.length} funn i råteksten ble ikke tatt med som kompetanse av
+              analysen. Du kan legge dem til selv: rett teksten, skriv en begrunnelse og velg
+              hvilken rolle eller hvilket resultat de hører til.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {basis.deviations.map((c) => (
-              <Badge key={c.id} variant="outline">
-                {(c.content_no ?? c.content_en ?? "Uten tekst").slice(0, 48)}
-              </Badge>
+          <CardContent className="space-y-3">
+            {openDeviations.map((c) => (
+              <ManualSkillForm
+                key={c.id}
+                initialTitle={(c.content_no ?? c.content_en ?? "").trim()}
+                roles={roles}
+                results={results}
+                busy={busy}
+                submitLabel="Legg til kompetansen"
+                onSubmit={(v) => addSkill.mutate({ ...v, candidate: c })}
+                onDismiss={() => dismiss.mutate(c)}
+              />
             ))}
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Mangler en kompetanse?</CardTitle>
+          <CardDescription>
+            Legg til kompetanse du ser at analysen ikke fanget opp. Den må belegges av minst én
+            rolle eller ett resultat.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {adding ? (
+            <ManualSkillForm
+              key={formKey}
+              initialTitle=""
+              roles={roles}
+              results={results}
+              busy={busy}
+              submitLabel="Legg til kompetansen"
+              onSubmit={(v) => addSkill.mutate(v)}
+              onDismiss={() => setAdding(false)}
+              dismissLabel="Avbryt"
+            />
+          ) : (
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => setAdding(true)}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> Legg til kompetanse
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="flex justify-between">
         <Button variant="ghost" disabled={busy} onClick={onBack}>
