@@ -406,9 +406,9 @@ export function AppSidebar() {
     : null;
 
   const mobileNavigate = useCallback(
-    (to: string) => {
+    (to: string, search?: Record<string, unknown>) => {
       setOpenMobile(false);
-      navigate({ to });
+      navigate({ to, search: search as never });
     },
     [navigate, setOpenMobile],
   );
@@ -453,10 +453,10 @@ export function AppSidebar() {
               {mobileGroup.items.map((item) => {
                 const active = isSubItemActive(pathname, item.to);
                 return (
-                  <li key={item.to}>
+                  <li key={`${item.to}-${item.label}`}>
                     <button
                       type="button"
-                      onClick={() => mobileNavigate(item.to)}
+      onClick={() => mobileNavigate(item.to, item.search)}
                       className={cn(
                         "block w-full rounded-md px-3 py-3 text-left text-base transition-colors",
                         item.indent && "ml-3 border-l pl-3",
