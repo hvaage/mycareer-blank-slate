@@ -54,6 +54,9 @@ type Area = {
   status: AreaStatus;
   counter?: string;
   why: string;
+  /** Når satt, navigerer boksen til en egen side i stedet for å hoppe til en seksjon. */
+  to?: string;
+  search?: Record<string, string>;
 };
 
 function StatusIcon({ status }: { status: AreaStatus }) {
@@ -63,42 +66,59 @@ function StatusIcon({ status }: { status: AreaStatus }) {
   return <Circle className="h-3.5 w-3.5 text-muted-foreground/60" aria-hidden />;
 }
 
+const AREA_BOX_CLASS = cn(
+  "flex h-full flex-col gap-1 rounded-lg border border-border bg-card p-3",
+  "transition-colors hover:border-muted-foreground/30 hover:bg-muted/40",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+);
+
+function AreaBoxBody({ area }: { area: Area }) {
+  return (
+    <>
+      <span className="flex items-center gap-1.5 text-sm font-medium leading-tight">
+        <StatusIcon status={area.status} />
+        <span className="truncate">{area.label}</span>
+      </span>
+      <span className="text-xs text-muted-foreground">
+        {AREA_STATUS_LABEL[area.status]}
+        {area.counter ? ` · ${area.counter}` : ""}
+      </span>
+      <span className="text-[11px] leading-snug text-muted-foreground/80">{area.why}</span>
+    </>
+  );
+}
+
 function AreaStrip({ areas }: { areas: Area[] }) {
   return (
-    <nav aria-label="Statusoversikt" className="-mx-1 overflow-x-auto pb-1">
-      <ul className="flex min-w-full flex-nowrap gap-2 px-1 sm:flex-wrap">
+    <nav aria-label="Statusoversikt">
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {areas.map((a) => (
-          <li key={a.id} className="min-w-[190px] flex-1 sm:min-w-[210px]">
-            <a
-              href={`#${a.id}`}
-              onClick={(e) => {
-                const el = document.getElementById(a.id);
-                if (!el) return;
-                e.preventDefault();
-                el.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-              className={cn(
-                "flex h-full flex-col gap-1 rounded-lg border border-border bg-card p-3",
-                "transition-colors hover:border-muted-foreground/30 hover:bg-muted/40",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              )}
-            >
-              <span className="flex items-center gap-1.5 text-sm font-medium leading-tight">
-                <StatusIcon status={a.status} />
-                <span className="truncate">{a.label}</span>
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {AREA_STATUS_LABEL[a.status]}
-                {a.counter ? ` · ${a.counter}` : ""}
-              </span>
-              <span className="text-[11px] leading-snug text-muted-foreground/80">{a.why}</span>
-            </a>
+          <li key={`${a.id}-${a.label}`}>
+            {a.to ? (
+              <Link to={a.to} search={a.search as never} className={AREA_BOX_CLASS}>
+                <AreaBoxBody area={a} />
+              </Link>
+            ) : (
+              <a
+                href={`#${a.id}`}
+                onClick={(e) => {
+                  const el = document.getElementById(a.id);
+                  if (!el) return;
+                  e.preventDefault();
+                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className={AREA_BOX_CLASS}
+              >
+                <AreaBoxBody area={a} />
+              </a>
+            )}
           </li>
         ))}
       </ul>
     </nav>
   );
 }
+
 
 function SummaryRow({ label, value }: { label: string; value: string | null }) {
   return (
@@ -167,12 +187,22 @@ function MinProfilPage() {
     const countStatus = (n: number): AreaStatus => (n > 0 ? "fullfort" : "mangler");
     return [
       {
+        id: "om-meg",
+        label: "Om meg",
+        status: statusFromCount(direction + wishes, 8),
+        counter: `${direction + wishes} av 8 svar`,
+        why: "Svarene dine om bakgrunn, situasjon og ønsker.",
+        to: "/about-me",
+        search: { tab: "kort_om_meg" },
+      },
+      {
         id: "karriereretning",
         label: "Karriereretning",
         status: statusFromCount(direction, 4),
         counter: `${direction} av 4`,
         why: "Styrer hvilke stillinger som vurderes for deg.",
       },
+
       {
         id: "karriereoversikt",
         label: "Erfaring og roller",
@@ -208,13 +238,45 @@ function MinProfilPage() {
         counter: `${pending.documents} dokumenter`,
         why: "Belegg du kan vedlegge søknader og intervjuer.",
       },
+      {
+        id: "karriereoversikt-side",
+        label: "Karriereoversikt",
+        status: needsReview
+          ? "gjennomgang"
+          : roles.length + results.length + skills.length > 0
+            ? "fullfort"
+            : "mangler",
+        counter: `${roles.length + results.length + skills.length} elementer`,
+        why: "Hele erfaringsbildet ditt, rolle for rolle.",
+        to: "/karriere/erfaring",
+      },
+      {
+        id: "cv-filer",
+        label: "CV-filer",
+        status: pending.openImports > 0 ? "gjennomgang" : "fullfort",
+        counter: pending.openImports > 0 ? "import ikke ferdig" : "ingen import venter",
+        why: "Last opp CV og se filene som er brukt som grunnlag.",
+        to: "/about-me",
+        search: { tab: "cv" },
+      },
     ];
-  }, [careerStage, profile, roles.length, results.length, skills.length, qualifications.length, needsReview, pending.documents]);
+  }, [
+    careerStage,
+    profile,
+    roles.length,
+    results.length,
+    skills.length,
+    qualifications.length,
+    needsReview,
+    pending.documents,
+    pending.openImports,
+  ]);
+
 
   if (!user) return null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 p-4 lg:p-6">
+    <div className="mx-auto max-w-5xl space-y-8 p-4 lg:p-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Min profil</h1>
         <p className="max-w-prose text-sm text-muted-foreground">
