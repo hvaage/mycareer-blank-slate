@@ -169,6 +169,35 @@ Menyen endres til slutt, ikke først.
 9. **Arbeidsgivergjennomgang i innboksen.** Test: kandidat kan både styrke eksisterende atom og opprette nytt, alltid via review-/RPC-flyt.
 10. **LinkedIn- og kvalifikasjonsflyter (korrigering 3).** Kompetanse med konkret rolle-/resultatbelegg foreslås med belegg og sikkerhetsnivå. Eksplisitt oppgitt LinkedIn-kompetanse uten slikt belegg vises som «Trenger vurdering» / «Begrenset belegg», auto-bekreftes aldri som dokumentert, og brukeren kan bekrefte den som profilkompetanse, korrigere den, knytte rolle/resultat eller tilføre dokumentasjon. Dette er atomgjennomgang, ikke claim-attestasjon, og setter aldri `user_attested`. Test: slik kompetanse er synlig og gjennomgåbar uten kobling, men får aldri status «dokumentert» uten belegg.
 
+## 9. Sikkerhets- og versjonskrav
+
+### 9.1 Dokumentkatalogen må respektere eieravgrensning
+
+`user_documents_v1` slår sammen `documents`, `cv_imports` og `profiles`, og skal ikke bli en snarvei rundt RLS.
+
+- Som view: `security_invoker = true`, og underliggende RLS-policyer verifiseres som gjeldende.
+- Som RPC: `SECURITY DEFINER` kun med eksplisitt `where user_id = auth.uid()` og låst `search_path = public`.
+- Ingen GRANT til `anon`. Kun `authenticated` (+ `service_role` der det trengs).
+- Nedlastingsfunksjonen verifiserer dokumenteierskap mot `auth.uid()` **før** signed URL genereres; den tar dokumentnøkkel, ikke filsti, som input.
+- Test med to brukere: bruker A får verken dokumentnøkkel, metadata, provenance eller nedlasting for bruker Bs dokumenter — verken via katalogen eller via nedlastingsfunksjonen med gjettet nøkkel.
+
+### 9.2 AI-samtykke gjelder dokumentversjon, ikke dokument-id
+
+`ai_processing_consent` flyttes ut av dokumentraden og lagres per versjon i `employer_source_document_consents`: `id`, `user_id`, `source_document_id`, `content_hash`, `version`, `granted_at`, `revoked_at`.
+
+- AI-behandling slås opp på (`source_document_id`, `content_hash`) — aldri på dokument-id alene.
+- Nytt innhold på samme dokument-id gir ny versjon og ny hash; tidligere samtykke gjelder ikke.
+- Samtykkehistorikk slettes ikke ved ny versjon.
+- RLS: `auth.uid() = user_id`, ingen anon.
+
+Test:
+1. Gi samtykke til versjon 1 og bekreft at AI-behandling er tillatt.
+2. Registrer versjon 2 med ny hash.
+3. Bekreft at AI-behandling av versjon 2 blokkeres til nytt samtykke er gitt.
+4. Bekreft at versjon 1 fortsatt har bevart provenance og samtykkehistorikk.
+
+Disse testene kjøres som del av trinn 4 (katalog) og trinn 8 (arbeidsgiverkilder) i rekkefølgen over.
 
 Ingen kode, tabeller eller navigasjonsendringer gjennomføres før denne planen er godkjent.
+
 
