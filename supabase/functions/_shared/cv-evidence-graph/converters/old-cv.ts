@@ -87,6 +87,12 @@ export interface ParsedOldCvVolunteer {
   description?: string | null;
 }
 
+export interface ParsedOldCvTool {
+  name: string;
+  category?: string | null;
+  context?: string | null;
+}
+
 export interface ParsedOldCv {
   language_detected?: "no" | "en";
   name?: string | null;
