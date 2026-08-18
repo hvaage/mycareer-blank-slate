@@ -3,7 +3,7 @@
 // Prompten er ordrett forankret i skill-filen. Endres teksten, må versjonen
 // økes, fordi prompt_version inngår i sporing og idempotens.
 
-export const ATOMIZATION_PROMPT_VERSION = "2.1.0";
+export const ATOMIZATION_PROMPT_VERSION = "2.1.1";
 // v3: modellen returnerer bare sourceSpanId-er. Serveren hydrerer ordrett
 // sitat, side og offset fra frosset input, slik at svaret blir kort.
 export const ATOMIZATION_OUTPUT_CONTRACT_VERSION = "3";
