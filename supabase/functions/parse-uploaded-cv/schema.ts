@@ -114,5 +114,27 @@ export function validateParsedCv(raw: unknown): ParsedCv {
     }
   }
 
+  // «tools» er nytt og valgfritt: eldre parseresultater skal fortsatt validere.
+  if (!Array.isArray(obj.tools)) {
+    obj.tools = [];
+  } else {
+    obj.tools = (obj.tools as unknown[])
+      .map((t) => {
+        if (typeof t === "string") return { name: t, category: null, context: null };
+        if (t && typeof t === "object") {
+          const o = t as Record<string, unknown>;
+          const name = typeof o.name === "string" ? o.name.trim() : "";
+          if (!name) return null;
+          return {
+            name,
+            category: typeof o.category === "string" ? o.category : null,
+            context: typeof o.context === "string" ? o.context : null,
+          };
+        }
+        return null;
+      })
+      .filter((t): t is ParsedTool => Boolean(t && t.name.trim()));
+  }
+
   return obj as unknown as ParsedCv;
 }
