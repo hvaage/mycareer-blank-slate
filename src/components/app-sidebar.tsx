@@ -371,9 +371,10 @@ export function AppSidebar() {
           {activeGroup.items!.map((item) => {
             const active = isSubItemActive(pathname, item.to);
             return (
-              <li key={item.to}>
+              <li key={`${item.to}-${item.label}`}>
                 <Link
                   to={item.to}
+                  search={item.search as never}
                   className={cn(
                     "block rounded-md px-3 py-2 text-sm transition-colors",
                     item.indent && "ml-3 border-l pl-3",
