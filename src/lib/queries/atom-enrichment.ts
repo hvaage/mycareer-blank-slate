@@ -609,8 +609,9 @@ export async function rejectAtomEnrichmentProposal(
     .in("status", ["pending_review", "needs_more_context"])
     .select("id")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw readableProposalError(error);
   if (!data) throw new Error("Fant ikke forslaget, eller det er allerede behandlet.");
+
 }
 
 export async function markAtomEnrichmentProposalNeedsContext(
