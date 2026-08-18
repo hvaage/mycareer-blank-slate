@@ -123,7 +123,7 @@ function ImportgjennomgangPage() {
           icon={Linkedin}
           title="LinkedIn"
           description="Importer profil og LinkedIn Skills. Ferdigheter fra LinkedIn behandles som forslag og må belegges mot roller eller resultater."
-          status="Koble til"
+          status="Importer"
           actions={
             <Button asChild size="sm" variant="outline">
               <Link to="/innstillinger/integrasjoner">Åpne integrasjoner</Link>
