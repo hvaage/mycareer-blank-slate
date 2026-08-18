@@ -71,6 +71,7 @@ import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenti
 import { Route as AuthenticatedDocumentationResultaterRouteImport } from './routes/_authenticated/documentation/resultater'
 import { Route as AuthenticatedDocumentationPackagesRouteImport } from './routes/_authenticated/documentation/packages'
 import { Route as AuthenticatedDocumentationLibraryRouteImport } from './routes/_authenticated/documentation/library'
+import { Route as AuthenticatedDocumentationKvalifikasjonerRouteImport } from './routes/_authenticated/documentation/kvalifikasjoner'
 import { Route as AuthenticatedDocumentationKompetanseRouteImport } from './routes/_authenticated/documentation/kompetanse'
 import { Route as AuthenticatedDocumentationCasesRouteImport } from './routes/_authenticated/documentation/cases'
 import { Route as AuthenticatedCareerCvReviewRouteImport } from './routes/_authenticated/career/cv-review'
@@ -438,6 +439,12 @@ const AuthenticatedDocumentationLibraryRoute =
     path: '/documentation/library',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedDocumentationKvalifikasjonerRoute =
+  AuthenticatedDocumentationKvalifikasjonerRouteImport.update({
+    id: '/documentation/kvalifikasjoner',
+    path: '/documentation/kvalifikasjoner',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDocumentationKompetanseRoute =
   AuthenticatedDocumentationKompetanseRouteImport.update({
     id: '/documentation/kompetanse',
@@ -622,6 +629,7 @@ export interface FileRoutesByFullPath {
   '/career/cv-review': typeof AuthenticatedCareerCvReviewRoute
   '/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
   '/documentation/kompetanse': typeof AuthenticatedDocumentationKompetanseRoute
+  '/documentation/kvalifikasjoner': typeof AuthenticatedDocumentationKvalifikasjonerRoute
   '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
@@ -706,6 +714,7 @@ export interface FileRoutesByTo {
   '/career/cv-review': typeof AuthenticatedCareerCvReviewRoute
   '/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
   '/documentation/kompetanse': typeof AuthenticatedDocumentationKompetanseRoute
+  '/documentation/kvalifikasjoner': typeof AuthenticatedDocumentationKvalifikasjonerRoute
   '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
@@ -795,6 +804,7 @@ export interface FileRoutesById {
   '/_authenticated/career/cv-review': typeof AuthenticatedCareerCvReviewRoute
   '/_authenticated/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
   '/_authenticated/documentation/kompetanse': typeof AuthenticatedDocumentationKompetanseRoute
+  '/_authenticated/documentation/kvalifikasjoner': typeof AuthenticatedDocumentationKvalifikasjonerRoute
   '/_authenticated/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/_authenticated/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/_authenticated/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
@@ -884,6 +894,7 @@ export interface FileRouteTypes {
     | '/career/cv-review'
     | '/documentation/cases'
     | '/documentation/kompetanse'
+    | '/documentation/kvalifikasjoner'
     | '/documentation/library'
     | '/documentation/packages'
     | '/documentation/resultater'
@@ -968,6 +979,7 @@ export interface FileRouteTypes {
     | '/career/cv-review'
     | '/documentation/cases'
     | '/documentation/kompetanse'
+    | '/documentation/kvalifikasjoner'
     | '/documentation/library'
     | '/documentation/packages'
     | '/documentation/resultater'
@@ -1056,6 +1068,7 @@ export interface FileRouteTypes {
     | '/_authenticated/career/cv-review'
     | '/_authenticated/documentation/cases'
     | '/_authenticated/documentation/kompetanse'
+    | '/_authenticated/documentation/kvalifikasjoner'
     | '/_authenticated/documentation/library'
     | '/_authenticated/documentation/packages'
     | '/_authenticated/documentation/resultater'
@@ -1568,6 +1581,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDocumentationLibraryRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/documentation/kvalifikasjoner': {
+      id: '/_authenticated/documentation/kvalifikasjoner'
+      path: '/documentation/kvalifikasjoner'
+      fullPath: '/documentation/kvalifikasjoner'
+      preLoaderRoute: typeof AuthenticatedDocumentationKvalifikasjonerRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/documentation/kompetanse': {
       id: '/_authenticated/documentation/kompetanse'
       path: '/documentation/kompetanse'
@@ -1763,6 +1783,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCareerCvReviewRoute: typeof AuthenticatedCareerCvReviewRoute
   AuthenticatedDocumentationCasesRoute: typeof AuthenticatedDocumentationCasesRoute
   AuthenticatedDocumentationKompetanseRoute: typeof AuthenticatedDocumentationKompetanseRoute
+  AuthenticatedDocumentationKvalifikasjonerRoute: typeof AuthenticatedDocumentationKvalifikasjonerRoute
   AuthenticatedDocumentationLibraryRoute: typeof AuthenticatedDocumentationLibraryRoute
   AuthenticatedDocumentationPackagesRoute: typeof AuthenticatedDocumentationPackagesRoute
   AuthenticatedDocumentationResultaterRoute: typeof AuthenticatedDocumentationResultaterRoute
@@ -1814,6 +1835,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDocumentationCasesRoute: AuthenticatedDocumentationCasesRoute,
   AuthenticatedDocumentationKompetanseRoute:
     AuthenticatedDocumentationKompetanseRoute,
+  AuthenticatedDocumentationKvalifikasjonerRoute:
+    AuthenticatedDocumentationKvalifikasjonerRoute,
   AuthenticatedDocumentationLibraryRoute:
     AuthenticatedDocumentationLibraryRoute,
   AuthenticatedDocumentationPackagesRoute:

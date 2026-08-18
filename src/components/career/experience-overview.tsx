@@ -29,6 +29,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageSectionNav, type PageSection } from "@/components/layout/page-section-nav";
+import { CredentialSections, useCredentialAtoms } from "@/components/career/credential-sections";
+import {
+  CREDENTIAL_KIND_LABEL,
+  CREDENTIAL_KIND_ORDER,
+  CREDENTIAL_SECTION_ID,
+} from "@/lib/credential-kinds";
 import { usePersistedCollapse } from "@/hooks/use-persisted-collapse";
 import { cn } from "@/lib/utils";
 
@@ -346,6 +352,8 @@ export function ExperienceOverview() {
   const looseExposure = exposure.filter((e) => !e.parent_atom_id);
 
   // Standard: åpne kort ved færre enn fem roller, kollapset over det.
+  const { data: credentials } = useCredentialAtoms();
+
   const { isOpen, toggle, setAll } = usePersistedCollapse(
     "karriere.erfaring.roller",
     roles.length < 5,
@@ -354,7 +362,11 @@ export function ExperienceOverview() {
   const sections: PageSection[] = [
     { id: "sek-roller", label: "Roller", count: roleBlocks.length },
     { id: "sek-kvalifikasjoner", label: "Kvalifikasjoner", count: qualifications.length },
-    { id: "sek-verktoy", label: "Verktøy", count: tools.length },
+    ...CREDENTIAL_KIND_ORDER.map((kind) => ({
+      id: CREDENTIAL_SECTION_ID[kind],
+      label: CREDENTIAL_KIND_LABEL[kind],
+      count: credentials?.[kind]?.length ?? 0,
+    })),
     { id: "sek-resultater-uten-rolle", label: "Resultater uten rolle", count: looseResults.length },
     { id: "sek-kompetanse-uten-belegg", label: "Kompetanse uten belegg", count: looseSkills.length },
     { id: "sek-eksponering-uten-rolle", label: "Eksponering uten rolle", count: looseExposure.length },
@@ -515,8 +527,14 @@ export function ExperienceOverview() {
         </Card>
       )}
 
-      <Group id="sek-kvalifikasjoner" title="Kvalifikasjoner" rows={qualifications} />
-      <Group id="sek-verktoy" title="Verktøy" rows={tools} />
+      <Group
+        id="sek-kvalifikasjoner"
+        title="Kvalifikasjoner"
+        description="Alt som kan dokumenteres, vist per art under."
+        rows={qualifications}
+      />
+
+      <CredentialSections />
 
       {looseResults.length > 0 ? (
         <Group

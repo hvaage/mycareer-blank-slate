@@ -206,6 +206,8 @@ export interface PromoteCandidateInput {
   derivedKey?: string | null;
   /** Kanonisk merkelapp når kompetansen ikke arver kilderadens tekst. */
   titleOverride?: string | null;
+  /** Ekstra felt på atomets structured_data, f.eks. språknivå eller førerkortklasse. */
+  extraStructured?: Record<string, unknown> | null;
 }
 
 /** Ser etter et allerede bekreftet, utledet element (egen nøkkel). */
@@ -281,6 +283,7 @@ export async function promoteCandidate(
     resolved_by_user: candidate.suggested_atom_type !== resolvedType,
   };
   if (derivedKey) structured["derived_skill_key"] = derivedKey;
+  if (input.extraStructured) Object.assign(structured, input.extraStructured);
   structured["logical_key"] = careerAtomLogicalKey({
     atom_kind: "evidens",
     atom_type: resolvedType,
