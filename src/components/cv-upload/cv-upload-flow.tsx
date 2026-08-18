@@ -72,6 +72,8 @@ interface Props {
   onCompleted?: (result: CommitResponse) => void;
   /** Compact variant for onboarding step */
   compact?: boolean;
+  /** True when the user already has at least one previous CV import. Collapses the idle state. */
+  hasExistingImport?: boolean;
 }
 
 const STAGE_LABEL: Record<string, string> = {
