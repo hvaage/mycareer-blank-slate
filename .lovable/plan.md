@@ -1,39 +1,78 @@
-# Rydd opp «Min profil» og løft menypunktene
+# Min profil ryddes — og «Kildeimport» / «Kildegjennomgang» erstatter CV-flyten
 
-## Slik blir det
+## Del 1: Menyen (Min karriere)
 
-### Menyen (Min karriere)
 Alle punkter blir likestilte, ingen innrykk:
 
 ```text
 Min karriere
-  Min profil            -> /min-profil        (viser «Om meg»-innholdet)
-  Karriereoversikt      -> /karriere/erfaring
-  Importer eksisterende CV -> /min-profil/importer-cv
-  CV-gjennomgang        -> /career/cv-review  (vises kun når noe venter)
-  Min dokumentasjon     -> /documentation
-  AI-forslag            -> /career/atom-review
+  Min profil          -> /min-profil        (viser «Om meg»-innholdet)
+  Karriereoversikt    -> /karriere/erfaring
+  Kildeimport         -> /kildeimport       (het «Importer eksisterende CV»)
+  Kildegjennomgang    -> /kildegjennomgang  (het «CV-gjennomgang», vises når noe venter)
+  Min dokumentasjon   -> /documentation
 ```
 
-Endring fra i dag: «Om meg» forsvinner som eget punkt (innholdet ligger på Min profil), og Karriereoversikt / Importer eksisterende CV / CV-gjennomgang er ikke lenger underpunkter av Min profil.
+«Om meg» og «AI-forslag» forsvinner som egne menypunkter: Om meg-innholdet ligger på Min profil, AI-forslag blir en del av Kildegjennomgang.
 
-### Siden /min-profil
-Fjernes helt fra siden:
+## Del 2: Siden /min-profil
+
+Fjernes fra siden:
 - boksene «Karriereretning», «Erfaring og roller», «Resultater og kompetanse», «Utdanning og kvalifikasjoner» (de pekte bare nedover på samme side)
 - varselkortet «X elementer venter på gjennomgang»
-- seksjonene lenger ned: «Karriereretning»-oppsummeringen, «Karriereoversikt» (tellere, rollelister, kompetansemerker) og «CV og dokumentasjon»
+- seksjonene «Karriereretning», «Karriereoversikt» og «CV og dokumentasjon»
 
-Nytt innhold på siden: «Om meg» — de samme redigerbare svarene som i dag ligger på /about-me (bakgrunn, situasjon, ønsker, karriereretning), uendret funksjonalitet.
+Siden viser i stedet «Om meg» — de samme redigerbare svarene som i dag ligger på /about-me. /about-me beholdes som redirect til /min-profil.
 
-Ingen informasjon går tapt: erfaring/resultater/kompetanse ligger på Karriereoversikt, dokumenter på Min dokumentasjon, importstatus på Importer eksisterende CV / CV-gjennomgang.
+## Del 3: Kildeimport
 
-### Om /about-me
-URL-en beholdes og sender videre til /min-profil, slik at gamle lenker og knapper i appen fortsatt virker.
+Overskrift: «Kildeimport». Én seksjon som heter **Kilder**, der alle kildene er likestilte kort:
+
+1. Import av eksisterende CV (opplasting + analyse, som i dag)
+2. Import fra Arbeidsgiver (ny)
+3. LinkedIn
+4. Generelle stillingskompetanser (ESCO)
+5. Utdanningsretninger og kompetanser
+6. Kurs og sertifiseringer
+
+«CV-gjennomgang»-kortet fjernes fra kildelisten — gjennomgang er nå en egen meny.
+
+### Import fra Arbeidsgiver (nytt)
+
+Egen side der brukeren laster opp eller registrerer dokumenter fra arbeidsgiver og klassifiserer dem:
+
+- Referat fra medarbeidersamtale
+- 1-til-1-samtale
+- KSO
+- OKR
+- Salgsmål
+- Prosjektbeskrivelse
+- Kvartalsmål
+- Årsbudsjett
+- Annet
+
+Hver oppføring har: type, tittel, arbeidsgiver/rolle den hører til, periode, målsetting, **oppnådd resultat** (fritekst + tall), og vedlagt dokumentasjon (fil). Oppføringene blir kandidater — de går til Kildegjennomgang og blir først del av karriereoversikten når brukeren bekrefter dem, i tråd med evidensprinsippet.
+
+## Del 4: Kildegjennomgang
+
+`/career/cv-review` blir `/kildegjennomgang` og dekker alle kilder, ikke bare CV:
+
+- Toppen viser hvilke kilder som har noe å gå gjennom (CV, arbeidsgiverdokumenter, LinkedIn, utdanning), med antall.
+- CV-kilden beholder den kjente 4-trinns flyten (roller, resultater, kompetanser, kvalifikasjoner).
+- Arbeidsgiverkilden får en tilsvarende gjennomgang: koble dokument til rolle, bekreft målsetting og oppnådd resultat som resultat-atom, med dokumentet som belegg.
+- **AI-forslag** blir en fane/seksjon inne i Kildegjennomgang i stedet for eget menypunkt; /career/atom-review beholdes som redirect.
 
 ## Teknisk
 
-- `src/components/app-sidebar.tsx`: fjern `indent` på de tre punktene, fjern «Om meg»-punktet, behold betinget innsetting av «CV-gjennomgang».
-- `src/routes/_authenticated/min-profil/index.tsx`: fjern statusboksene, gjennomgangsvarselet og de tre seksjonene; render «Om meg»-innholdet (komponenten som i dag brukes av `about-me.tsx`) i stedet. Beholder rutens `head()`-metadata.
-- `src/routes/_authenticated/about-me.tsx`: gjøres om til redirect til `/min-profil` (beholder `tab`-parameteren om nødvendig).
-- `src/lib/queries/profile-overview.ts` blir ubrukt av denne siden; fjernes bare hvis ingen andre bruker den.
-- Ingen databaseendringer.
+- `src/components/app-sidebar.tsx`: fjern `indent`, fjern «Om meg» og «AI-forslag», nye labels/stier.
+- `src/routes/_authenticated/min-profil/index.tsx`: fjern statusbokser, varsel og seksjoner; render Om meg-innholdet. `src/routes/_authenticated/about-me.tsx` → redirect.
+- Nye ruter: `/kildeimport` (flytter innholdet fra `min-profil/importer-cv.tsx`), `/kildeimport/arbeidsgiver`, `/kildegjennomgang`. Gamle stier (`/min-profil/importer-cv`, `/career/cv-review`, `/career/atom-review`) beholdes som redirects.
+- Ny tabell for arbeidsgiverkilder (type, tittel, periode, mål, oppnådd resultat, rolle-kobling, dokument-referanse) med RLS + GRANTs, samt filopplasting til eksisterende dokumentlagring. Kandidatene mates inn i gjennomgangsflyten på samme måte som CV-kandidater.
+- Ingen endringer i selve CV-analysepipelinen.
+
+## Rekkefølge
+
+1. Del 1 + 2 (meny og Min profil-opprydding) — ren frontend.
+2. Del 3 uten Arbeidsgiver-kilde (omdøping, «Kilder»-listen).
+3. Import fra Arbeidsgiver (database + skjema + opplasting).
+4. Kildegjennomgang: samle CV-flyt, arbeidsgiverflyt og AI-forslag.
