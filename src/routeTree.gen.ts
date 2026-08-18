@@ -29,6 +29,7 @@ import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ArbeidsgivereOrgnrRouteImport } from './routes/arbeidsgivere.$orgnr'
+import { Route as AuthenticatedSoknadsdokumenterRouteImport } from './routes/_authenticated/soknadsdokumenter'
 import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenticated/preferences'
 import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
 import { Route as AuthenticatedMarkedRouteImport } from './routes/_authenticated/marked'
@@ -201,6 +202,12 @@ const ArbeidsgivereOrgnrRoute = ArbeidsgivereOrgnrRouteImport.update({
   path: '/$orgnr',
   getParentRoute: () => ArbeidsgivereRoute,
 } as any)
+const AuthenticatedSoknadsdokumenterRoute =
+  AuthenticatedSoknadsdokumenterRouteImport.update({
+    id: '/soknadsdokumenter',
+    path: '/soknadsdokumenter',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedPreferencesRoute =
   AuthenticatedPreferencesRouteImport.update({
     id: '/preferences',
@@ -627,6 +634,7 @@ export interface FileRoutesByFullPath {
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
+  '/soknadsdokumenter': typeof AuthenticatedSoknadsdokumenterRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
@@ -715,6 +723,7 @@ export interface FileRoutesByTo {
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
+  '/soknadsdokumenter': typeof AuthenticatedSoknadsdokumenterRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
@@ -808,6 +817,7 @@ export interface FileRoutesById {
   '/_authenticated/marked': typeof AuthenticatedMarkedRoute
   '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/_authenticated/preferences': typeof AuthenticatedPreferencesRoute
+  '/_authenticated/soknadsdokumenter': typeof AuthenticatedSoknadsdokumenterRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
@@ -901,6 +911,7 @@ export interface FileRouteTypes {
     | '/marked'
     | '/my-applications'
     | '/preferences'
+    | '/soknadsdokumenter'
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
@@ -989,6 +1000,7 @@ export interface FileRouteTypes {
     | '/marked'
     | '/my-applications'
     | '/preferences'
+    | '/soknadsdokumenter'
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
@@ -1081,6 +1093,7 @@ export interface FileRouteTypes {
     | '/_authenticated/marked'
     | '/_authenticated/my-applications'
     | '/_authenticated/preferences'
+    | '/_authenticated/soknadsdokumenter'
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
@@ -1325,6 +1338,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/arbeidsgivere/$orgnr'
       preLoaderRoute: typeof ArbeidsgivereOrgnrRouteImport
       parentRoute: typeof ArbeidsgivereRoute
+    }
+    '/_authenticated/soknadsdokumenter': {
+      id: '/_authenticated/soknadsdokumenter'
+      path: '/soknadsdokumenter'
+      fullPath: '/soknadsdokumenter'
+      preLoaderRoute: typeof AuthenticatedSoknadsdokumenterRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/preferences': {
       id: '/_authenticated/preferences'
@@ -1829,6 +1849,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMarkedRoute: typeof AuthenticatedMarkedRoute
   AuthenticatedMyApplicationsRoute: typeof AuthenticatedMyApplicationsRoute
   AuthenticatedPreferencesRoute: typeof AuthenticatedPreferencesRoute
+  AuthenticatedSoknadsdokumenterRoute: typeof AuthenticatedSoknadsdokumenterRoute
   AuthenticatedAdminChangelogRoute: typeof AuthenticatedAdminChangelogRoute
   AuthenticatedAdminCvTestRoute: typeof AuthenticatedAdminCvTestRoute
   AuthenticatedAdminIngestionRoute: typeof AuthenticatedAdminIngestionRoute
@@ -1882,6 +1903,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMarkedRoute: AuthenticatedMarkedRoute,
   AuthenticatedMyApplicationsRoute: AuthenticatedMyApplicationsRoute,
   AuthenticatedPreferencesRoute: AuthenticatedPreferencesRoute,
+  AuthenticatedSoknadsdokumenterRoute: AuthenticatedSoknadsdokumenterRoute,
   AuthenticatedAdminChangelogRoute: AuthenticatedAdminChangelogRoute,
   AuthenticatedAdminCvTestRoute: AuthenticatedAdminCvTestRoute,
   AuthenticatedAdminIngestionRoute: AuthenticatedAdminIngestionRoute,

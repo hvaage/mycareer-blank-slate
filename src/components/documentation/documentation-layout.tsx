@@ -5,11 +5,13 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/documentation" as const, label: "Oversikt", exact: true },
+  { to: "/documentation/cv" as const, label: "CV-er", exact: false },
+  { to: "/documentation/soknadsbrev" as const, label: "Søknadsbrev", exact: false },
   { to: "/documentation/resultater" as const, label: "Resultater", exact: false },
   { to: "/documentation/kompetanse" as const, label: "Kompetanser", exact: false },
   { to: "/documentation/kvalifikasjoner" as const, label: "Kvalifikasjoner", exact: false },
   { to: "/documentation/cases" as const, label: "Case", exact: false },
-  { to: "/documentation/library" as const, label: "Dokumenter", exact: false },
+  { to: "/documentation/library" as const, label: "Andre dokumenter", exact: false },
   { to: "/documentation/packages" as const, label: "Dokumentpakker", exact: false },
 ] as const;
 
