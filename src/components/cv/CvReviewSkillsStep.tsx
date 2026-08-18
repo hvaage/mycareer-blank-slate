@@ -266,16 +266,37 @@ function SkillCard({
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <CardTitle className="text-base">{item.title}</CardTitle>
-          <Badge variant={item.needsPlacement ? "outline" : "secondary"}>
-            {item.needsPlacement
-              ? "Trenger vurdering"
-              : (SKILL_PLACEMENT_CONFIDENCE_LABEL[item.confidence ?? ""] ?? "Belagt i CV-en")}
-          </Badge>
+          <div className="min-w-0">
+            <CardTitle className="text-base">{item.title}</CardTitle>
+            <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+              {item.canonicalKey}
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-end gap-1.5">
+            <Badge variant={item.needsPlacement ? "outline" : "secondary"}>
+              {item.needsPlacement
+                ? "Trenger vurdering"
+                : (SKILL_PLACEMENT_CONFIDENCE_LABEL[item.confidence ?? ""] ?? "Belagt i CV-en")}
+            </Badge>
+            {!item.needsPlacement && (
+              <>
+                <Badge variant={item.directness === "semantic" ? "outline" : "secondary"}>
+                  {SKILL_DIRECTNESS_LABEL[item.directness]}
+                </Badge>
+                <Badge variant="outline">{SKILL_BREADTH_LABEL[item.breadth]}</Badge>
+              </>
+            )}
+          </div>
         </div>
         <CardDescription>{item.reason}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {item.directness === "semantic" && !showPicker && (
+          <p className="rounded-md border border-dashed p-2 text-xs text-muted-foreground">
+            Dette er et middels sikkert forslag basert på tolkning av konkret belegg. Rett eller
+            fjern plasseringen hvis den ikke stemmer.
+          </p>
+        )}
         {!showPicker && (
           <p className="text-sm">
             Roller: {item.roles.map((r) => r.title).join(", ") || "ingen"}
@@ -284,6 +305,7 @@ function SkillCard({
             )}
           </p>
         )}
+
 
         {showPicker && (
           <div className="space-y-3 rounded-md border p-3">
