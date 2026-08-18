@@ -82,6 +82,8 @@ export function CvReviewSkillsStep({
           resolvedType: type,
           verified: true,
           evidenceAtomIds: entry.pointerIds,
+          derivedKey: entry.item.derivedKey,
+          titleOverride: entry.item.title,
           // Eksponering (domain) er alltid avledet av en rolle.
           parentAtomId: type === "domain" ? (entry.item.roles[0]?.atomId ?? null) : null,
         });

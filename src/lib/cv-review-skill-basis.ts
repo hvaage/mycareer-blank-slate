@@ -93,6 +93,7 @@ export function buildSkillBasis(input: {
 }): SkillBasis {
   const roleById = new Map(input.roles.map((r) => [r.atomId, r] as const));
   const resultById = new Map(input.results.map((r) => [r.atomId, r] as const));
+  const skillCandidateIds = new Set(input.skillCandidates.map((c) => c.id));
   const lookupRows = [...(input.allCandidates ?? []), ...input.skillCandidates];
   const candidateById = new Map(lookupRows.map((c) => [c.id, c] as const));
   const candidateByRef = new Map(lookupRows.map((c) => [c.local_ref, c] as const));
