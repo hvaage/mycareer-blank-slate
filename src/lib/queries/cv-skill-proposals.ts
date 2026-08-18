@@ -54,11 +54,12 @@ export async function fetchImportProposals(importId: string): Promise<SkillPropo
     byBatch.set(row.batchId, list);
   }
 
-  // Komplett kjøring = inneholder minst ett rolleforslag. Uten roller finnes
-  // ingen struktur å belegge kompetanse mot.
-  const baseIndex = batches.findIndex((b) =>
-    (byBatch.get(b.id) ?? []).some((r) => r.payload.atom_type === "role"),
-  );
+  // Komplett kjøring = kjøringen med full rolledekning. En delvis kjøring som
+  // bare dekker én rolleblokk kan ikke overstyre siste komplette grunnlag.
+  const roleCount = (batchId: string) =>
+    (byBatch.get(batchId) ?? []).filter((r) => r.payload.atom_type === "role").length;
+  const maxRoles = Math.max(0, ...batches.map((b) => roleCount(b.id)));
+  const baseIndex = maxRoles === 0 ? -1 : batches.findIndex((b) => roleCount(b.id) >= maxRoles);
   if (baseIndex < 0) return [];
   const base = batches[baseIndex]!;
   const baseRows = byBatch.get(base.id) ?? [];
