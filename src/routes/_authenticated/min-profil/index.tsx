@@ -327,7 +327,7 @@ function MinProfilPage() {
             <div className="flex flex-wrap gap-2 pt-4">
               <Button asChild size="sm" variant="outline">
                 <Link to="/about-me" search={{ tab: "kort_om_meg" }}>
-                  Endre jobbønsker
+                  Endre karriereretning og jobbønsker
                 </Link>
               </Button>
               <Button asChild size="sm" variant="ghost">
