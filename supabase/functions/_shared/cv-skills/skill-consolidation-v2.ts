@@ -15,14 +15,19 @@ import { canonicalSkillKey } from "./atom-proposal-pipeline-v2.ts";
 
 export type SkillTier = "reviewable" | "local_signal";
 
+/** Bredden i belegget. Informasjon i UI, aldri opptaksterskel. */
+export type SkillBreadth = "multiple_roles" | "single_role" | "single_result" | "none";
+
 export type ConsolidatedSkill = SkillProposal & {
   /** Gjennomgåbart Trinn 3-forslag, eller lokalt belegg på rolle/resultat. */
   tier: SkillTier;
   tierReasons: string[];
   roleCount: number;
   achievementCount: number;
+  breadth: SkillBreadth;
   explicit: boolean;
 };
+
 
 export type SkillConsolidationReport = {
   before: number;
