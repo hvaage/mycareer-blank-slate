@@ -456,7 +456,7 @@ export function AppSidebar() {
                   <li key={`${item.to}-${item.label}`}>
                     <button
                       type="button"
-      onClick={() => mobileNavigate(item.to, item.search)}
+                      onClick={() => mobileNavigate(item.to, item.search)}
                       className={cn(
                         "block w-full rounded-md px-3 py-3 text-left text-base transition-colors",
                         item.indent && "ml-3 border-l pl-3",
