@@ -61,6 +61,7 @@ import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose
 import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generations'
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
 import { Route as AuthenticatedMinProfilKarriereretningRouteImport } from './routes/_authenticated/min-profil/karriereretning'
+import { Route as AuthenticatedMinProfilImportgjennomgangRouteImport } from './routes/_authenticated/min-profil/importgjennomgang'
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
@@ -377,6 +378,12 @@ const AuthenticatedMinProfilKarriereretningRoute =
     path: '/min-profil/karriereretning',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedMinProfilImportgjennomgangRoute =
+  AuthenticatedMinProfilImportgjennomgangRouteImport.update({
+    id: '/min-profil/importgjennomgang',
+    path: '/min-profil/importgjennomgang',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedKarriereErfaringRoute =
   AuthenticatedKarriereErfaringRouteImport.update({
     id: '/karriere/erfaring',
@@ -624,6 +631,7 @@ export interface FileRoutesByFullPath {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
@@ -707,6 +715,7 @@ export interface FileRoutesByTo {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
@@ -795,6 +804,7 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/_authenticated/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/_authenticated/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
@@ -883,6 +893,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
@@ -966,6 +977,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
@@ -1053,6 +1065,7 @@ export interface FileRouteTypes {
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
+    | '/_authenticated/min-profil/importgjennomgang'
     | '/_authenticated/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
@@ -1485,6 +1498,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMinProfilKarriereretningRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/min-profil/importgjennomgang': {
+      id: '/_authenticated/min-profil/importgjennomgang'
+      path: '/min-profil/importgjennomgang'
+      fullPath: '/min-profil/importgjennomgang'
+      preLoaderRoute: typeof AuthenticatedMinProfilImportgjennomgangRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/karriere/erfaring': {
       id: '/_authenticated/karriere/erfaring'
       path: '/karriere/erfaring'
@@ -1752,6 +1772,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedKarriereErfaringRoute: typeof AuthenticatedKarriereErfaringRoute
+  AuthenticatedMinProfilImportgjennomgangRoute: typeof AuthenticatedMinProfilImportgjennomgangRoute
   AuthenticatedMinProfilKarriereretningRoute: typeof AuthenticatedMinProfilKarriereretningRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedApplicationsIndexRoute: typeof AuthenticatedApplicationsIndexRoute
@@ -1806,6 +1827,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedInnstillingerIntegrasjonerRoute,
   AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
   AuthenticatedKarriereErfaringRoute: AuthenticatedKarriereErfaringRoute,
+  AuthenticatedMinProfilImportgjennomgangRoute:
+    AuthenticatedMinProfilImportgjennomgangRoute,
   AuthenticatedMinProfilKarriereretningRoute:
     AuthenticatedMinProfilKarriereretningRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
