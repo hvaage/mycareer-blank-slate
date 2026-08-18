@@ -117,16 +117,22 @@ Regler:
 
 Steg 1 — kartlegging (ingen UI-endring): fastslå eksakt hvor hvert dokument bor i dag (`documents`, `cv_imports`, `profiles.cv_*_path`).
 
-Steg 2 — servereid katalog `user_documents_v1` (view/RPC) med feltene `document_key` (stabil identitet), `title`, `doc_type` (kilde-cv, generell cv, stillingstilpasset cv, søknadsbrev, arbeidsgiverdokument, annet), `origin` (opplastet, generert, importert), `lifecycle_state` og `provenance` (import-id, generasjons-id, hash, versjon).
+Steg 2 — servereid katalog `user_documents_v1` (view/RPC) med feltene `document_key` (stabil identitet), `title`, `doc_type` (kilde-cv, generell cv, stillingstilpasset cv, søknadsbrev, arbeidsgiverdokument, annet), `origin` (opplastet, generert, importert), `provenance` (import-id, generasjons-id, hash, versjon) og **to uavhengige statusdimensjoner** (korrigering 1):
 
-`lifecycle_state` har minst disse verdiene:
-- `source_only` — grunnlag, kan aldri sendes
-- `draft` — generert, ikke ferdig
-- `review_required` — venter kvalitets-/gjennomgangssteg
-- `application_ready` — generert, gjennomgått og eksportert
-- `archived`
+`usage_eligibility` — hva dokumentet kan brukes til:
+- `source_only` — grunnlag, kan aldri sendes som vedlegg
+- `submittable` — kan i prinsippet sendes som vedlegg
 
-Statusen utledes av faktisk generasjons-, review- og eksporttilstand (`cv_generation_jobs`, guard/quality-resultat, eksportert fil) — **aldri** av `document_type` alene.
+`review_or_generation_status` — hvor dokumentet er i prosessen:
+- `pending`, `processing`, `review_required`, `ready`, `failed`, `archived`
+
+De to dimensjonene settes uavhengig. Eksempler:
+- Importert kilde-CV under gjennomgang: `source_only` + `review_required`
+- Ferdig generert CV: `submittable` + `ready`
+
+En kilde-CV mister ikke synlig importstatus fordi den er `source_only`; prosessdimensjonen vises i egen kolonne/badge i Min dokumentasjon.
+
+Begge dimensjoner utledes av faktisk tilstand (`cv_imports`, `cv_atomization_jobs`, `cv_review_progress`, `cv_generation_jobs`, guard/quality-resultat, eksportert fil) — **aldri** av `document_type` alene.
 
 Katalogen dekker kilde-CV-er fra `cv_imports`, eldre `profiles.cv_*_path` og rader i `documents`, og deduplikerer på fil/import slik at samme underliggende fil vises én gang.
 
@@ -134,7 +140,8 @@ Ingen permanent nedlastings-URL lagres eller eksponeres. Katalogen returnerer st
 
 Steg 3 — migrering: `documentation/cv.tsx` og `cv-archive-sources.ts` bygges om til å lese katalogen. Det opprettes ingen fjerde parallell dokumentoversikt.
 
-Steg 4 — vedleggsvelgeren i søknader får kun `lifecycle_state = 'application_ready'` fra serverkontrakten. Andre tilstander er ikke valgbare, ikke bare skjult bak badge.
+Steg 4 — vedleggsvelgeren i søknader får fra serverkontrakten kun rader med `usage_eligibility = 'submittable'` **og** `review_or_generation_status = 'ready'`. Andre rader er ikke valgbare, ikke bare skjult bak badge.
+
 
 Steg 5 — sletting: standardhandlingen heter **Arkiver**. Permanent sletting krever konsekvensoppslag («dette dokumentet belegger N elementer i karriereoversikten») og eksplisitt bekreftelse, etter samme mønster som `career_atom_delete_impact`.
 
