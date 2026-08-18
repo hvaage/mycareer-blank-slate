@@ -29,6 +29,7 @@ import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ArbeidsgivereOrgnrRouteImport } from './routes/arbeidsgivere.$orgnr'
+import { Route as AuthenticatedSoknadsdokumenterRouteImport } from './routes/_authenticated/soknadsdokumenter'
 import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenticated/preferences'
 import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
 import { Route as AuthenticatedMarkedRouteImport } from './routes/_authenticated/marked'
@@ -62,17 +63,20 @@ import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generation
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
 import { Route as AuthenticatedMinProfilKarriereretningRouteImport } from './routes/_authenticated/min-profil/karriereretning'
 import { Route as AuthenticatedMinProfilImportgjennomgangRouteImport } from './routes/_authenticated/min-profil/importgjennomgang'
+import { Route as AuthenticatedMinProfilImporterCvRouteImport } from './routes/_authenticated/min-profil/importer-cv'
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
 import { Route as AuthenticatedEmployersCompanyIdRouteImport } from './routes/_authenticated/employers/$companyId'
 import { Route as AuthenticatedDocumentsNewRouteImport } from './routes/_authenticated/documents/new'
 import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenticated/documents/$id'
+import { Route as AuthenticatedDocumentationSoknadsbrevRouteImport } from './routes/_authenticated/documentation/soknadsbrev'
 import { Route as AuthenticatedDocumentationResultaterRouteImport } from './routes/_authenticated/documentation/resultater'
 import { Route as AuthenticatedDocumentationPackagesRouteImport } from './routes/_authenticated/documentation/packages'
 import { Route as AuthenticatedDocumentationLibraryRouteImport } from './routes/_authenticated/documentation/library'
 import { Route as AuthenticatedDocumentationKvalifikasjonerRouteImport } from './routes/_authenticated/documentation/kvalifikasjoner'
 import { Route as AuthenticatedDocumentationKompetanseRouteImport } from './routes/_authenticated/documentation/kompetanse'
+import { Route as AuthenticatedDocumentationCvRouteImport } from './routes/_authenticated/documentation/cv'
 import { Route as AuthenticatedDocumentationCasesRouteImport } from './routes/_authenticated/documentation/cases'
 import { Route as AuthenticatedCareerCvReviewRouteImport } from './routes/_authenticated/career/cv-review'
 import { Route as AuthenticatedCareerAtomReviewRouteImport } from './routes/_authenticated/career/atom-review'
@@ -198,6 +202,12 @@ const ArbeidsgivereOrgnrRoute = ArbeidsgivereOrgnrRouteImport.update({
   path: '/$orgnr',
   getParentRoute: () => ArbeidsgivereRoute,
 } as any)
+const AuthenticatedSoknadsdokumenterRoute =
+  AuthenticatedSoknadsdokumenterRouteImport.update({
+    id: '/soknadsdokumenter',
+    path: '/soknadsdokumenter',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedPreferencesRoute =
   AuthenticatedPreferencesRouteImport.update({
     id: '/preferences',
@@ -385,6 +395,12 @@ const AuthenticatedMinProfilImportgjennomgangRoute =
     path: '/min-profil/importgjennomgang',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedMinProfilImporterCvRoute =
+  AuthenticatedMinProfilImporterCvRouteImport.update({
+    id: '/min-profil/importer-cv',
+    path: '/min-profil/importer-cv',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedKarriereErfaringRoute =
   AuthenticatedKarriereErfaringRouteImport.update({
     id: '/karriere/erfaring',
@@ -421,6 +437,12 @@ const AuthenticatedDocumentsIdRoute =
     path: '/documents/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedDocumentationSoknadsbrevRoute =
+  AuthenticatedDocumentationSoknadsbrevRouteImport.update({
+    id: '/documentation/soknadsbrev',
+    path: '/documentation/soknadsbrev',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDocumentationResultaterRoute =
   AuthenticatedDocumentationResultaterRouteImport.update({
     id: '/documentation/resultater',
@@ -449,6 +471,12 @@ const AuthenticatedDocumentationKompetanseRoute =
   AuthenticatedDocumentationKompetanseRouteImport.update({
     id: '/documentation/kompetanse',
     path: '/documentation/kompetanse',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDocumentationCvRoute =
+  AuthenticatedDocumentationCvRouteImport.update({
+    id: '/documentation/cv',
+    path: '/documentation/cv',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedDocumentationCasesRoute =
@@ -606,6 +634,7 @@ export interface FileRoutesByFullPath {
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
+  '/soknadsdokumenter': typeof AuthenticatedSoknadsdokumenterRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
@@ -628,17 +657,20 @@ export interface FileRoutesByFullPath {
   '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
   '/career/cv-review': typeof AuthenticatedCareerCvReviewRoute
   '/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
+  '/documentation/cv': typeof AuthenticatedDocumentationCvRoute
   '/documentation/kompetanse': typeof AuthenticatedDocumentationKompetanseRoute
   '/documentation/kvalifikasjoner': typeof AuthenticatedDocumentationKvalifikasjonerRoute
   '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
+  '/documentation/soknadsbrev': typeof AuthenticatedDocumentationSoknadsbrevRoute
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
@@ -691,6 +723,7 @@ export interface FileRoutesByTo {
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/preferences': typeof AuthenticatedPreferencesRoute
+  '/soknadsdokumenter': typeof AuthenticatedSoknadsdokumenterRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
@@ -713,17 +746,20 @@ export interface FileRoutesByTo {
   '/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
   '/career/cv-review': typeof AuthenticatedCareerCvReviewRoute
   '/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
+  '/documentation/cv': typeof AuthenticatedDocumentationCvRoute
   '/documentation/kompetanse': typeof AuthenticatedDocumentationKompetanseRoute
   '/documentation/kvalifikasjoner': typeof AuthenticatedDocumentationKvalifikasjonerRoute
   '/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
+  '/documentation/soknadsbrev': typeof AuthenticatedDocumentationSoknadsbrevRoute
   '/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
@@ -781,6 +817,7 @@ export interface FileRoutesById {
   '/_authenticated/marked': typeof AuthenticatedMarkedRoute
   '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
   '/_authenticated/preferences': typeof AuthenticatedPreferencesRoute
+  '/_authenticated/soknadsdokumenter': typeof AuthenticatedSoknadsdokumenterRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
@@ -803,17 +840,20 @@ export interface FileRoutesById {
   '/_authenticated/career/atom-review': typeof AuthenticatedCareerAtomReviewRoute
   '/_authenticated/career/cv-review': typeof AuthenticatedCareerCvReviewRoute
   '/_authenticated/documentation/cases': typeof AuthenticatedDocumentationCasesRoute
+  '/_authenticated/documentation/cv': typeof AuthenticatedDocumentationCvRoute
   '/_authenticated/documentation/kompetanse': typeof AuthenticatedDocumentationKompetanseRoute
   '/_authenticated/documentation/kvalifikasjoner': typeof AuthenticatedDocumentationKvalifikasjonerRoute
   '/_authenticated/documentation/library': typeof AuthenticatedDocumentationLibraryRoute
   '/_authenticated/documentation/packages': typeof AuthenticatedDocumentationPackagesRoute
   '/_authenticated/documentation/resultater': typeof AuthenticatedDocumentationResultaterRoute
+  '/_authenticated/documentation/soknadsbrev': typeof AuthenticatedDocumentationSoknadsbrevRoute
   '/_authenticated/documents/$id': typeof AuthenticatedDocumentsIdRoute
   '/_authenticated/documents/new': typeof AuthenticatedDocumentsNewRoute
   '/_authenticated/employers/$companyId': typeof AuthenticatedEmployersCompanyIdRoute
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/_authenticated/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/_authenticated/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/_authenticated/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
@@ -871,6 +911,7 @@ export interface FileRouteTypes {
     | '/marked'
     | '/my-applications'
     | '/preferences'
+    | '/soknadsdokumenter'
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
@@ -893,17 +934,20 @@ export interface FileRouteTypes {
     | '/career/atom-review'
     | '/career/cv-review'
     | '/documentation/cases'
+    | '/documentation/cv'
     | '/documentation/kompetanse'
     | '/documentation/kvalifikasjoner'
     | '/documentation/library'
     | '/documentation/packages'
     | '/documentation/resultater'
+    | '/documentation/soknadsbrev'
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
@@ -956,6 +1000,7 @@ export interface FileRouteTypes {
     | '/marked'
     | '/my-applications'
     | '/preferences'
+    | '/soknadsdokumenter'
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
@@ -978,17 +1023,20 @@ export interface FileRouteTypes {
     | '/career/atom-review'
     | '/career/cv-review'
     | '/documentation/cases'
+    | '/documentation/cv'
     | '/documentation/kompetanse'
     | '/documentation/kvalifikasjoner'
     | '/documentation/library'
     | '/documentation/packages'
     | '/documentation/resultater'
+    | '/documentation/soknadsbrev'
     | '/documents/$id'
     | '/documents/new'
     | '/employers/$companyId'
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
@@ -1045,6 +1093,7 @@ export interface FileRouteTypes {
     | '/_authenticated/marked'
     | '/_authenticated/my-applications'
     | '/_authenticated/preferences'
+    | '/_authenticated/soknadsdokumenter'
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
@@ -1067,17 +1116,20 @@ export interface FileRouteTypes {
     | '/_authenticated/career/atom-review'
     | '/_authenticated/career/cv-review'
     | '/_authenticated/documentation/cases'
+    | '/_authenticated/documentation/cv'
     | '/_authenticated/documentation/kompetanse'
     | '/_authenticated/documentation/kvalifikasjoner'
     | '/_authenticated/documentation/library'
     | '/_authenticated/documentation/packages'
     | '/_authenticated/documentation/resultater'
+    | '/_authenticated/documentation/soknadsbrev'
     | '/_authenticated/documents/$id'
     | '/_authenticated/documents/new'
     | '/_authenticated/employers/$companyId'
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
+    | '/_authenticated/min-profil/importer-cv'
     | '/_authenticated/min-profil/importgjennomgang'
     | '/_authenticated/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
@@ -1286,6 +1338,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/arbeidsgivere/$orgnr'
       preLoaderRoute: typeof ArbeidsgivereOrgnrRouteImport
       parentRoute: typeof ArbeidsgivereRoute
+    }
+    '/_authenticated/soknadsdokumenter': {
+      id: '/_authenticated/soknadsdokumenter'
+      path: '/soknadsdokumenter'
+      fullPath: '/soknadsdokumenter'
+      preLoaderRoute: typeof AuthenticatedSoknadsdokumenterRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/preferences': {
       id: '/_authenticated/preferences'
@@ -1518,6 +1577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMinProfilImportgjennomgangRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/min-profil/importer-cv': {
+      id: '/_authenticated/min-profil/importer-cv'
+      path: '/min-profil/importer-cv'
+      fullPath: '/min-profil/importer-cv'
+      preLoaderRoute: typeof AuthenticatedMinProfilImporterCvRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/karriere/erfaring': {
       id: '/_authenticated/karriere/erfaring'
       path: '/karriere/erfaring'
@@ -1560,6 +1626,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDocumentsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/documentation/soknadsbrev': {
+      id: '/_authenticated/documentation/soknadsbrev'
+      path: '/documentation/soknadsbrev'
+      fullPath: '/documentation/soknadsbrev'
+      preLoaderRoute: typeof AuthenticatedDocumentationSoknadsbrevRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/documentation/resultater': {
       id: '/_authenticated/documentation/resultater'
       path: '/documentation/resultater'
@@ -1593,6 +1666,13 @@ declare module '@tanstack/react-router' {
       path: '/documentation/kompetanse'
       fullPath: '/documentation/kompetanse'
       preLoaderRoute: typeof AuthenticatedDocumentationKompetanseRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/documentation/cv': {
+      id: '/_authenticated/documentation/cv'
+      path: '/documentation/cv'
+      fullPath: '/documentation/cv'
+      preLoaderRoute: typeof AuthenticatedDocumentationCvRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/documentation/cases': {
@@ -1769,6 +1849,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMarkedRoute: typeof AuthenticatedMarkedRoute
   AuthenticatedMyApplicationsRoute: typeof AuthenticatedMyApplicationsRoute
   AuthenticatedPreferencesRoute: typeof AuthenticatedPreferencesRoute
+  AuthenticatedSoknadsdokumenterRoute: typeof AuthenticatedSoknadsdokumenterRoute
   AuthenticatedAdminChangelogRoute: typeof AuthenticatedAdminChangelogRoute
   AuthenticatedAdminCvTestRoute: typeof AuthenticatedAdminCvTestRoute
   AuthenticatedAdminIngestionRoute: typeof AuthenticatedAdminIngestionRoute
@@ -1782,17 +1863,20 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCareerAtomReviewRoute: typeof AuthenticatedCareerAtomReviewRoute
   AuthenticatedCareerCvReviewRoute: typeof AuthenticatedCareerCvReviewRoute
   AuthenticatedDocumentationCasesRoute: typeof AuthenticatedDocumentationCasesRoute
+  AuthenticatedDocumentationCvRoute: typeof AuthenticatedDocumentationCvRoute
   AuthenticatedDocumentationKompetanseRoute: typeof AuthenticatedDocumentationKompetanseRoute
   AuthenticatedDocumentationKvalifikasjonerRoute: typeof AuthenticatedDocumentationKvalifikasjonerRoute
   AuthenticatedDocumentationLibraryRoute: typeof AuthenticatedDocumentationLibraryRoute
   AuthenticatedDocumentationPackagesRoute: typeof AuthenticatedDocumentationPackagesRoute
   AuthenticatedDocumentationResultaterRoute: typeof AuthenticatedDocumentationResultaterRoute
+  AuthenticatedDocumentationSoknadsbrevRoute: typeof AuthenticatedDocumentationSoknadsbrevRoute
   AuthenticatedDocumentsIdRoute: typeof AuthenticatedDocumentsIdRoute
   AuthenticatedDocumentsNewRoute: typeof AuthenticatedDocumentsNewRoute
   AuthenticatedEmployersCompanyIdRoute: typeof AuthenticatedEmployersCompanyIdRoute
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedKarriereErfaringRoute: typeof AuthenticatedKarriereErfaringRoute
+  AuthenticatedMinProfilImporterCvRoute: typeof AuthenticatedMinProfilImporterCvRoute
   AuthenticatedMinProfilImportgjennomgangRoute: typeof AuthenticatedMinProfilImportgjennomgangRoute
   AuthenticatedMinProfilKarriereretningRoute: typeof AuthenticatedMinProfilKarriereretningRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1819,6 +1903,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMarkedRoute: AuthenticatedMarkedRoute,
   AuthenticatedMyApplicationsRoute: AuthenticatedMyApplicationsRoute,
   AuthenticatedPreferencesRoute: AuthenticatedPreferencesRoute,
+  AuthenticatedSoknadsdokumenterRoute: AuthenticatedSoknadsdokumenterRoute,
   AuthenticatedAdminChangelogRoute: AuthenticatedAdminChangelogRoute,
   AuthenticatedAdminCvTestRoute: AuthenticatedAdminCvTestRoute,
   AuthenticatedAdminIngestionRoute: AuthenticatedAdminIngestionRoute,
@@ -1833,6 +1918,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCareerAtomReviewRoute: AuthenticatedCareerAtomReviewRoute,
   AuthenticatedCareerCvReviewRoute: AuthenticatedCareerCvReviewRoute,
   AuthenticatedDocumentationCasesRoute: AuthenticatedDocumentationCasesRoute,
+  AuthenticatedDocumentationCvRoute: AuthenticatedDocumentationCvRoute,
   AuthenticatedDocumentationKompetanseRoute:
     AuthenticatedDocumentationKompetanseRoute,
   AuthenticatedDocumentationKvalifikasjonerRoute:
@@ -1843,6 +1929,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedDocumentationPackagesRoute,
   AuthenticatedDocumentationResultaterRoute:
     AuthenticatedDocumentationResultaterRoute,
+  AuthenticatedDocumentationSoknadsbrevRoute:
+    AuthenticatedDocumentationSoknadsbrevRoute,
   AuthenticatedDocumentsIdRoute: AuthenticatedDocumentsIdRoute,
   AuthenticatedDocumentsNewRoute: AuthenticatedDocumentsNewRoute,
   AuthenticatedEmployersCompanyIdRoute: AuthenticatedEmployersCompanyIdRoute,
@@ -1850,6 +1938,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedInnstillingerIntegrasjonerRoute,
   AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
   AuthenticatedKarriereErfaringRoute: AuthenticatedKarriereErfaringRoute,
+  AuthenticatedMinProfilImporterCvRoute: AuthenticatedMinProfilImporterCvRoute,
   AuthenticatedMinProfilImportgjennomgangRoute:
     AuthenticatedMinProfilImportgjennomgangRoute,
   AuthenticatedMinProfilKarriereretningRoute:

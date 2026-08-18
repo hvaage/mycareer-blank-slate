@@ -245,12 +245,11 @@ function MinProfilPage() {
       },
       {
         id: "cv-filer",
-        label: "CV-filer",
+        label: "Importer eksisterende CV",
         status: pending.openImports > 0 ? "gjennomgang" : "fullfort",
         counter: pending.openImports > 0 ? "import ikke ferdig" : "ingen import venter",
-        why: "Last opp CV og se filene som er brukt som grunnlag.",
-        to: "/about-me",
-        search: { tab: "cv" },
+        why: "CV-en brukes som kilde til karriereoversikten, ikke som vedlegg i søknader.",
+        to: "/min-profil/importer-cv",
       },
     ];
   }, [
@@ -425,12 +424,10 @@ function MinProfilPage() {
             </p>
             <div className="flex flex-wrap gap-2 pt-2">
               <Button asChild size="sm" variant="outline">
-                <Link to="/min-profil/importgjennomgang">Importgjennomgang</Link>
+                <Link to="/min-profil/importer-cv">Importer eksisterende CV</Link>
               </Button>
               <Button asChild size="sm" variant="ghost">
-                <Link to="/about-me" search={{ tab: "cv" }}>
-                  CV-filer
-                </Link>
+                <Link to="/documentation/cv">CV-er</Link>
               </Button>
               <Button asChild size="sm" variant="ghost">
                 <Link to="/career/cv-review">CV-gjennomgang</Link>

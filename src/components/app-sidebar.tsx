@@ -32,7 +32,12 @@ import { cn } from "@/lib/utils";
 import logoMark from "@/assets/karrierenmin-mark.svg";
 import logoLockup from "@/assets/karrierenmin-lockup.svg";
 
-type SubItem = { label: string; to: string; indent?: boolean };
+type SubItem = {
+  label: string;
+  to: string;
+  indent?: boolean;
+  search?: Record<string, unknown>;
+};
 
 type GroupNode = {
   id: string;
@@ -63,8 +68,9 @@ const primaryGroups: GroupNode[] = [
     icon: BookOpen,
     items: [
       { label: "Min profil", to: "/min-profil" },
-      { label: "Importgjennomgang", to: "/min-profil/importgjennomgang", indent: true },
-      { label: "Erfaring og kompetanse", to: "/karriere/erfaring" },
+      { label: "Om meg", to: "/about-me", indent: true },
+      { label: "Karriereoversikt", to: "/karriere/erfaring", indent: true },
+      { label: "Importer eksisterende CV", to: "/min-profil/importer-cv", indent: true },
       { label: "Min dokumentasjon", to: "/documentation" },
       { label: "AI-forslag", to: "/career/atom-review" },
     ],
@@ -104,12 +110,17 @@ const primaryGroups: GroupNode[] = [
     title: "Søknader",
     icon: Send,
     items: [
-      { label: "Søknadsbrev", to: "/cover-letters" },
-      { label: "Genererte søknader", to: "/my-applications" },
+      { label: "Lag søknadsdokumenter", to: "/soknadsdokumenter" },
+      { label: "Generell CV", to: "/cv-builder", search: { type: "general" }, indent: true },
+      { label: "Stillingstilpasset CV", to: "/cv-builder", search: { type: "tailored" }, indent: true },
+      { label: "Søknadsbrev", to: "/cover-letters", indent: true },
+      { label: "Mine søknader", to: "/my-applications" },
       { label: "Søknadsstatus", to: "/applications" },
       { label: "Neste steg", to: "/next-steps" },
     ],
     matchPrefixes: [
+      "/soknadsdokumenter",
+      "/cv-builder",
       "/cover-letters",
       "/my-applications",
       "/applications",
@@ -186,11 +197,45 @@ export function AppSidebar() {
     queryFn: () => isAdmin(user!.id),
   });
 
+  // «CV-gjennomgang» vises bare når en import pågår eller trenger oppfølging.
+  const { data: reviewPending } = useQuery({
+    queryKey: ["sidebar-cv-review-pending", user?.id],
+    enabled: !!user?.id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { supabase } = await import("@/lib/supabase");
+      const [imports, candidates] = await Promise.all([
+        supabase
+          .from("cv_imports")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user!.id)
+          .is("committed_at", null)
+          .in("status", ["pending", "processing", "parsed"]),
+        supabase
+          .from("cv_parse_candidates")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user!.id)
+          .eq("status", "ubehandlet"),
+      ]);
+      return (imports.count ?? 0) + (candidates.count ?? 0) > 0;
+    },
+  });
+
   const allGroups = useMemo(() => {
-    const groups = [...primaryGroups];
+    const groups = primaryGroups.map((g) => {
+      if (g.id !== "career" || !reviewPending || !g.items) return g;
+      const items = [...g.items];
+      const at = items.findIndex((i) => i.to === "/min-profil/importer-cv");
+      items.splice(at + 1, 0, {
+        label: "CV-gjennomgang",
+        to: "/career/cv-review",
+        indent: true,
+      });
+      return { ...g, items };
+    });
     if (admin) groups.push(adminGroup);
     return groups;
-  }, [admin]);
+  }, [admin, reviewPending]);
 
   // Innstillinger ligger i bunnområdet, men må være søkbar for aktiv-gruppe og undermeny.
   const lookupGroups = useMemo(() => [...allGroups, settingsGroup], [allGroups]);
@@ -360,9 +405,10 @@ export function AppSidebar() {
           {activeGroup.items!.map((item) => {
             const active = isSubItemActive(pathname, item.to);
             return (
-              <li key={item.to}>
+              <li key={`${item.to}-${item.label}`}>
                 <Link
                   to={item.to}
+                  search={item.search as never}
                   className={cn(
                     "block rounded-md px-3 py-2 text-sm transition-colors",
                     item.indent && "ml-3 border-l pl-3",
@@ -394,9 +440,9 @@ export function AppSidebar() {
     : null;
 
   const mobileNavigate = useCallback(
-    (to: string) => {
+    (to: string, search?: Record<string, unknown>) => {
       setOpenMobile(false);
-      navigate({ to });
+      navigate({ to, search: search as never });
     },
     [navigate, setOpenMobile],
   );
@@ -441,10 +487,10 @@ export function AppSidebar() {
               {mobileGroup.items.map((item) => {
                 const active = isSubItemActive(pathname, item.to);
                 return (
-                  <li key={item.to}>
+                  <li key={`${item.to}-${item.label}`}>
                     <button
                       type="button"
-                      onClick={() => mobileNavigate(item.to)}
+                      onClick={() => mobileNavigate(item.to, item.search)}
                       className={cn(
                         "block w-full rounded-md px-3 py-3 text-left text-base transition-colors",
                         item.indent && "ml-3 border-l pl-3",

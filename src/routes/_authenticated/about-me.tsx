@@ -12,9 +12,8 @@ import { AutoSaveInput, AutoSaveTextarea } from "@/components/auto-save";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Download, User as UserIcon, Network } from "lucide-react";
+import { Download, User as UserIcon, Network } from "lucide-react";
 import { toast } from "sonner";
-import { CvUploader } from "@/components/cv-uploader";
 import { AboutMeCvSection } from "@/components/cv-upload/about-me-section";
 import { JobSearchPrefs } from "@/components/job-search-prefs";
 import { getCareerStage } from "@/lib/career-stage";
@@ -77,7 +76,7 @@ function AboutMePage() {
   const qc = useQueryClient();
   const navigate = useNavigate({ from: "/about-me" });
   const search = useSearch({ from: "/_authenticated/about-me" });
-  const activeTab = search.tab || "kort_om_meg";
+  const activeTab = search.tab === "cv" ? "karriereoversikt" : search.tab || "kort_om_meg";
   const collapse = usePersistedCollapse("about-me:sections", true);
   const { data: p, isLoading } = useQuery({
     ...profileQuery(user?.id ?? ""),
@@ -203,22 +202,8 @@ function AboutMePage() {
           <TabsTrigger value="karriereoversikt" className="gap-1.5 text-sm">
             <Network className="h-4 w-4" /> Karriereoversikt
           </TabsTrigger>
-          <TabsTrigger value="cv" className="gap-1.5 text-sm">
-            <FileText className="h-4 w-4" /> CV-filer
-          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="cv" className="mt-4 space-y-3">
-          <p className="max-w-prose text-sm text-muted-foreground">
-            Filene her lagres som de er. Skal innholdet bli karrieredata du kan bekrefte, laster du opp CV-en under{" "}
-            <strong>Karriereoversikt</strong>.
-          </p>
-          <CvUploader
-            userId={user.id}
-            profile={p}
-            onChanged={() => qc.invalidateQueries({ queryKey: ["profile", user.id] })}
-          />
-        </TabsContent>
 
         <TabsContent value="karriereoversikt" className="mt-4">
           <AboutMeCvSection userId={user.id} />
