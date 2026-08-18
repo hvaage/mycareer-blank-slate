@@ -80,6 +80,10 @@ export type DocumentationOverviewCounts = {
   professionalCases: number;
   professionalResults: number;
   documentationPackages: number;
+  /** Resultat-atomer fra karrieregrunnlaget (CV-import + manuelt bekreftet). */
+  careerResults: number;
+  /** Kompetanse- og eksponeringsatomer fra karrieregrunnlaget. */
+  careerSkills: number;
 };
 
 /** Head-count helpers (RLS-scoped to the current user). */
@@ -87,26 +91,41 @@ export const documentationOverviewCountsQuery = () =>
   queryOptions({
     queryKey: documentationQueryKeys.overviewCounts,
     queryFn: async (): Promise<DocumentationOverviewCounts> => {
-      const [docsRes, casesRes, resultsRes, packagesRes] = await Promise.all([
-        db.from("documents").select("id", { count: "exact", head: true }).is("deleted_at", null),
-        db.from("professional_cases").select("id", { count: "exact", head: true }),
-        db.from("professional_results").select("id", { count: "exact", head: true }),
-        db.from("documentation_packages").select("id", { count: "exact", head: true }),
-      ]);
+      const atomBase = () =>
+        db
+          .from("career_atoms")
+          .select("id", { count: "exact", head: true })
+          .eq("atom_kind", "evidens")
+          .eq("is_active", true);
+
+      const [docsRes, casesRes, resultsRes, packagesRes, atomResultsRes, atomSkillsRes] =
+        await Promise.all([
+          db.from("documents").select("id", { count: "exact", head: true }).is("deleted_at", null),
+          db.from("professional_cases").select("id", { count: "exact", head: true }),
+          db.from("professional_results").select("id", { count: "exact", head: true }),
+          db.from("documentation_packages").select("id", { count: "exact", head: true }),
+          atomBase().eq("atom_class", "resultat"),
+          atomBase().in("atom_class", ["kompetanse", "eksponering"]),
+        ]);
 
       if (docsRes.error) throw docsRes.error;
       if (casesRes.error) throw casesRes.error;
       if (resultsRes.error) throw resultsRes.error;
       if (packagesRes.error) throw packagesRes.error;
+      if (atomResultsRes.error) throw atomResultsRes.error;
+      if (atomSkillsRes.error) throw atomSkillsRes.error;
 
       return {
         documents: docsRes.count ?? 0,
         professionalCases: casesRes.count ?? 0,
         professionalResults: resultsRes.count ?? 0,
         documentationPackages: packagesRes.count ?? 0,
+        careerResults: atomResultsRes.count ?? 0,
+        careerSkills: atomSkillsRes.count ?? 0,
       };
     },
   });
+
 
 /** Professional library: non-deleted documents with application context for labels. */
 export const documentationLibraryDocumentsQuery = () =>
