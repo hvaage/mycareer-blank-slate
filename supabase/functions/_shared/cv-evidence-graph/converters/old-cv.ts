@@ -330,7 +330,7 @@ export function convertOldCv(
       content_en: canonical,
       structured_data: {
         name: canonical,
-        tool_kind: (typeof t === "string" ? null : t?.category) ?? "other",
+        tool_kind: toolKindFromCategory(typeof t === "string" ? null : (t?.category ?? null)),
         proficiency: null,
         years_used: null,
         suggested_from_name_lexicon: known?.atom_type === "tool" ? true : false,
