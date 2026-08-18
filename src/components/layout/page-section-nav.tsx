@@ -13,8 +13,11 @@ export type PageSection = {
   count?: number;
   /** Fremdrift for skjemaseksjoner. Vises som merke i stedet for antall. */
   status?: SectionStatus;
+  /** Kort tilleggstekst, f.eks. «3 av 5». */
+  hint?: string;
   /** Sett false for å skjule seksjonen fra menyen. Default: count !== 0 */
   show?: boolean;
+
 };
 
 
@@ -110,9 +113,13 @@ export function PageSectionNav({
                 >
                   {it.status ? <StatusMark status={it.status} /> : null}
                   {it.label}
+                  {it.hint ? (
+                    <span className="tabular-nums text-xs text-muted-foreground">{it.hint}</span>
+                  ) : null}
                   {typeof it.count === "number" ? (
                     <span className="tabular-nums text-xs text-muted-foreground">({it.count})</span>
                   ) : null}
+
 
                 </a>
               </li>

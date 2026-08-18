@@ -43,6 +43,7 @@ import { Route as RekruttererundersokelseResultaterIndexRouteImport } from './ro
 import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated/onboarding/index'
 import { Route as AuthenticatedOfferAnalysisIndexRouteImport } from './routes/_authenticated/offer-analysis/index'
 import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authenticated/next-steps/index'
+import { Route as AuthenticatedMinProfilIndexRouteImport } from './routes/_authenticated/min-profil/index'
 import { Route as AuthenticatedInterviewPrepIndexRouteImport } from './routes/_authenticated/interview-prep/index'
 import { Route as AuthenticatedInnstillingerIndexRouteImport } from './routes/_authenticated/innstillinger.index'
 import { Route as AuthenticatedEmployersIndexRouteImport } from './routes/_authenticated/employers/index'
@@ -59,6 +60,7 @@ import { Route as ApiInternalCvGenerationWorkerRouteImport } from './routes/api/
 import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
 import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generations'
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
+import { Route as AuthenticatedMinProfilKarriereretningRouteImport } from './routes/_authenticated/min-profil/karriereretning'
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
@@ -273,6 +275,12 @@ const AuthenticatedNextStepsIndexRoute =
     path: '/next-steps/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedMinProfilIndexRoute =
+  AuthenticatedMinProfilIndexRouteImport.update({
+    id: '/min-profil/',
+    path: '/min-profil/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInterviewPrepIndexRoute =
   AuthenticatedInterviewPrepIndexRouteImport.update({
     id: '/interview-prep/',
@@ -363,6 +371,12 @@ const ApiCvAtomizationJobsRoute = ApiCvAtomizationJobsRouteImport.update({
   path: '/api/cv/atomization-jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedMinProfilKarriereretningRoute =
+  AuthenticatedMinProfilKarriereretningRouteImport.update({
+    id: '/min-profil/karriereretning',
+    path: '/min-profil/karriereretning',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedKarriereErfaringRoute =
   AuthenticatedKarriereErfaringRouteImport.update({
     id: '/karriere/erfaring',
@@ -610,6 +624,7 @@ export interface FileRoutesByFullPath {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -626,6 +641,7 @@ export interface FileRoutesByFullPath {
   '/employers/': typeof AuthenticatedEmployersIndexRoute
   '/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
+  '/min-profil/': typeof AuthenticatedMinProfilIndexRoute
   '/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
@@ -691,6 +707,7 @@ export interface FileRoutesByTo {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -707,6 +724,7 @@ export interface FileRoutesByTo {
   '/employers': typeof AuthenticatedEmployersIndexRoute
   '/innstillinger': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep': typeof AuthenticatedInterviewPrepIndexRoute
+  '/min-profil': typeof AuthenticatedMinProfilIndexRoute
   '/next-steps': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
@@ -777,6 +795,7 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/_authenticated/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -793,6 +812,7 @@ export interface FileRoutesById {
   '/_authenticated/employers/': typeof AuthenticatedEmployersIndexRoute
   '/_authenticated/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/_authenticated/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
+  '/_authenticated/min-profil/': typeof AuthenticatedMinProfilIndexRoute
   '/_authenticated/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/_authenticated/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
@@ -863,6 +883,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -879,6 +900,7 @@ export interface FileRouteTypes {
     | '/employers/'
     | '/innstillinger/'
     | '/interview-prep/'
+    | '/min-profil/'
     | '/next-steps/'
     | '/offer-analysis/'
     | '/onboarding/'
@@ -944,6 +966,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -960,6 +983,7 @@ export interface FileRouteTypes {
     | '/employers'
     | '/innstillinger'
     | '/interview-prep'
+    | '/min-profil'
     | '/next-steps'
     | '/offer-analysis'
     | '/onboarding'
@@ -1029,6 +1053,7 @@ export interface FileRouteTypes {
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
+    | '/_authenticated/min-profil/karriereretning'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1045,6 +1070,7 @@ export interface FileRouteTypes {
     | '/_authenticated/employers/'
     | '/_authenticated/innstillinger/'
     | '/_authenticated/interview-prep/'
+    | '/_authenticated/min-profil/'
     | '/_authenticated/next-steps/'
     | '/_authenticated/offer-analysis/'
     | '/_authenticated/onboarding/'
@@ -1333,6 +1359,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNextStepsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/min-profil/': {
+      id: '/_authenticated/min-profil/'
+      path: '/min-profil'
+      fullPath: '/min-profil/'
+      preLoaderRoute: typeof AuthenticatedMinProfilIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/interview-prep/': {
       id: '/_authenticated/interview-prep/'
       path: '/interview-prep'
@@ -1444,6 +1477,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/cv/atomization-jobs'
       preLoaderRoute: typeof ApiCvAtomizationJobsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/min-profil/karriereretning': {
+      id: '/_authenticated/min-profil/karriereretning'
+      path: '/min-profil/karriereretning'
+      fullPath: '/min-profil/karriereretning'
+      preLoaderRoute: typeof AuthenticatedMinProfilKarriereretningRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/karriere/erfaring': {
       id: '/_authenticated/karriere/erfaring'
@@ -1712,6 +1752,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedKarriereErfaringRoute: typeof AuthenticatedKarriereErfaringRoute
+  AuthenticatedMinProfilKarriereretningRoute: typeof AuthenticatedMinProfilKarriereretningRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedApplicationsIndexRoute: typeof AuthenticatedApplicationsIndexRoute
   AuthenticatedCvBuilderIndexRoute: typeof AuthenticatedCvBuilderIndexRoute
@@ -1720,6 +1761,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedEmployersIndexRoute: typeof AuthenticatedEmployersIndexRoute
   AuthenticatedInnstillingerIndexRoute: typeof AuthenticatedInnstillingerIndexRoute
   AuthenticatedInterviewPrepIndexRoute: typeof AuthenticatedInterviewPrepIndexRoute
+  AuthenticatedMinProfilIndexRoute: typeof AuthenticatedMinProfilIndexRoute
   AuthenticatedNextStepsIndexRoute: typeof AuthenticatedNextStepsIndexRoute
   AuthenticatedOfferAnalysisIndexRoute: typeof AuthenticatedOfferAnalysisIndexRoute
   AuthenticatedOnboardingIndexRoute: typeof AuthenticatedOnboardingIndexRoute
@@ -1764,6 +1806,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedInnstillingerIntegrasjonerRoute,
   AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
   AuthenticatedKarriereErfaringRoute: AuthenticatedKarriereErfaringRoute,
+  AuthenticatedMinProfilKarriereretningRoute:
+    AuthenticatedMinProfilKarriereretningRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedApplicationsIndexRoute: AuthenticatedApplicationsIndexRoute,
   AuthenticatedCvBuilderIndexRoute: AuthenticatedCvBuilderIndexRoute,
@@ -1772,6 +1816,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedEmployersIndexRoute: AuthenticatedEmployersIndexRoute,
   AuthenticatedInnstillingerIndexRoute: AuthenticatedInnstillingerIndexRoute,
   AuthenticatedInterviewPrepIndexRoute: AuthenticatedInterviewPrepIndexRoute,
+  AuthenticatedMinProfilIndexRoute: AuthenticatedMinProfilIndexRoute,
   AuthenticatedNextStepsIndexRoute: AuthenticatedNextStepsIndexRoute,
   AuthenticatedOfferAnalysisIndexRoute: AuthenticatedOfferAnalysisIndexRoute,
   AuthenticatedOnboardingIndexRoute: AuthenticatedOnboardingIndexRoute,
