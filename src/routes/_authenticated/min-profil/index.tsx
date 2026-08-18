@@ -198,9 +198,9 @@ function MinProfilPage() {
       {
         id: "karriereretning",
         label: "Karriereretning",
-        status: statusFromCount(direction, 4),
-        counter: `${direction} av 4`,
-        why: "Styrer hvilke stillinger som vurderes for deg.",
+        status: statusFromCount(direction + wishes, 8),
+        counter: `${direction + wishes} av 8`,
+        why: "Karrierestadium, mål, bransje, arbeidsform, sted og lønn.",
       },
 
       {
@@ -223,13 +223,6 @@ function MinProfilPage() {
         status: countStatus(qualifications.length),
         counter: `${qualifications.length} registrert`,
         why: "Formelle krav i utlysninger sjekkes mot dette.",
-      },
-      {
-        id: "karriereretning",
-        label: "Jobbønsker",
-        status: statusFromCount(wishes, 4),
-        counter: `${wishes} av 4`,
-        why: "Arbeidsform, sted, søkeord og lønnsforventning.",
       },
       {
         id: "dokumentasjon",
@@ -334,7 +327,7 @@ function MinProfilPage() {
             <div className="flex flex-wrap gap-2 pt-4">
               <Button asChild size="sm" variant="outline">
                 <Link to="/about-me" search={{ tab: "kort_om_meg" }}>
-                  Endre jobbønsker
+                  Endre karriereretning og jobbønsker
                 </Link>
               </Button>
               <Button asChild size="sm" variant="ghost">
