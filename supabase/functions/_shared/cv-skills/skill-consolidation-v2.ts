@@ -113,12 +113,15 @@ function countReasons(skills: ConsolidatedSkill[]): Record<string, number> {
  * Slår sammen synonymer og klassifiserer hver kompetanse som gjennomgåbar
  * eller lokalt evidenssignal.
  *
- * Gjennomgåbar krever minst ett av:
- *  - eksplisitt oppgitt som kompetanse i CV-en
- *  - belegg fra minst to uavhengige resultater
- *  - belegg fra minst to roller
- *  - tydelig, selvstendig og relevant generell kompetanse med kildebelegg
+ * Modellregel: bredde er ikke opptaksterskel. En kompetanse er gjennomgåbar
+ * når den er eksplisitt oppgitt i CV-en, eller når den har konkret belegg i
+ * minst én rolle eller ett resultat. Bredde (én rolle, ett resultat, flere
+ * roller) rapporteres som informasjon, ikke som filter.
+ *
+ * Lokalt evidenssignal er forbeholdt utledede kompetanser uten konkret
+ * rolle- eller resultatbelegg.
  */
+
 export function consolidateSkills(
   skills: SkillProposal[],
   input: CvAtomizationInput,
