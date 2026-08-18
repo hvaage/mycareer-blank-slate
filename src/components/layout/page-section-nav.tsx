@@ -113,9 +113,13 @@ export function PageSectionNav({
                 >
                   {it.status ? <StatusMark status={it.status} /> : null}
                   {it.label}
+                  {it.hint ? (
+                    <span className="tabular-nums text-xs text-muted-foreground">{it.hint}</span>
+                  ) : null}
                   {typeof it.count === "number" ? (
                     <span className="tabular-nums text-xs text-muted-foreground">({it.count})</span>
                   ) : null}
+
 
                 </a>
               </li>
