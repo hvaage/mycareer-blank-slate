@@ -188,22 +188,8 @@ export function AboutMePage() {
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => navigate({ search: { ...search, tab: v } })} className="w-full">
-        <TabsList className="h-auto gap-1 p-1">
-          <TabsTrigger value="kort_om_meg" className="gap-1.5 text-sm">
-            <UserIcon className="h-4 w-4" /> Om meg
-          </TabsTrigger>
-          <TabsTrigger value="karriereoversikt" className="gap-1.5 text-sm">
-            <Network className="h-4 w-4" /> Karriereoversikt
-          </TabsTrigger>
-        </TabsList>
-
-
-        <TabsContent value="karriereoversikt" className="mt-4">
-          <AboutMeCvSection userId={user.id} />
-        </TabsContent>
-
-        <TabsContent value="kort_om_meg" className="space-y-3 mt-4">
+      <div className="w-full">
+        <div className="space-y-3 mt-4">
           <PageSectionNav
             top={0}
             sections={sections.map((s) => ({
