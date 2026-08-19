@@ -518,7 +518,7 @@ export function CvReviewPage() {
               description={
                 hasImports
                   ? "Alle funn fra denne importen er behandlet."
-                  : "Last opp CV-en under Om meg → Karriereoversikt for å få funn å bekrefte her."
+                  : "Last opp CV-en under Legg til kilder for å få funn å bekrefte her."
               }
 
             />
