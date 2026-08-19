@@ -376,13 +376,13 @@ export function CvReviewPage() {
             <CardDescription>
               «{activeImport?.source_filename ?? activeImport?.import_type}» har status «
               {activeImport?.status}». Fullfør <em>Analyser CV</em> og <em>Bekreft og lagre</em> i
-              opplasteren under Om meg → Karriereoversikt, så kommer funnene hit.
+              opplasteren under Legg til kilder, så kommer funnene hit.
               {activeImport?.error_message ? ` Feil: ${activeImport.error_message}` : ""}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link to="/about-me">Åpne opplasteren</Link>
+              <Link to="/kilder">Åpne opplasteren</Link>
             </Button>
           </CardContent>
         </Card>
