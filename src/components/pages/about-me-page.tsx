@@ -481,7 +481,7 @@ export function AboutMePage() {
             </div>
           </FormSection>
         </div>
-
+      </div>
     </div>
   );
 }
