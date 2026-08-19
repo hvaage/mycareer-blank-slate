@@ -240,8 +240,8 @@ function EmptyChain() {
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
           <Button asChild>
-            <Link to="/about-me" search={{ tab: "karriereoversikt" }}>
-              <Upload className="mr-2 h-4 w-4" /> Last opp CV under Om meg → Karriereoversikt
+            <Link to="/kilder">
+              <Upload className="mr-2 h-4 w-4" /> Last opp CV under Legg til kilder
             </Link>
           </Button>
 
