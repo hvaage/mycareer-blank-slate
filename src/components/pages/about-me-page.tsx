@@ -494,8 +494,8 @@ export function AboutMePage() {
               </p>
             </div>
           </FormSection>
-        </TabsContent>
-      </Tabs>
+        </div>
+
     </div>
   );
 }
