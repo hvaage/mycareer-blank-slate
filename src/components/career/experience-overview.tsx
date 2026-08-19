@@ -303,7 +303,7 @@ function PendingWorkNotice() {
         )}
         {data.open > 0 && (
           <Button asChild size="sm" variant="outline">
-            <Link to="/about-me" search={{ tab: "karriereoversikt" }}>
+            <Link to="/kilder">
               Fullfør CV-importen
             </Link>
           </Button>
