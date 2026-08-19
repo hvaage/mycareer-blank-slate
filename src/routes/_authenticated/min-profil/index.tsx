@@ -5,7 +5,7 @@
 // informasjonen eies av Karriereoversikt, Min dokumentasjon og
 // Gjennomgå forslag, og redigeres der.
 // ============================================================
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { AboutMePage } from "@/components/pages/about-me-page";
 
 export const Route = createFileRoute("/_authenticated/min-profil/")({
