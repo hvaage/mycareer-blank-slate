@@ -356,14 +356,14 @@ export function CvReviewPage() {
               </span>
               <span className="block">
                 For å bygge karrieredata må du laste opp CV-en under{" "}
-                <strong>Om meg → Karriereoversikt</strong>, kjøre <em>Analyser CV</em> og
+                <strong>Legg til kilder</strong>, kjøre <em>Analyser CV</em> og
                 deretter <em>Bekreft og lagre</em>. Da dukker funnene opp på denne siden.
               </span>
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link to="/about-me" search={{ tab: "karriereoversikt" }}>Gå til Om meg → Karriereoversikt</Link>
+              <Link to="/kilder">Gå til Legg til kilder</Link>
             </Button>
           </CardContent>
         </Card>
