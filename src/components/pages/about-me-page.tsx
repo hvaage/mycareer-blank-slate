@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -11,10 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AutoSaveInput, AutoSaveTextarea } from "@/components/auto-save";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, User as UserIcon, Network } from "lucide-react";
+import { Download } from "lucide-react";
 import { toast } from "sonner";
-import { AboutMeCvSection } from "@/components/cv-upload/about-me-section";
 import { JobSearchPrefs } from "@/components/job-search-prefs";
 import { getCareerStage } from "@/lib/career-stage";
 import { FormSection, sectionStatus } from "@/components/form/form-section";
@@ -68,9 +66,6 @@ export function AboutMePage() {
 
   const { user } = useAuth();
   const qc = useQueryClient();
-  const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { tab?: string };
-  const activeTab = search.tab === "cv" ? "karriereoversikt" : search.tab || "kort_om_meg";
   const collapse = usePersistedCollapse("about-me:sections", true);
   const { data: p, isLoading } = useQuery({
     ...profileQuery(user?.id ?? ""),
@@ -188,22 +183,8 @@ export function AboutMePage() {
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => navigate({ search: { ...search, tab: v } })} className="w-full">
-        <TabsList className="h-auto gap-1 p-1">
-          <TabsTrigger value="kort_om_meg" className="gap-1.5 text-sm">
-            <UserIcon className="h-4 w-4" /> Om meg
-          </TabsTrigger>
-          <TabsTrigger value="karriereoversikt" className="gap-1.5 text-sm">
-            <Network className="h-4 w-4" /> Karriereoversikt
-          </TabsTrigger>
-        </TabsList>
-
-
-        <TabsContent value="karriereoversikt" className="mt-4">
-          <AboutMeCvSection userId={user.id} />
-        </TabsContent>
-
-        <TabsContent value="kort_om_meg" className="space-y-3 mt-4">
+      <div className="w-full">
+        <div className="space-y-3 mt-4">
           <PageSectionNav
             top={0}
             sections={sections.map((s) => ({
@@ -494,8 +475,8 @@ export function AboutMePage() {
               </p>
             </div>
           </FormSection>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }

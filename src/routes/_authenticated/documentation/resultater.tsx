@@ -54,8 +54,8 @@ function DocumentationResultsPage() {
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline" size="sm">
-              <Link to="/about-me" search={{ tab: "karriereoversikt" }}>
-                Åpne Karriereoversikt
+              <Link to="/kilder">
+                Legg til kilder
               </Link>
             </Button>
           </CardContent>

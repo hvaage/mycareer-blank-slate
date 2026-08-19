@@ -356,14 +356,14 @@ export function CvReviewPage() {
               </span>
               <span className="block">
                 For å bygge karrieredata må du laste opp CV-en under{" "}
-                <strong>Om meg → Karriereoversikt</strong>, kjøre <em>Analyser CV</em> og
+                <strong>Legg til kilder</strong>, kjøre <em>Analyser CV</em> og
                 deretter <em>Bekreft og lagre</em>. Da dukker funnene opp på denne siden.
               </span>
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link to="/about-me" search={{ tab: "karriereoversikt" }}>Gå til Om meg → Karriereoversikt</Link>
+              <Link to="/kilder">Gå til Legg til kilder</Link>
             </Button>
           </CardContent>
         </Card>
@@ -376,13 +376,13 @@ export function CvReviewPage() {
             <CardDescription>
               «{activeImport?.source_filename ?? activeImport?.import_type}» har status «
               {activeImport?.status}». Fullfør <em>Analyser CV</em> og <em>Bekreft og lagre</em> i
-              opplasteren under Om meg → Karriereoversikt, så kommer funnene hit.
+              opplasteren under Legg til kilder, så kommer funnene hit.
               {activeImport?.error_message ? ` Feil: ${activeImport.error_message}` : ""}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link to="/about-me">Åpne opplasteren</Link>
+              <Link to="/kilder">Åpne opplasteren</Link>
             </Button>
           </CardContent>
         </Card>
@@ -518,7 +518,7 @@ export function CvReviewPage() {
               description={
                 hasImports
                   ? "Alle funn fra denne importen er behandlet."
-                  : "Last opp CV-en under Om meg → Karriereoversikt for å få funn å bekrefte her."
+                  : "Last opp CV-en under Legg til kilder for å få funn å bekrefte her."
               }
 
             />

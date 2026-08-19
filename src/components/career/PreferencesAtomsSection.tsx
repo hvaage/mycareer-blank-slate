@@ -252,7 +252,7 @@ export function PreferencesAtomsSection({ userId, careerProfileId, profile, prof
                 <li>Hva som er viktig for deg i neste jobb</li>
               </ul>
               <Button asChild size="sm" variant="secondary">
-                <Link to="/about-me">Last opp CV</Link>
+                <Link to="/kilder">Last opp CV</Link>
               </Button>
             </div>
           )}
