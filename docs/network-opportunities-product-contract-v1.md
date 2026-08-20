@@ -314,12 +314,14 @@ Hvert felt har nøyaktig én aktiv kildeklasse. Er den `user_input`, kan siste L
 | Selskap | Brønnøysund/arbeidsgiverregister | — | — | `companies` | Selskaper |
 | Arbeidsgiverinnsikt | Arbeidsgiveranalyse | — | — | `companies.employer_analysis_v2`, `employer_reports` | Selskap, Mulighet |
 | Kurs | LinkedIn Learning | `linkedin_learning_staging` | ja | `career_atoms` (kvalifikasjon) | Min profil |
-| Innhold/artikler | LinkedIn Articles/Shares | `linkedin_content_staging` | ja | `documents` (portefølje) | Min dokumentasjon |
+| Innhold/artikler | LinkedIn Articles/Shares | `linkedin_content_staging` | forslag | `not_actionable_in_phase_4` | ingen produktflate ennå |
 | Mulighet | Annonsekilder (Careerjet, NAV, e-post) | `source_postings` | screening | `user_opportunities` | Muligheter |
-| Aktivitet | Brukerhandling / KI-forslag | — | forslag krever godkjenning og frist | `next_steps` | Aktiviteter |
+| Aktivitet | Brukerhandling / KI-forslag (`ai_suggestion`) | — | forslag krever godkjenning og frist | `next_steps` | Aktiviteter |
 | Jobbsignaler, annonseklikk, inferert annonseprofil | LinkedIn | **importeres aldri** | — | — | — |
 
 Kursfeltene leses fra riktige kildekolonner: kursnavn, tilbyder, faktisk fullført-dato og kurs-URL. «Sist sett»-kolonnen brukes aldri som fullført-dato.
+
+Artikler og delt innhold promoteres **ikke** til `documents` eller noen annen produktflate. De blir stående i staging som `not_actionable_in_phase_4` inntil en egnet, proveniensbevarende porteføljemodell er spesifisert og godkjent.
 
 ---
 
