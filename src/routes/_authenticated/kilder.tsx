@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
 import { useProfileOverviewData } from "@/lib/queries/profile-overview";
 import { AboutMeCvSection } from "@/components/cv-upload/about-me-section";
+import { LinkedInImportCard } from "@/components/linkedin/linkedin-import-card";
 import { FileText, Linkedin, GraduationCap, BookOpen, Layers, Building2, Info } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/kilder")({

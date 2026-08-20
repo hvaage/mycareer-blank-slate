@@ -56,7 +56,18 @@ const SOURCE_QUEUES: Array<{
   },
   // Kommende kilder: arbeidsgiverdokumenter, LinkedIn, kursbevis.
   { key: "employer", count: async () => 0 },
-  { key: "linkedin", count: async () => 0 },
+  {
+    key: "linkedin",
+    count: async (userId) => {
+      const { count, error } = await supabase
+        .from("linkedin_reconciliation_proposals")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "pending_review");
+      if (error) throw error;
+      return count ?? 0;
+    },
+  },
   { key: "credentials", count: async () => 0 },
 ];
 
