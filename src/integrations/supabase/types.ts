@@ -3769,6 +3769,872 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_career_staging: {
+        Row: {
+          date_precision: string | null
+          description: string | null
+          entry_kind: string
+          finished_on: string | null
+          location: string | null
+          organization_name: string | null
+          staging_domain: string
+          staging_record_id: string
+          started_on: string | null
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          date_precision?: string | null
+          description?: string | null
+          entry_kind: string
+          finished_on?: string | null
+          location?: string | null
+          organization_name?: string | null
+          staging_domain?: string
+          staging_record_id: string
+          started_on?: string | null
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          date_precision?: string | null
+          description?: string | null
+          entry_kind?: string
+          finished_on?: string | null
+          location?: string | null
+          organization_name?: string | null
+          staging_domain?: string
+          staging_record_id?: string
+          started_on?: string | null
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_career_staging_domain_fk"
+            columns: ["staging_record_id", "staging_domain"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "staging_domain"]
+          },
+          {
+            foreignKeyName: "linkedin_career_staging_staging_record_id_fkey"
+            columns: ["staging_record_id"]
+            isOneToOne: true
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_career_staging_user_fk"
+            columns: ["staging_record_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_content_staging: {
+        Row: {
+          content_url: string | null
+          entry_kind: string
+          media_kind: string | null
+          published_at: string | null
+          staging_domain: string
+          staging_record_id: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          content_url?: string | null
+          entry_kind: string
+          media_kind?: string | null
+          published_at?: string | null
+          staging_domain?: string
+          staging_record_id: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          content_url?: string | null
+          entry_kind?: string
+          media_kind?: string | null
+          published_at?: string | null
+          staging_domain?: string
+          staging_record_id?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_content_staging_domain_fk"
+            columns: ["staging_record_id", "staging_domain"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "staging_domain"]
+          },
+          {
+            foreignKeyName: "linkedin_content_staging_staging_record_id_fkey"
+            columns: ["staging_record_id"]
+            isOneToOne: true
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_content_staging_user_fk"
+            columns: ["staging_record_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_import_file_purposes: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          id: string
+          linkedin_import_file_id: string
+          purpose: string
+          staged_record_count: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          linkedin_import_file_id: string
+          purpose: string
+          staged_record_count?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          linkedin_import_file_id?: string
+          purpose?: string
+          staged_record_count?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_import_file_purposes_file_fk"
+            columns: ["linkedin_import_file_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_import_files"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_import_files: {
+        Row: {
+          archive_path: string
+          compressed_bytes: number | null
+          created_at: string
+          error_code: string | null
+          file_class: string
+          file_hash: string
+          id: string
+          invalid_row_count: number | null
+          linkedin_import_id: string
+          parser_version: string | null
+          row_count: number | null
+          status: string
+          uncompressed_bytes: number | null
+          updated_at: string
+          user_id: string
+          valid_row_count: number | null
+        }
+        Insert: {
+          archive_path: string
+          compressed_bytes?: number | null
+          created_at?: string
+          error_code?: string | null
+          file_class: string
+          file_hash: string
+          id?: string
+          invalid_row_count?: number | null
+          linkedin_import_id: string
+          parser_version?: string | null
+          row_count?: number | null
+          status?: string
+          uncompressed_bytes?: number | null
+          updated_at?: string
+          user_id: string
+          valid_row_count?: number | null
+        }
+        Update: {
+          archive_path?: string
+          compressed_bytes?: number | null
+          created_at?: string
+          error_code?: string | null
+          file_class?: string
+          file_hash?: string
+          id?: string
+          invalid_row_count?: number | null
+          linkedin_import_id?: string
+          parser_version?: string | null
+          row_count?: number | null
+          status?: string
+          uncompressed_bytes?: number | null
+          updated_at?: string
+          user_id?: string
+          valid_row_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_import_files_import_fk"
+            columns: ["linkedin_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_import_purposes: {
+        Row: {
+          id: string
+          linkedin_import_id: string
+          purpose: string
+          selected_at: string
+          selection_source: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          linkedin_import_id: string
+          purpose: string
+          selected_at?: string
+          selection_source?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          linkedin_import_id?: string
+          purpose?: string
+          selected_at?: string
+          selection_source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_import_purposes_import_fk"
+            columns: ["linkedin_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_import_stage_records: {
+        Row: {
+          attempt_id: string
+          id: string
+          linked_at: string
+          linkedin_import_id: string
+          purpose: string
+          source_identity_hash: string
+          staging_domain: string
+          staging_record_id: string
+          user_id: string
+        }
+        Insert: {
+          attempt_id: string
+          id?: string
+          linked_at?: string
+          linkedin_import_id: string
+          purpose: string
+          source_identity_hash: string
+          staging_domain: string
+          staging_record_id: string
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string
+          id?: string
+          linked_at?: string
+          linkedin_import_id?: string
+          purpose?: string
+          source_identity_hash?: string
+          staging_domain?: string
+          staging_record_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_import_stage_records_import_fk"
+            columns: ["linkedin_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "linkedin_import_stage_records_record_domain_fk"
+            columns: ["staging_record_id", "staging_domain"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "staging_domain"]
+          },
+          {
+            foreignKeyName: "linkedin_import_stage_records_record_purpose_fk"
+            columns: ["staging_record_id", "purpose"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "purpose"]
+          },
+          {
+            foreignKeyName: "linkedin_import_stage_records_record_user_fk"
+            columns: ["staging_record_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_import_tombstones: {
+        Row: {
+          archive_sha256: string
+          contract_version: string
+          deleted_at: string
+          deletion_reason: string
+          id: string
+          import_created_at: string
+          linkedin_import_id: string
+          purposes: string[]
+          staged_record_count: number
+          user_id: string
+        }
+        Insert: {
+          archive_sha256: string
+          contract_version: string
+          deleted_at?: string
+          deletion_reason: string
+          id?: string
+          import_created_at: string
+          linkedin_import_id: string
+          purposes?: string[]
+          staged_record_count?: number
+          user_id: string
+        }
+        Update: {
+          archive_sha256?: string
+          contract_version?: string
+          deleted_at?: string
+          deletion_reason?: string
+          id?: string
+          import_created_at?: string
+          linkedin_import_id?: string
+          purposes?: string[]
+          staged_record_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      linkedin_imports: {
+        Row: {
+          active_phase: string | null
+          archive_available: boolean
+          archive_sha256: string
+          attempt_id: string | null
+          cancelled_at: string | null
+          canonical_import_id: string | null
+          content_manifest_hash: string | null
+          contract_version: string
+          created_at: string
+          error_code: string | null
+          error_summary: string | null
+          excluded_file_count: number
+          excluded_reason_counts: Json
+          heartbeat_at: string | null
+          id: string
+          invalid_file_count: number
+          known_file_count: number
+          purged_at: string | null
+          staged_at: string | null
+          staged_record_count: number
+          staging_started_at: string | null
+          status: string
+          unknown_file_count: number
+          user_id: string
+          valid_file_count: number
+          validated_at: string | null
+        }
+        Insert: {
+          active_phase?: string | null
+          archive_available: boolean
+          archive_sha256: string
+          attempt_id?: string | null
+          cancelled_at?: string | null
+          canonical_import_id?: string | null
+          content_manifest_hash?: string | null
+          contract_version?: string
+          created_at?: string
+          error_code?: string | null
+          error_summary?: string | null
+          excluded_file_count?: number
+          excluded_reason_counts?: Json
+          heartbeat_at?: string | null
+          id?: string
+          invalid_file_count?: number
+          known_file_count?: number
+          purged_at?: string | null
+          staged_at?: string | null
+          staged_record_count?: number
+          staging_started_at?: string | null
+          status?: string
+          unknown_file_count?: number
+          user_id: string
+          valid_file_count?: number
+          validated_at?: string | null
+        }
+        Update: {
+          active_phase?: string | null
+          archive_available?: boolean
+          archive_sha256?: string
+          attempt_id?: string | null
+          cancelled_at?: string | null
+          canonical_import_id?: string | null
+          content_manifest_hash?: string | null
+          contract_version?: string
+          created_at?: string
+          error_code?: string | null
+          error_summary?: string | null
+          excluded_file_count?: number
+          excluded_reason_counts?: Json
+          heartbeat_at?: string | null
+          id?: string
+          invalid_file_count?: number
+          known_file_count?: number
+          purged_at?: string | null
+          staged_at?: string | null
+          staged_record_count?: number
+          staging_started_at?: string | null
+          status?: string
+          unknown_file_count?: number
+          user_id?: string
+          valid_file_count?: number
+          validated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_imports_canonical_fk"
+            columns: ["canonical_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_job_staging: {
+        Row: {
+          application_state: string | null
+          company_name: string | null
+          entry_kind: string
+          event_label: string | null
+          job_title: string | null
+          job_url: string | null
+          staging_domain: string
+          staging_record_id: string
+          user_id: string
+        }
+        Insert: {
+          application_state?: string | null
+          company_name?: string | null
+          entry_kind: string
+          event_label?: string | null
+          job_title?: string | null
+          job_url?: string | null
+          staging_domain?: string
+          staging_record_id: string
+          user_id: string
+        }
+        Update: {
+          application_state?: string | null
+          company_name?: string | null
+          entry_kind?: string
+          event_label?: string | null
+          job_title?: string | null
+          job_url?: string | null
+          staging_domain?: string
+          staging_record_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_job_staging_domain_fk"
+            columns: ["staging_record_id", "staging_domain"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "staging_domain"]
+          },
+          {
+            foreignKeyName: "linkedin_job_staging_staging_record_id_fkey"
+            columns: ["staging_record_id"]
+            isOneToOne: true
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_job_staging_user_fk"
+            columns: ["staging_record_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_learning_staging: {
+        Row: {
+          completed_on: string | null
+          content_url: string | null
+          course_title: string | null
+          progress_label: string | null
+          provider: string | null
+          staging_domain: string
+          staging_record_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_on?: string | null
+          content_url?: string | null
+          course_title?: string | null
+          progress_label?: string | null
+          provider?: string | null
+          staging_domain?: string
+          staging_record_id: string
+          user_id: string
+        }
+        Update: {
+          completed_on?: string | null
+          content_url?: string | null
+          course_title?: string | null
+          progress_label?: string | null
+          provider?: string | null
+          staging_domain?: string
+          staging_record_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_learning_staging_domain_fk"
+            columns: ["staging_record_id", "staging_domain"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "staging_domain"]
+          },
+          {
+            foreignKeyName: "linkedin_learning_staging_staging_record_id_fkey"
+            columns: ["staging_record_id"]
+            isOneToOne: true
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_learning_staging_user_fk"
+            columns: ["staging_record_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_network_staging: {
+        Row: {
+          company: string | null
+          connected_on: string | null
+          full_name: string | null
+          position: string | null
+          profile_url: string | null
+          staging_domain: string
+          staging_record_id: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          connected_on?: string | null
+          full_name?: string | null
+          position?: string | null
+          profile_url?: string | null
+          staging_domain?: string
+          staging_record_id: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          connected_on?: string | null
+          full_name?: string | null
+          position?: string | null
+          profile_url?: string | null
+          staging_domain?: string
+          staging_record_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_network_staging_domain_fk"
+            columns: ["staging_record_id", "staging_domain"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "staging_domain"]
+          },
+          {
+            foreignKeyName: "linkedin_network_staging_staging_record_id_fkey"
+            columns: ["staging_record_id"]
+            isOneToOne: true
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_network_staging_user_fk"
+            columns: ["staging_record_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_profile_staging: {
+        Row: {
+          first_name: string | null
+          geo_location: string | null
+          headline: string | null
+          industry: string | null
+          last_name: string | null
+          staging_domain: string
+          staging_record_id: string
+          summary: string | null
+          user_id: string
+          websites: string[] | null
+        }
+        Insert: {
+          first_name?: string | null
+          geo_location?: string | null
+          headline?: string | null
+          industry?: string | null
+          last_name?: string | null
+          staging_domain?: string
+          staging_record_id: string
+          summary?: string | null
+          user_id: string
+          websites?: string[] | null
+        }
+        Update: {
+          first_name?: string | null
+          geo_location?: string | null
+          headline?: string | null
+          industry?: string | null
+          last_name?: string | null
+          staging_domain?: string
+          staging_record_id?: string
+          summary?: string | null
+          user_id?: string
+          websites?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_profile_staging_domain_fk"
+            columns: ["staging_record_id", "staging_domain"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "staging_domain"]
+          },
+          {
+            foreignKeyName: "linkedin_profile_staging_staging_record_id_fkey"
+            columns: ["staging_record_id"]
+            isOneToOne: true
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_profile_staging_user_fk"
+            columns: ["staging_record_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_recommendation_staging: {
+        Row: {
+          counterpart_headline: string | null
+          counterpart_name: string | null
+          direction: string
+          recommendation_text: string | null
+          staging_domain: string
+          staging_record_id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          counterpart_headline?: string | null
+          counterpart_name?: string | null
+          direction: string
+          recommendation_text?: string | null
+          staging_domain?: string
+          staging_record_id: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          counterpart_headline?: string | null
+          counterpart_name?: string | null
+          direction?: string
+          recommendation_text?: string | null
+          staging_domain?: string
+          staging_record_id?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_recommendation_staging_domain_fk"
+            columns: ["staging_record_id", "staging_domain"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "staging_domain"]
+          },
+          {
+            foreignKeyName: "linkedin_recommendation_staging_staging_record_id_fkey"
+            columns: ["staging_record_id"]
+            isOneToOne: true
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_recommendation_staging_user_fk"
+            columns: ["staging_record_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_staging_records: {
+        Row: {
+          created_at: string
+          first_linkedin_import_id: string
+          id: string
+          last_linkedin_import_id: string
+          last_seen_at: string
+          purpose: string
+          record_kind: string
+          source_classification: string
+          source_content_hash: string | null
+          source_event_at: string | null
+          source_file: string
+          source_identity_hash: string
+          source_locator: string
+          source_locator_type: string
+          source_recorded_at: string | null
+          source_row_hash: string | null
+          source_row_number: number | null
+          source_system: string
+          source_url: string | null
+          staging_domain: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          first_linkedin_import_id: string
+          id?: string
+          last_linkedin_import_id: string
+          last_seen_at?: string
+          purpose: string
+          record_kind: string
+          source_classification?: string
+          source_content_hash?: string | null
+          source_event_at?: string | null
+          source_file: string
+          source_identity_hash: string
+          source_locator: string
+          source_locator_type: string
+          source_recorded_at?: string | null
+          source_row_hash?: string | null
+          source_row_number?: number | null
+          source_system?: string
+          source_url?: string | null
+          staging_domain: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          first_linkedin_import_id?: string
+          id?: string
+          last_linkedin_import_id?: string
+          last_seen_at?: string
+          purpose?: string
+          record_kind?: string
+          source_classification?: string
+          source_content_hash?: string | null
+          source_event_at?: string | null
+          source_file?: string
+          source_identity_hash?: string
+          source_locator?: string
+          source_locator_type?: string
+          source_recorded_at?: string | null
+          source_row_hash?: string | null
+          source_row_number?: number | null
+          source_system?: string
+          source_url?: string | null
+          staging_domain?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_staging_records_first_import_fk"
+            columns: ["first_linkedin_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "linkedin_staging_records_last_import_fk"
+            columns: ["last_linkedin_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_storage_delete_queue: {
+        Row: {
+          attempts: number
+          deleted_at: string | null
+          enqueued_at: string
+          id: string
+          last_error_code: string | null
+          linkedin_import_id: string | null
+          object_path: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          deleted_at?: string | null
+          enqueued_at?: string
+          id?: string
+          last_error_code?: string | null
+          linkedin_import_id?: string | null
+          object_path: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          deleted_at?: string | null
+          enqueued_at?: string
+          id?: string
+          last_error_code?: string | null
+          linkedin_import_id?: string | null
+          object_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       match_assessments: {
         Row: {
           apply_recommendation_score: number | null
@@ -6677,6 +7543,11 @@ export type Database = {
         }
         Returns: string
       }
+      linkedin_import_delete: {
+        Args: { p_import_id: string; p_reason?: string }
+        Returns: Json
+      }
+      linkedin_import_retention_sweep: { Args: never; Returns: Json }
       list_regnskap_cron_runs: {
         Args: { p_limit?: number }
         Returns: {
