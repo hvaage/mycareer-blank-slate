@@ -448,6 +448,36 @@ Andre observerte signaturer i referansearkivet (utdrag):
 Nummererte varianter (`Jobs/Saved Jobs_1.csv`, `*_997361.csv`) matches med
 mønster og valideres mot basisfilens signatur.
 
+### 8.5.1 Parserregel `connections_csv_preamble_v1` (versjonert)
+
+Regel-ID: `connections_csv_preamble_v1`. Gjelder `Connections.csv`. Regelversjonen
+lagres på filraden (`parser_rule = connections_csv_preamble_v1`) slik at senere
+endringer i preamblehåndtering er sporbare per import.
+
+Deterministisk sekvens:
+
+1. Strip BOM. Les inntil `MAX_PREAMBLE_LINES = 10` linjer fra toppen.
+2. Hopp over preamble: linjer før den reelle headeren forkastes uten tolkning
+   (i referansearkivet tre linjer: `Notes:`, forklaringstekst, tom linje).
+   Preamblelinjer leses aldri inn i staging og gjengis aldri i logg eller feilmelding.
+3. Finn reell header: første ikke-tomme linje som ved CSV-parsing gir nøyaktig
+   den forventede signaturen
+   `First Name,Last Name,URL,Email Address,Company,Position,Connected On`
+   (sammenligning etter trimming og case-insensitiv match på kolonnenavn).
+4. Valider: headeren må ha samme kolonnesett og rekkefølge som signaturen.
+5. Avvis på filnivå dersom headeren ikke finnes innen `MAX_PREAMBLE_LINES`:
+   filstatus `rejected` med `error_code = connections_header_not_found`.
+   Ved funnet, men avvikende header: `rejected` med
+   `error_code = unexpected_header` og kun kolonnenavnene (ikke rader).
+6. Filnivåfeil avviser aldri hele importen; importen kan bli
+   `partially_validated` (§1).
+
+Logging for denne regelen er begrenset til: `file_name`, `parser_rule`,
+`preamble_lines_skipped` (antall), `header_line_number`, `rows_read`,
+`rows_validated`, `rows_rejected` og `error_code`. Preambletekst, headerinnhold
+ved suksess, navn, e-post, URL-er, selskap eller stilling logges aldri.
+
+
 ### 8.6 Tellere og RLS
 
 - Per fil: `rows_read`, `rows_validated`, `rows_rejected`, `rows_excluded`,
