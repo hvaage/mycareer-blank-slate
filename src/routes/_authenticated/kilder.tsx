@@ -142,19 +142,23 @@ function KilderPage() {
           status="Kommer"
         />
 
-        <SourceCard
-          icon={Linkedin}
-          title="LinkedIn-import"
-          description="Profil og LinkedIn Skills. Eksporten blir aldri overført automatisk: du får forslag du selv tar stilling til i kildegjennomgangen."
-          status="Kommer"
-          actions={
-            <Button asChild size="sm" variant="ghost">
-              <Link to="/kildegjennomgang" search={{ source: "linkedin" }}>
-                Se kildegjennomgang
-              </Link>
-            </Button>
-          }
-        />
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-start gap-3">
+              <Linkedin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              <div>
+                <CardTitle className="text-base">LinkedIn-import</CardTitle>
+                <CardDescription className="max-w-prose">
+                  Profil, stillinger og LinkedIn Skills. Eksporten blir aldri overført automatisk:
+                  du får forslag du selv tar stilling til i kildegjennomgangen.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <LinkedInImportCard />
+          </CardContent>
+        </Card>
 
         <SourceCard
           icon={BookOpen}
