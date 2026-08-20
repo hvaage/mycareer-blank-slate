@@ -3996,6 +3996,98 @@ export type Database = {
           },
         ]
       }
+      linkedin_import_attempts: {
+        Row: {
+          attempt_number: number
+          cancellation_requested_at: string | null
+          created_at: string
+          cursor_json: Json
+          error_code: string | null
+          error_summary: string | null
+          finished_at: string | null
+          heartbeat_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_owner: string | null
+          linkedin_import_id: string
+          max_attempts: number
+          next_retry_at: string
+          phase: string
+          processed_files_count: number
+          processed_rows_count: number
+          reconciliation_runs_count: number
+          retry_count: number
+          staged_records_count: number
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          warning_count: number
+        }
+        Insert: {
+          attempt_number?: number
+          cancellation_requested_at?: string | null
+          created_at?: string
+          cursor_json?: Json
+          error_code?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          heartbeat_at?: string | null
+          id?: string
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          linkedin_import_id: string
+          max_attempts?: number
+          next_retry_at?: string
+          phase?: string
+          processed_files_count?: number
+          processed_rows_count?: number
+          reconciliation_runs_count?: number
+          retry_count?: number
+          staged_records_count?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          warning_count?: number
+        }
+        Update: {
+          attempt_number?: number
+          cancellation_requested_at?: string | null
+          created_at?: string
+          cursor_json?: Json
+          error_code?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          heartbeat_at?: string | null
+          id?: string
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          linkedin_import_id?: string
+          max_attempts?: number
+          next_retry_at?: string
+          phase?: string
+          processed_files_count?: number
+          processed_rows_count?: number
+          reconciliation_runs_count?: number
+          retry_count?: number
+          staged_records_count?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          warning_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_import_attempts_linkedin_import_id_fkey"
+            columns: ["linkedin_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       linkedin_import_file_purposes: {
         Row: {
           created_at: string
@@ -4249,6 +4341,7 @@ export type Database = {
           active_phase: string | null
           archive_available: boolean
           archive_sha256: string
+          archive_storage_path: string | null
           attempt_id: string | null
           cancelled_at: string | null
           canonical_import_id: string | null
@@ -4263,6 +4356,7 @@ export type Database = {
           id: string
           invalid_file_count: number
           known_file_count: number
+          last_attempt_id: string | null
           purged_at: string | null
           staged_at: string | null
           staged_record_count: number
@@ -4277,6 +4371,7 @@ export type Database = {
           active_phase?: string | null
           archive_available: boolean
           archive_sha256: string
+          archive_storage_path?: string | null
           attempt_id?: string | null
           cancelled_at?: string | null
           canonical_import_id?: string | null
@@ -4291,6 +4386,7 @@ export type Database = {
           id?: string
           invalid_file_count?: number
           known_file_count?: number
+          last_attempt_id?: string | null
           purged_at?: string | null
           staged_at?: string | null
           staged_record_count?: number
@@ -4305,6 +4401,7 @@ export type Database = {
           active_phase?: string | null
           archive_available?: boolean
           archive_sha256?: string
+          archive_storage_path?: string | null
           attempt_id?: string | null
           cancelled_at?: string | null
           canonical_import_id?: string | null
@@ -4319,6 +4416,7 @@ export type Database = {
           id?: string
           invalid_file_count?: number
           known_file_count?: number
+          last_attempt_id?: string | null
           purged_at?: string | null
           staged_at?: string | null
           staged_record_count?: number
@@ -6946,6 +7044,53 @@ export type Database = {
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "job_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_notifications: {
+        Row: {
+          attempt_id: string | null
+          body: string
+          created_at: string
+          deep_link: string
+          id: string
+          linkedin_import_id: string | null
+          notification_kind: string
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          attempt_id?: string | null
+          body: string
+          created_at?: string
+          deep_link: string
+          id?: string
+          linkedin_import_id?: string | null
+          notification_kind: string
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string | null
+          body?: string
+          created_at?: string
+          deep_link?: string
+          id?: string
+          linkedin_import_id?: string | null
+          notification_kind?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_linkedin_import_id_fkey"
+            columns: ["linkedin_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
             referencedColumns: ["id"]
           },
         ]
