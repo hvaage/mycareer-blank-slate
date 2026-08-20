@@ -1,63 +1,56 @@
-# Kildegjennomgang: rask beslutning, ingen støyforslag, norsk som språk
+# LinkedIn-import: stillinger, kurs og kompetanse kommer aldri frem — årsak og løsning
 
-## Hva jeg fant (bekreftet mot data og kode)
+## Svaret på spørsmålet ditt
 
-- Klikkene registreres faktisk. Databasen viser at både «Avvis» og «Behold det jeg har» har blitt lagret (3 profilforslag og 1 jobbforslag står som avvist). Problemet er at siden ikke gir noe synlig svar: det kommer ingen bekreftelse, kortet blir liggende på samme plass, og hele listen på 305 forslag hentes på nytt før statusmerkelappen endrer seg. For brukeren ser det ut som ingenting skjedde.
-- 299 av 305 forslag er «Jobbsignaler» — historisk jobbsøk-aktivitet fra LinkedIn. De kan ikke overføres til karriereoversikten i det hele tatt og har ingen verdi i denne løsningen.
-- Reelle beslutninger er 6: 4 profilfelter (navn, sted, sammendrag, tittelrad) og 2 nye elementer.
-- Profilteksten fra LinkedIn er engelsk, profilen her er norsk. Det gir «motstrid» på sammendrag og tittelrad.
-- «Sikkerhet 50 %» er avstemmingens interne tillit til koblingen. Den vises som et nakent tall uten forklaring.
+Nei, stillinger og kompetanser fra LinkedIn er **ikke** lagret på deg, og de ble **ikke** vist i gjennomgangen. De er lest inn og ligger i mellomlageret — 12 stillinger, 95 kompetanser, 5 sertifiseringer, 1 utdanning, 2 frivillige verv og 1 språk — men de ble aldri gjort om til forslag.
 
-## Det jeg foreslår
+Årsaken er bekreftet i dataene: avstemmingen for «karriere» rapporterte «0 kilderader» og «0 forslag» selv om 468 rader var koblet til importen. Uttrekket av kilderadene gjøres i én enkelt spørring med hele id-listen, og den spørringen faller stille igjennom når listen blir stor. Jobbsignaler (301 rader) gikk gjennom, karriere (468) og nettverk (2017) gjorde det ikke — og kjøringen ble likevel markert som «vellykket». Derfor så du bare profilfelter og 300 jobbsignaler.
 
-### 1. Jobbsignaler importeres ikke i det hele tatt
-- LinkedIn sin historikk over søkte og lagrede stillinger er ikke data vi skal føre videre. Systemet skal holde oversikt over søknader brukeren gjør *her*, ikke i LinkedIn.
-- Avstemmingen slutter å lage forslag fra denne kategorien, og importen slutter å behandle den som en kilde til forslag. Filene kan fortsatt ligge i eksporten uten å gi utslag.
-- De 299 eksisterende radene fjernes fra brukerens kø, slik at telleren viser de 6 reelle beslutningene.
+Kurs er en egen sak: `Learning.csv` ble funnet i eksporten, men formålet «kurs/læring» ble aldri tilbudt i formålsvalget, så filen ble aldri lest inn.
 
-### 2. Forslag som ikke endrer noe skal aldri vises
-- Alt som ender i «Dette forslaget endrer ingenting … du kan avvise det for å skjule det» er støy. Slike forslag opprettes ikke lenger, og eksisterende rader av denne typen tas ut av gjennomgangen.
-- Regelen blir generell: hvis et forslag ikke kan føre til en endring i karriereoversikten eller profilen, er det ikke et forslag og skal ikke havne i køen.
-- Der noe faktisk er identisk (f.eks. navn som allerede stemmer), avsluttes det automatisk uten at brukeren må klikke.
+## Det som skal fikses
 
-### 3. Klikk skal svare umiddelbart
-- Beslutningen oppdaterer kortet med én gang, uten å vente på ny henting av hele listen.
-- Behandlede kort forsvinner fra arbeidslisten og legges i en sammenleggbar seksjon «Behandlet (n)» med «Angre».
-- Kort bekreftelse: «Avvist — Angre».
-- Knappene låses bare på kortet man trykker på.
+### 1. Karriereavstemmingen må faktisk kjøre
+- Uttrekket av kilderader deles i bolker, slik at antall rader ikke lenger avgjør om noe blir lest.
+- En kjøring som ikke fikk lest kildene skal aldri kunne rapportere «vellykket» — den feiler synlig, med årsak, og kan kjøres på nytt fra importsiden.
+- Karriereavstemming kjøres på nytt for importen din, slik at de 116 karriererader (stillinger, kompetanse, sertifiseringer, utdanning, språk, frivillig) blir til forslag.
 
-### 4. Komprimert gjennomgang
-- **Kompakt liste som standard:** én linje per forslag — type, kort tittel, «fra LinkedIn → det du har» — med ikonknapper (godkjenn / behold / utsett / avvis). Full sammenligning ved å utvide raden. Detaljkort beholdes for motstrid.
-- **Avkryssing og massehandling:** velg flere (eller «velg alle i gruppen») og avvis/godkjenn/utsett i én operasjon, med én angremulighet.
-- **Gruppering per type** med gruppevedtak der det er forsvarlig. Motstrid kan aldri gruppegodkjennes.
-- **Fokusmodus (valgfritt):** ett forslag om gangen med tastatursnarveier (G/A/U) og fremdrift «3 av 6».
-- Sidevisning slik at store grupper aldri rendres samlet.
+### 2. Kurs blir en del av importen
+- «Kurs og læring» legges til som valgbart formål ved import, slik at `Learning.csv` leses inn og avstemmes mot kvalifikasjonene dine.
 
-### 5. Språk: norsk er løsningens språk
-- Hele løsningen og alt profilinnhold holdes på norsk. Ingen nytt språkvalg i profilen.
-- Når LinkedIn-teksten er engelsk og profilteksten norsk, behandles det som en vanlig motstrid der norsk tekst er standardvalget, og det vises tydelig at kildeteksten er på engelsk.
-- Engelske søknader og CV-er håndteres som en egen ting senere: teksten oversettes og genereres på engelsk kun når brukeren eksplisitt ber om det ved generering. Det påvirker ikke hva som lagres i profilen.
+### 3. Stillinger vises kompakt, som i Trinn 1 ved CV-import
+- Egen seksjon «Stillinger fra LinkedIn» i kildegjennomgangen, med samme kompakte tidslinjeoppsett som CV-importens Trinn 1: én linje per stilling med tittel, arbeidsgiver og periode.
+- Hver stilling avstemmes mot rollene i «Erfaring og kompetanse»:
+  - **Finnes allerede** — samme rolle gjenkjent; vises som bekreftet uten å kreve handling, med mulighet til å fylle inn manglende dato eller beskrivelse.
+  - **Avvik** — samme rolle, men ulik periode/tittel/arbeidsgiver; vises side ved side med valget «behold mitt» / «bruk LinkedIn» / «rett manuelt».
+  - **Ny rolle** — legges til i «Erfaring og kompetanse» ved godkjenning, med LinkedIn som sporet kilde.
+- Massehandling: «Godkjenn alle nye roller» og avkryssing for delvis godkjenning. Avvik må alltid besluttes enkeltvis.
+- Har man ikke gjort CV-import, blir dette den naturlige starten: rollene opprettes her, og en senere CV-import avstemmes mot dem i stedet for å duplisere. LinkedIn-først blir dermed en fullverdig vei inn.
 
-### 6. «Sikkerhet» erstattes med forståelig tekst
-- Tallet fjernes fra kortene. I stedet vises grunnlaget i klartekst:
-  - «Sikker kobling — samme felt i profilen din»
-  - «Trolig samme — navn og selskap stemmer»
-  - «Usikker kobling — sjekk selv før du godkjenner»
-- Prosenten beholdes bare som detalj bak «Hvorfor dette forslaget?».
+### 4. Kompetanse (Skills) behandles som kompetanse, ikke som løse rader
+- 95 kompetanser skal ikke bli 95 kort. De vises som én gruppe med avkryssing, delt i «finnes allerede hos deg» og «ny».
+- Kompetanse fra LinkedIn er ubelagt påstand. Ved godkjenning legges den inn som kompetanse med LinkedIn som kilde og uten belegg, og den merkes tydelig som «mangler belegg» slik at den kan kobles til rolle eller resultat senere — på samme måte som i CV-flyten.
+- Sertifiseringer, utdanning, språk og frivillig arbeid vises som egne små grupper med samme kompakte oppsett.
+
+### 5. Fortsatt gjeldende fra forrige plan
+- Jobbsignaler importeres ikke i det hele tatt, og eksisterende 299 rader tas ut av køen.
+- Forslag som ikke kan endre noe opprettes aldri og vises aldri.
+- Klikk gir umiddelbar respons, angremulighet og «Behandlet»-seksjon.
+- «Sikkerhet 50 %» erstattes med forklarende tekst.
+- Norsk er løsningens språk; engelsk kun ved eksplisitt generering.
 
 ## Teknisk gjennomføring
 
-- Avstemmingslaget som lager LinkedIn-forslag slutter å produsere jobbsøk-forslag og forslag uten mulig effekt; regelen håndheves ett sted, ikke i visningen.
-- Opprydding av eksisterende rader for berørte brukere gjøres som en datajobb (setter dem ut av kø, ingen historikk overskrives).
-- `src/routes/_authenticated/kildegjennomgang.tsx` deles opp: liste-/gruppekomponent, kompakt rad, detaljkort, fokusmodus.
-- Beslutningsmutasjonen får optimistisk cache-oppdatering med tilbakerulling ved feil og målrettet invalidering i stedet for full refetch. Angre = ny beslutning via samme lagringspunkt.
-- Massehandling kjøres som sekvensielle kall mot eksisterende beslutningsfunksjon med samlet fremdrift og én oppsummering; ingen ny databasefunksjon nødvendig.
-- «Sikkerhet»-tallet mappes til tekst i frontend; ingen dataendring.
-- Ingen skjemaendring for språk.
+- `src/lib/linkedin/reconciliation/engine.server.ts`: bolkevis henting av staging-rader (`.in(...)` i porsjoner), feil fra kildeuttrekket propageres til kjøringsstatus i stedet for å bli svelget, og kjøring med null leste rader mot ikke-tom koblingsliste behandles som feil.
+- Formålsvalget ved import utvides med «learning», og klassifiseringen for `Learning.csv` kobles på.
+- Stillingsforslag får eget visningsspor i `kildegjennomgang.tsx`, som gjenbruker den kompakte tidslinjekomponenten fra CV-gjennomgangens Trinn 1.
+- Promotering av stillinger og kompetanse går gjennom eksisterende promoteringslag mot `career_atoms`, med kildesporing; ingen ny modell.
+- Karriere- og nettverksavstemmingen for eksisterende import kjøres på nytt etter rettelsen; ingen data slettes.
 
 ## Rekkefølge
 
-1. Stopp jobbsignaler og virkningsløse forslag ved kilden, og rydd eksisterende kø.
-2. Umiddelbar respons på klikk + angre + behandlet-seksjon.
-3. Kompakt liste, massehandling, fokusmodus.
-4. «Sikkerhet» erstattes med klartekst.
+1. Rett karriereavstemmingen og kjør den på nytt (uten dette er alt annet usynlig).
+2. Kompakt stillingsgjennomgang mot «Erfaring og kompetanse».
+3. Kompetanse, sertifisering, utdanning, språk og frivillig som grupper.
+4. Kurs som nytt formål.
+5. Øvrige punkter fra forrige plan (støyfjerning, respons på klikk, sikkerhetstekst).
