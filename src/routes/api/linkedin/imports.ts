@@ -48,6 +48,18 @@ export const Route = createFileRoute("/api/linkedin/imports")({
       GET: async ({ request }) => {
         const auth = await authenticate(request);
         if ("error" in auth) return auth.error;
+
+        // Importer som ble avbrutt underveis (f.eks. tidsavbrudd) markeres som
+        // feilet slik at brukeren ser hva som skjedde og kan prøve på nytt.
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const staleBefore = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        await supabaseAdmin
+          .from("linkedin_imports")
+          .update({ status: "failed", error_code: "import_interrupted", active_phase: null, heartbeat_at: null })
+          .eq("user_id", auth.userId)
+          .in("status", ["uploaded", "validating", "staging"])
+          .lt("created_at", staleBefore);
+
         const { data, error } = await auth.userClient
           .from("linkedin_imports")
           .select(
@@ -58,6 +70,7 @@ export const Route = createFileRoute("/api/linkedin/imports")({
         if (error) return fail(500, "database_error", "Kunne ikke hente importene dine.");
         return Response.json({ ok: true, imports: data ?? [] });
       },
+
 
       POST: async ({ request }) => {
         const auth = await authenticate(request);
