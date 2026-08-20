@@ -58,8 +58,9 @@ export const Route = createFileRoute("/api/linkedin/imports")({
           .limit(20);
         if (error) return fail(500, "database_error", "Kunne ikke hente importene dine.");
 
-        const imports = data ?? [];
-        const ids = imports.map((i) => i.id as string);
+        const imports = (data ?? []) as Array<Record<string, unknown>>;
+        const ids = imports.map((i) => i["id"] as string);
+
 
         // Fremdrift kommer fra forsøkstabellen, ikke fra denne forespørselen:
         // arbeideren jobber videre uavhengig av om nettleseren er åpen.
