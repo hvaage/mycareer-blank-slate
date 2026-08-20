@@ -111,20 +111,59 @@ export const Route = createFileRoute("/api/linkedin/imports")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        const { data: importRow, error: insertError } = await supabaseAdmin
-          .from("linkedin_imports")
-          .insert({
-            user_id: userId,
-            archive_sha256: archiveSha256,
-            status: "uploaded",
-            archive_available: true,
-          })
-          .select("id")
-          .single();
+        const insertImportRow = async () =>
+          await supabaseAdmin
+            .from("linkedin_imports")
+            .insert({
+              user_id: userId,
+              archive_sha256: archiveSha256,
+              status: "uploaded",
+              archive_available: true,
+            })
+            .select("id")
+            .single();
+
+        let { data: importRow, error: insertError } = await insertImportRow();
+
+        // Partial unique index (user_id, archive_sha256) where purged_at is null
+        // and status <> 'cancelled': the same archive was uploaded before.
+        if (insertError?.code === "23505") {
+          const { data: existing } = await supabaseAdmin
+            .from("linkedin_imports")
+            .select("id, status")
+            .eq("user_id", userId)
+            .eq("archive_sha256", archiveSha256)
+            .is("purged_at", null)
+            .neq("status", "cancelled")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const activeStatuses = ["uploaded", "validating", "staged", "reconciliation_ready"];
+          if (existing && activeStatuses.includes(existing.status as string)) {
+            return fail(
+              409,
+              "import_already_exists",
+              "Denne LinkedIn-eksporten er allerede lastet opp. Fullfør eller avbryt den pågående importen først.",
+            );
+          }
+
+          if (existing) {
+            await supabaseAdmin
+              .from("linkedin_imports")
+              .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+              .eq("id", existing.id)
+              .eq("user_id", userId);
+            ({ data: importRow, error: insertError } = await insertImportRow());
+          }
+        }
+
         if (insertError || !importRow) {
+          console.error("[linkedin/imports] insert failed", insertError);
           return fail(500, "database_error", "Kunne ikke registrere importen.");
         }
         const importId = importRow.id as string;
+
 
         const { error: purposeError } = await supabaseAdmin
           .from("linkedin_import_purposes")
