@@ -27,7 +27,7 @@ Regler per domene:
 - **Jobber** — kun forslag om preferanser, søkeord, lokasjon, lagrede jobber og mulige jobbmål. Ingen `job_leads`, `user_opportunities` eller `job_applications`. Annonse-/klikkdata (klasse C) brukes ikke.
 - **Læring og innhold** — utdanning/sertifisering → kvalifikasjonsforslag; artikler → profil-/porteføljemateriale med bevart kildehenvisning, aldri CV-påstand.
 
-Klasse B gir ingen forslag (fortsatt utsatt). Klasse C vises aldri som enkeltinnhold. Uvalgt formål gir kontraktsstatus «hoppet over — ikke samtykket».
+Klasse B gir ingen forslag (fortsatt utsatt). Klasse C vises aldri som enkeltinnhold. Formål brukeren ikke har valgt gir kontraktsstatus `skipped_no_selected_purpose` — produkttekst «ikke valgt for dette formålet». Dette er brukerens valg av behandlingsformål i produktet, ikke en egen samtykkemodell.
 
 ## 3. Gjennomgangsflate
 
@@ -35,7 +35,7 @@ Ny rute `/kildegjennomgang?source=linkedin&import=<id>`, adskilt fra CV-gjennomg
 
 - **Oversikt**: importnavn og tidspunkt, valgte formål, antall staging-records per domene, forslagstellere (nye, mulige dubletter, konflikter, klare, utsatt, avvist), tydelig melding om at ingenting er lagt i profilen ennå, samt retention-status (arkiv tilgjengelig/fjernet, staging gyldig til).
 - **Seksjoner** i rekkefølgen Profil, Karriere, Kompetanser, Anbefalinger, Nettverk, Jobber, Læring og innhold, Avvik. Kun seksjoner med valgt formål eller relevante forslag vises.
-- **Forslagskort**: hva LinkedIn foreslår, hva Karrierenmin har, forskjellene, matchmetode og sikkerhet, kort forklaring, kilde/filtype/importtidspunkt, hva som skjer ved senere promotering, og status. Handlinger: Godkjenn for senere bruk, Behold eksisterende, Ikke importer, Utsett, Rediger senere.
+- **Forslagskort**: hva LinkedIn foreslår, hva Karrierenmin har, forskjellene, matchmetode og sikkerhet, kort forklaring, kilde/filtype/importtidspunkt, hva som skjer ved senere promotering, og status. Alle fem handlingene går via `linkedin_reconciliation_decide` og gir én append-only beslutningsrad: Godkjenn for senere bruk (`approve_for_promotion`), Behold eksisterende (`dismiss` + `reason_code=keep_existing`), Ikke importer (`dismiss` + valgt årsak), Utsett (`defer`), Rediger senere (`request_manual_edit`). Klienten setter aldri status selv.
 - **Bulk** kun for homogene create-forslag med høy sikkerhet, uten mulig eksisterende match, konflikt eller anbefalingstekst; antall vises før handling. Ingen bulk for konflikt eller mulig dublett.
 - **Språk**: «Foreslått fra LinkedIn-eksporten», «Oppgitt i LinkedIn-profilen», «Tredjeparts anbefaling», «Mulig samsvar». Aldri «bekreftet», «dokumentert» eller «validert».
 
@@ -45,11 +45,20 @@ Ny rute `/kildegjennomgang?source=linkedin&import=<id>`, adskilt fra CV-gjennomg
 
 ## 5. Retention og staleness
 
-Fase 2-reglene gjelder (7 dagers ZIP, 90 dagers staging). Fjernet staging → `stale_source`. Endret produktmål → `stale_target` før eventuell promotering. Manuelt slettet import → åpne forslag avsluttes/markeres med tydelig årsak, ikke hengende arbeidsoppgaver. Reimport etter purge gir ny kjøring uten å gjenopplive gamle beslutninger.
+Fase 2-reglene gjelder (7 dagers ZIP, 90 dagers staging). Endret produktmål → `stale_target` før eventuell promotering.
+
+Ved manuell sletting, retention-sweep eller annen fjerning av siste aktive stagingkobling gjør prosedyren følgende i samme transaksjon, før staging fjernes:
+
+1. markerer alle ikke-terminale koblede forslag `stale_source`
+2. fjerner eller redigerer promoterbar `proposed_payload_json` og innholdstunge felter i `source_snapshot_json`
+3. beholder kun minimalt revisjonsspor: forslag-id, domene, type, status, kildeklassifisering, hash, import-id, tidspunkt og årsak
+4. fjerner source-koblinger som ellers ville peke mot slettet staging
+
+Anbefalingstekst, kontaktopplysninger og annet rått LinkedIn-innhold skal ikke overleve staging-retention indirekte i forslagstabellene. Reimport etter purge gir ny kjøring uten å gjenopplive gamle beslutninger. Fase 4 skal alltid avvise promotering av `stale_source`, `stale_target`, `superseded` og `dismissed` forslag og kreve ny aktiv avstemming.
 
 ## 6. Validering og leveranse
 
-Full syntetisk testsuite (ikke reell LinkedIn-eksport) med før/etter-tellinger som dokumenterer at `profiles`, `user_career_profiles`, `user_preference_atoms`, `career_atoms`, `career_atom_links`, `contacts`, `job_leads`, `user_opportunities`, `job_applications`, `documents` og `cv_claim_attestations` er uendret. Testmatrisen dekker alle utfallene i punkt 7 i instruksen: felt-utfall, rollematch og dubletter, parallelle roller, canonical/fuzzy kompetansematch, anbefaling og endorsement som tredjepart, kontaktmatch, klasse B/C, manglende samtykke, idempotens, ny regelversjon, stale_source/stale_target, kryssbruker-isolasjon og append-only beslutningslogg. UI verifiseres på desktop og mobil.
+Full syntetisk testsuite (ikke reell LinkedIn-eksport) med før/etter-tellinger som dokumenterer at `profiles`, `user_career_profiles`, `user_preference_atoms`, `career_atoms`, `career_atom_links`, `contacts`, `job_leads`, `user_opportunities`, `job_applications`, `documents` og `cv_claim_attestations` er uendret. Testmatrisen dekker alle utfallene i punkt 7 i instruksen: felt-utfall, rollematch og dubletter, parallelle roller, canonical/fuzzy kompetansematch, anbefaling og endorsement som tredjepart, kontaktmatch, klasse B/C, formål som ikke er valgt (`skipped_no_selected_purpose`), idempotens, ny regelversjon, stale_source/stale_target inkludert dataminimering ved sletting, kryssbruker-isolasjon og append-only beslutningslogg. UI verifiseres på desktop og mobil.
 
 Leveranse: migrasjoner med datamodelloversikt, oppdatert `docs/linkedin-import-contract-v1.md` med fase 3-modellen, RPC-/tilgangsoversikt, avstemmingsregler per domene, testbar gjennomgangsflate, testmatrise med resultater og eksempler på nytt profilfelt, mulig rolleduplikat, anbefaling, endorsement, kontaktdublett og utløpt forslag.
 
