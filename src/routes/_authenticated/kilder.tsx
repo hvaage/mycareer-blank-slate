@@ -145,8 +145,15 @@ function KilderPage() {
         <SourceCard
           icon={Linkedin}
           title="LinkedIn-import"
-          description="Profil og LinkedIn Skills. Kompetanser du selv har oppgitt vises som «Trenger vurdering» til de har belegg."
+          description="Profil og LinkedIn Skills. Eksporten blir aldri overført automatisk: du får forslag du selv tar stilling til i kildegjennomgangen."
           status="Kommer"
+          actions={
+            <Button asChild size="sm" variant="ghost">
+              <Link to="/kildegjennomgang" search={{ source: "linkedin" }}>
+                Se kildegjennomgang
+              </Link>
+            </Button>
+          }
         />
 
         <SourceCard

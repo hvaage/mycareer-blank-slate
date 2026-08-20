@@ -34,6 +34,7 @@ import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenti
 import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
 import { Route as AuthenticatedMarkedRouteImport } from './routes/_authenticated/marked'
 import { Route as AuthenticatedKilderRouteImport } from './routes/_authenticated/kilder'
+import { Route as AuthenticatedKildegjennomgangRouteImport } from './routes/_authenticated/kildegjennomgang'
 import { Route as AuthenticatedJobLeadsRouteImport } from './routes/_authenticated/job-leads'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -59,6 +60,7 @@ import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/s
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
+import { Route as ApiInternalLinkedinReconciliationWorkerRouteImport } from './routes/api/internal/linkedin-reconciliation-worker'
 import { Route as ApiInternalLinkedinImportWorkerRouteImport } from './routes/api/internal/linkedin-import-worker'
 import { Route as ApiInternalCvGenerationWorkerRouteImport } from './routes/api/internal/cv-generation-worker'
 import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
@@ -235,6 +237,12 @@ const AuthenticatedKilderRoute = AuthenticatedKilderRouteImport.update({
   path: '/kilder',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedKildegjennomgangRoute =
+  AuthenticatedKildegjennomgangRouteImport.update({
+    id: '/kildegjennomgang',
+    path: '/kildegjennomgang',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedJobLeadsRoute = AuthenticatedJobLeadsRouteImport.update({
   id: '/job-leads',
   path: '/job-leads',
@@ -378,6 +386,12 @@ const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
   path: '/api/public/ingest-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiInternalLinkedinReconciliationWorkerRoute =
+  ApiInternalLinkedinReconciliationWorkerRouteImport.update({
+    id: '/api/internal/linkedin-reconciliation-worker',
+    path: '/api/internal/linkedin-reconciliation-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiInternalLinkedinImportWorkerRoute =
   ApiInternalLinkedinImportWorkerRouteImport.update({
     id: '/api/internal/linkedin-import-worker',
@@ -663,6 +677,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/kildegjennomgang': typeof AuthenticatedKildegjennomgangRoute
   '/kilder': typeof AuthenticatedKilderRoute
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
@@ -713,6 +728,7 @@ export interface FileRoutesByFullPath {
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
   '/api/internal/linkedin-import-worker': typeof ApiInternalLinkedinImportWorkerRoute
+  '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -757,6 +773,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/kildegjennomgang': typeof AuthenticatedKildegjennomgangRoute
   '/kilder': typeof AuthenticatedKilderRoute
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
@@ -807,6 +824,7 @@ export interface FileRoutesByTo {
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
   '/api/internal/linkedin-import-worker': typeof ApiInternalLinkedinImportWorkerRoute
+  '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -856,6 +874,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/job-leads': typeof AuthenticatedJobLeadsRoute
+  '/_authenticated/kildegjennomgang': typeof AuthenticatedKildegjennomgangRoute
   '/_authenticated/kilder': typeof AuthenticatedKilderRoute
   '/_authenticated/marked': typeof AuthenticatedMarkedRoute
   '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
@@ -906,6 +925,7 @@ export interface FileRoutesById {
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
   '/api/internal/linkedin-import-worker': typeof ApiInternalLinkedinImportWorkerRoute
+  '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -955,6 +975,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/job-leads'
+    | '/kildegjennomgang'
     | '/kilder'
     | '/marked'
     | '/my-applications'
@@ -1005,6 +1026,7 @@ export interface FileRouteTypes {
     | '/api/cv/propose-cv-atoms'
     | '/api/internal/cv-generation-worker'
     | '/api/internal/linkedin-import-worker'
+    | '/api/internal/linkedin-reconciliation-worker'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -1049,6 +1071,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/integrations'
     | '/job-leads'
+    | '/kildegjennomgang'
     | '/kilder'
     | '/marked'
     | '/my-applications'
@@ -1099,6 +1122,7 @@ export interface FileRouteTypes {
     | '/api/cv/propose-cv-atoms'
     | '/api/internal/cv-generation-worker'
     | '/api/internal/linkedin-import-worker'
+    | '/api/internal/linkedin-reconciliation-worker'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -1147,6 +1171,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/integrations'
     | '/_authenticated/job-leads'
+    | '/_authenticated/kildegjennomgang'
     | '/_authenticated/kilder'
     | '/_authenticated/marked'
     | '/_authenticated/my-applications'
@@ -1197,6 +1222,7 @@ export interface FileRouteTypes {
     | '/api/cv/propose-cv-atoms'
     | '/api/internal/cv-generation-worker'
     | '/api/internal/linkedin-import-worker'
+    | '/api/internal/linkedin-reconciliation-worker'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -1248,6 +1274,7 @@ export interface RootRouteChildren {
   ApiCvProposeCvAtomsRoute: typeof ApiCvProposeCvAtomsRoute
   ApiInternalCvGenerationWorkerRoute: typeof ApiInternalCvGenerationWorkerRoute
   ApiInternalLinkedinImportWorkerRoute: typeof ApiInternalLinkedinImportWorkerRoute
+  ApiInternalLinkedinReconciliationWorkerRoute: typeof ApiInternalLinkedinReconciliationWorkerRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
@@ -1437,6 +1464,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKilderRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/kildegjennomgang': {
+      id: '/_authenticated/kildegjennomgang'
+      path: '/kildegjennomgang'
+      fullPath: '/kildegjennomgang'
+      preLoaderRoute: typeof AuthenticatedKildegjennomgangRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/job-leads': {
       id: '/_authenticated/job-leads'
       path: '/job-leads'
@@ -1610,6 +1644,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/ingest-report'
       fullPath: '/api/public/ingest-report'
       preLoaderRoute: typeof ApiPublicIngestReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/linkedin-reconciliation-worker': {
+      id: '/api/internal/linkedin-reconciliation-worker'
+      path: '/api/internal/linkedin-reconciliation-worker'
+      fullPath: '/api/internal/linkedin-reconciliation-worker'
+      preLoaderRoute: typeof ApiInternalLinkedinReconciliationWorkerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/internal/linkedin-import-worker': {
@@ -1944,6 +1985,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedJobLeadsRoute: typeof AuthenticatedJobLeadsRoute
+  AuthenticatedKildegjennomgangRoute: typeof AuthenticatedKildegjennomgangRoute
   AuthenticatedKilderRoute: typeof AuthenticatedKilderRoute
   AuthenticatedMarkedRoute: typeof AuthenticatedMarkedRoute
   AuthenticatedMyApplicationsRoute: typeof AuthenticatedMyApplicationsRoute
@@ -2002,6 +2044,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedJobLeadsRoute: AuthenticatedJobLeadsRoute,
+  AuthenticatedKildegjennomgangRoute: AuthenticatedKildegjennomgangRoute,
   AuthenticatedKilderRoute: AuthenticatedKilderRoute,
   AuthenticatedMarkedRoute: AuthenticatedMarkedRoute,
   AuthenticatedMyApplicationsRoute: AuthenticatedMyApplicationsRoute,
@@ -2164,6 +2207,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCvProposeCvAtomsRoute: ApiCvProposeCvAtomsRoute,
   ApiInternalCvGenerationWorkerRoute: ApiInternalCvGenerationWorkerRoute,
   ApiInternalLinkedinImportWorkerRoute: ApiInternalLinkedinImportWorkerRoute,
+  ApiInternalLinkedinReconciliationWorkerRoute:
+    ApiInternalLinkedinReconciliationWorkerRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
