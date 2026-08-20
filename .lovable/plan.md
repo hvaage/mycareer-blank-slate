@@ -199,12 +199,27 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
 - `public.linkedin_import_delete(p_import_id uuid)` — `SECURITY DEFINER` med
   `SET search_path = ''` og fullt kvalifiserte objektnavn,
   `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` (kun `service_role`).
-  Rekkefølge: opprett tombstone → slett denne importens koblinger i
-  `linkedin_import_stage_records` → slett stagingrader som ikke lenger har noen
-  importreferanse (delte rader beholdes) → slett filrader og fritekst → marker
-  Storage-objektet for sletting. Serverhandlingen sletter Storage-objektet etter at
-  transaksjonen er committet; feiler Storage-sletting, blir objektet stående i
-  slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis.
+  Alt under skjer i **én transaksjon**, i denne rekkefølgen:
+  1. opprett tombstone for importen
+  2. finn alle stagingrader som refererer til importen via
+     `first_linkedin_import_id`/`last_linkedin_import_id`
+  3. slett importens koblinger i `linkedin_import_stage_records`
+  4. slett stagingrader som ikke lenger har noen kobling fra noen import/forsøk
+  5. for **beholdte** stagingrader: reparer referansene før commit — sett
+     `first_linkedin_import_id` til eldste og `last_linkedin_import_id` til nyeste
+     gjenværende import utledet fra `linkedin_import_stage_records`; finnes ingen
+     gyldig import, men raden skal bevares, knyttes den til importens tombstone via
+     `preserved_tombstone_id` (eksplisitt, dokumentert bevaringsregel)
+  6. slett filrader, formålsrader og fritekst
+  7. marker Storage-objektet for sletting og sett `archive_available = false`
+
+  FK-ene på `first/last_linkedin_import_id` bruker aldri `ON DELETE SET NULL`: enten
+  peker de på en gyldig gjenværende import, eller raden er tombstone-forankret, eller
+  den er slettet. Serverhandlingen sletter Storage-objektet etter commit; feiler
+  Storage-sletting, blir objektet stående i slettekø og fjernes av sweepen —
+  databaserader gjenopprettes aldri halvveis. Samme referansereparasjon gjelder når
+  retention-sweepen purger en import.
+
 
 - **Kanonisk import ved sletting:** dersom andre importrader peker til importen som
   slettes, må flyten enten (a) velge og validere en ny kanonisk import blant de
