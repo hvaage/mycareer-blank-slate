@@ -98,13 +98,15 @@ Følgende importeres **aldri**, verken til staging eller produkt:
 | Produktobjekt | Eiertabell | Merknad |
 | --- | --- | --- |
 | Nettverkskontakt | `network_contacts`, identiteter i `network_contact_identities` | Tenant-scope via `user_id`. |
-| Selskap | `companies` | Delt registerobjekt; brukerens relasjon ligger i koblingstabeller. |
+| Selskap | `companies` | Delt registerobjekt. Ingen brukerdata lagres her. |
+| Brukerens selskapsrelasjon | `user_company_relationships` (ny, Leveranse B) | User-scoped notater, status og prioritet. Unik på `(user_id, company_id)`. |
 | Mulighet | `user_opportunities` (+ `canonical_opportunities`, `source_postings`) | Brukerens eget muligheteobjekt. |
 | Søknad | `applications` | Brukerens søknadsprosess. |
 | Dokument | `documents` | Kobles til søknad/mulighet. |
-| Aktivitet | `next_steps` (utvides, se 6.5), `interviews` | Aktiviteter og intervjuer. |
+| Aktivitet | `next_steps` (utvides, se 8.1), `interviews` | Aktiviteter og intervjuer. |
 | Anbefaling mottatt | `career_recommendations` | Kun mottatte anbefalinger. |
-| Endorsement-signal | `linkedin_endorsement_signals` (ny, Leveranse B) | Aggregert antall per kompetanse. |
+| Endorsement-signal | `linkedin_endorsement_signals` (ny, Leveranse B) | Aggregert antall per kompetanse. Vises kun i Min profil, aldri på Kontakt. |
+
 
 ---
 
