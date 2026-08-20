@@ -109,8 +109,11 @@ serverrute etter mønsteret i `src/routes/api/internal/`:
   `unknown_file` på import, blokkerer ikke; manglende valgfri fil →
   `missing_optional_file`.
 - `parsers/*.server.ts` — én parser per klasse A-filtype, inkludert
-  `connections_csv_preamble_v1` (hopp preamble ≤10 linjer, valider reell header,
-  `connections_header_not_found` / `connections_unexpected_header` på filnivå).
+  `connections_csv_preamble_v1`: hopp **nøyaktig tre** preamblelinjer, valider
+  forventet header på linje fire, ingen videre søk nedover i filen. Manglende header
+  → `connections_header_not_found`; avvikende header → `connections_unexpected_header`.
+  Begge er filnivåfeil som ikke stopper resten av importen. Nytt LinkedIn-format
+  krever en ny, eksplisitt parserversjon (`connections_csv_preamble_v2`).
 - `normalize.server.ts` — NFKC, whitespace, kontrollert ISO-datoparsing med
   eksplisitt presisjon, ingen gjetting; ugyldig verdi → null + maskinlesbar årsak.
 - `stage.server.ts` — skriver kun hvitlistede felt, kun for valgte formål; øvrige
@@ -120,12 +123,24 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
 
 ## 4. Retention og sletting
 
-- `linkedin_import_delete(import_id)` — SECURITY DEFINER RPC, eiersjekk, sletter ZIP-
-  referanse, filrader, staging og fritekst; oppretter tombstone.
-- `linkedin_import_retention_sweep()` — idempotent, sletter ZIP ≥7 dager, staging
-  ≥90 dager etter `reconciliation_ready`, og staging uten brukerhandling per
-  kontraktens inaktivitetsgrense. Rører aldri CV-importer eller andre kilder.
-  Testes mot syntetiske data; ikke planlagt i cron i denne fasen.
+- `public.linkedin_import_delete(p_import_id uuid)` — kalles kun fra serverlaget etter
+  verifisert brukeridentitet, kontrollerer eierskap eksplisitt mot innsendt bruker-id,
+  `SECURITY DEFINER` med `SET search_path = ''` og fullt kvalifiserte objektnavn,
+  `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` (kun `service_role`).
+  Rekkefølge: opprett tombstone → slett staging, filrader og fritekst → marker
+  Storage-objektet for sletting. Serverhandlingen sletter Storage-objektet etter at
+  transaksjonen er committet; feiler Storage-sletting, blir objektet stående i
+  slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis.
+- `public.linkedin_import_retention_sweep()` — idempotent, samme
+  `SECURITY DEFINER`/`search_path`/grant-regler; sletter ZIP ≥7 dager, staging
+  ≥90 dager etter `reconciliation_ready`, staging uten brukerhandling per kontraktens
+  inaktivitetsgrense, rydder slettekøen for Storage, og setter importer med utløpt
+  `heartbeat_at` til `failed` med `staging_timeout`. Rører aldri CV-importer eller
+  andre kilder. Testes mot syntetiske data; ikke planlagt i cron i denne fasen.
+- Kontraktdokumentet `docs/linkedin-import-contract-v1.md` oppdateres i samme
+  leveranse slik at §6.1/§6.2/§9.5 og §1.3 har **én** autoritativ livssyklus:
+  ZIP 7 dager, staging 90 dager, samme statusklassifisering som over.
+
 
 ## 5. Tester
 
