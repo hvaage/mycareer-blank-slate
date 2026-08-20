@@ -246,9 +246,10 @@ Nye tester:
 
 1. FK-test: kobling i `linkedin_import_stage_records` mot ukjent `staging_record_id`
    avvises, og feil `staging_domain` mot eksisterende forelder avvises.
-2. Samme fil med to valgte formål gir to rader i `linkedin_import_file_purposes` med
-   ulik status (`staged` / `skipped_no_consent`), mens `linkedin_import_files.status`
-   forblir rent teknisk.
+2. Formålsstatus: samme fil støtter to formål, brukeren velger kun det ene. Valgt
+   formål får `staged`, ikke-valgt formål får `skipped_no_consent`, og
+   `linkedin_import_files.status` forblir rent teknisk.
+
 3. Retry etter utvidet formål: nytt `attempt_id` rydder kun sitt eget forsøk;
    tidligere vellykket stagingkobling og delt stagingrad består.
 4. Kall mot internruten uten korrekt intern autorisasjon avvises (401) uten
