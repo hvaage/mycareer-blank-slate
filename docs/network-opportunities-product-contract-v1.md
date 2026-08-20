@@ -89,7 +89,7 @@ Følgende importeres **aldri**, verken til staging eller produkt:
 
 - Jobbsignaler og jobbsøkeraktivitet fra LinkedIn (søknader, lagrede jobber, jobbvarsler, jobbsøkerpreferanser).
 - Annonseklikk og inferert annonseprofil.
-- Navn på personer som har gitt endorsements (kun aggregert antall promoteres).
+- Endorseridentitet. Navn på personer som har gitt endorsements lagres ikke, hverken i staging eller produkt. Kun aggregert antall per kompetanse promoteres.
 
 `contacts` (søknadsbundne kontakter) er **ikke** nettverksregister. Nettverksregisteret er `network_contacts` + `network_contact_identities`.
 
