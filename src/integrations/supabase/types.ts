@@ -3769,6 +3769,284 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_import_file_purposes: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          id: string
+          linkedin_import_file_id: string
+          purpose: string
+          staged_record_count: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          linkedin_import_file_id: string
+          purpose: string
+          staged_record_count?: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          linkedin_import_file_id?: string
+          purpose?: string
+          staged_record_count?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_import_file_purposes_file_fk"
+            columns: ["linkedin_import_file_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_import_files"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_import_files: {
+        Row: {
+          archive_path: string
+          compressed_bytes: number | null
+          created_at: string
+          error_code: string | null
+          file_class: string
+          file_hash: string
+          id: string
+          invalid_row_count: number | null
+          linkedin_import_id: string
+          parser_version: string | null
+          row_count: number | null
+          status: string
+          uncompressed_bytes: number | null
+          updated_at: string
+          user_id: string
+          valid_row_count: number | null
+        }
+        Insert: {
+          archive_path: string
+          compressed_bytes?: number | null
+          created_at?: string
+          error_code?: string | null
+          file_class: string
+          file_hash: string
+          id?: string
+          invalid_row_count?: number | null
+          linkedin_import_id: string
+          parser_version?: string | null
+          row_count?: number | null
+          status?: string
+          uncompressed_bytes?: number | null
+          updated_at?: string
+          user_id: string
+          valid_row_count?: number | null
+        }
+        Update: {
+          archive_path?: string
+          compressed_bytes?: number | null
+          created_at?: string
+          error_code?: string | null
+          file_class?: string
+          file_hash?: string
+          id?: string
+          invalid_row_count?: number | null
+          linkedin_import_id?: string
+          parser_version?: string | null
+          row_count?: number | null
+          status?: string
+          uncompressed_bytes?: number | null
+          updated_at?: string
+          user_id?: string
+          valid_row_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_import_files_import_fk"
+            columns: ["linkedin_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_import_purposes: {
+        Row: {
+          id: string
+          linkedin_import_id: string
+          purpose: string
+          selected_at: string
+          selection_source: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          linkedin_import_id: string
+          purpose: string
+          selected_at?: string
+          selection_source?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          linkedin_import_id?: string
+          purpose?: string
+          selected_at?: string
+          selection_source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_import_purposes_import_fk"
+            columns: ["linkedin_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_import_tombstones: {
+        Row: {
+          archive_sha256: string
+          contract_version: string
+          deleted_at: string
+          deletion_reason: string
+          id: string
+          import_created_at: string
+          linkedin_import_id: string
+          purposes: string[]
+          staged_record_count: number
+          user_id: string
+        }
+        Insert: {
+          archive_sha256: string
+          contract_version: string
+          deleted_at?: string
+          deletion_reason: string
+          id?: string
+          import_created_at: string
+          linkedin_import_id: string
+          purposes?: string[]
+          staged_record_count?: number
+          user_id: string
+        }
+        Update: {
+          archive_sha256?: string
+          contract_version?: string
+          deleted_at?: string
+          deletion_reason?: string
+          id?: string
+          import_created_at?: string
+          linkedin_import_id?: string
+          purposes?: string[]
+          staged_record_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      linkedin_imports: {
+        Row: {
+          active_phase: string | null
+          archive_available: boolean
+          archive_sha256: string
+          attempt_id: string | null
+          cancelled_at: string | null
+          canonical_import_id: string | null
+          content_manifest_hash: string | null
+          contract_version: string
+          created_at: string
+          error_code: string | null
+          error_summary: string | null
+          excluded_file_count: number
+          excluded_reason_counts: Json
+          heartbeat_at: string | null
+          id: string
+          invalid_file_count: number
+          known_file_count: number
+          purged_at: string | null
+          staged_at: string | null
+          staged_record_count: number
+          staging_started_at: string | null
+          status: string
+          unknown_file_count: number
+          user_id: string
+          valid_file_count: number
+          validated_at: string | null
+        }
+        Insert: {
+          active_phase?: string | null
+          archive_available: boolean
+          archive_sha256: string
+          attempt_id?: string | null
+          cancelled_at?: string | null
+          canonical_import_id?: string | null
+          content_manifest_hash?: string | null
+          contract_version?: string
+          created_at?: string
+          error_code?: string | null
+          error_summary?: string | null
+          excluded_file_count?: number
+          excluded_reason_counts?: Json
+          heartbeat_at?: string | null
+          id?: string
+          invalid_file_count?: number
+          known_file_count?: number
+          purged_at?: string | null
+          staged_at?: string | null
+          staged_record_count?: number
+          staging_started_at?: string | null
+          status?: string
+          unknown_file_count?: number
+          user_id: string
+          valid_file_count?: number
+          validated_at?: string | null
+        }
+        Update: {
+          active_phase?: string | null
+          archive_available?: boolean
+          archive_sha256?: string
+          attempt_id?: string | null
+          cancelled_at?: string | null
+          canonical_import_id?: string | null
+          content_manifest_hash?: string | null
+          contract_version?: string
+          created_at?: string
+          error_code?: string | null
+          error_summary?: string | null
+          excluded_file_count?: number
+          excluded_reason_counts?: Json
+          heartbeat_at?: string | null
+          id?: string
+          invalid_file_count?: number
+          known_file_count?: number
+          purged_at?: string | null
+          staged_at?: string | null
+          staged_record_count?: number
+          staging_started_at?: string | null
+          status?: string
+          unknown_file_count?: number
+          user_id?: string
+          valid_file_count?: number
+          validated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_imports_canonical_fk"
+            columns: ["canonical_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
       match_assessments: {
         Row: {
           apply_recommendation_score: number | null
