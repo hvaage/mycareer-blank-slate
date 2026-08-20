@@ -8381,6 +8381,17 @@ export type Database = {
         Returns: string
       }
       linkedin_import_retention_sweep: { Args: never; Returns: Json }
+      linkedin_import_yield_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_cursor: Json
+          p_lease_owner: string
+          p_phase: string
+          p_processed_files?: number
+          p_staged_records?: number
+        }
+        Returns: boolean
+      }
       linkedin_promote_career_record: {
         Args: {
           p_existing_atom_id?: string
