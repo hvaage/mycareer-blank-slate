@@ -196,24 +196,26 @@ Kontakt-flaten viser **ikke** endorsement-signaler. Aggregert LinkedIn-støtte h
 
 | Felt | Eier | Kildeklasse | Tidsstempel | Redigerbart |
 | --- | --- | --- | --- | --- |
-| Navn | `network_contacts.display_name` | `linkedin_observation` ved import, `user_input` etter redigering | `observed_at` / `updated_at` | Ja |
+| Navn | `network_contacts.display_name` | `user_input` etter redigering, ellers `linkedin_observation` | `updated_at` / `observed_at` | Ja |
 | Rolle | `network_contacts.headline` | som over | som over | Ja |
 | Selskap | `network_contacts.company` | som over | som over | Ja |
-| LinkedIn-profil-URL | `network_contact_identities` (`identity_kind = 'linkedin_profile_url'`) | `linkedin_observation` | `created_at` | Nei (identitet endres ikke manuelt) |
+| LinkedIn-profil-URL | `network_contact_identities` (`identity_kind = 'linkedin_profile_url'`) — eneste kanoniske eier | `linkedin_observation` | `created_at` | Nei (identitet endres ikke manuelt) |
 | Tilkoblingsdato | `network_contacts.connected_on` | `linkedin_observation` | eksportdato | Nei |
 | Sist observert | `network_contacts.last_observed_at` (nytt felt, Leveranse B) | `linkedin_observation` | `observed_at` | Nei |
-| Selskapskoblinger | kontakt↔selskap-kobling (ny, Leveranse B) | `linkedin_observation` / `user_input` | observert | Ja |
+| Selskapskoblinger | kontakt↔selskap-kobling (ny, Leveranse B) | `user_input` når brukeren har koblet, ellers `linkedin_observation` | observert / oppdatert | Ja |
 | Aktiviteter / neste aktivitet | `next_steps` | `activity` | `due_date`, `completed_at` | Ja |
-| Mottatte anbefalinger | `career_recommendations` (kun `direction = received`) | `linkedin_observation` | `recommended_on` | Nei |
-| Endorsement-signal | `linkedin_endorsement_signals` (aggregert antall) | `linkedin_observation` | `observed_at` | Nei |
+| Mottatte anbefalinger | `career_recommendations` (kun `direction = received`), vises kun ved brukerbekreftet kobling til `network_contact` | `linkedin_observation` | `recommended_on` | Nei |
 | Notater | kontaktnotat | `user_input` | `updated_at` | Ja |
+
+Hvert felt har nøyaktig én aktiv kildeklasse. Er den `user_input`, kan siste LinkedIn-observasjon vises som historisk proveniens i `last_source_observation`.
 
 ### 3.3 Regler
 
 - Navn og selskap er lenkbare: selskap → selskapsside, kontakt → kontaktside.
 - LinkedIn-data vises alltid med kilde og «sist observert», aldri som bekreftet kontaktdata.
-- Endorsements vises kun som aggregert antall på **brukerens egne kompetanser**. Personnavn lagres ikke og vises ikke i produktlaget.
-- Mottatte anbefalinger merkes som tredjepartsinformasjon. Gitte anbefalinger vises ikke i brukerens egen kompetanseprofil.
+- Endorsement-signaler vises **ikke** på Kontakt-flaten. Aggregert LinkedIn-støtte vises kun ved brukerens egen kompetanse i Min profil. Endorseridentitet lagres aldri.
+- Mottatte anbefalinger hører hjemme i Min profil / Min dokumentasjon. De kan vises på en kontaktside **kun** når det finnes en eksplisitt, brukerbekreftet kobling mellom anbefalingen og kontakten. Navnelikhet er aldri tilstrekkelig og gir ingen automatisk kobling.
+- Gitte anbefalinger vises ikke i brukerens egen kompetanseprofil.
 - Ingen anbefaling og intet endorsement brukes automatisk i CV eller søknad.
 
 ### 3.4 Krever eksplisitt brukerhandling
