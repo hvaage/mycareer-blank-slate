@@ -18,7 +18,7 @@ Ingen blokkerende avvik funnet. Ett avvik meldes eksplisitt: **jobbpreferanser h
 ## Datamodell (additiv)
 
 1. `linkedin_promotion_events` — append-only revisjonsspor med feltene i instruksen (proposal-id, decision-id, domene, action, status, `idempotency_key` unik per bruker, målreferanse, LinkedIn-proveniens, snapshot-hasher før/etter, feilkode). Ingen FK til staging-rader; kun kildeidentitet + hash overlever retention. Slettet produktdata sletter ikke hendelsen (målreferanse er løs, ikke FK-kaskade).
-2. `linkedin_promotion_targets` — kobling hendelse → (entity_type, entity_id) for oppslag «hva ble dette til».
+2. `linkedin_promotion_targets` — kobling hendelse → produktmål. Egen `user_id`, sammensatt FK `(promotion_event_id, user_id)` mot `linkedin_promotion_events`, CHECK på tillatte `entity_type`-verdier, unikhet på `(promotion_event_id, entity_type, entity_id)`, RLS `auth.uid() = user_id`. `entity_id` er ren revisjonsreferanse — ingen FK til staging, og aldri en vei inn i en annen brukers produktdata (all lesing filtreres på `user_id`).
 3. `career_recommendations` — tredjepartsanbefalinger, `source_classification='third_party_recommendation'`, aldri attestasjon, aldri synlig for CV-/søknadsgenerering.
 4. `network_contacts` (+ `network_contact_identities` for LinkedIn-URL som foretrukket identitet). Ingen e-post/telefon fra LinkedIn. Ingen relasjonsklassifisering.
 5. `career_skill_source_signals` — endorsement-antall og kilde som tredjepartssignal knyttet til et kompetanseatom; aldri nivå, aldri bevisstatus.
