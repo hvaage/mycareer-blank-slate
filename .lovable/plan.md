@@ -294,8 +294,15 @@ Nye tester:
    `canonical_import_id` på tvers av to brukere avvises av sammensatt FK.
 6. Kanonisk import: sletting av en import som andre peker til flytter referansene
    atomisk, eller avvises med `canonical_import_in_use` — aldri ugyldig referanse.
-7. Reimport: slett/purge import → last opp identisk syntetisk ZIP → ny aktiv import
-   opprettes, tombstone består, ingen arvede stagingkoblinger.
+7. Reimport etter sletting: slett/purge import (rad står igjen med `purged_at` og
+   `status = cancelled`) → last opp identisk syntetisk ZIP → ny aktiv importrad
+   opprettes uten at den partielle unikindeksen blokkerer, tombstone består, ingen
+   arvede stagingkoblinger.
+7b. Reopplasting etter retention: aktiv import med `archive_available = false` →
+   identisk ZIP lastes opp → **ingen** ny importrad; samme import får nytt
+   `attempt_id`, nytt Storage-objekt, `archive_available = true` etter skriv,
+   eksisterende stagingkoblinger intakte, og kun nye valgte formål stages.
+
 8. `archive_available`: `true` kun etter bekreftet Storage-skriv; `false` ved
    minneparsing og etter retention-sweep.
 9. Formål i identitetshashen: samme kildeinnhold behandlet for to formål gir to
