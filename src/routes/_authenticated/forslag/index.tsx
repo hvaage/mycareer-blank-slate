@@ -77,6 +77,7 @@ function ForslagInboxPage() {
 
   const cvCount = data?.cv ?? 0;
   const aiCount = data?.ai ?? 0;
+  const linkedinCount = data?.linkedin ?? 0;
   const total = data?.total ?? 0;
 
   return (
