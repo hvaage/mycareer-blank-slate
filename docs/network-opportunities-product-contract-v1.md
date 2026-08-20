@@ -285,12 +285,14 @@ Hvert felt har nøyaktig én aktiv kildeklasse. Er den `user_input`, kan siste L
 | Forfallsdato / «om X dager» | `next_steps.due_date` | `user_input` | Ja |
 | Status | `next_steps.completed` | `user_input` | Ja |
 | Gjennomført-tidspunkt | `next_steps.completed_at` | `activity` | Nei (settes ved handling) |
+| Forslag til aktivitet | forslagslager, ikke `next_steps` | `ai_suggestion` | Godkjennes eller avvises |
 
 ### 5.2 Regler
 
 - Å markere en aktivitet som utført lagrer faktisk dato og flytter den til gjennomført historikk.
-- KI-genererte aktivitetsforslag må godkjennes **og få en frist** før de opprettes i aktivitetslisten.
+- KI-genererte aktivitetsforslag har kildeklasse `ai_suggestion` (ikke `employer_analysis`) og må godkjennes **og få en frist** før de opprettes i aktivitetslisten.
 - Aktivitet uten knytning er tillatt, men vises med «Ikke knyttet» og handling for å knytte.
+- En aktivitet kan aldri knyttes til en annen brukers kontakt, selskap eller mulighet. Knytningene håndheves i databasen med sammensatte, user-scopede fremmednøkler, se 8.1.
 
 ### 5.3 Tomtilstand
 
