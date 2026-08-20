@@ -184,7 +184,9 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
   andre kilder. Testes mot syntetiske data; ikke planlagt i cron i denne fasen.
 - Kontraktdokumentet `docs/linkedin-import-contract-v1.md` oppdateres i samme
   leveranse slik at §6.1/§6.2/§9.5 og §1.3 har **én** autoritativ livssyklus:
-  ZIP 7 dager, staging 90 dager, samme statusklassifisering som over.
+  ZIP 7 dager, staging 90 dager, samme statusklassifisering som over — og slik at
+  datamodellavsnittet beskriver felles `linkedin_staging_records` med 1:1
+  domenetabeller, formålsstatus per fil, `attempt_id`-isolasjon og `archive_available`.
 
 
 ## 5. Tester
@@ -195,6 +197,19 @@ produktdata-uendrethet. Dekker alle 14 portene i oppdraget, inkludert idempotens
 (samme ZIP, ompakket ZIP, utvidet formål), filnivåfeil, klasse B/C-oppførsel,
 RLS-isolasjon mellom to brukere, retention, og en bunt-sjekk på at ingen
 serverparser/ZIP-bibliotek/service-role-nøkkel havner i klientbunten.
+
+Nye tester:
+
+1. FK-test: kobling i `linkedin_import_stage_records` mot ukjent `staging_record_id`
+   avvises, og feil `staging_domain` mot eksisterende forelder avvises.
+2. Samme fil med to valgte formål gir to rader i `linkedin_import_file_purposes` med
+   ulik status (`staged` / `skipped_no_consent`), mens `linkedin_import_files.status`
+   forblir rent teknisk.
+3. Retry etter utvidet formål: nytt `attempt_id` rydder kun sitt eget forsøk;
+   tidligere vellykket stagingkobling og delt stagingrad består.
+4. Kall mot internruten uten korrekt intern autorisasjon avvises (401) uten
+   databasekontakt.
+
 
 ## 6. Rapport
 
