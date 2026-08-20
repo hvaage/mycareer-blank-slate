@@ -82,10 +82,9 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   (`csv_row|archive_file|html_section`), `source_locator`, `source_row_number`,
   `source_row_hash`, `source_content_hash`, `source_event_at`, `source_recorded_at`,
   `source_url`, `source_classification`), `source_identity_hash`,
-  `first_linkedin_import_id`, `last_linkedin_import_id`, `created_at`, `last_seen_at`,
-  `preserved_tombstone_id uuid NULL REFERENCES public.linkedin_import_tombstones(id)`
-  — settes **kun** når en stagingrad må bevares uten gjenværende aktiv import.
-  Begge import-referansene er sammensatte FK-er med `user_id`.
+  `first_linkedin_import_id`, `last_linkedin_import_id`, `created_at`, `last_seen_at`.
+  Begge import-referansene er sammensatte FK-er med `user_id` og peker alltid på en
+  aktiv import; stagingrader bevares aldri uten aktiv importkobling.
 
   Unik indeks `(user_id, source_file, source_identity_hash)` og hjelpe-unike
   `(id, user_id)`, `(id, staging_domain)`, `(id, purpose)` som domenetabellene og
