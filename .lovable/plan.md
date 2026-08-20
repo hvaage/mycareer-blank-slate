@@ -70,16 +70,26 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   `source_row_number`, `source_row_hash`, `source_content_hash`, `source_event_at`,
   `source_recorded_at`, `source_url`, `source_classification`, `source_identity_hash`,
   `created_at`, `last_seen_at`.
-  **`source_identity_hash` = sha256 over `user_id || source_file || record_kind ||
-  normalisert kildeinnhold`** (NFKC-normaliserte, whitespace-trimmede, hvitlistede
-  feltverdier i fast rekkefølge). Radnummer inngår ikke, så omorganiserte CSV-rader
-  gir ingen dubletter. Unik indeks `(user_id, source_file, source_identity_hash)`:
+  **`source_identity_hash`** = SHA-256 av en **kanonisk serialisert, versjonert
+  struktur** (`{"v":"linkedin_identity_v1","user_id":…,"source_file":…,
+  "record_kind":…,"fields":{navngitte hvitlistede felt i sortert rekkefølge}}`) med
+  entydige skilletegn — aldri ren strengkonkatenering. Feltverdier er NFKC-normaliserte
+  og whitespace-trimmede. Radnummer inngår ikke, så omorganiserte CSV-rader gir ingen
+  dubletter. Unik indeks `(user_id, source_file, source_identity_hash)`:
   identisk innhold oppdaterer kun `last_linkedin_import_id`/`last_seen_at`; endret
   innhold gir ny stagingrad, aldri overskriving.
-  **Proveniens-CHECK:** `csv_row` krever `source_row_number` og `source_row_hash` og
-  krever `source_content_hash IS NULL`; `html_section` krever `source_content_hash`;
-  `archive_file` krever `source_content_hash`.
+  **Proveniens-CHECK:** `csv_row` krever `source_row_number` + `source_row_hash` og
+  forbyr `source_content_hash`; `html_section` og `archive_file` krever
+  `source_content_hash` og forbyr `source_row_number`/`source_row_hash`.
+- `linkedin_import_stage_records` — kobling import ↔ stagingrad:
+  `linkedin_import_id`, `user_id`, `staging_domain`, `staging_record_id`,
+  `source_identity_hash`, `linked_at`, unik
+  `(linkedin_import_id, staging_domain, staging_record_id)`. Gjør det mulig å rydde
+  kun ett forsøks koblinger, beholde stagingrader som deles med andre importer,
+  slette en import uten å fjerne delt grunnlag, dokumentere hva importen faktisk
+  produserte, og teste idempotens ved ompakket ZIP og utvidede formål.
 - `linkedin_import_tombstones` — minimalt revisjonsspor per §6.3.
+
 
 RLS: eier-policyer (`auth.uid() = user_id`) kun for SELECT på alle tabeller.
 `authenticated` har **ingen** INSERT/UPDATE/DELETE-policy — heller ikke DELETE på
