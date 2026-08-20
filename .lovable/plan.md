@@ -82,7 +82,7 @@ Stopper etter Leveranse B.
 
 ## Teknisk sammendrag
 
-- Nye tabeller: `linkedin_endorsement_staging`, `linkedin_endorsement_signals`, `network_contact_company_relations`, `user_company_relationships`.
+- Nye tabeller: `linkedin_endorsement_staging`, `linkedin_endorsement_signals`, `network_contact_company_relations`, `user_company_relationships`, `linkedin_network_reconciliation_batches`, `linkedin_network_reconciliation_batch_items`.
 - Utvidelser: `career_recommendations` (retning, proveniens, forfatterhash), `network_contacts.last_observed_at`, `next_steps` (eier, type, koblinger, sammensatte FK-er, RLS).
 - Kode: `contract.ts` (eget endorsement-domene), `domain-mapping.server.ts` (kurs- og endorsement-mapping), ny `reconciliation/v2/` med deterministiske regler per domene, batch-DTO for nettverk.
 - Versjonering: `RECONCILIATION_VERSION = "linkedin_reconciliation_v2"`; berørte `pending_review`-forslag settes `superseded` med årsakskode, behandlede forslag urørt.
