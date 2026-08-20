@@ -253,6 +253,17 @@ Nye tester:
    tidligere vellykket stagingkobling og delt stagingrad består.
 4. Kall mot internruten uten korrekt intern autorisasjon avvises (401) uten
    databasekontakt.
+5. Tenant-samsvar: forsøk på å knytte fil, formål, domenestaging, koblingsrad eller
+   `canonical_import_id` på tvers av to brukere avvises av sammensatt FK.
+6. Kanonisk import: sletting av en import som andre peker til flytter referansene
+   atomisk, eller avvises med `canonical_import_in_use` — aldri ugyldig referanse.
+7. Reimport: slett/purge import → last opp identisk syntetisk ZIP → ny aktiv import
+   opprettes, tombstone består, ingen arvede stagingkoblinger.
+8. `archive_available`: `true` kun etter bekreftet Storage-skriv; `false` ved
+   minneparsing og etter retention-sweep.
+9. Formål i identitetshashen: samme kildeinnhold behandlet for to formål gir to
+   distinkte stagingrader uten unikhetskollisjon.
+
 
 
 ## 6. Rapport
