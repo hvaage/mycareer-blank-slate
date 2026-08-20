@@ -49,10 +49,11 @@ Produktlaget lagrer kun et aggregat: antall LinkedIn-støttesignaler per kompeta
 Nettverksavstemming lagres som en frossen, reviderbar batch — ikke en beregning som gjøres på nytt hver gang.
 
 - Batchen eier bruker, import, kjøring, inndatasignatur, avstemmingsversjon, status, tidspunkter og rene tellere: nye, eksakte identitetsmatcher, mulige dubletter, uten stabil identitet, observert profilendring og ekskluderte. Ingen kontaktdata i aggregatfeltene.
-- Radene under batchen peker til staging- eller kontaktidentitet og bærer kategori, foreslått handling, kildehash, eventuell målidentitet, status og årsakskoder.
+- Radene under batchen peker til staging- eller kontaktidentitet og bærer kategori, foreslått handling, kildehash, eventuell målidentitet, status og årsakskoder. Målidentiteten er valgfri og alltid bruker-scopet.
 - Samme inndata gjenbruker samme batch (idempotent) for både første import og reimport.
 - Batchen skriver aldri kontakter direkte. Navnelikhet gir «mulig dublett»; eksakt LinkedIn-identitet gir «eksakt treff» eller «observert profilendring».
 - En senere massegodkjenning konsumerer nøyaktig denne frosne batchen, aldri en ny ad hoc-beregning.
+- Dataminimering som i Fase 3: når en import slettes eller staging utløper, nullstilles kildereferansene på batchraden. Igjen står kun batch-id, kategori, handling, status, hash, tidspunkt og årsakskode — aldri navn, profil-URL, selskapstekst eller andre kontaktdata via batchraden.
 - RLS og bruker-scopede, sammensatte fremmednøkler på både batch og rader. Fase 5 kan vise batchen; her bygges kun modell og DTO.
 
 
