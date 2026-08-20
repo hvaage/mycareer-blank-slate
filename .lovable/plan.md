@@ -82,10 +82,9 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   (`csv_row|archive_file|html_section`), `source_locator`, `source_row_number`,
   `source_row_hash`, `source_content_hash`, `source_event_at`, `source_recorded_at`,
   `source_url`, `source_classification`), `source_identity_hash`,
-  `first_linkedin_import_id`, `last_linkedin_import_id`, `created_at`, `last_seen_at`,
-  `preserved_tombstone_id uuid NULL REFERENCES public.linkedin_import_tombstones(id)`
-  — settes **kun** når en stagingrad må bevares uten gjenværende aktiv import.
-  Begge import-referansene er sammensatte FK-er med `user_id`.
+  `first_linkedin_import_id`, `last_linkedin_import_id`, `created_at`, `last_seen_at`.
+  Begge import-referansene er sammensatte FK-er med `user_id` og peker alltid på en
+  aktiv import; stagingrader bevares aldri uten aktiv importkobling.
 
   Unik indeks `(user_id, source_file, source_identity_hash)` og hjelpe-unike
   `(id, user_id)`, `(id, staging_domain)`, `(id, purpose)` som domenetabellene og
@@ -203,22 +202,22 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
   `SET search_path = ''` og fullt kvalifiserte objektnavn,
   `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` (kun `service_role`).
   Alt under skjer i **én transaksjon**, i denne rekkefølgen:
-  1. opprett tombstone for importen
+  1. opprett tombstone for **importen** (aldri for stagingrader); tombstone inneholder
+     ingen rå LinkedIn-tekst og ingen stagingpayload
   2. finn alle stagingrader som refererer til importen via
      `first_linkedin_import_id`/`last_linkedin_import_id`
   3. slett importens koblinger i `linkedin_import_stage_records`
-  4. slett stagingrader som ikke lenger har noen kobling fra noen import/forsøk
-  5. for **beholdte** stagingrader: reparer referansene før commit — sett
+  4. slett stagingrader som ikke lenger har noen aktiv importkobling — sammen med
+     deres 1:1-domenerader. Staging bevares aldri uten aktiv importkobling.
+  5. for **beholdte** (delte) stagingrader: reparer referansene før commit — sett
      `first_linkedin_import_id` til eldste og `last_linkedin_import_id` til nyeste
-     gjenværende import utledet fra `linkedin_import_stage_records`; finnes ingen
-     gyldig import, men raden skal bevares, knyttes den til importens tombstone via
-     `preserved_tombstone_id` (eksplisitt, dokumentert bevaringsregel)
+     gjenværende import utledet fra `linkedin_import_stage_records`
   6. slett filrader, formålsrader og fritekst
   7. marker Storage-objektet for sletting og sett `archive_available = false`
 
   FK-ene på `first/last_linkedin_import_id` bruker aldri `ON DELETE SET NULL`: enten
-  peker de på en gyldig gjenværende import, eller raden er tombstone-forankret via
-  `preserved_tombstone_id`, eller den er slettet. Serverhandlingen sletter
+  peker de på en gyldig gjenværende aktiv import, eller stagingraden er slettet.
+  Serverhandlingen sletter
   Storage-objektet etter commit; feiler Storage-sletting, blir objektet stående i
   slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis. Samme
   referansereparasjon gjelder når retention-sweepen purger en import.
@@ -311,9 +310,9 @@ Nye tester:
     slettes. Stagingraden beholdes, `first/last_linkedin_import_id` peker kun til den
     gyldige gjenværende importen, alle FK-er validerer, og den andre importen kan
     fortsatt leses og senere slettes kontrollert.
-11. Tombstoneforankring: når siste aktive import for en bevart stagingrad slettes,
-    settes `preserved_tombstone_id` til importens tombstone, FK-en validerer, og
-    `first/last_linkedin_import_id` blir aldri hengende på en slettet import.
+11. Siste importkobling: når siste aktive import for en stagingrad slettes, slettes
+    stagingraden og dens 1:1-domenerad. Tombstone beholdes for importen, men
+    inneholder ingen rå LinkedIn-tekst eller stagingpayload.
 
 
 
