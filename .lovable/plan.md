@@ -199,12 +199,27 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
 - `public.linkedin_import_delete(p_import_id uuid)` — `SECURITY DEFINER` med
   `SET search_path = ''` og fullt kvalifiserte objektnavn,
   `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` (kun `service_role`).
-  Rekkefølge: opprett tombstone → slett denne importens koblinger i
-  `linkedin_import_stage_records` → slett stagingrader som ikke lenger har noen
-  importreferanse (delte rader beholdes) → slett filrader og fritekst → marker
-  Storage-objektet for sletting. Serverhandlingen sletter Storage-objektet etter at
-  transaksjonen er committet; feiler Storage-sletting, blir objektet stående i
-  slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis.
+  Alt under skjer i **én transaksjon**, i denne rekkefølgen:
+  1. opprett tombstone for importen
+  2. finn alle stagingrader som refererer til importen via
+     `first_linkedin_import_id`/`last_linkedin_import_id`
+  3. slett importens koblinger i `linkedin_import_stage_records`
+  4. slett stagingrader som ikke lenger har noen kobling fra noen import/forsøk
+  5. for **beholdte** stagingrader: reparer referansene før commit — sett
+     `first_linkedin_import_id` til eldste og `last_linkedin_import_id` til nyeste
+     gjenværende import utledet fra `linkedin_import_stage_records`; finnes ingen
+     gyldig import, men raden skal bevares, knyttes den til importens tombstone via
+     `preserved_tombstone_id` (eksplisitt, dokumentert bevaringsregel)
+  6. slett filrader, formålsrader og fritekst
+  7. marker Storage-objektet for sletting og sett `archive_available = false`
+
+  FK-ene på `first/last_linkedin_import_id` bruker aldri `ON DELETE SET NULL`: enten
+  peker de på en gyldig gjenværende import, eller raden er tombstone-forankret, eller
+  den er slettet. Serverhandlingen sletter Storage-objektet etter commit; feiler
+  Storage-sletting, blir objektet stående i slettekø og fjernes av sweepen —
+  databaserader gjenopprettes aldri halvveis. Samme referansereparasjon gjelder når
+  retention-sweepen purger en import.
+
 
 - **Kanonisk import ved sletting:** dersom andre importrader peker til importen som
   slettes, må flyten enten (a) velge og validere en ny kanonisk import blant de
@@ -246,9 +261,10 @@ Nye tester:
 
 1. FK-test: kobling i `linkedin_import_stage_records` mot ukjent `staging_record_id`
    avvises, og feil `staging_domain` mot eksisterende forelder avvises.
-2. Samme fil med to valgte formål gir to rader i `linkedin_import_file_purposes` med
-   ulik status (`staged` / `skipped_no_consent`), mens `linkedin_import_files.status`
-   forblir rent teknisk.
+2. Formålsstatus: samme fil støtter to formål, brukeren velger kun det ene. Valgt
+   formål får `staged`, ikke-valgt formål får `skipped_no_consent`, og
+   `linkedin_import_files.status` forblir rent teknisk.
+
 3. Retry etter utvidet formål: nytt `attempt_id` rydder kun sitt eget forsøk;
    tidligere vellykket stagingkobling og delt stagingrad består.
 4. Kall mot internruten uten korrekt intern autorisasjon avvises (401) uten
@@ -263,6 +279,11 @@ Nye tester:
    minneparsing og etter retention-sweep.
 9. Formål i identitetshashen: samme kildeinnhold behandlet for to formål gir to
    distinkte stagingrader uten unikhetskollisjon.
+10. Delt stagingrad ved sletting: to importer deler samme stagingrad, første import
+    slettes. Stagingraden beholdes, `first/last_linkedin_import_id` peker kun til den
+    gyldige gjenværende importen (eller tombstone), alle FK-er validerer, og den andre
+    importen kan fortsatt leses og senere slettes kontrollert.
+
 
 
 
