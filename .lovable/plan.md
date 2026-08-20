@@ -130,7 +130,12 @@ slik at fase 3-UI kan vise dette som et tydelig valg, ikke som en stille begrens
 ## 3. Parser- og normaliseringsmodul (server-only)
 
 `src/lib/linkedin/*.server.ts` (filnavn-basert klientblokkering), kalt fra en intern
-serverrute etter mønsteret i `src/routes/api/internal/`:
+serverrute etter mønsteret i `src/routes/api/internal/`. Ruten autentiserer den
+interne worker-/arbeidsgiverhemmeligheten (eksisterende godkjent worker-mønster,
+timing-safe sammenligning) **før** enhver databasekontakt; uten korrekt intern
+autorisasjon returneres 401 uten å røre databasen. Dette kommer i tillegg til
+brukerautentiseringen som gjelder for senere brukerutløste handlinger.
+
 
 - `preflight.server.ts` — alle porter fra §8.1–8.4 (ZIP-gyldighet, størrelser,
   antall oppføringer, komprimeringsforhold 100:1, path traversal, dublette stier,
