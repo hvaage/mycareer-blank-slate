@@ -310,9 +310,9 @@ Nye tester:
     slettes. Stagingraden beholdes, `first/last_linkedin_import_id` peker kun til den
     gyldige gjenværende importen, alle FK-er validerer, og den andre importen kan
     fortsatt leses og senere slettes kontrollert.
-11. Tombstoneforankring: når siste aktive import for en bevart stagingrad slettes,
-    settes `preserved_tombstone_id` til importens tombstone, FK-en validerer, og
-    `first/last_linkedin_import_id` blir aldri hengende på en slettet import.
+11. Siste importkobling: når siste aktive import for en stagingrad slettes, slettes
+    stagingraden og dens 1:1-domenerad. Tombstone beholdes for importen, men
+    inneholder ingen rå LinkedIn-tekst eller stagingpayload.
 
 
 
