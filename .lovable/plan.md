@@ -35,6 +35,8 @@ RLS og immutabilitet for varsler:
 - `SELECT`: kun `auth.uid() = user_id`.
 - `INSERT`/`DELETE`: ingen klientpolicy; kun `service_role`.
 - `UPDATE`: én avgrenset policy for eier, kombinert med en `BEFORE UPDATE`-trigger som avviser enhver endring av `notification_kind`, `title`, `body`, `deep_link`, `linkedin_import_id`, `attempt_id`, `user_id` og `created_at`. Kun `read_at` kan endres. Frontendlogikk regnes ikke som håndhevelse.
+- `read_at` er monoton: eneste tillatte klientovergang er `NULL → gyldig tidspunkt` (trigger setter verdien til `now()` og avviser fremtidige tidspunkt). Når `read_at` først er satt, kan den verken nullstilles eller endres. Varslingshistorikken kan dermed ikke manipuleres fra frontend.
+
 - GRANT: `SELECT, UPDATE` til `authenticated`, `ALL` til `service_role`.
 
 ## 2. Serverfunksjoner (SECURITY DEFINER, kun service_role)
