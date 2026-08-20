@@ -388,10 +388,31 @@ Vedlegget lenker til godkjent wireframe-/designreferanse: `docs/design/network-o
 
 Disse er verifisert mot dagens skjema og er forutsetninger for kontrakten:
 
-1. `network_contacts` mangler felt for LinkedIn-profil-URL i selve raden (identitet ligger i `network_contact_identities`), samt `last_observed_at`. Begge kreves av kontaktmodellen.
+1. `network_contacts` mangler `last_observed_at`. LinkedIn-profil-URL skal **ikke** legges på raden; `network_contact_identities` er eneste kanoniske eier og relateres derfra.
 2. Det finnes ingen kontakt↔selskap-kobling; `network_contacts.company` er kun tekst.
-3. Det finnes ingen tabell for endorsement-signaler; endorsements havner i dag i `linkedin_recommendation_staging` sammen med anbefalinger.
-4. `next_steps` er kun bundet til `application_id` og mangler `activity_kind`, `contact_id`, `company_id`, `opportunity_id` og `user_id`.
-5. `career_recommendations` skiller ikke mottatte fra gitte anbefalinger i egen kolonne.
+3. Det finnes ingen tabell for endorsement-signaler; endorsements havner i dag i `linkedin_recommendation_staging` sammen med anbefalinger. Ny tabell lagrer kun kompetanse, aggregert antall, kilde og observasjonstidspunkt — aldri endorseridentitet.
+4. `next_steps` er kun bundet til `application_id` og mangler `activity_kind`, `contact_id`, `company_id`, `opportunity_id` og `user_id`. Se migreringssekvensen i 8.1.
+5. `career_recommendations` skiller ikke mottatte fra gitte anbefalinger i egen kolonne, og mangler en eksplisitt, brukerbekreftet kobling til `network_contacts`.
+6. Det finnes ingen `user_company_relationships`. Brukerens notater, status og prioritet for et selskap har i dag ingen user-scoped eier. Tabellen må opprettes med `user_id`, `company_id`, RLS på `user_id` og unikhet på `(user_id, company_id)`. Ingen brukerdata skrives til delte `companies`.
+
+### 8.1 Sikker migrering av `next_steps`
+
+Rekkefølgen er normativ:
+
+1. Legg til `user_id`, `activity_kind`, `contact_id`, `company_id`, `opportunity_id` som nullable kolonner. Ingen constraints ennå.
+2. Backfill `user_id` fra eksisterende `application_id`-relasjon (`applications.user_id`).
+3. Valider backfill: antall rader med `user_id IS NULL` skal være 0. Migreringen stopper hvis ikke.
+4. Først etter validert backfill: sett `user_id` NOT NULL og gjør `application_id` nullable.
+5. Legg til fremmednøkler og RLS. User-scopede koblinger bruker **sammensatte** fremmednøkler der målobjektet har en user-scoped nøkkel:
+   - `(user_id, contact_id)` → `network_contacts (user_id, id)`
+   - `(user_id, opportunity_id)` → `user_opportunities (user_id, id)`
+   - `(user_id, application_id)` → `applications (user_id, id)`
+   - `company_id` → `companies (id)` (delt registerobjekt; brukerens relasjon ligger i `user_company_relationships`)
+
+   Målobjektene får de nødvendige `UNIQUE (user_id, id)`-nøklene i samme migrasjon. En aktivitet kan dermed ikke kobles til en annen brukers kontakt, mulighet eller søknad selv om UUID-en er kjent — dette håndheves i databasen, ikke bare i RLS.
+6. RLS-policyer på `next_steps` scopes på `user_id`.
+7. Eksisterende søknadsrelaterte aktiviteter forblir uendret i innhold, relasjon og synlighet.
+
+---
 
 Kontrakten er godkjenningsgrunnlag. Leveranse A og B implementerer den; UI bygges først etter at kontrakt, A, B og akseptansetesten er godkjent.
