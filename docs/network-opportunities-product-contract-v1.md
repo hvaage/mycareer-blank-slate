@@ -183,13 +183,14 @@ Kontakt → kontaktside. Mulighet → mulighetsside. Søknad → søknadsside. D
 
 - Navn
 - Nåværende rolle og selskap når kjent
-- LinkedIn-profil-URL når tilgjengelig
+- LinkedIn-profil-URL når tilgjengelig, eid av `network_contact_identities`
 - Tilkoblingsdato
 - Sist observert i LinkedIn-eksport
 - Kontaktens selskapskoblinger
 - Aktiviteter og neste aktivitet
-- Eventuelle mottatte anbefalinger, tydelig som tredjepartsinformasjon
-- Eventuelle LinkedIn-støttesignaler på brukerens kompetanser som aggregert antall, ikke navn på personer
+- Eventuelle mottatte anbefalinger, kun ved brukerbekreftet kobling, tydelig som tredjepartsinformasjon
+
+Kontakt-flaten viser **ikke** endorsement-signaler. Aggregert LinkedIn-støtte hører kun til brukerens egen kompetanse i Min profil.
 
 ### 3.2 Feltkontrakt
 
