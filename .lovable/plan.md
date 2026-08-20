@@ -264,6 +264,11 @@ Nye tester:
    minneparsing og etter retention-sweep.
 9. Formål i identitetshashen: samme kildeinnhold behandlet for to formål gir to
    distinkte stagingrader uten unikhetskollisjon.
+10. Delt stagingrad ved sletting: to importer deler samme stagingrad, første import
+    slettes. Stagingraden beholdes, `first/last_linkedin_import_id` peker kun til den
+    gyldige gjenværende importen (eller tombstone), alle FK-er validerer, og den andre
+    importen kan fortsatt leses og senere slettes kontrollert.
+
 
 
 
