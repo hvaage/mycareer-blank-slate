@@ -1,10 +1,15 @@
 # Nettverk og muligheter — produktkontrakt v1
 
 Status: forslag til godkjenning. Normativ for all senere implementering av modulen «Nettverk og muligheter».
-Versjon: 1.0 (2026-08-20). Språk i produktet: norsk (bokmål).
+Versjon: 1.1 (2026-08-20). Språk i produktet: norsk (bokmål).
 
 Dette dokumentet er kilde-til-produkt-kontrakten for fem flater: **Oversikt, Selskaper, Kontakter, Muligheter, Aktiviteter**.
 Ingen migrasjon og ingen UI bygges før dokumentet er godkjent.
+
+### Endringslogg
+
+**v1.1** — Én kildeklasse per aktiv feltverdi med historisk LinkedIn-proveniens i egen DTO-gren. Nye kildeklasser `job_posting`, `derived_evaluation`, `ai_suggestion`. Endorsement-signal fjernet fra Kontakt-flaten. Mottatte anbefalinger krever brukerbekreftet kontaktkobling. `network_contact_identities` er eneste eier av LinkedIn-profil-URL. `user_company_relationships` navngitt som eier av brukerens selskapsrelasjon. Artikler/innhold er `not_actionable_in_phase_4`. Sikker migreringssekvens for `next_steps` med sammensatte, user-scopede fremmednøkler.
+
 
 ---
 
@@ -12,22 +17,30 @@ Ingen migrasjon og ingen UI bygges før dokumentet er godkjent.
 
 ### 0.1 Kildeklassifisering (normativ)
 
-Hvert felt som vises i modulen skal ha nøyaktig én kildeklasse:
+Hver **aktiv** feltverdi har nøyaktig én kildeklasse. Formuleringer som «linkedin_observation / user_input» er ikke tillatt noe sted i kontrakten:
 
 | Kode | Kildeklasse | Betydning |
 | --- | --- | --- |
 | `user_input` | Brukeroppgitt | Brukeren har skrevet eller bekreftet verdien selv. |
 | `linkedin_observation` | LinkedIn-observasjon | Observert i en LinkedIn-eksport på et gitt tidspunkt. Aldri «bekreftet». |
 | `register` | Brønnøysund/arbeidsgiverregister | Offentlig registerdata. |
+| `job_posting` | Annonsekilde | Data hentet direkte fra stillingsannonsen (tittel, selskap, URL, kontaktperson i annonsen). |
 | `employer_analysis` | Arbeidsgiveranalyse | Modellgenerert analyse med kildeliste. Merkes synlig som KI-generert. |
+| `derived_evaluation` | Avledet evaluering | Beregnet match/score. Krever modell-/regelversjon og inputtidspunkt. |
+| `ai_suggestion` | KI-forslag | Modellgenerert forslag som krever eksplisitt brukerhandling før det blir produktdata. |
 | `activity` | Aktivitet | Utledet av brukerens egne registrerte aktiviteter og søknader. |
 
 Regler:
 
+- Ved manuell redigering blir aktiv verdi `user_input`. Den tidligere LinkedIn-observasjonen slettes ikke, men beholdes som **historisk proveniens** og vises aldri som aktiv verdi.
+- DTO-en skal kunne vise aktiv verdi og siste LinkedIn-observasjon samtidig, i to atskilte grener. De blandes aldri til ett felt.
 - LinkedIn-observasjon presenteres alltid med «Kilde: LinkedIn» og «Sist observert: <dato>». Den fremstilles aldri som verifisert kontaktdata.
 - Ordet «attestering» brukes **aldri** om LinkedIn-data. LinkedIn-signaler er tredjepartssignal og er aldri `documented`, `verified` eller `user_attested`.
 - Ord som «verifisert», «bekreftet» og «kvalitetssikret» brukes ikke om KI-genererte eller importerte artefakter.
 - Arbeidsgiveranalyse vises aldri uten kilde og analysetidspunkt.
+- `derived_evaluation` vises aldri uten modell-/regelversjon og tidspunkt for inputdata.
+- `ai_suggestion` vises aldri som registrert data; den vises som forslag med godkjenn/avvis.
+
 
 ### 0.2 Tidsstempler
 
@@ -50,7 +63,25 @@ Alle UI-DTO-er skiller mellom fem tilstander per informasjonsgruppe. Frontend sk
 | Ikke ennå analysert | `not_analyzed` | «Ingen analyse kjørt» med handling for å starte analyse. |
 | Utløpt / ikke fersk | `stale` | Verdien vises dempet med «Sist observert <dato>» og oppdateringshandling. |
 
-DTO-form: `{ state: DataState, value?: T, source: SourceClass, observed_at?, imported_at?, analyzed_at? }`.
+DTO-form:
+
+```text
+{
+  state: DataState,
+  value?: T,
+  source_class: SourceClass,          // gjelder aktiv verdi, alltid nøyaktig én
+  observed_at?, imported_at?, analyzed_at?, updated_at?,
+  evaluation?: { model_version, rule_version?, input_observed_at },  // kun derived_evaluation
+  last_source_observation?: {          // historisk proveniens, aldri aktiv verdi
+    source_class: 'linkedin_observation',
+    value: T,
+    observed_at
+  }
+}
+```
+
+`last_source_observation` fylles når aktiv verdi er `user_input` og en avvikende LinkedIn-observasjon finnes. UI viser den som sekundærlinje «Sist observert i LinkedIn: …», aldri som feltverdi.
+
 
 ### 0.4 Kildeavgrensning
 
@@ -58,7 +89,7 @@ Følgende importeres **aldri**, verken til staging eller produkt:
 
 - Jobbsignaler og jobbsøkeraktivitet fra LinkedIn (søknader, lagrede jobber, jobbvarsler, jobbsøkerpreferanser).
 - Annonseklikk og inferert annonseprofil.
-- Navn på personer som har gitt endorsements (kun aggregert antall promoteres).
+- Endorseridentitet. Navn på personer som har gitt endorsements lagres ikke, hverken i staging eller produkt. Kun aggregert antall per kompetanse promoteres.
 
 `contacts` (søknadsbundne kontakter) er **ikke** nettverksregister. Nettverksregisteret er `network_contacts` + `network_contact_identities`.
 
@@ -67,13 +98,15 @@ Følgende importeres **aldri**, verken til staging eller produkt:
 | Produktobjekt | Eiertabell | Merknad |
 | --- | --- | --- |
 | Nettverkskontakt | `network_contacts`, identiteter i `network_contact_identities` | Tenant-scope via `user_id`. |
-| Selskap | `companies` | Delt registerobjekt; brukerens relasjon ligger i koblingstabeller. |
+| Selskap | `companies` | Delt registerobjekt. Ingen brukerdata lagres her. |
+| Brukerens selskapsrelasjon | `user_company_relationships` (ny, Leveranse B) | User-scoped notater, status og prioritet. Unik på `(user_id, company_id)`. |
 | Mulighet | `user_opportunities` (+ `canonical_opportunities`, `source_postings`) | Brukerens eget muligheteobjekt. |
 | Søknad | `applications` | Brukerens søknadsprosess. |
 | Dokument | `documents` | Kobles til søknad/mulighet. |
-| Aktivitet | `next_steps` (utvides, se 6.5), `interviews` | Aktiviteter og intervjuer. |
+| Aktivitet | `next_steps` (utvides, se 8.1), `interviews` | Aktiviteter og intervjuer. |
 | Anbefaling mottatt | `career_recommendations` | Kun mottatte anbefalinger. |
-| Endorsement-signal | `linkedin_endorsement_signals` (ny, Leveranse B) | Aggregert antall per kompetanse. |
+| Endorsement-signal | `linkedin_endorsement_signals` (ny, Leveranse B) | Aggregert antall per kompetanse. Vises kun i Min profil, aldri på Kontakt. |
+
 
 ---
 
@@ -125,8 +158,8 @@ Følgende importeres **aldri**, verken til staging eller produkt:
 | --- | --- | --- | --- | --- | --- |
 | Registerprofil | `name`, `organisasjonsnummer`, `industry`, `size_estimate`, `country`, `ownership_type` | `companies` | `register` | `brreg_matched_at` | Nei |
 | Arbeidsgiverinnsikt | `employer_analysis_v2`, dimensjonsskår, kildeliste | `companies`, `employer_reports` | `employer_analysis` | `employer_analysis_rated_at` | Nei |
-| Brukerens relasjon | notater, status, prioritet | brukerens egne felt | `user_input` | `updated_at` | Ja |
-| Kontakter i selskapet | navn, rolle | `network_contacts` | `linkedin_observation` / `user_input` | observert/oppdatert | Ja (kontaktobjektet) |
+| Brukerens relasjon | notater, status, prioritet | `user_company_relationships` (user-scoped, unik på `(user_id, company_id)`) | `user_input` | `updated_at` | Ja |
+| Kontakter i selskapet | navn, rolle | `network_contacts` | aktiv verdi: `user_input` etter redigering, ellers `linkedin_observation`; historikk i `last_source_observation` | `updated_at` / `observed_at` | Ja (kontaktobjektet) |
 | Muligheter | stilling, status | `user_opportunities` | `user_input` | `updated_at` | Ja |
 | Søknader | status, dato | `applications` | `user_input` | `updated_at` | Ja |
 | Dokumenter | tittel, type | `documents` | `user_input` | `updated_at` | Ja |
@@ -150,36 +183,39 @@ Kontakt → kontaktside. Mulighet → mulighetsside. Søknad → søknadsside. D
 
 - Navn
 - Nåværende rolle og selskap når kjent
-- LinkedIn-profil-URL når tilgjengelig
+- LinkedIn-profil-URL når tilgjengelig, eid av `network_contact_identities`
 - Tilkoblingsdato
 - Sist observert i LinkedIn-eksport
 - Kontaktens selskapskoblinger
 - Aktiviteter og neste aktivitet
-- Eventuelle mottatte anbefalinger, tydelig som tredjepartsinformasjon
-- Eventuelle LinkedIn-støttesignaler på brukerens kompetanser som aggregert antall, ikke navn på personer
+- Eventuelle mottatte anbefalinger, kun ved brukerbekreftet kobling, tydelig som tredjepartsinformasjon
+
+Kontakt-flaten viser **ikke** endorsement-signaler. Aggregert LinkedIn-støtte hører kun til brukerens egen kompetanse i Min profil.
 
 ### 3.2 Feltkontrakt
 
 | Felt | Eier | Kildeklasse | Tidsstempel | Redigerbart |
 | --- | --- | --- | --- | --- |
-| Navn | `network_contacts.display_name` | `linkedin_observation` ved import, `user_input` etter redigering | `observed_at` / `updated_at` | Ja |
+| Navn | `network_contacts.display_name` | `user_input` etter redigering, ellers `linkedin_observation` | `updated_at` / `observed_at` | Ja |
 | Rolle | `network_contacts.headline` | som over | som over | Ja |
 | Selskap | `network_contacts.company` | som over | som over | Ja |
-| LinkedIn-profil-URL | `network_contact_identities` (`identity_kind = 'linkedin_profile_url'`) | `linkedin_observation` | `created_at` | Nei (identitet endres ikke manuelt) |
+| LinkedIn-profil-URL | `network_contact_identities` (`identity_kind = 'linkedin_profile_url'`) — eneste kanoniske eier | `linkedin_observation` | `created_at` | Nei (identitet endres ikke manuelt) |
 | Tilkoblingsdato | `network_contacts.connected_on` | `linkedin_observation` | eksportdato | Nei |
 | Sist observert | `network_contacts.last_observed_at` (nytt felt, Leveranse B) | `linkedin_observation` | `observed_at` | Nei |
-| Selskapskoblinger | kontakt↔selskap-kobling (ny, Leveranse B) | `linkedin_observation` / `user_input` | observert | Ja |
+| Selskapskoblinger | kontakt↔selskap-kobling (ny, Leveranse B) | `user_input` når brukeren har koblet, ellers `linkedin_observation` | observert / oppdatert | Ja |
 | Aktiviteter / neste aktivitet | `next_steps` | `activity` | `due_date`, `completed_at` | Ja |
-| Mottatte anbefalinger | `career_recommendations` (kun `direction = received`) | `linkedin_observation` | `recommended_on` | Nei |
-| Endorsement-signal | `linkedin_endorsement_signals` (aggregert antall) | `linkedin_observation` | `observed_at` | Nei |
+| Mottatte anbefalinger | `career_recommendations` (kun `direction = received`), vises kun ved brukerbekreftet kobling til `network_contact` | `linkedin_observation` | `recommended_on` | Nei |
 | Notater | kontaktnotat | `user_input` | `updated_at` | Ja |
+
+Hvert felt har nøyaktig én aktiv kildeklasse. Er den `user_input`, kan siste LinkedIn-observasjon vises som historisk proveniens i `last_source_observation`.
 
 ### 3.3 Regler
 
 - Navn og selskap er lenkbare: selskap → selskapsside, kontakt → kontaktside.
 - LinkedIn-data vises alltid med kilde og «sist observert», aldri som bekreftet kontaktdata.
-- Endorsements vises kun som aggregert antall på **brukerens egne kompetanser**. Personnavn lagres ikke og vises ikke i produktlaget.
-- Mottatte anbefalinger merkes som tredjepartsinformasjon. Gitte anbefalinger vises ikke i brukerens egen kompetanseprofil.
+- Endorsement-signaler vises **ikke** på Kontakt-flaten. Aggregert LinkedIn-støtte vises kun ved brukerens egen kompetanse i Min profil. Endorseridentitet lagres aldri.
+- Mottatte anbefalinger hører hjemme i Min profil / Min dokumentasjon. De kan vises på en kontaktside **kun** når det finnes en eksplisitt, brukerbekreftet kobling mellom anbefalingen og kontakten. Navnelikhet er aldri tilstrekkelig og gir ingen automatisk kobling.
+- Gitte anbefalinger vises ikke i brukerens egen kompetanseprofil.
 - Ingen anbefaling og intet endorsement brukes automatisk i CV eller søknad.
 
 ### 3.4 Krever eksplisitt brukerhandling
@@ -212,21 +248,21 @@ Kontakt → kontaktside. Mulighet → mulighetsside. Søknad → søknadsside. D
 
 | Felt | Eier | Kildeklasse | Tidsstempel | Redigerbart |
 | --- | --- | --- | --- | --- |
-| Stilling | `user_opportunities.card_title` | annonsekilde | `card_published_at` | Ja |
-| Selskap | `user_opportunities.card_company` → `companies` | annonsekilde / `register` | `updated_at` | Ja |
-| Annonsekilde og URL | `card_source`, `card_display_url`, `card_raw_url` | annonsekilde | `card_published_at` | Nei |
-| Kontaktperson fra annonse | eget kontaktobjekt i `network_contacts` med kobling til muligheten | `user_input` (fra annonse) | `created_at` | Ja |
-| Preferansematch | eget måltall | `user_input` + modell | `screening_evaluated_at` | Nei |
-| Kompetansematch | `relevance_score` / `ai_score` med `match_score_version` | `employer_analysis` | `ai_scored_at` | Nei |
+| Stilling | `user_opportunities.card_title` | `job_posting` (`user_input` etter redigering) | `card_published_at` / `updated_at` | Ja |
+| Selskap | `user_opportunities.card_company` → `companies` | `job_posting`; registerprofilen på selskapssiden er `register` | `updated_at` | Ja |
+| Annonsekilde og URL | `card_source`, `card_display_url`, `card_raw_url` | `job_posting` | `card_published_at` | Nei |
+| Kontaktperson fra annonse | eget kontaktobjekt i `network_contacts` med kobling til muligheten | `job_posting` | `created_at` | Ja |
+| Preferansematch | eget måltall | `derived_evaluation` (regelversjon + inputtidspunkt) | `screening_evaluated_at` | Nei |
+| Kompetansematch | `relevance_score` / `ai_score` med `match_score_version` | `derived_evaluation` (modellversjon + inputtidspunkt) | `ai_scored_at` | Nei |
 | Dokumenter brukt | `documents.opportunity_id` | `user_input` | `updated_at` | Ja |
 | Aktivitetstidslinje | `next_steps`, `interviews` | `activity` | `due_date` | Ja |
-| Kontakter i selskapet | `network_contacts` | `linkedin_observation` | observert | Ja |
+| Kontakter i selskapet | `network_contacts` | aktiv verdi per kontakt, se 3.2 | observert / oppdatert | Ja |
 | Arbeidsgiverinnsikt | `companies.employer_analysis_v2` | `employer_analysis` | `employer_analysis_rated_at` | Nei |
 
 ### 4.3 Regler
 
 - Overskrift viser **stilling først**, selskap deretter.
-- Preferansematch og kompetansematch er to atskilte måltall og slås aldri sammen til én score.
+- Preferansematch og kompetansematch er to atskilte måltall (`derived_evaluation`) og slås aldri sammen til én score. Begge vises med modell-/regelversjon og inputtidspunkt.
 - En lead blir aldri automatisk søknad eller mulighet. Promotering krever eksplisitt brukerhandling.
 
 ### 4.4 Tom- og mangeltilstand
@@ -249,12 +285,14 @@ Kontakt → kontaktside. Mulighet → mulighetsside. Søknad → søknadsside. D
 | Forfallsdato / «om X dager» | `next_steps.due_date` | `user_input` | Ja |
 | Status | `next_steps.completed` | `user_input` | Ja |
 | Gjennomført-tidspunkt | `next_steps.completed_at` | `activity` | Nei (settes ved handling) |
+| Forslag til aktivitet | forslagslager, ikke `next_steps` | `ai_suggestion` | Godkjennes eller avvises |
 
 ### 5.2 Regler
 
 - Å markere en aktivitet som utført lagrer faktisk dato og flytter den til gjennomført historikk.
-- KI-genererte aktivitetsforslag må godkjennes **og få en frist** før de opprettes i aktivitetslisten.
+- KI-genererte aktivitetsforslag har kildeklasse `ai_suggestion` (ikke `employer_analysis`) og må godkjennes **og få en frist** før de opprettes i aktivitetslisten.
 - Aktivitet uten knytning er tillatt, men vises med «Ikke knyttet» og handling for å knytte.
+- En aktivitet kan aldri knyttes til en annen brukers kontakt, selskap eller mulighet. Knytningene håndheves i databasen med sammensatte, user-scopede fremmednøkler, se 8.1.
 
 ### 5.3 Tomtilstand
 
@@ -269,19 +307,21 @@ Kontakt → kontaktside. Mulighet → mulighetsside. Søknad → søknadsside. D
 | Stilling/rolle | LinkedIn Positions | `linkedin_career_staging` | `linkedin_reconciliation_proposals` (`career`) | `career_atoms` (rolle) | Min profil → Erfaring |
 | Utdanning | LinkedIn Education | `linkedin_career_staging` | ja | `career_atoms` | Min profil |
 | Kompetanse | LinkedIn Skills | `linkedin_career_staging` | ja | `career_atoms` (kompetanse) | Min profil |
-| Endorsement-signal | LinkedIn Endorsements | `linkedin_recommendation_staging` → eget signalstaging | ja, aggregert | `linkedin_endorsement_signals` (kompetanse, antall, kilde, observert) | Min profil (aggregert), Kontakt |
-| Anbefaling mottatt | LinkedIn Recommendations Received | `linkedin_recommendation_staging` (`direction = received`) | ja | `career_recommendations` | Kontakt, Min dokumentasjon |
+| Endorsement-signal | LinkedIn Endorsements | eget signalstaging (uten endorseridentitet) | ja, kun aggregert antall | `linkedin_endorsement_signals` (kompetanse, antall, kilde, observert) | Min profil (aggregert) — aldri Kontakt |
+| Anbefaling mottatt | LinkedIn Recommendations Received | `linkedin_recommendation_staging` (`direction = received`) | ja | `career_recommendations` | Min profil / Min dokumentasjon; Kontakt kun ved brukerbekreftet kobling |
 | Anbefaling gitt | LinkedIn Recommendations Given | `linkedin_recommendation_staging` (`direction = given`) | nei | ingen | Vises ikke i kompetanseprofil |
 | Kontakt | LinkedIn Connections | `linkedin_network_staging` | oppsummering, ikke ett forslag per rad | `network_contacts` + `network_contact_identities` | Kontakter |
 | Selskap | Brønnøysund/arbeidsgiverregister | — | — | `companies` | Selskaper |
 | Arbeidsgiverinnsikt | Arbeidsgiveranalyse | — | — | `companies.employer_analysis_v2`, `employer_reports` | Selskap, Mulighet |
 | Kurs | LinkedIn Learning | `linkedin_learning_staging` | ja | `career_atoms` (kvalifikasjon) | Min profil |
-| Innhold/artikler | LinkedIn Articles/Shares | `linkedin_content_staging` | ja | `documents` (portefølje) | Min dokumentasjon |
+| Innhold/artikler | LinkedIn Articles/Shares | `linkedin_content_staging` | forslag | `not_actionable_in_phase_4` | ingen produktflate ennå |
 | Mulighet | Annonsekilder (Careerjet, NAV, e-post) | `source_postings` | screening | `user_opportunities` | Muligheter |
-| Aktivitet | Brukerhandling / KI-forslag | — | forslag krever godkjenning og frist | `next_steps` | Aktiviteter |
+| Aktivitet | Brukerhandling / KI-forslag (`ai_suggestion`) | — | forslag krever godkjenning og frist | `next_steps` | Aktiviteter |
 | Jobbsignaler, annonseklikk, inferert annonseprofil | LinkedIn | **importeres aldri** | — | — | — |
 
 Kursfeltene leses fra riktige kildekolonner: kursnavn, tilbyder, faktisk fullført-dato og kurs-URL. «Sist sett»-kolonnen brukes aldri som fullført-dato.
+
+Artikler og delt innhold promoteres **ikke** til `documents` eller noen annen produktflate. De blir stående i staging som `not_actionable_in_phase_4` inntil en egnet, proveniensbevarende porteføljemodell er spesifisert og godkjent.
 
 ---
 
@@ -310,7 +350,7 @@ Kursfeltene leses fra riktige kildekolonner: kursnavn, tilbyder, faktisk fullfø
 
 ### 7.4 Kontakt
 
-- Kontaktkortet viser identitet, rolle, selskap, LinkedIn-observasjon, siste aktivitet, neste aktivitet, relasjonsopplysninger og eventuelle tredjepartssignaler.
+- Kontaktkortet viser identitet, rolle, selskap, LinkedIn-observasjon, siste aktivitet, neste aktivitet og relasjonsopplysninger. Endorsement-signaler vises ikke her.
 - Navn og selskap er lenkbare.
 - LinkedIn-data merkes med kilde og «sist observert», og presenteres aldri som bekreftet kontaktdata.
 
@@ -348,10 +388,31 @@ Vedlegget lenker til godkjent wireframe-/designreferanse: `docs/design/network-o
 
 Disse er verifisert mot dagens skjema og er forutsetninger for kontrakten:
 
-1. `network_contacts` mangler felt for LinkedIn-profil-URL i selve raden (identitet ligger i `network_contact_identities`), samt `last_observed_at`. Begge kreves av kontaktmodellen.
+1. `network_contacts` mangler `last_observed_at`. LinkedIn-profil-URL skal **ikke** legges på raden; `network_contact_identities` er eneste kanoniske eier og relateres derfra.
 2. Det finnes ingen kontakt↔selskap-kobling; `network_contacts.company` er kun tekst.
-3. Det finnes ingen tabell for endorsement-signaler; endorsements havner i dag i `linkedin_recommendation_staging` sammen med anbefalinger.
-4. `next_steps` er kun bundet til `application_id` og mangler `activity_kind`, `contact_id`, `company_id`, `opportunity_id` og `user_id`.
-5. `career_recommendations` skiller ikke mottatte fra gitte anbefalinger i egen kolonne.
+3. Det finnes ingen tabell for endorsement-signaler; endorsements havner i dag i `linkedin_recommendation_staging` sammen med anbefalinger. Ny tabell lagrer kun kompetanse, aggregert antall, kilde og observasjonstidspunkt — aldri endorseridentitet.
+4. `next_steps` er kun bundet til `application_id` og mangler `activity_kind`, `contact_id`, `company_id`, `opportunity_id` og `user_id`. Se migreringssekvensen i 8.1.
+5. `career_recommendations` skiller ikke mottatte fra gitte anbefalinger i egen kolonne, og mangler en eksplisitt, brukerbekreftet kobling til `network_contacts`.
+6. Det finnes ingen `user_company_relationships`. Brukerens notater, status og prioritet for et selskap har i dag ingen user-scoped eier. Tabellen må opprettes med `user_id`, `company_id`, RLS på `user_id` og unikhet på `(user_id, company_id)`. Ingen brukerdata skrives til delte `companies`.
+
+### 8.1 Sikker migrering av `next_steps`
+
+Rekkefølgen er normativ:
+
+1. Legg til `user_id`, `activity_kind`, `contact_id`, `company_id`, `opportunity_id` som nullable kolonner. Ingen constraints ennå.
+2. Backfill `user_id` fra eksisterende `application_id`-relasjon (`applications.user_id`).
+3. Valider backfill: antall rader med `user_id IS NULL` skal være 0. Migreringen stopper hvis ikke.
+4. Først etter validert backfill: sett `user_id` NOT NULL og gjør `application_id` nullable.
+5. Legg til fremmednøkler og RLS. User-scopede koblinger bruker **sammensatte** fremmednøkler der målobjektet har en user-scoped nøkkel:
+   - `(user_id, contact_id)` → `network_contacts (user_id, id)`
+   - `(user_id, opportunity_id)` → `user_opportunities (user_id, id)`
+   - `(user_id, application_id)` → `applications (user_id, id)`
+   - `company_id` → `companies (id)` (delt registerobjekt; brukerens relasjon ligger i `user_company_relationships`)
+
+   Målobjektene får de nødvendige `UNIQUE (user_id, id)`-nøklene i samme migrasjon. En aktivitet kan dermed ikke kobles til en annen brukers kontakt, mulighet eller søknad selv om UUID-en er kjent — dette håndheves i databasen, ikke bare i RLS.
+6. RLS-policyer på `next_steps` scopes på `user_id`.
+7. Eksisterende søknadsrelaterte aktiviteter forblir uendret i innhold, relasjon og synlighet.
+
+---
 
 Kontrakten er godkjenningsgrunnlag. Leveranse A og B implementerer den; UI bygges først etter at kontrakt, A, B og akseptansetesten er godkjent.
