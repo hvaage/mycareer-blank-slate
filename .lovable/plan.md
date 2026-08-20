@@ -59,18 +59,22 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   validert import om til `validating`.
 
 - `linkedin_import_purposes` — formål med CHECK på
-  `profile|career|network|jobs|learning|content`, `selected_at`, `selection_source`,
-  unik `(linkedin_import_id, purpose)`.
+  `profile|career|network|jobs|learning|content`, `user_id`, `selected_at`,
+  `selection_source`, unik `(linkedin_import_id, purpose)`, sammensatt FK
+  `(linkedin_import_id, user_id)` → `linkedin_imports(id, user_id)`.
 - `linkedin_import_files` — kun klasse A og B (CHECK `file_class in ('A','B')`),
-  arkivsti, `file_hash`, komprimert/ukomprimert størrelse, `status` CHECK med **kun
-  teknisk filstatus**: `discovered|validated|partially_validated|invalid`,
+  `user_id`, arkivsti, `file_hash`, komprimert/ukomprimert størrelse, `status` CHECK
+  med **kun teknisk filstatus**: `discovered|validated|partially_validated|invalid`,
   radtellere, `error_code`, `parser_version`, timestamps. **Ingen `purpose`-kolonne**
   og ingen samtykke-/formålsutfall i denne statusen. Klasse C får aldri rad her.
+  Sammensatt FK `(linkedin_import_id, user_id)` → `linkedin_imports(id, user_id)`;
+  hjelpe-unik `(id, user_id)`.
 - `linkedin_import_file_purposes` — `(linkedin_import_file_id, purpose)` unik, med
   `user_id`, `status` CHECK (`pending|staged|skipped_no_consent|deferred|failed`),
   `staged_record_count`, `error_code`, `created_at`, `updated_at`. Formålsutfall bor
   her: samme fil kan være `staged` for ett formål, `skipped_no_consent` for et annet
-  og `deferred` når innholdet er klasse B.
+  og `deferred` når innholdet er klasse B. Sammensatt FK
+  `(linkedin_import_file_id, user_id)` → `linkedin_import_files(id, user_id)`.
 - `linkedin_staging_records` — **felles foreldretabell** for all staging:
   `id`, `user_id`, `staging_domain` (CHECK mot de sju domenene), `record_kind`,
   `purpose` (nøyaktig ett, NOT NULL, CHECK mot formålslisten), all felles proveniens
@@ -79,38 +83,48 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   `source_row_hash`, `source_content_hash`, `source_event_at`, `source_recorded_at`,
   `source_url`, `source_classification`), `source_identity_hash`,
   `first_linkedin_import_id`, `last_linkedin_import_id`, `created_at`, `last_seen_at`.
-  Unik indeks `(user_id, source_file, source_identity_hash)` og en hjelpe-unik
-  `(id, staging_domain)` som domenetabellene og koblingstabellen kan referere til.
+  Begge import-referansene er sammensatte FK-er med `user_id`.
+  Unik indeks `(user_id, source_file, source_identity_hash)` og hjelpe-unike
+  `(id, user_id)`, `(id, staging_domain)`, `(id, purpose)` som domenetabellene og
+  koblingstabellen refererer til.
 - Domenetabeller: `linkedin_profile_staging`, `linkedin_career_staging`,
   `linkedin_recommendation_staging`, `linkedin_network_staging`,
   `linkedin_job_staging`, `linkedin_learning_staging`, `linkedin_content_staging`.
   Hver har `staging_record_id uuid PRIMARY KEY REFERENCES
   public.linkedin_staging_records(id) ON DELETE CASCADE` (1:1), `user_id` og kun
   domenespesifikke, hvitlistede normaliserte felt — ingen rå CSV-rad som `jsonb`,
-  ingen duplisert proveniens. Domenetilhørighet håndheves med FK mot
-  `(staging_record_id, staging_domain)` og en genererte/CHECK-låst domenekolonne, slik
-  at f.eks. en karriererad ikke kan henge på en `network`-forelder.
+  ingen duplisert proveniens. Domenetilhørighet håndheves med sammensatt FK
+  `(staging_record_id, staging_domain)` mot foreldreraden, der domenekolonnen er en
+  generert konstant per tabell; tenant-samsvar håndheves med
+  `(staging_record_id, user_id)` → `linkedin_staging_records(id, user_id)`.
   **`source_identity_hash`** = SHA-256 av en **kanonisk serialisert, versjonert
-  struktur** (`{"v":"linkedin_identity_v1","user_id":…,"source_file":…,
+  struktur** (`{"v":"linkedin_identity_v1","user_id":…,"purpose":…,"source_file":…,
   "record_kind":…,"fields":{navngitte hvitlistede felt i sortert rekkefølge}}`) med
-  entydige skilletegn — aldri ren strengkonkatenering. Feltverdier er NFKC-normaliserte
-  og whitespace-trimmede. Radnummer inngår ikke, så omorganiserte CSV-rader gir ingen
-  dubletter: identisk innhold oppdaterer kun `last_linkedin_import_id`/`last_seen_at`;
-  endret innhold gir ny stagingrad, aldri overskriving.
+  entydige skilletegn — aldri ren strengkonkatenering. `purpose` inngår i strukturen,
+  så samme kildeinnhold behandlet for to ulike formål gir to distinkte stagingrader
+  uten kollisjon. Feltverdier er NFKC-normaliserte og whitespace-trimmede. Radnummer
+  inngår ikke, så omorganiserte CSV-rader gir ingen dubletter: identisk innhold
+  oppdaterer kun `last_linkedin_import_id`/`last_seen_at`; endret innhold gir ny
+  stagingrad, aldri overskriving.
   **Proveniens-CHECK** (på foreldretabellen): `csv_row` krever `source_row_number` +
   `source_row_hash` og forbyr `source_content_hash`; `html_section` og `archive_file`
   krever `source_content_hash` og forbyr `source_row_number`/`source_row_hash`.
-- `linkedin_import_stage_records` — kobling import ↔ stagingrad, med ekte FK:
+- `linkedin_import_stage_records` — kobling import ↔ stagingrad, med ekte FK-er:
   `linkedin_import_id`, `attempt_id`, `user_id`, `staging_record_id` →
-  `public.linkedin_staging_records(id)`, `staging_domain` (validert mot foreldreraden
-  via sammensatt FK `(staging_record_id, staging_domain)`, ikke polymorf tekst),
-  `purpose`, `source_identity_hash`, `linked_at`. Unik
+  `public.linkedin_staging_records(id)`, `staging_domain`, `purpose`,
+  `source_identity_hash`, `linked_at`. Unik
   `(linkedin_import_id, attempt_id, staging_record_id)`.
+  Integritet håndheves i databasen, ikke bare i serverkoden: sammensatte FK-er
+  `(linkedin_import_id, user_id)` → `linkedin_imports(id, user_id)`,
+  `(staging_record_id, user_id)` → `linkedin_staging_records(id, user_id)`,
+  `(staging_record_id, staging_domain)` og `(staging_record_id, purpose)` mot
+  foreldreradens tilsvarende hjelpe-unike nøkler. Ingen polymorf tekstreferanse.
   Ved retry fjernes **kun** koblinger med det feilede `attempt_id`; en stagingrad
   slettes bare når den ikke har koblinger fra noen annen import eller noe annet
   forsøk. Det beskytter allerede staget grunnlag når samme import senere utvides med
   et nytt behandlingsformål.
-- `linkedin_import_tombstones` — minimalt revisjonsspor per §6.3.
+- `linkedin_import_tombstones` — minimalt revisjonsspor per §6.3. Tombstone har ingen
+  FK til importraden og blokkerer aldri en senere identisk reimport.
 
 
 
@@ -118,6 +132,9 @@ RLS: eier-policyer (`auth.uid() = user_id`) kun for SELECT på alle tabeller.
 `authenticated` har **ingen** INSERT/UPDATE/DELETE-policy — heller ikke DELETE på
 `linkedin_imports`; sletting går utelukkende via den kontrollerte serverhandlingen i
 §4 slik at tombstone, Storage-sletting og revisjonsregelen ikke kan omgås.
+Tenant-samsvar hviler på sammensatte FK-er over, ikke på at service-role alltid
+sender riktig `user_id`.
+
 `GRANT SELECT` til `authenticated`, `GRANT ALL` til `service_role`, ingen `anon`.
 
 
