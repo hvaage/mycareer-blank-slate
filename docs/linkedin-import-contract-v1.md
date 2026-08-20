@@ -109,6 +109,9 @@ Tellingene er definert slik at de ikke blandes sammen:
 | Faktiske datafiler | oppføringer som ikke er mapper | 52 |
 | Kjente filer | datafiler som matcher kontraktens filkatalog | 52 |
 | Ukjente filer | datafiler uten match | 0 |
+| Klasse A-filer | godkjent kilde (§2.2, avstemt i §2.5) | 30 |
+| Klasse B-filer | utsatt (§2.3) | 9 |
+| Klasse C-filer | eksplisitt utelatt (§2.4) | 13 |
 | CSV-filer | endelse `.csv` | 50 |
 | HTML-filer | under `Articles/**` | 2 |
 | Ukomprimert total | sum `file_size` | 4 796 449 B (~4,6 MB) |
