@@ -109,6 +109,9 @@ Tellingene er definert slik at de ikke blandes sammen:
 | Faktiske datafiler | oppføringer som ikke er mapper | 52 |
 | Kjente filer | datafiler som matcher kontraktens filkatalog | 52 |
 | Ukjente filer | datafiler uten match | 0 |
+| Klasse A-filer | godkjent kilde (§2.2, avstemt i §2.5) | 30 |
+| Klasse B-filer | utsatt (§2.3) | 9 |
+| Klasse C-filer | eksplisitt utelatt (§2.4) | 13 |
 | CSV-filer | endelse `.csv` | 50 |
 | HTML-filer | under `Articles/**` | 2 |
 | Ukomprimert total | sum `file_size` | 4 796 449 B (~4,6 MB) |
@@ -191,7 +194,74 @@ feilmeldinger. Kun filnavn, størrelse og eksklusjonsårsak registreres.
 | `Inferences_about_you.csv` | `inferred_sensitive_data` |
 | `Ad_Targeting.csv` | `inferred_sensitive_data` |
 
+
+### 2.5 Avstemming — alle 52 arkivstier med nøyaktig én klasse
+
+Avviket i tidligere utkast (29 + 9 + 13 = 51) skyldtes at raden `Articles/**` i
+klasse A-tabellen dekker **to** filer. Korrekt fordeling er derfor
+**30 klasse A-filer** (29 tabellrader), 9 klasse B og 13 klasse C = 52.
+Ingen fil står uten klasse; ingen fil har mer enn én klasse.
+
+| # | Arkivsti | Klasse |
+| --- | --- | --- |
+| 1 | `Profile.csv` | A |
+| 2 | `Profile Summary.csv` | A |
+| 3 | `Positions.csv` | A |
+| 4 | `Education.csv` | A |
+| 5 | `Certifications.csv` | A |
+| 6 | `Languages.csv` | A |
+| 7 | `Skills.csv` | A |
+| 8 | `Volunteering.csv` | A |
+| 9 | `Recommendations_Received.csv` | A |
+| 10 | `Recommendations_Given.csv` | A |
+| 11 | `Endorsement_Received_Info.csv` | A |
+| 12 | `Endorsement_Given_Info.csv` | A |
+| 13 | `Connections.csv` | A |
+| 14 | `Invitations.csv` | A |
+| 15 | `Company Follows.csv` | A |
+| 16 | `Jobs/Job Seeker Preferences.csv` | A |
+| 17 | `SavedJobAlerts.csv` | A |
+| 18 | `Jobs/Saved Jobs.csv` | A |
+| 19 | `Jobs/Saved Jobs_1.csv` | A |
+| 20 | `Jobs/Online Job Postings.csv` | A |
+| 21 | `Jobs/Job Applications.csv` | A |
+| 22 | `Learning.csv` | A |
+| 23 | `Events.csv` | A |
+| 24 | `Hashtag_Follows_997361.csv` | A |
+| 25 | `Member_Follows_997361.csv` | A |
+| 26 | `Saved_Items_997361.csv` | A |
+| 27 | `Rich_Media.csv` | A |
+| 28 | `Causes You Care About.csv` | A (opt-in) |
+| 29 | `Articles/Articles/available-positions-cisco-norway-henrik-vaage.html` | A |
+| 30 | `Articles/Articles/why-apples-tim-cook-just-made-surprise-appearance-ciscos-henrik-vaage.html` | A |
+| 31 | `Shares_997361.csv` | B |
+| 32 | `Reactions_997361.csv` | B |
+| 33 | `Comments_997361.csv` | B |
+| 34 | `Votes_997361.csv` | B |
+| 35 | `InstantReposts_997361.csv` | B |
+| 36 | `learning_role_play_messages.csv` | B |
+| 37 | `learning_coach_messages.csv` | B |
+| 38 | `guide_messages.csv` | B |
+| 39 | `VerifiedExternalCapability.csv` | B |
+| 40 | `messages.csv` | C |
+| 41 | `Email Addresses.csv` | C |
+| 42 | `PhoneNumbers.csv` | C |
+| 43 | `Whatsapp Phone Numbers.csv` | C |
+| 44 | `Logins.csv` | C |
+| 45 | `Security Challenges.csv` | C |
+| 46 | `Verifications/Verifications.csv` | C |
+| 47 | `Receipts_v2.csv` | C |
+| 48 | `Registration.csv` | C |
+| 49 | `LAN Ads Engagement.csv` | C |
+| 50 | `Ads Clicked.csv` | C |
+| 51 | `Inferences_about_you.csv` | C |
+| 52 | `Ad_Targeting.csv` | C |
+
+Sum: A = 30, B = 9, C = 13, totalt 52 = antall datafiler = antall kjente filer.
+Ukjente filer = 0.
+
 ---
+
 
 ## 3. Datakontrakt per produktområde
 
@@ -447,6 +517,36 @@ Andre observerte signaturer i referansearkivet (utdrag):
 
 Nummererte varianter (`Jobs/Saved Jobs_1.csv`, `*_997361.csv`) matches med
 mønster og valideres mot basisfilens signatur.
+
+### 8.5.1 Parserregel `connections_csv_preamble_v1` (versjonert)
+
+Regel-ID: `connections_csv_preamble_v1`. Gjelder `Connections.csv`. Regelversjonen
+lagres på filraden (`parser_rule = connections_csv_preamble_v1`) slik at senere
+endringer i preamblehåndtering er sporbare per import.
+
+Deterministisk sekvens:
+
+1. Strip BOM. Les inntil `MAX_PREAMBLE_LINES = 10` linjer fra toppen.
+2. Hopp over preamble: linjer før den reelle headeren forkastes uten tolkning
+   (i referansearkivet tre linjer: `Notes:`, forklaringstekst, tom linje).
+   Preamblelinjer leses aldri inn i staging og gjengis aldri i logg eller feilmelding.
+3. Finn reell header: første ikke-tomme linje som ved CSV-parsing gir nøyaktig
+   den forventede signaturen
+   `First Name,Last Name,URL,Email Address,Company,Position,Connected On`
+   (sammenligning etter trimming og case-insensitiv match på kolonnenavn).
+4. Valider: headeren må ha samme kolonnesett og rekkefølge som signaturen.
+5. Avvis på filnivå dersom headeren ikke finnes innen `MAX_PREAMBLE_LINES`:
+   filstatus `rejected` med `error_code = connections_header_not_found`.
+   Ved funnet, men avvikende header: `rejected` med
+   `error_code = unexpected_header` og kun kolonnenavnene (ikke rader).
+6. Filnivåfeil avviser aldri hele importen; importen kan bli
+   `partially_validated` (§1).
+
+Logging for denne regelen er begrenset til: `file_name`, `parser_rule`,
+`preamble_lines_skipped` (antall), `header_line_number`, `rows_read`,
+`rows_validated`, `rows_rejected` og `error_code`. Preambletekst, headerinnhold
+ved suksess, navn, e-post, URL-er, selskap eller stilling logges aldri.
+
 
 ### 8.6 Tellere og RLS
 
