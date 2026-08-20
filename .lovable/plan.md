@@ -1,34 +1,29 @@
 # Fase 1 — LinkedIn-eksport: importkontrakt og preflight (kun dokument)
 
-Leveransen i denne fasen er ett dokument: `docs/linkedin-import-contract-v1.md`.
-Ingen migrasjon, ingen deploy, ingen import av den vedlagte ZIP-en, ingen endring av produktdata.
+Leveransen er ett dokument: `docs/linkedin-import-contract-v1.md`.
+Ingen migrasjon, ingen tabeller, ingen RPC-er, ingen Edge Functions, ingen UI, ingen import av ZIP-en, ingen endring av produktdata.
 
-## Grunnlag som allerede er verifisert
+## Arkitekturvalg (låst)
 
-Filinventar er lest read-only fra den vedlagte ZIP-en (53 oppføringer, inkl. `messages.csv` 2,5 MB, `Connections.csv`, `Positions.csv`, `Jobs/*`, `Articles/**`, `Verifications/**`, `Ad_Targeting.csv`, `Inferences_about_you.csv`). Inventaret inneholder også `Ads Clicked.csv`, som ikke er nevnt i instruksen — foreslås klasse C (`inferred_sensitive_data`/annonseprofil).
+LinkedIn-import bygges **ikke** på `cv_imports`/`cv_parse_candidates`. Kontrakten anbefaler et eget importlag for fase 2: `linkedin_imports`, `linkedin_import_files`, og separate staging-/normaliseringsobjekter per domene (profil, roller/utdanning/sertifiseringer, anbefalinger/endorsements, nettverk, jobber, læring, innhold). Utvidelse av `cv_imports` presenteres ikke som alternativ.
 
-Eksisterende modell som kontrakten skal bygge videre på (bekreftet mot databasen):
-- `cv_imports` (import_type, source_filename, status, raw_parsed_data, tellere) — har ingen hash-kolonne i dag.
-- `cv_parse_candidates` (local_ref/parent_local_ref, structured_data, dedupe_key, source_type/source_ref, parse_confidence, status, promoted_atom_id) — kanonisk kandidatlag før `career_atoms`.
-- `career_atoms` (atom_class og attestation settes av databasen), `career_atom_links`, `cv_review_progress`, `atom_enrichment_proposals`.
-- Produktområder som ikke skal skrives til: `profiles`, `user_career_profiles`, `contacts`, `job_leads`, `user_opportunities`, `job_applications`, `documents`.
+## Grunnlag verifisert i fase 1
 
-## Dokumentets innhold
+- Arkivet er lest read-only. Dokumentet oppgir tellinger separat: arkivoppføringer, mapper, faktiske datafiler, kjente filer, ukjente filer — med definisjon av hva som telles. Ingen låsing til ett samletall uten forklaring.
+- Eksisterende modell bekreftet mot databasen: `cv_imports`, `cv_parse_candidates`, `career_atoms` (atom_class/attestation settes av databasen), `career_atom_links`, `cv_review_progress`, `atom_enrichment_proposals`, `cv_claim_attestations`, `contacts`, `documents`, `user_career_profiles`.
 
-1. **Importformat og identitet** — `linkedin_export_v1`, kontraktversjon `linkedin_export_contract_v1`, SHA-256 per ZIP, idempotens på (bruker, zip-hash), `unknown_file` og `missing_optional_file` som rapporterte utfall, statusmaskin: `uploaded → validating → validated|rejected → staged → reconciliation_ready`, pluss `failed`/`cancelled`, med terminale vs. gjenprøvbare statuser.
-2. **Filinventar** — komplett tabell med én rad per fil fra den vedlagte ZIP-en: klasse A/B/C, målområde, staging ja/nei, krav om brukerbekreftelse, evidensnivå og personvernbegrunnelse. Klasse C får maskinlesbare eksklusjonsårsaker.
-3. **Datakontrakt per produktområde** — additive DTO-er for Min profil/Om meg, Karriereoversikt og kvalifikasjoner, anbefalinger/endorsements, jobber og muligheter. Feltnivåvalg `use_linkedin | keep_existing | merge | dismiss`. Eksplisitt liste over felt som aldri importeres automatisk.
-4. **Proveniens- og evidensregler** — `source_system=linkedin_export`, `source_file`, `source_row_number`, `source_row_hash`, `linkedin_import_id`, `imported_at`, `source_observed_at`, `source_url`, og kildeklassifisering (`self_reported`, `third_party_recommendation`, `third_party_endorsement`, `user_activity`, `user_preference`, `historical_record`). Ingen LinkedIn-kilde gir `documented` eller `user_attested`.
-5. **Dedupliseringskontrakt** — matchrekkefølge og utfall (`match`, `possible_duplicate`, `conflict`) for kontakt, rolle, sertifisering, jobb og anbefaling. Ingen regel sletter eller overskriver.
-6. **Preflight og sikkerhetsporter** — ZIP-validitet, størrelses- og radtak, tegnsett, header-validering, path traversal, formelinjeksjon ved visning/eksport, hash per fil, tellere per fil, RLS-krav (kun eier), og forbud mot klartekst fra anbefalinger/artikler/private felt i logger.
-7. **Verifikasjon og rapport** — gjenbrukbare tabeller/RPC-er, hvilke felt som må være additive senere (bl.a. hash og kildesystem på importnivå), avvik mellom kontrakt og faktisk modell, komplett A/B/C-inventar, anbefalt fase 2-datamodell på tabellnivå (kun beskrevet), og bekreftelse på at ingenting er deployet eller endret.
+## Dokumentets kapitler
 
-## Avvik som dokumenteres eksplisitt
-
-- `cv_imports` mangler i dag `source_hash`, `contract_version` og per-fil-tellere; foreslås som additive felt eller egne LinkedIn-tabeller i fase 2.
-- `contacts` er i dag knyttet til `application_id` og har ingen proveniensfelt; LinkedIn-kontakter må derfor gå via et eget staging-lag, ikke direkte inn.
-- `Ads Clicked.csv` finnes i eksporten, men mangler i instruksens klasseliste — foreslås klasse C.
+1. **Importformat og identitet** — `linkedin_export_v1`, kontraktversjon `linkedin_export_contract_v1`. To identiteter per bruker: `archive_sha256` (teknisk idempotens) og `content_manifest_hash` (sortert manifest av filsti + filhash). Utfall beskrives for: identisk ZIP, ny ZIP med identisk innhold, delvis overlappende innhold, ukjent fil (`unknown_file`), manglende valgfri fil (`missing_optional_file`), ugyldig enkeltfil i ellers gyldig ZIP. Statusmaskin på importnivå (`uploaded`, `validating`, `validated`, `partially_validated`, `rejected`, `staged`, `reconciliation_ready`, `failed`, `cancelled`) **og** filnivåstatus, slik at én feil CSV ikke avviser hele eksporten. Terminale vs. gjenprøvbare statuser angis.
+2. **Filinventar og behandlingsklasse** — én rad per filtype med klasse A/B/C, målområde, staging ja/nei, krav om brukerbekreftelse, evidensnivå og personvernbegrunnelse. Klasse C får maskinlesbare eksklusjonsårsaker; `Ads Clicked.csv` legges i klasse C med `exclusion_reason = advertising_activity`.
+3. **Formål per klasse A-kilde** — for hver A-fil: produktområde, om den inngår i fase 2-staging, tidligste fase den kan bli synlig for brukeren, om den kun er kildegrunnlag eller kan gi et gjennomgåbart forslag, og evidensnivå (f.eks. anbefaling = myk tredjepartsevidens, endorsement = tredjepartssignal, stilling = brukeroppgitt rolle, lagret jobb = lead-kandidat, læring = læringshendelse).
+4. **Datakontrakt per produktområde** — additive DTO-er for Min profil/Om meg, Karriereoversikt og kvalifikasjoner, anbefalinger/endorsements, nettverk og jobber. Feltnivåvalg `use_linkedin | keep_existing | merge | dismiss`. Eksplisitt liste over felt som aldri importeres automatisk (fødselsdato, adresse, telefon, pendleradresse, rekrutteringssynlighet, annonsedeling, sensitive inferred interests).
+5. **Proveniens- og evidensregler** — `source_system = linkedin_export`, `linkedin_import_id`, `imported_at`, `source_observed_at`, `source_url`, og en generell kildelokator: `source_file`, `source_locator_type` (`csv_row` | `archive_file` | `html_section`), `source_locator`, `source_row_number` og `source_row_hash` kun for CSV, `source_content_hash` for `Articles/**`, `Rich_Media.csv` og andre ikke-radbaserte kilder. Kildeklassifisering: `self_reported`, `third_party_recommendation`, `third_party_endorsement`, `user_activity`, `user_preference`, `historical_record`. Ingen LinkedIn-kilde gir `documented` eller `user_attested`; AI kan foreslå koblinger, aldri godkjenne dem.
+6. **Dedupliseringskontrakt** — matchrekkefølge og utfall (`match`, `possible_duplicate`, `conflict`) for kontakt, rolle, sertifisering, jobb og anbefaling. Ingen regel sletter eller overskriver eksisterende data.
+7. **Personvern, retention og sletting** — om original ZIP lagres og hvor lenge, retention for rå stagingdata, hva som slettes ved sletting av en LinkedIn-import, hva som beholdes når brukeren allerede har bekreftet et forslag (bekreftet innhold beholdes med redusert proveniensreferanse), hvordan anbefalingstekst/artikler/fritekst holdes ute av logger, og at preferanser og historikk aldri deles mellom brukere. Klasse C persisteres aldri — heller ikke som råpayload eller i feilmeldinger.
+8. **Preflight og sikkerhetsporter** — konkrete konservative grenser for fase 2: maks komprimert ZIP, maks ukomprimert total, maks enkeltfil, maks arkivoppføringer, maks rader per CSV, maks tekststørrelse per felt. I tillegg ZIP-bombebeskyttelse (komprimeringsforhold), path traversal, dublette arkivstier, tegnsett/BOM, null-byte-kontroll, header-validering per kjent CSV, CSV-formelinjeksjon ved senere visning/eksport, hash per ZIP og per fil, tellere per fil (lest, validert, avvist, utelatt, ukjent) og RLS-krav (kun eier ser import, filer, staging og forslag).
+9. **Verifikasjon og rapport** — gjenbrukbare tabeller/RPC-er, felt som må være additive senere, avvik mot faktisk modell, komplett A/B/C-inventar, anbefalt fase 2-datamodell på tabellnivå (kun beskrevet), begrunnelse for eget LinkedIn-importlag fremfor `cv_imports`, anbefalt slettelivssyklus, avhengigheter mot eksisterende RLS og kanoniske gjennomgangs-RPC-er, hvilke klasse A-filer som bevisst utsettes til fase 4/5, og eksplisitt bekreftelse på at ingen kode, migrasjon, deploy eller produktdata er endret.
 
 ## Teknisk
 
-Kun én ny fil opprettes: `docs/linkedin-import-contract-v1.md`. Ingen kode, migrasjoner, RPC-er, edge functions eller frontend-endringer.
+Kun én ny fil: `docs/linkedin-import-contract-v1.md`. Arbeidet stopper etter dokumentet og rapporten; fase 2 avventer godkjenning.
