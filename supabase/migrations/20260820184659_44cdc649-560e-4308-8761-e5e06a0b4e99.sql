@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public.canary_run_results;

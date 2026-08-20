@@ -451,24 +451,6 @@ export type Database = {
           },
         ]
       }
-      canary_run_results: {
-        Row: {
-          check_name: string | null
-          detail: string | null
-          passed: boolean | null
-        }
-        Insert: {
-          check_name?: string | null
-          detail?: string | null
-          passed?: boolean | null
-        }
-        Update: {
-          check_name?: string | null
-          detail?: string | null
-          passed?: boolean | null
-        }
-        Relationships: []
-      }
       canonical_opportunities: {
         Row: {
           created_at: string
