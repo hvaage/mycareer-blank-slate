@@ -29,19 +29,36 @@ Kun driftslaget. Ingen endring i feltmapping, endorsements, anbefalinger, kursma
 - `linkedin_imports` får `archive_storage_path` (privat path i `linkedin-imports`-bøtta) og `last_attempt_id`.
 - RLS: eier kan kun `SELECT` egne attempts. Ingen klientskriv til status, lease, cursor, heartbeat eller feilfelt. GRANT `SELECT` til `authenticated`, `ALL` til `service_role`.
 
-`public.user_notifications`: `id, user_id, notification_kind, linkedin_import_id, attempt_id, title, body, deep_link, read_at, created_at`. Unik indeks på `(user_id, linkedin_import_id, notification_kind)` gir idempotens — ett varsel per import per terminalt utfall. RLS: eier leser egne og kan sette `read_at`; innsetting kun via service_role.
+`public.user_notifications`: `id, user_id, notification_kind, linkedin_import_id, attempt_id, title, body, deep_link, read_at, created_at`. Unik indeks på `(user_id, linkedin_import_id, notification_kind)` gir idempotens — ett varsel per import per terminalt utfall.
+
+RLS og immutabilitet for varsler:
+- `SELECT`: kun `auth.uid() = user_id`.
+- `INSERT`/`DELETE`: ingen klientpolicy; kun `service_role`.
+- `UPDATE`: én avgrenset policy for eier, kombinert med en `BEFORE UPDATE`-trigger som avviser enhver endring av `notification_kind`, `title`, `body`, `deep_link`, `linkedin_import_id`, `attempt_id`, `user_id` og `created_at`. Kun `read_at` kan endres. Frontendlogikk regnes ikke som håndhevelse.
+- GRANT: `SELECT, UPDATE` til `authenticated`, `ALL` til `service_role`.
 
 ## 2. Serverfunksjoner (SECURITY DEFINER, kun service_role)
 
-`linkedin_import_claim_next_attempt` (atomisk, `FOR UPDATE SKIP LOCKED`, setter lease 180 s), `linkedin_import_heartbeat`, `linkedin_import_complete_attempt`, `linkedin_import_fail_attempt` (skiller retrybar/ikke-retrybar, setter `next_retry_at` etter 1/5/15/60 min), `linkedin_import_reap_expired_attempts` (kun leases som er utløpt; lease er >2x heartbeat-margin, så levende workere berøres ikke).
+`linkedin_import_claim_next_attempt` (atomisk, `FOR UPDATE SKIP LOCKED`, setter lease 180 s), `linkedin_import_heartbeat`, `linkedin_import_complete_attempt`, `linkedin_import_fail_attempt` (skiller retrybar/ikke-retrybar, setter `next_retry_at` etter 1/5/15/60 min), `linkedin_import_reap_expired_attempts`.
+
+Reaper-semantikk (må gjenoppta, ikke bare markere):
+- Lease er >2x heartbeat-margin, så levende workere berøres aldri.
+- Utløpt lease → gammelt attempt settes `expired` med sanitert årsak (`lease_expired`).
+- I samme transaksjon opprettes atomisk et nytt `queued` attempt med `attempt_number + 1`, arvet `cursor_json` og `retry_count + 1`, så lenge samlet retrybudsjett (maks 5) tillater det.
+- Først når budsjettet er brukt opp settes importen `failed` og terminalt varsel opprettes.
+- Invariant som testes: en import kan aldri stå igjen med kun `expired`/avsluttede attempts og gjenværende budsjett.
+
 
 ## 3. Ruter
 
-- `POST /api/linkedin/imports` gjøres om til ren kvittering: autentiser, valider minimal integritet, lagre ZIP i privat Storage-path, opprett/gjenbruk `linkedin_imports` (uendret sha256-dedupregel), opprett `queued` attempt, svar `{ import_id, status: "queued" }`. Ingen parsing i requesten. 5-minutters «stale»-stemplingen i `GET` fjernes; status kommer fra attempt-modellen.
+- `POST /api/linkedin/imports` gjøres om til ren kvittering: autentiser, valider minimal integritet, skriv ZIP til privat Storage, opprett/gjenbruk `linkedin_imports` (uendret sha256-dedupregel), opprett `queued` attempt, svar `{ import_id, status: "queued" }`. Ingen parsing i requesten. 5-minutters «stale»-stemplingen i `GET` fjernes; status kommer fra attempt-modellen.
+- Storage-integritet: `archive_storage_path` settes **kun** etter bekreftet vellykket privat skriving, i samme skritt som `archive_available = true`. Feiler Storage-skrivingen, settes ingen path, `archive_available` forblir `false`, importen/attemptet får kontrollert `storage_write_failed` og det opprettes aldri et `queued` attempt. En DB-invariant (CHECK/trigger) forbyr `archive_available = true` uten path. Workeren verifiserer at objektet finnes før arbeid startes, og feiler kontrollert som `archive_missing` (ikke-retrybar) ellers.
 - `GET /api/linkedin/imports` utvides med fase, tellere, `heartbeat_at`, retry-info og siste attempt.
 - `POST /api/public/linkedin/import-worker` og `POST /api/public/linkedin/import-reaper`: POST-only, `x-worker-secret` i konstant tid før all databasekontakt, avviser brukerens JWT, saniterte svar. Workeren claim'er én attempt, henter ZIP fra Storage, kjører avgrensede chunks av eksisterende `validateAndStageArchive` / `runReconciliation`, lagrer cursor + tellere + heartbeat mellom chunks, og avslutter innen tidsbudsjettet slik at neste invokasjon fortsetter.
 - `POST /api/linkedin/imports/:id/cancel` og `/retry`: setter cancellation requested (worker stopper på neste sikre chunk-grense, ingen sletting av gyldig staging) eller oppretter nytt attempt med bevart historikk.
-- pg_cron: worker hvert minutt, reaper hvert 5. minutt, begge med hemmelighet fra vault.
+- Hemmelighet i to miljøer: `LINKEDIN_IMPORT_WORKER_SECRET` lagres som runtime-secret for ruten (via `generate_secret`) og samme verdi legges i Supabase Vault under samme navn for pg_net-kallet. Ingen annen hemmelighet gjenbrukes. Før cron aktiveres kjøres en kontrollert hemmelighetstest: ett `net.http_post` med vault-verdien mot worker-ruten skal gi 200/`no_work`, og ett kall uten/med feil hemmelighet skal gi 401 — begge verifiseres i `net._http_response` uten at verdien logges.
+- pg_cron aktiveres først etter bestått hemmelighetstest: worker hvert minutt, reaper hvert 5. minutt, begge med hemmelighet hentet fra vault.
+
 
 ## 4. Statusavbildning
 
@@ -54,6 +71,8 @@ Attempt-status → importstatus følger tabellen i instruksen. Importstatus stå
 ## 6. Verifikasjon
 
 Syntetiske arkiv, aldri Henriks reelle eksport. Testmatrisen i instruksens punkt 10 kjøres i sin helhet: kvittering før tungt arbeid, fortsettelse uten browser, dobbel-claim, lease/heartbeat/reaper, backoff og cursor-gjenopptak, ikke-retrybare feil, retrybudsjett, delvis suksess, avbryt på chunk-grense, dedup ved identisk arkiv, hemmelighetskontroll, RLS mellom brukere, idempotente varsler, og at retention (7 dager ZIP / 90 dager staging) og produktdata er urørt.
+
+I tillegg testes de fire korreksjonene eksplisitt: (a) vault- og runtime-hemmelighet gir samme resultat, feil hemmelighet gir 401; (b) simulert Storage-feil gir ingen path, `archive_available = false` og ingen `queued` jobb; (c) reaper på utløpt lease gir nytt `queued` attempt med arvet cursor så lenge budsjett gjenstår, og `failed` først når budsjettet er tomt; (d) klientforsøk på å endre `title`/`deep_link`/`notification_kind` på eget varsel avvises, mens `read_at` går gjennom.
 
 ## 7. Leveranse
 
