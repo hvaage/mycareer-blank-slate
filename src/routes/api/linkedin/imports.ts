@@ -247,6 +247,63 @@ export const Route = createFileRoute("/api/linkedin/imports")({
           { status: 202 },
         );
       },
+
+      // PATCH — brukerstyrt avbrudd eller nytt forsøk på en import.
+      PATCH: async ({ request }) => {
+        const auth = await authenticate(request);
+        if ("error" in auth) return auth.error;
+
+        let body: { import_id?: string; action?: string };
+        try {
+          body = (await request.json()) as typeof body;
+        } catch {
+          return fail(400, "invalid_body", "Kunne ikke lese forespørselen.");
+        }
+        const importId = body.import_id;
+        const action = body.action;
+        if (!importId || (action !== "cancel" && action !== "retry")) {
+          return fail(400, "invalid_body", "Ugyldig handling.");
+        }
+
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        // Eierkontroll før all skriving.
+        const { data: owned } = await supabaseAdmin
+          .from("linkedin_imports")
+          .select("id")
+          .eq("id", importId)
+          .eq("user_id", auth.userId)
+          .maybeSingle();
+        if (!owned) return fail(404, "import_not_found", "Fant ikke importen.");
+
+        if (action === "cancel") {
+          const { data, error } = await supabaseAdmin.rpc("linkedin_import_request_cancel", {
+            p_import_id: importId,
+            p_user_id: auth.userId,
+          });
+          if (error) return fail(500, "cancel_failed", "Kunne ikke avbryte importen.");
+          return Response.json({ ok: true, result: data });
+        }
+
+        const { data, error } = await supabaseAdmin.rpc("linkedin_import_manual_retry", {
+          p_import_id: importId,
+          p_user_id: auth.userId,
+        });
+        if (error) {
+          const code = error.message?.includes("archive_not_available")
+            ? "archive_not_available"
+            : "retry_failed";
+          return fail(
+            409,
+            code,
+            code === "archive_not_available"
+              ? "Arkivet er ikke tilgjengelig lenger. Last opp eksporten på nytt."
+              : "Kunne ikke starte et nytt forsøk.",
+          );
+        }
+        return Response.json({ ok: true, attempt_id: data, status: "queued" }, { status: 202 });
+      },
+
     },
   },
 });
