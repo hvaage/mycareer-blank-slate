@@ -262,7 +262,7 @@ Hvert felt har nøyaktig én aktiv kildeklasse. Er den `user_input`, kan siste L
 ### 4.3 Regler
 
 - Overskrift viser **stilling først**, selskap deretter.
-- Preferansematch og kompetansematch er to atskilte måltall og slås aldri sammen til én score.
+- Preferansematch og kompetansematch er to atskilte måltall (`derived_evaluation`) og slås aldri sammen til én score. Begge vises med modell-/regelversjon og inputtidspunkt.
 - En lead blir aldri automatisk søknad eller mulighet. Promotering krever eksplisitt brukerhandling.
 
 ### 4.4 Tom- og mangeltilstand
