@@ -1,67 +1,60 @@
-# Korrigering av produktkontrakten til v1.1
+# Leveranse A — LinkedIn-import: varig bakgrunnskjøring, status og in-app-varsling
 
-Kun `docs/network-opportunities-product-contract-v1.md` endres. Ingen migrasjon, ingen kode, ingen UI.
+Kun driftslaget. Ingen endring i feltmapping, endorsements, anbefalinger, kursmapping, nettverksmodell eller promotering.
 
-## 1. Kildeklasse per verdi (§0.1, alle feltkontrakter)
+## 0. Preflight — funn (verifisert nå)
 
-- Hver aktiv feltverdi har nøyaktig én `source_class`. Skrivemåter som «linkedin_observation / user_input» fjernes fra alle tabeller i §2.2, §3.2, §4.2, §5.1.
-- Ved manuell redigering blir aktiv verdi `user_input`; forrige LinkedIn-observasjon beholdes som historisk proveniens.
-- DTO-en utvides slik at aktiv verdi og siste LinkedIn-observasjon vises hver for seg og aldri blandes:
-  `{ state, value?, source_class, observed_at?, imported_at?, analyzed_at?, last_source_observation?: { source_class: 'linkedin_observation', value, observed_at } }`.
-- UI-regel: når aktiv verdi er `user_input` og en avvikende LinkedIn-observasjon finnes, vises den som sekundær «sist observert i LinkedIn»-linje, ikke som feltverdi.
+**`linkedin_imports` har i dag:** `id, user_id, archive_sha256, content_manifest_hash, contract_version, status, canonical_import_id, error_code, error_summary, archive_available, active_phase, attempt_id, heartbeat_at, staging_started_at, known/unknown/excluded/valid/invalid_file_count, staged_record_count, excluded_reason_counts, created_at, validated_at, staged_at, cancelled_at, purged_at`. Det finnes altså felt for fase/attempt/heartbeat, men ingen forsøkstabell, ingen lease, ingen cursor, ingen retrybudsjett, og ingen storage-referanse til ZIP-en.
 
-## 2. Utvidet SourceClass (§0.1)
+**Opplastingsruten (`POST /api/linkedin/imports`) kjører i dag hele jobben synkront i brukerens request:** `validateAndStageArchive` og deretter `runReconciliation`. Ingen kø, ingen worker-trigger. `GET`-ruten «reparerer» hengende importer ved å stemple alt eldre enn 5 minutter som `failed` — en tidsbasert nødløsning som fjernes.
 
-Legges til: `job_posting`, `derived_evaluation`, `ai_suggestion`.
+**ZIP-en lagres ikke.** Bøtta `linkedin-imports` (privat) finnes, men opplastingsruten skriver aldri til Storage; interne workere tar arkivet som `archive_base64` i request-body. Uten varig ZIP kan ingen bakgrunnsworker gjenoppta arbeid. Dette er en blokker som må lukkes i denne leveransen.
 
-- Kontaktperson hentet fra annonse: `job_posting` (ikke `linkedin_observation`).
-- Preferanse- og kompetansematch på Mulighet: `derived_evaluation`, med obligatorisk modell-/regelversjon og inputtidspunkt i DTO-en.
-- KI-genererte aktivitetsforslag: `ai_suggestion` (ikke `employer_analysis`), og krever alltid brukerhandling før de blir aktiviteter.
+**Interne worker-ruter finnes:** `/api/internal/linkedin-import-worker` og `/api/internal/linkedin-reconciliation-worker`, begge POST-only med `x-worker-secret` i konstant tid før databasekontakt. Mønsteret beholdes.
 
-## 3. Kontakt kontra kompetansesignal (§3.1, §3.2, §0.4)
+**Varig trigger finnes:** `pg_cron` + `pg_net` er i aktiv bruk (7 jobber), og kaller allerede prosjektets egne HTTP-ruter på den stabile `project--<id>.lovable.app`-URL-en. Dette er den varige mekanismen vi bruker.
 
-- Endorsement-signal fjernes helt fra Kontakt-flaten og fra Kontakt-minimumsmodellen.
-- Aggregert LinkedIn-støtte vises kun ved brukerens egen kompetanse i Min profil.
-- Ingen endorseridentitet lagres eller vises — presiseres i §0.4.
-- Datamatrisen (§6): rad «Endorsement-signal» får UI-flate kun «Min profil (aggregert)».
+**Viktig konsekvens:** ruter under `/api/internal/*` er auth-blokkert på publisert site og kan ikke nås av pg_cron. Worker og reaper må derfor eksponeres under `/api/public/linkedin/...` (prefikset som slipper gjennom edge-auth) med uendret hemmelighetskontroll i handleren — hemmeligheten er sikkerhetsgrensen, ikke stien. Eksisterende `/api/internal`-ruter beholdes som interne kall.
 
-## 4. Anbefalinger (§3.3)
+**Runtime-budsjett:** pg_net-kallene bruker 150 s timeout. Worker-invokasjonen får et hardt internt budsjett på 50 sekunder og avslutter alltid kontrollert på chunk-grense.
 
-- Mottatte anbefalinger hører hjemme i Min profil / Min dokumentasjon.
-- De kan vises på en kontaktside kun ved eksplisitt, brukerbekreftet kobling til `network_contact`. Navnelikhet er aldri tilstrekkelig og skal ikke gi automatisk kobling eller forslag med automatisk godkjenning.
+**In-app-varslingsmodell finnes ikke.** Må opprettes minimalt og user-scoped.
 
-## 5. Identitetsmodell (§3.2, §8)
+## 1. Datamodell (migrasjoner, additivt)
 
-- `network_contact_identities` er eneste kanoniske eier av LinkedIn-profil-URL.
-- Kravet om `profile_url`-kolonne på `network_contacts` fjernes fra kontrakten og fra avvikslisten i §8.
-- `last_observed_at` beholdes på `network_contacts`; URL relateres gjennom identity-tabellen.
+`public.linkedin_import_attempts` med feltene i instruksen (`cursor_json`, `lease_owner`, `lease_expires_at`, `heartbeat_at`, `next_retry_at`, `retry_count`, `max_attempts` = 5, tellere, `error_code`, `error_summary`, `cancellation_requested_at`). Statuser: `queued, running, succeeded, partially_succeeded, failed, cancelled, expired`. Faser: `queued, validating_archive, staging, reconciling, finalizing`.
 
-## 6. Brukerens relasjon til selskap (§2.2, §8)
+- Partiell unik indeks: maks én `queued`/`running` attempt per import.
+- Indeks for claim: `(status, next_retry_at)` der status = `queued`.
+- `linkedin_imports` får `archive_storage_path` (privat path i `linkedin-imports`-bøtta) og `last_attempt_id`.
+- RLS: eier kan kun `SELECT` egne attempts. Ingen klientskriv til status, lease, cursor, heartbeat eller feilfelt. GRANT `SELECT` til `authenticated`, `ALL` til `service_role`.
 
-- Notater, status og prioritet for selskap eies av en user-scoped tabell `user_company_relationships`. Ingen brukerdata lagres på delte `companies`.
-- Kontrakten navngir tabellen eksplisitt, og §8 får et nytt skjemaavvik: tabellen finnes ikke og må opprettes i Leveranse B med RLS på `user_id`.
+`public.user_notifications`: `id, user_id, notification_kind, linkedin_import_id, attempt_id, title, body, deep_link, read_at, created_at`. Unik indeks på `(user_id, linkedin_import_id, notification_kind)` gir idempotens — ett varsel per import per terminalt utfall. RLS: eier leser egne og kan sette `read_at`; innsetting kun via service_role.
 
-## 7. Innhold/artikler (§6)
+## 2. Serverfunksjoner (SECURITY DEFINER, kun service_role)
 
-Matriseraden endres til:
+`linkedin_import_claim_next_attempt` (atomisk, `FOR UPDATE SKIP LOCKED`, setter lease 180 s), `linkedin_import_heartbeat`, `linkedin_import_complete_attempt`, `linkedin_import_fail_attempt` (skiller retrybar/ikke-retrybar, setter `next_retry_at` etter 1/5/15/60 min), `linkedin_import_reap_expired_attempts` (kun leases som er utløpt; lease er >2x heartbeat-margin, så levende workere berøres ikke).
 
-```text
-LinkedIn Articles/Shares -> linkedin_content_staging -> forslag -> not_actionable_in_phase_4 -> ingen produktflate ennå
-```
+## 3. Ruter
 
-Artikler promoteres ikke til `documents` før en proveniensbevarende porteføljemodell er spesifisert og godkjent.
+- `POST /api/linkedin/imports` gjøres om til ren kvittering: autentiser, valider minimal integritet, lagre ZIP i privat Storage-path, opprett/gjenbruk `linkedin_imports` (uendret sha256-dedupregel), opprett `queued` attempt, svar `{ import_id, status: "queued" }`. Ingen parsing i requesten. 5-minutters «stale»-stemplingen i `GET` fjernes; status kommer fra attempt-modellen.
+- `GET /api/linkedin/imports` utvides med fase, tellere, `heartbeat_at`, retry-info og siste attempt.
+- `POST /api/public/linkedin/import-worker` og `POST /api/public/linkedin/import-reaper`: POST-only, `x-worker-secret` i konstant tid før all databasekontakt, avviser brukerens JWT, saniterte svar. Workeren claim'er én attempt, henter ZIP fra Storage, kjører avgrensede chunks av eksisterende `validateAndStageArchive` / `runReconciliation`, lagrer cursor + tellere + heartbeat mellom chunks, og avslutter innen tidsbudsjettet slik at neste invokasjon fortsetter.
+- `POST /api/linkedin/imports/:id/cancel` og `/retry`: setter cancellation requested (worker stopper på neste sikre chunk-grense, ingen sletting av gyldig staging) eller oppretter nytt attempt med bevart historikk.
+- pg_cron: worker hvert minutt, reaper hvert 5. minutt, begge med hemmelighet fra vault.
 
-## 8. Aktivitetsmigrering (nytt underkapittel i §8)
+## 4. Statusavbildning
 
-Sikker migrering av `next_steps`, i denne rekkefølgen:
+Attempt-status → importstatus følger tabellen i instruksen. Importstatus står aldri `running` uten aktiv eller gjenopptakbar attempt; avsluttede attempts går aldri tilbake til `running`; historikk overskrives aldri.
 
-1. Legg til `user_id`, `activity_kind`, `contact_id`, `company_id`, `opportunity_id` som nullable.
-2. Backfill `user_id` fra eksisterende `application_id`-relasjon.
-3. Valider backfill (null-telling må være 0) før neste steg.
-4. Gjør `application_id` nullable først etter validert backfill.
-5. Legg til FK-er og RLS-policyer for `contact_id`, `company_id`, `opportunity_id`, samt user-scoped policyer på `user_id`.
-6. Eksisterende søknadsrelaterte aktiviteter forblir uendret i innhold og synlighet.
+## 5. UI (kun importkortet + toppvarsel)
 
-## Leveranse
+`linkedin-import-card.tsx` viser fasetekst (Venter på behandling / Validerer arkiv / Leser valgte kilder / Avstemmer funn / Ferdig / Delvis ferdig / Krever oppfølging), sist heartbeat mens arbeid pågår, kjente tellere, og knappene Avbryt / Prøv igjen / Se gjennom funn. Ingen falsk prosent. Et lite varselikon i headeren viser uleste `user_notifications` med deep link. Ingen e-post.
 
-Oppdatert dokument merkes v1.1 med endringslogg øverst. Deretter stopp for godkjenning før Leveranse A.
+## 6. Verifikasjon
+
+Syntetiske arkiv, aldri Henriks reelle eksport. Testmatrisen i instruksens punkt 10 kjøres i sin helhet: kvittering før tungt arbeid, fortsettelse uten browser, dobbel-claim, lease/heartbeat/reaper, backoff og cursor-gjenopptak, ikke-retrybare feil, retrybudsjett, delvis suksess, avbryt på chunk-grense, dedup ved identisk arkiv, hemmelighetskontroll, RLS mellom brukere, idempotente varsler, og at retention (7 dager ZIP / 90 dager staging) og produktdata er urørt.
+
+## 7. Leveranse
+
+Preflight-notat (dette kapittel 0, utvidet), migrasjons- og datamodelloversikt, ruteoversikt, RLS-/grant-rapport, driftsrunbook, oppdatert `docs/linkedin-import-contract-v1.md`, og testmatrise med resultater. Stopp for godkjenning før Leveranse B.
