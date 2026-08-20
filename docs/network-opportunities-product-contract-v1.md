@@ -307,8 +307,8 @@ Hvert felt har nøyaktig én aktiv kildeklasse. Er den `user_input`, kan siste L
 | Stilling/rolle | LinkedIn Positions | `linkedin_career_staging` | `linkedin_reconciliation_proposals` (`career`) | `career_atoms` (rolle) | Min profil → Erfaring |
 | Utdanning | LinkedIn Education | `linkedin_career_staging` | ja | `career_atoms` | Min profil |
 | Kompetanse | LinkedIn Skills | `linkedin_career_staging` | ja | `career_atoms` (kompetanse) | Min profil |
-| Endorsement-signal | LinkedIn Endorsements | `linkedin_recommendation_staging` → eget signalstaging | ja, aggregert | `linkedin_endorsement_signals` (kompetanse, antall, kilde, observert) | Min profil (aggregert), Kontakt |
-| Anbefaling mottatt | LinkedIn Recommendations Received | `linkedin_recommendation_staging` (`direction = received`) | ja | `career_recommendations` | Kontakt, Min dokumentasjon |
+| Endorsement-signal | LinkedIn Endorsements | eget signalstaging (uten endorseridentitet) | ja, kun aggregert antall | `linkedin_endorsement_signals` (kompetanse, antall, kilde, observert) | Min profil (aggregert) — aldri Kontakt |
+| Anbefaling mottatt | LinkedIn Recommendations Received | `linkedin_recommendation_staging` (`direction = received`) | ja | `career_recommendations` | Min profil / Min dokumentasjon; Kontakt kun ved brukerbekreftet kobling |
 | Anbefaling gitt | LinkedIn Recommendations Given | `linkedin_recommendation_staging` (`direction = given`) | nei | ingen | Vises ikke i kompetanseprofil |
 | Kontakt | LinkedIn Connections | `linkedin_network_staging` | oppsummering, ikke ett forslag per rad | `network_contacts` + `network_contact_identities` | Kontakter |
 | Selskap | Brønnøysund/arbeidsgiverregister | — | — | `companies` | Selskaper |
