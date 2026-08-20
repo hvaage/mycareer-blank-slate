@@ -27,7 +27,7 @@ Regler per domene:
 - **Jobber** — kun forslag om preferanser, søkeord, lokasjon, lagrede jobber og mulige jobbmål. Ingen `job_leads`, `user_opportunities` eller `job_applications`. Annonse-/klikkdata (klasse C) brukes ikke.
 - **Læring og innhold** — utdanning/sertifisering → kvalifikasjonsforslag; artikler → profil-/porteføljemateriale med bevart kildehenvisning, aldri CV-påstand.
 
-Klasse B gir ingen forslag (fortsatt utsatt). Klasse C vises aldri som enkeltinnhold. Uvalgt formål gir kontraktsstatus «hoppet over — ikke samtykket».
+Klasse B gir ingen forslag (fortsatt utsatt). Klasse C vises aldri som enkeltinnhold. Formål brukeren ikke har valgt gir kontraktsstatus `skipped_no_selected_purpose` — produkttekst «ikke valgt for dette formålet». Dette er brukerens valg av behandlingsformål i produktet, ikke en egen samtykkemodell.
 
 ## 3. Gjennomgangsflate
 
