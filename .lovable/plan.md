@@ -72,6 +72,8 @@ Attempt-status → importstatus følger tabellen i instruksen. Importstatus stå
 
 Syntetiske arkiv, aldri Henriks reelle eksport. Testmatrisen i instruksens punkt 10 kjøres i sin helhet: kvittering før tungt arbeid, fortsettelse uten browser, dobbel-claim, lease/heartbeat/reaper, backoff og cursor-gjenopptak, ikke-retrybare feil, retrybudsjett, delvis suksess, avbryt på chunk-grense, dedup ved identisk arkiv, hemmelighetskontroll, RLS mellom brukere, idempotente varsler, og at retention (7 dager ZIP / 90 dager staging) og produktdata er urørt.
 
+I tillegg testes de fire korreksjonene eksplisitt: (a) vault- og runtime-hemmelighet gir samme resultat, feil hemmelighet gir 401; (b) simulert Storage-feil gir ingen path, `archive_available = false` og ingen `queued` jobb; (c) reaper på utløpt lease gir nytt `queued` attempt med arvet cursor så lenge budsjett gjenstår, og `failed` først når budsjettet er tomt; (d) klientforsøk på å endre `title`/`deep_link`/`notification_kind` på eget varsel avvises, mens `read_at` går gjennom.
+
 ## 7. Leveranse
 
 Preflight-notat (dette kapittel 0, utvidet), migrasjons- og datamodelloversikt, ruteoversikt, RLS-/grant-rapport, driftsrunbook, oppdatert `docs/linkedin-import-contract-v1.md`, og testmatrise med resultater. Stopp for godkjenning før Leveranse B.
