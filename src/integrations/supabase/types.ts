@@ -8475,6 +8475,11 @@ export type Database = {
           passed: boolean
         }[]
       }
+      linkedin_worker_secret_present: { Args: never; Returns: boolean }
+      linkedin_worker_secret_sync: {
+        Args: { p_secret: string }
+        Returns: boolean
+      }
       list_regnskap_cron_runs: {
         Args: { p_limit?: number }
         Returns: {
