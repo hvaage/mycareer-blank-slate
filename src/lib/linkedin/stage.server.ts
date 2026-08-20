@@ -187,7 +187,7 @@ async function stageFile(params: {
   const parsed = parseCsvFile(entry.archivePath, entry.bytes);
   if (!parsed.ok) return { ok: false, errorCode: parsed.code };
 
-  let stagedCount = 0;
+  const pending: StagingInput[] = [];
   for (const row of parsed.rows) {
     if (row.values.every((v) => v.trim() === "")) continue;
     const obj = rowToObject(parsed.header, row.values);
@@ -199,94 +199,148 @@ async function stageFile(params: {
     const identityHash = await computeSourceIdentityHash({
       userId, purpose, sourceFile: entry.archivePath, recordKind, fields: mapped.identityFields,
     });
-    const flagged = Object.values(obj).some(isFormulaInjectionCandidate);
-    const ok = await writeStagingRecord(admin, {
+    pending.push({
       userId, importId, attemptId, domain, recordKind, purpose,
       sourceFile: entry.archivePath, locatorType: "csv_row",
       locator: `${entry.archivePath}#${row.rowNumber}`,
       contentHash: null, rowNumber: row.rowNumber, rowHash, identityHash,
       domainFields: mapped.domainFields,
-      classification: flagged ? "A" : "A",
     });
-    if (ok) stagedCount += 1;
   }
+
+  const stagedCount = await writeStagingRecords(admin, pending);
   return { ok: true, rowCount: parsed.rows.length, stagedCount };
 }
 
-async function writeStagingRecord(
-  admin: AdminClient,
-  r: {
-    userId: string; importId: string; attemptId: string; domain: string; recordKind: string;
-    purpose: LinkedInPurpose; sourceFile: string; locatorType: string; locator: string;
-    contentHash: string | null; rowNumber: number | null; rowHash: string | null;
-    identityHash: string; domainFields: Record<string, unknown>; classification?: string;
-  },
-): Promise<boolean> {
-  // Idempotens: identisk innhold oppdaterer kun last_*; endret innhold gir ny rad.
-  const { data: existing } = await admin
-    .from("linkedin_staging_records")
-    .select("id")
-    .eq("user_id", r.userId)
-    .eq("source_file", r.sourceFile)
-    .eq("source_identity_hash", r.identityHash)
-    .maybeSingle();
+type StagingInput = {
+  userId: string; importId: string; attemptId: string; domain: string; recordKind: string;
+  purpose: LinkedInPurpose; sourceFile: string; locatorType: string; locator: string;
+  contentHash: string | null; rowNumber: number | null; rowHash: string | null;
+  identityHash: string; domainFields: Record<string, unknown>; classification?: string;
+};
 
-  let stagingId: string | null = existing?.id ?? null;
+const CHUNK = 400;
 
-  if (stagingId) {
-    await admin
+function chunked<T>(items: T[], size = CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+async function writeStagingRecord(admin: AdminClient, r: StagingInput): Promise<boolean> {
+  return (await writeStagingRecords(admin, [r])) > 0;
+}
+
+/**
+ * Batchet staging: samme idempotens som før (user_id + source_file + identity_hash),
+ * men med få databasekall per fil i stedet for fire per rad. Store eksportfiler
+ * (f.eks. Connections.csv med tusenvis av rader) rakk ellers ikke å bli ferdige.
+ */
+async function writeStagingRecords(admin: AdminClient, records: StagingInput[]): Promise<number> {
+  if (records.length === 0) return 0;
+
+  // Dedupliser innenfor samme fil.
+  const byHash = new Map<string, StagingInput>();
+  for (const r of records) if (!byHash.has(r.identityHash)) byHash.set(r.identityHash, r);
+  const unique = [...byHash.values()];
+  const { userId, sourceFile, importId, attemptId, domain, purpose } = unique[0]!;
+
+  // 1) Finn allerede stagede rader.
+  const existing = new Map<string, string>();
+  for (const part of chunked(unique.map((r) => r.identityHash))) {
+    const { data } = await admin
       .from("linkedin_staging_records")
-      .update({ last_linkedin_import_id: r.importId, last_seen_at: new Date().toISOString() })
-      .eq("id", stagingId);
-  } else {
-    const { data, error } = await admin
-      .from("linkedin_staging_records")
-      .insert({
-        user_id: r.userId,
-        staging_domain: r.domain,
-        record_kind: r.recordKind,
-        purpose: r.purpose,
-        source_file: r.sourceFile,
-        source_locator_type: r.locatorType,
-        source_locator: r.locator,
-        source_row_number: r.rowNumber,
-        source_row_hash: r.rowHash,
-        source_content_hash: r.contentHash,
-        source_recorded_at: new Date().toISOString(),
-        source_classification: r.classification ?? "A",
-        source_identity_hash: r.identityHash,
-        first_linkedin_import_id: r.importId,
-        last_linkedin_import_id: r.importId,
-      })
-      .select("id")
-      .single();
-    if (error || !data) return false;
-    stagingId = data.id as string;
-
-    const table = DOMAIN_TABLES[r.domain as keyof typeof DOMAIN_TABLES];
-    const { error: domainError } = await admin
-      .from(table)
-      .insert({ staging_record_id: stagingId, user_id: r.userId, ...r.domainFields });
-    if (domainError) {
-      await admin.from("linkedin_staging_records").delete().eq("id", stagingId);
-      return false;
-    }
+      .select("id, source_identity_hash")
+      .eq("user_id", userId)
+      .eq("source_file", sourceFile)
+      .in("source_identity_hash", part);
+    for (const row of data ?? []) existing.set(row.source_identity_hash as string, row.id as string);
   }
 
-  await admin.from("linkedin_import_stage_records").upsert(
-    {
-      linkedin_import_id: r.importId,
-      attempt_id: r.attemptId,
-      user_id: r.userId,
-      staging_record_id: stagingId,
-      staging_domain: r.domain,
-      purpose: r.purpose,
-      source_identity_hash: r.identityHash,
-    },
-    { onConflict: "linkedin_import_id,attempt_id,staging_record_id" },
+  // 2) Oppdater last_seen for de som finnes fra før.
+  const existingIds = [...existing.values()];
+  for (const part of chunked(existingIds)) {
+    await admin
+      .from("linkedin_staging_records")
+      .update({ last_linkedin_import_id: importId, last_seen_at: new Date().toISOString() })
+      .in("id", part);
+  }
+
+  // 3) Sett inn nye rader og tilhørende domenerader.
+  const fresh = unique.filter((r) => !existing.has(r.identityHash));
+  const linkRows: Array<{ stagingId: string; identityHash: string }> = [...existing.entries()].map(
+    ([identityHash, stagingId]) => ({ stagingId, identityHash }),
   );
-  return true;
+  let staged = existingIds.length;
+
+  for (const part of chunked(fresh)) {
+    const { data, error } = await admin
+      .from("linkedin_staging_records")
+      .insert(
+        part.map((r) => ({
+          user_id: r.userId,
+          staging_domain: r.domain,
+          record_kind: r.recordKind,
+          purpose: r.purpose,
+          source_file: r.sourceFile,
+          source_locator_type: r.locatorType,
+          source_locator: r.locator,
+          source_row_number: r.rowNumber,
+          source_row_hash: r.rowHash,
+          source_content_hash: r.contentHash,
+          source_recorded_at: new Date().toISOString(),
+          source_classification: r.classification ?? "A",
+          source_identity_hash: r.identityHash,
+          first_linkedin_import_id: r.importId,
+          last_linkedin_import_id: r.importId,
+        })),
+      )
+      .select("id, source_identity_hash");
+    if (error || !data) continue;
+
+    const idByHash = new Map<string, string>();
+    for (const row of data) idByHash.set(row.source_identity_hash as string, row.id as string);
+
+    const table = DOMAIN_TABLES[domain as keyof typeof DOMAIN_TABLES];
+    const domainRows = part
+      .map((r) => {
+        const id = idByHash.get(r.identityHash);
+        return id ? { staging_record_id: id, user_id: r.userId, ...r.domainFields } : null;
+      })
+      .filter(Boolean) as Array<Record<string, unknown>>;
+
+    const { error: domainError } = await admin.from(table).insert(domainRows);
+    if (domainError) {
+      await admin
+        .from("linkedin_staging_records")
+        .delete()
+        .in("id", [...idByHash.values()]);
+      continue;
+    }
+
+    for (const [hash, id] of idByHash.entries()) linkRows.push({ stagingId: id, identityHash: hash });
+    staged += domainRows.length;
+  }
+
+  // 4) Koble stagingrader til dette importforsøket.
+  for (const part of chunked(linkRows)) {
+    await admin.from("linkedin_import_stage_records").upsert(
+      part.map((l) => ({
+        linkedin_import_id: importId,
+        attempt_id: attemptId,
+        user_id: userId,
+        staging_record_id: l.stagingId,
+        staging_domain: domain,
+        purpose,
+        source_identity_hash: l.identityHash,
+      })),
+      { onConflict: "linkedin_import_id,attempt_id,staging_record_id" },
+    );
+  }
+
+  return staged;
 }
+
 
 async function upsertFile(
   admin: AdminClient,

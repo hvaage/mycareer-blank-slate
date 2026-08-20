@@ -136,18 +136,17 @@ function ForslagInboxPage() {
           count={linkedinCount}
           statusText={linkedinCount > 0 ? `${linkedinCount} venter` : "Ingenting venter"}
           action={
-            <Button
-              asChild
-              size="sm"
-              variant={linkedinCount > 0 ? "default" : "outline"}
-            >
-              <Link
-                to={linkedinCount > 0 ? "/kildegjennomgang" : "/kilder"}
-                search={linkedinCount > 0 ? { source: "linkedin" } : undefined}
-              >
-                {linkedinCount > 0 ? "Åpne kildegjennomgang" : "Last opp LinkedIn-eksport"}
-              </Link>
-            </Button>
+            linkedinCount > 0 ? (
+              <Button asChild size="sm">
+                <Link to="/kildegjennomgang" search={{ source: "linkedin" }}>
+                  Åpne kildegjennomgang
+                </Link>
+              </Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                LinkedIn-eksporten lastes opp under «Legg til kilder».
+              </p>
+            )
           }
         />
 
