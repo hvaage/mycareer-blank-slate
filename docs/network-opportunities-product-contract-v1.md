@@ -350,7 +350,7 @@ Artikler og delt innhold promoteres **ikke** til `documents` eller noen annen pr
 
 ### 7.4 Kontakt
 
-- Kontaktkortet viser identitet, rolle, selskap, LinkedIn-observasjon, siste aktivitet, neste aktivitet, relasjonsopplysninger og eventuelle tredjepartssignaler.
+- Kontaktkortet viser identitet, rolle, selskap, LinkedIn-observasjon, siste aktivitet, neste aktivitet og relasjonsopplysninger. Endorsement-signaler vises ikke her.
 - Navn og selskap er lenkbare.
 - LinkedIn-data merkes med kilde og «sist observert», og presenteres aldri som bekreftet kontaktdata.
 
