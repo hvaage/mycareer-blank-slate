@@ -1,9 +1,9 @@
 // ============================================================
-// Kildegjennomgang — brukerens beslutning per avstemmingsforslag.
+// Kildegjennomgang — brukerens beslutning per avstemmingsforslag,
+// og (Fase 4) eksplisitt promotering av godkjente forslag.
 //
-// Fase 3-kontrakt: siden viser kun forslag. Ingenting skrives til
-// karriereoversikten herfra. Alle handlinger går gjennom
-// linkedin_reconciliation_decide og gir én ny rad i beslutningsloggen.
+// Ingenting promoteres automatisk. «Behold det jeg har» og «Rett manuelt
+// senere» går gjennom beslutningslaget og gir aldri en promotering.
 // ============================================================
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -17,7 +17,23 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info, Check, X, Clock, PencilLine, ShieldAlert } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Info, Check, X, Clock, PencilLine, ShieldAlert, ArrowRight, RotateCcw } from "lucide-react";
+import {
+  PROMOTION_BUTTON_LABELS,
+  promoteProposal,
+  promotionActionForDomain,
+  reopenFailedProposal,
+  type PromotionAction,
+  type PromotionResolution,
+} from "@/lib/linkedin/promotion";
 
 type Proposal = {
   id: string;
@@ -28,11 +44,22 @@ type Proposal = {
   match_method: string;
   source_snapshot_json: Record<string, unknown> | null;
   target_snapshot_json: Record<string, unknown> | null;
+  proposed_payload_json: Record<string, unknown> | null;
   comparison_json: Record<string, unknown> | null;
   reason_codes: string[] | null;
   review_message: string | null;
   linkedin_import_id: string;
 };
+
+const PROFILE_FIELD_LABELS: Record<string, string> = {
+  headline: "Overskrift",
+  summary: "Sammendrag",
+  location: "Sted",
+  industry: "Bransje",
+  public_profile_url: "LinkedIn-adresse",
+  languages: "Språk",
+};
+
 
 const DOMAIN_LABELS: Record<string, string> = {
   profile: "Profil",
@@ -64,6 +91,8 @@ const STATUS_LABELS: Record<string, string> = {
   superseded: "Erstattet",
   stale_source: "Kildegrunnlaget er slettet",
   stale_target: "Grunnlaget er endret",
+  promoted: "Lagt til",
+  promotion_failed: "Overføringen feilet",
 };
 
 export const Route = createFileRoute("/_authenticated/kildegjennomgang")({
@@ -105,7 +134,7 @@ function KildegjennomgangPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .from("linkedin_reconciliation_proposals" as any)
         .select(
-          "id, proposal_domain, proposal_kind, status, confidence, match_method, source_snapshot_json, target_snapshot_json, comparison_json, reason_codes, review_message, linkedin_import_id",
+          "id, proposal_domain, proposal_kind, status, confidence, match_method, source_snapshot_json, target_snapshot_json, proposed_payload_json, comparison_json, reason_codes, review_message, linkedin_import_id",
         )
         .order("proposal_domain", { ascending: true })
         .order("created_at", { ascending: true });
@@ -149,6 +178,45 @@ function KildegjennomgangPage() {
       );
     },
   });
+
+  const [pendingPromotion, setPendingPromotion] = useState<{
+    proposal: Proposal;
+    action: PromotionAction;
+  } | null>(null);
+
+  const promote = useMutation({
+    mutationFn: async (input: {
+      proposalId: string;
+      action: PromotionAction;
+      resolution: PromotionResolution;
+      field?: string;
+    }) => promoteProposal(input),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["linkedin-reconciliation-proposals"] });
+      if (result.ok) {
+        setPendingPromotion(null);
+        toast.success("Lagt til. Kilden er sporet i revisjonsloggen.");
+      } else {
+        toast.error(result.message, {
+          description: result.retryable
+            ? "Forslaget står fortsatt som godkjent, så du kan prøve igjen."
+            : "Forslaget er markert som feilet. Åpne det på nytt for å avstemme igjen.",
+        });
+      }
+    },
+    onError: () => toast.error("Klarte ikke å gjennomføre overføringen."),
+  });
+
+  const reopen = useMutation({
+    mutationFn: async (proposalId: string) => reopenFailedProposal(proposalId),
+    onSuccess: (ok) => {
+      queryClient.invalidateQueries({ queryKey: ["linkedin-reconciliation-proposals"] });
+      if (ok) toast.success("Forslaget er åpnet for ny beslutning.");
+      else toast.error("Klarte ikke å åpne forslaget på nytt.");
+    },
+  });
+
+
 
   const proposals = proposalsQuery.data ?? [];
   const domains = useMemo(() => {
@@ -225,10 +293,12 @@ function KildegjennomgangPage() {
                     <ProposalCard
                       key={proposal.id}
                       proposal={proposal}
-                      busy={decide.isPending}
+                      busy={decide.isPending || promote.isPending}
                       onDecide={(decision, reasonCode) =>
                         decide.mutate({ proposalId: proposal.id, decision, reasonCode })
                       }
+                      onStartPromotion={(action) => setPendingPromotion({ proposal, action })}
+                      onReopen={() => reopen.mutate(proposal.id)}
                     />
                   ))}
               </TabsContent>
@@ -236,7 +306,105 @@ function KildegjennomgangPage() {
           </Tabs>
         </>
       )}
+
+      <PromotionDialog
+        pending={pendingPromotion}
+        busy={promote.isPending}
+        onClose={() => setPendingPromotion(null)}
+        onConfirm={(resolution, field) => {
+          if (!pendingPromotion) return;
+          promote.mutate({
+            proposalId: pendingPromotion.proposal.id,
+            action: pendingPromotion.action,
+            resolution,
+            ...(field ? { field } : {}),
+          });
+        }}
+        onKeepExisting={() => {
+          if (!pendingPromotion) return;
+          decide.mutate({ proposalId: pendingPromotion.proposal.id, decision: "dismiss", reasonCode: "keep_existing" });
+          setPendingPromotion(null);
+        }}
+        onManualEdit={() => {
+          if (!pendingPromotion) return;
+          decide.mutate({ proposalId: pendingPromotion.proposal.id, decision: "request_manual_edit" });
+          setPendingPromotion(null);
+        }}
+      />
     </div>
+  );
+}
+
+function PromotionDialog({
+  pending,
+  busy,
+  onClose,
+  onConfirm,
+  onKeepExisting,
+  onManualEdit,
+}: {
+  pending: { proposal: Proposal; action: PromotionAction } | null;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: (resolution: PromotionResolution, field?: string) => void;
+  onKeepExisting: () => void;
+  onManualEdit: () => void;
+}) {
+  const proposal = pending?.proposal ?? null;
+  const action = pending?.action ?? null;
+  const payload = (proposal?.proposed_payload_json ?? {}) as Record<string, unknown>;
+  const field =
+    action === "promote_profile_field"
+      ? String(payload["field"] ?? (proposal?.comparison_json?.["field"] as string) ?? "headline")
+      : undefined;
+  const hasTarget = Boolean(proposal?.target_snapshot_json);
+
+  return (
+    <Dialog open={Boolean(pending)} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <DialogContent>
+        {proposal && action && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{PROMOTION_BUTTON_LABELS[action]}</DialogTitle>
+              <DialogDescription>
+                {proposal.review_message ?? "Dette legges til fra LinkedIn-eksporten."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 text-sm">
+              {field && (
+                <p>
+                  Felt: <strong>{PROFILE_FIELD_LABELS[field] ?? field}</strong>
+                </p>
+              )}
+              <SnapshotBlock title="Dette legges inn" data={proposal.source_snapshot_json} />
+              {hasTarget && (
+                <SnapshotBlock title="Det du har i dag" data={proposal.target_snapshot_json} />
+              )}
+              <p className="text-muted-foreground">
+                Kilden merkes som LinkedIn-eksport. Ingenting annet endres, og ingenting blir regnet
+                som bekreftet.
+              </p>
+            </div>
+
+            <DialogFooter className="flex-wrap gap-2 sm:justify-start">
+              <Button disabled={busy} onClick={() => onConfirm(hasTarget && field ? "use_linkedin_value" : "create_new", field)}>
+                <Check className="mr-1 h-4 w-4" />
+                {hasTarget && field ? "Bruk LinkedIn-verdien" : "Bekreft og legg til"}
+              </Button>
+              {hasTarget && (
+                <Button variant="outline" disabled={busy} onClick={onKeepExisting}>
+                  Behold det jeg har
+                </Button>
+              )}
+              <Button variant="ghost" disabled={busy} onClick={onManualEdit}>
+                <PencilLine className="mr-1 h-4 w-4" /> Rett manuelt senere
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -244,16 +412,25 @@ function ProposalCard({
   proposal,
   busy,
   onDecide,
+  onStartPromotion,
+  onReopen,
 }: {
   proposal: Proposal;
   busy: boolean;
   onDecide: (decision: string, reasonCode?: string | null) => void;
+  onStartPromotion: (action: PromotionAction) => void;
+  onReopen: () => void;
 }) {
   const source = proposal.source_snapshot_json ?? {};
   const target = proposal.target_snapshot_json;
   const decided = proposal.status !== "pending_review";
   const locked = ["stale_source", "stale_target", "superseded"].includes(proposal.status);
   const contextOnly = proposal.proposal_kind === "not_actionable_in_phase_3";
+  const promotionAction = promotionActionForDomain(proposal.proposal_domain, proposal.proposal_kind);
+  const approved = proposal.status === "approved_for_promotion";
+  const promoted = proposal.status === "promoted";
+  const failed = proposal.status === "promotion_failed";
+
 
   return (
     <Card>
@@ -290,7 +467,48 @@ function ProposalCard({
           </p>
         ) : null}
 
-        {!locked && (
+        {promoted && (
+          <Alert>
+            <Check className="h-4 w-4" />
+            <AlertDescription>
+              Lagt til fra LinkedIn. Kilden er sporet, og innholdet er ikke regnet som bekreftet.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {failed && (
+          <Alert variant="destructive">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertDescription className="space-y-2">
+              <span>
+                Overføringen ble ikke gjennomført, og ingenting ble endret. Åpne forslaget på nytt for
+                å ta en ny beslutning.
+              </span>
+              <Button size="sm" variant="outline" disabled={busy} onClick={onReopen}>
+                <RotateCcw className="mr-1 h-4 w-4" /> Åpne på nytt
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {approved && promotionAction && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={busy} onClick={() => onStartPromotion(promotionAction)}>
+              <ArrowRight className="mr-1 h-4 w-4" /> {PROMOTION_BUTTON_LABELS[promotionAction]}
+            </Button>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => onDecide("dismiss", "keep_existing")}>
+              Behold det jeg har
+            </Button>
+          </div>
+        )}
+
+        {approved && !promotionAction && (
+          <p className="text-sm text-muted-foreground">
+            Dette forslaget kan ikke overføres ennå (kun kontekst). Det står som godkjent.
+          </p>
+        )}
+
+        {!locked && !promoted && !failed && !approved && (
           <div className="flex flex-wrap gap-2">
             {!contextOnly && (
               <Button size="sm" disabled={busy} onClick={() => onDecide("approve_for_promotion")}>

@@ -794,6 +794,105 @@ export type Database = {
           },
         ]
       }
+      career_recommendations: {
+        Row: {
+          author_company: string | null
+          author_identity_key: string
+          author_name: string | null
+          author_title: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          recommendation_text: string
+          recommended_on: string | null
+          relationship_text: string | null
+          source_classification: string
+          source_ref: string | null
+          source_system: string
+          text_hash: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author_company?: string | null
+          author_identity_key: string
+          author_name?: string | null
+          author_title?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          recommendation_text: string
+          recommended_on?: string | null
+          relationship_text?: string | null
+          source_classification?: string
+          source_ref?: string | null
+          source_system?: string
+          text_hash: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author_company?: string | null
+          author_identity_key?: string
+          author_name?: string | null
+          author_title?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          recommendation_text?: string
+          recommended_on?: string | null
+          relationship_text?: string | null
+          source_classification?: string
+          source_ref?: string | null
+          source_system?: string
+          text_hash?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      career_skill_source_signals: {
+        Row: {
+          career_atom_id: string | null
+          created_at: string
+          id: string
+          observed_at: string
+          signal_count: number
+          signal_type: string
+          skill_key: string
+          skill_label: string
+          source_ref: string | null
+          source_system: string
+          user_id: string
+        }
+        Insert: {
+          career_atom_id?: string | null
+          created_at?: string
+          id?: string
+          observed_at?: string
+          signal_count?: number
+          signal_type: string
+          skill_key: string
+          skill_label: string
+          source_ref?: string | null
+          source_system?: string
+          user_id: string
+        }
+        Update: {
+          career_atom_id?: string | null
+          created_at?: string
+          id?: string
+          observed_at?: string
+          signal_count?: number
+          signal_type?: string
+          skill_key?: string
+          skill_label?: string
+          source_ref?: string | null
+          source_system?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       careerjet_identity_audit: {
         Row: {
           action: string
@@ -3392,7 +3491,10 @@ export type Database = {
           salary_text: string | null
           source_email_from: string | null
           source_message_id: string | null
+          source_observed_at: string | null
           source_subject: string | null
+          source_system: string | null
+          source_url_hash: string | null
           status: Database["public"]["Enums"]["job_lead_status"]
           title: string | null
           updated_at: string
@@ -3417,7 +3519,10 @@ export type Database = {
           salary_text?: string | null
           source_email_from?: string | null
           source_message_id?: string | null
+          source_observed_at?: string | null
           source_subject?: string | null
+          source_system?: string | null
+          source_url_hash?: string | null
           status?: Database["public"]["Enums"]["job_lead_status"]
           title?: string | null
           updated_at?: string
@@ -3442,7 +3547,10 @@ export type Database = {
           salary_text?: string | null
           source_email_from?: string | null
           source_message_id?: string | null
+          source_observed_at?: string | null
           source_subject?: string | null
+          source_system?: string | null
+          source_url_hash?: string | null
           status?: Database["public"]["Enums"]["job_lead_status"]
           title?: string | null
           updated_at?: string
@@ -4460,6 +4568,110 @@ export type Database = {
           },
         ]
       }
+      linkedin_promotion_events: {
+        Row: {
+          created_at: string
+          decision_id: string | null
+          error_code: string | null
+          error_summary: string | null
+          id: string
+          idempotency_key: string
+          linkedin_import_id: string | null
+          promotion_action: string
+          promotion_status: string
+          promotion_version: string
+          proposal_domain: string
+          proposal_id: string | null
+          purpose: string | null
+          resolution: string | null
+          retryable: boolean
+          source_snapshot_hash: string | null
+          target_snapshot_hash_after: string | null
+          target_snapshot_hash_before: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decision_id?: string | null
+          error_code?: string | null
+          error_summary?: string | null
+          id?: string
+          idempotency_key: string
+          linkedin_import_id?: string | null
+          promotion_action: string
+          promotion_status: string
+          promotion_version?: string
+          proposal_domain: string
+          proposal_id?: string | null
+          purpose?: string | null
+          resolution?: string | null
+          retryable?: boolean
+          source_snapshot_hash?: string | null
+          target_snapshot_hash_after?: string | null
+          target_snapshot_hash_before?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decision_id?: string | null
+          error_code?: string | null
+          error_summary?: string | null
+          id?: string
+          idempotency_key?: string
+          linkedin_import_id?: string | null
+          promotion_action?: string
+          promotion_status?: string
+          promotion_version?: string
+          proposal_domain?: string
+          proposal_id?: string | null
+          purpose?: string | null
+          resolution?: string | null
+          retryable?: boolean
+          source_snapshot_hash?: string | null
+          target_snapshot_hash_after?: string | null
+          target_snapshot_hash_before?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      linkedin_promotion_targets: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_label: string | null
+          entity_type: string
+          id: string
+          promotion_event_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_label?: string | null
+          entity_type: string
+          id?: string
+          promotion_event_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_label?: string | null
+          entity_type?: string
+          id?: string
+          promotion_event_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_promotion_targets_event_fk"
+            columns: ["promotion_event_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_promotion_events"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
       linkedin_recommendation_staging: {
         Row: {
           counterpart_headline: string | null
@@ -5224,6 +5436,83 @@ export type Database = {
           lease_name?: string
           mode?: string
           run_id?: string
+        }
+        Relationships: []
+      }
+      network_contact_identities: {
+        Row: {
+          created_at: string
+          id: string
+          identity_key: string
+          identity_kind: string
+          network_contact_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          identity_key: string
+          identity_kind: string
+          network_contact_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          identity_key?: string
+          identity_kind?: string
+          network_contact_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_contact_identities_contact_fk"
+            columns: ["network_contact_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "network_contacts"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      network_contacts: {
+        Row: {
+          company: string | null
+          connected_on: string | null
+          created_at: string
+          display_name: string | null
+          headline: string | null
+          id: string
+          is_active: boolean
+          source_ref: string | null
+          source_system: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          connected_on?: string | null
+          created_at?: string
+          display_name?: string | null
+          headline?: string | null
+          id?: string
+          is_active?: boolean
+          source_ref?: string | null
+          source_system?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          connected_on?: string | null
+          created_at?: string
+          display_name?: string | null
+          headline?: string | null
+          id?: string
+          is_active?: boolean
+          source_ref?: string | null
+          source_system?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -7122,6 +7411,25 @@ export type Database = {
         }
         Returns: Json
       }
+      _linkedin_promotion_commit: {
+        Args: {
+          p_action: string
+          p_gate: Json
+          p_proposal_id: string
+          p_resolution: string
+          p_target_hash_after?: string
+          p_targets: Json
+        }
+        Returns: string
+      }
+      _linkedin_promotion_gate: {
+        Args: {
+          p_expected_domains: string[]
+          p_proposal_id: string
+          p_resolution: string
+        }
+        Returns: Json
+      }
       _refresh_company_analysis_atoms: {
         Args: { p_company_id: string }
         Returns: Json
@@ -7842,6 +8150,68 @@ export type Database = {
         Returns: Json
       }
       linkedin_import_retention_sweep: { Args: never; Returns: Json }
+      linkedin_promote_career_record: {
+        Args: {
+          p_existing_atom_id?: string
+          p_proposal_id: string
+          p_resolution: string
+        }
+        Returns: Json
+      }
+      linkedin_promote_job_preference: {
+        Args: { p_field: string; p_proposal_id: string; p_resolution: string }
+        Returns: Json
+      }
+      linkedin_promote_network_contact: {
+        Args: { p_proposal_id: string; p_resolution: string }
+        Returns: Json
+      }
+      linkedin_promote_profile_field: {
+        Args: { p_field: string; p_proposal_id: string; p_resolution: string }
+        Returns: Json
+      }
+      linkedin_promote_qualification: {
+        Args: { p_proposal_id: string; p_resolution: string }
+        Returns: Json
+      }
+      linkedin_promote_recommendation: {
+        Args: { p_proposal_id: string; p_resolution: string }
+        Returns: Json
+      }
+      linkedin_promote_saved_job: {
+        Args: { p_proposal_id: string; p_resolution: string }
+        Returns: Json
+      }
+      linkedin_promote_skill_or_signal: {
+        Args: {
+          p_existing_atom_id?: string
+          p_proposal_id: string
+          p_resolution: string
+        }
+        Returns: Json
+      }
+      linkedin_promotion_phase4_canary: {
+        Args: never
+        Returns: {
+          check_name: string
+          detail: string
+          passed: boolean
+        }[]
+      }
+      linkedin_promotion_record_failure: {
+        Args: {
+          p_action: string
+          p_error_code: string
+          p_error_summary?: string
+          p_proposal_id: string
+          p_retryable: boolean
+        }
+        Returns: Json
+      }
+      linkedin_promotion_reopen: {
+        Args: { p_proposal_id: string }
+        Returns: Json
+      }
       linkedin_reconciliation_decide: {
         Args: {
           p_decision: string
