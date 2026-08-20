@@ -248,15 +248,15 @@ Hvert felt har nøyaktig én aktiv kildeklasse. Er den `user_input`, kan siste L
 
 | Felt | Eier | Kildeklasse | Tidsstempel | Redigerbart |
 | --- | --- | --- | --- | --- |
-| Stilling | `user_opportunities.card_title` | annonsekilde | `card_published_at` | Ja |
-| Selskap | `user_opportunities.card_company` → `companies` | annonsekilde / `register` | `updated_at` | Ja |
-| Annonsekilde og URL | `card_source`, `card_display_url`, `card_raw_url` | annonsekilde | `card_published_at` | Nei |
-| Kontaktperson fra annonse | eget kontaktobjekt i `network_contacts` med kobling til muligheten | `user_input` (fra annonse) | `created_at` | Ja |
-| Preferansematch | eget måltall | `user_input` + modell | `screening_evaluated_at` | Nei |
-| Kompetansematch | `relevance_score` / `ai_score` med `match_score_version` | `employer_analysis` | `ai_scored_at` | Nei |
+| Stilling | `user_opportunities.card_title` | `job_posting` (`user_input` etter redigering) | `card_published_at` / `updated_at` | Ja |
+| Selskap | `user_opportunities.card_company` → `companies` | `job_posting`; registerprofilen på selskapssiden er `register` | `updated_at` | Ja |
+| Annonsekilde og URL | `card_source`, `card_display_url`, `card_raw_url` | `job_posting` | `card_published_at` | Nei |
+| Kontaktperson fra annonse | eget kontaktobjekt i `network_contacts` med kobling til muligheten | `job_posting` | `created_at` | Ja |
+| Preferansematch | eget måltall | `derived_evaluation` (regelversjon + inputtidspunkt) | `screening_evaluated_at` | Nei |
+| Kompetansematch | `relevance_score` / `ai_score` med `match_score_version` | `derived_evaluation` (modellversjon + inputtidspunkt) | `ai_scored_at` | Nei |
 | Dokumenter brukt | `documents.opportunity_id` | `user_input` | `updated_at` | Ja |
 | Aktivitetstidslinje | `next_steps`, `interviews` | `activity` | `due_date` | Ja |
-| Kontakter i selskapet | `network_contacts` | `linkedin_observation` | observert | Ja |
+| Kontakter i selskapet | `network_contacts` | aktiv verdi per kontakt, se 3.2 | observert / oppdatert | Ja |
 | Arbeidsgiverinnsikt | `companies.employer_analysis_v2` | `employer_analysis` | `employer_analysis_rated_at` | Nei |
 
 ### 4.3 Regler
