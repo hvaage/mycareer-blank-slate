@@ -27,9 +27,12 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   tidsstempler (`created_at`, `validated_at`, `staged_at`, `cancelled_at`, `purged_at`),
   tellefelt (`known/unknown/excluded/valid/invalid_file_count`, `staged_record_count`,
   aggregert klasse C-eksklusjonsteller per årsak som `jsonb` med kun kodenøkler).
+  `archive_available boolean not null default true` — settes eksplisitt til `false`
+  når ZIP-en er slettet, slik at fase 3-UI kan vise at nye formål krever ny opplasting.
   Unik indeks `(user_id, archive_sha256)`.
   Driftsfelt: `active_phase` (`validation|staging|null`), `attempt_id`,
   `heartbeat_at`, `staging_started_at`.
+
   **Statusklassifisering:** `uploaded`, `validating` er i arbeid; `validated` og
   `partially_validated` er ikke terminale — de er klare for staging;
   `staged` er mellomtilstand mot avstemming; `reconciliation_ready` er terminal for
