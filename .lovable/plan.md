@@ -138,14 +138,20 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
 
 ## 4. Retention og sletting
 
-- `public.linkedin_import_delete(p_import_id uuid)` — kalles kun fra serverlaget etter
-  verifisert brukeridentitet, kontrollerer eierskap eksplisitt mot innsendt bruker-id,
-  `SECURITY DEFINER` med `SET search_path = ''` og fullt kvalifiserte objektnavn,
+- Sletteflyt: (1) serverruten verifiserer JWT, (2) henter `user_id` **utelukkende**
+  fra den verifiserte sesjonen, (3) leser importen og bekrefter
+  `linkedin_imports.user_id = session.user.id`, (4) kaller først da databasefunksjonen
+  med import-id. Klientens body eller parametre inneholder aldri autoritativ `user_id`.
+- `public.linkedin_import_delete(p_import_id uuid)` — `SECURITY DEFINER` med
+  `SET search_path = ''` og fullt kvalifiserte objektnavn,
   `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` (kun `service_role`).
-  Rekkefølge: opprett tombstone → slett staging, filrader og fritekst → marker
+  Rekkefølge: opprett tombstone → slett denne importens koblinger i
+  `linkedin_import_stage_records` → slett stagingrader som ikke lenger har noen
+  importreferanse (delte rader beholdes) → slett filrader og fritekst → marker
   Storage-objektet for sletting. Serverhandlingen sletter Storage-objektet etter at
   transaksjonen er committet; feiler Storage-sletting, blir objektet stående i
   slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis.
+
 - `public.linkedin_import_retention_sweep()` — idempotent, samme
   `SECURITY DEFINER`/`search_path`/grant-regler; sletter ZIP ≥7 dager, staging
   ≥90 dager etter `reconciliation_ready`, staging uten brukerhandling per kontraktens
