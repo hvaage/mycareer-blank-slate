@@ -4602,6 +4602,39 @@ export type Database = {
           },
         ]
       }
+      linkedin_storage_delete_queue: {
+        Row: {
+          attempts: number
+          deleted_at: string | null
+          enqueued_at: string
+          id: string
+          last_error_code: string | null
+          linkedin_import_id: string | null
+          object_path: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          deleted_at?: string | null
+          enqueued_at?: string
+          id?: string
+          last_error_code?: string | null
+          linkedin_import_id?: string | null
+          object_path: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          deleted_at?: string | null
+          enqueued_at?: string
+          id?: string
+          last_error_code?: string | null
+          linkedin_import_id?: string | null
+          object_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       match_assessments: {
         Row: {
           apply_recommendation_score: number | null
@@ -7510,6 +7543,11 @@ export type Database = {
         }
         Returns: string
       }
+      linkedin_import_delete: {
+        Args: { p_import_id: string; p_reason?: string }
+        Returns: Json
+      }
+      linkedin_import_retention_sweep: { Args: never; Returns: Json }
       list_regnskap_cron_runs: {
         Args: { p_limit?: number }
         Returns: {
