@@ -131,9 +131,23 @@ function ForslagInboxPage() {
         <QueueCard
           icon={Linkedin}
           title="LinkedIn"
-          description="Kompetanser du selv har oppgitt vises som «Trenger vurdering» til de har belegg."
-          count={0}
-          statusText="Kommer"
+          description="Forslag fra LinkedIn-eksporten din. Kompetanser du selv har oppgitt vises som «Trenger vurdering» til de har belegg."
+          count={linkedinCount}
+          statusText={linkedinCount > 0 ? `${linkedinCount} venter` : "Ingenting venter"}
+          action={
+            <Button
+              asChild
+              size="sm"
+              variant={linkedinCount > 0 ? "default" : "outline"}
+            >
+              <Link
+                to={linkedinCount > 0 ? "/kildegjennomgang" : "/kilder"}
+                search={linkedinCount > 0 ? { source: "linkedin" } : undefined}
+              >
+                {linkedinCount > 0 ? "Åpne kildegjennomgang" : "Last opp LinkedIn-eksport"}
+              </Link>
+            </Button>
+          }
         />
 
         <QueueCard
