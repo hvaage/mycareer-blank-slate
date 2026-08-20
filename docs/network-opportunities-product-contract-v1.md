@@ -17,22 +17,30 @@ Ingen migrasjon og ingen UI bygges før dokumentet er godkjent.
 
 ### 0.1 Kildeklassifisering (normativ)
 
-Hvert felt som vises i modulen skal ha nøyaktig én kildeklasse:
+Hver **aktiv** feltverdi har nøyaktig én kildeklasse. Formuleringer som «linkedin_observation / user_input» er ikke tillatt noe sted i kontrakten:
 
 | Kode | Kildeklasse | Betydning |
 | --- | --- | --- |
 | `user_input` | Brukeroppgitt | Brukeren har skrevet eller bekreftet verdien selv. |
 | `linkedin_observation` | LinkedIn-observasjon | Observert i en LinkedIn-eksport på et gitt tidspunkt. Aldri «bekreftet». |
 | `register` | Brønnøysund/arbeidsgiverregister | Offentlig registerdata. |
+| `job_posting` | Annonsekilde | Data hentet direkte fra stillingsannonsen (tittel, selskap, URL, kontaktperson i annonsen). |
 | `employer_analysis` | Arbeidsgiveranalyse | Modellgenerert analyse med kildeliste. Merkes synlig som KI-generert. |
+| `derived_evaluation` | Avledet evaluering | Beregnet match/score. Krever modell-/regelversjon og inputtidspunkt. |
+| `ai_suggestion` | KI-forslag | Modellgenerert forslag som krever eksplisitt brukerhandling før det blir produktdata. |
 | `activity` | Aktivitet | Utledet av brukerens egne registrerte aktiviteter og søknader. |
 
 Regler:
 
+- Ved manuell redigering blir aktiv verdi `user_input`. Den tidligere LinkedIn-observasjonen slettes ikke, men beholdes som **historisk proveniens** og vises aldri som aktiv verdi.
+- DTO-en skal kunne vise aktiv verdi og siste LinkedIn-observasjon samtidig, i to atskilte grener. De blandes aldri til ett felt.
 - LinkedIn-observasjon presenteres alltid med «Kilde: LinkedIn» og «Sist observert: <dato>». Den fremstilles aldri som verifisert kontaktdata.
 - Ordet «attestering» brukes **aldri** om LinkedIn-data. LinkedIn-signaler er tredjepartssignal og er aldri `documented`, `verified` eller `user_attested`.
 - Ord som «verifisert», «bekreftet» og «kvalitetssikret» brukes ikke om KI-genererte eller importerte artefakter.
 - Arbeidsgiveranalyse vises aldri uten kilde og analysetidspunkt.
+- `derived_evaluation` vises aldri uten modell-/regelversjon og tidspunkt for inputdata.
+- `ai_suggestion` vises aldri som registrert data; den vises som forslag med godkjenn/avvis.
+
 
 ### 0.2 Tidsstempler
 
