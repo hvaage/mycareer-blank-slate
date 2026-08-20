@@ -72,6 +72,8 @@ Alle nye tabeller: RLS på, ingen tilgang for uinnloggede, kun lesing av egne ra
 
 Alle 27 punktene fra bestillingen, inkludert: mottatt vs. gitt endorsement, at endorser-identitet aldri når produktmodellen, retning på anbefalinger, dublettsperre, eksakt identitetsmatch vs. navnelikhet, reimport som ikke overskriver manuelle rettinger, ingen fuzzy selskapkobling, kursdato- og URL-reglene, kurs vs. sertifisering, parallelle roller, at ny versjon ikke rører behandlet historikk, idempotens, aktivitetsmigrering med null tomme eiere, kryssbruker-sperre, RLS-isolasjon, og før/etter-telling som viser at ingen produktdata endres.
 
+I tillegg to nye tester: at jobbsignalene er ryddet historisk og blokkert ved ny import, og at nettverksbatchen er idempotent, aldri skriver kontakter, og gir riktig kategori for navnelikhet, eksakt identitet og observert profilendring.
+
 ## Leveranse
 
 Preflight- og avviksrapport, migrasjoner med datamodelloversikt, oppdatert feltmapping med faktiske LinkedIn-headere, reglene for den nye avstemmingsversjonen, backend-DTO for nettverksbatch og reimportendringer, RLS- og rettighetsrapport, testresultater, før/etter-tall, oppdatert `docs/linkedin-import-contract-v1.md`, og bekreftelse på at ingen reell LinkedIn-ZIP er brukt.
