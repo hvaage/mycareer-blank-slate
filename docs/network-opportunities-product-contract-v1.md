@@ -1,10 +1,15 @@
 # Nettverk og muligheter — produktkontrakt v1
 
 Status: forslag til godkjenning. Normativ for all senere implementering av modulen «Nettverk og muligheter».
-Versjon: 1.0 (2026-08-20). Språk i produktet: norsk (bokmål).
+Versjon: 1.1 (2026-08-20). Språk i produktet: norsk (bokmål).
 
 Dette dokumentet er kilde-til-produkt-kontrakten for fem flater: **Oversikt, Selskaper, Kontakter, Muligheter, Aktiviteter**.
 Ingen migrasjon og ingen UI bygges før dokumentet er godkjent.
+
+### Endringslogg
+
+**v1.1** — Én kildeklasse per aktiv feltverdi med historisk LinkedIn-proveniens i egen DTO-gren. Nye kildeklasser `job_posting`, `derived_evaluation`, `ai_suggestion`. Endorsement-signal fjernet fra Kontakt-flaten. Mottatte anbefalinger krever brukerbekreftet kontaktkobling. `network_contact_identities` er eneste eier av LinkedIn-profil-URL. `user_company_relationships` navngitt som eier av brukerens selskapsrelasjon. Artikler/innhold er `not_actionable_in_phase_4`. Sikker migreringssekvens for `next_steps` med sammensatte, user-scopede fremmednøkler.
+
 
 ---
 
