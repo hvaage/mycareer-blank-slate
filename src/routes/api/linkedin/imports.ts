@@ -86,7 +86,8 @@ export const Route = createFileRoute("/api/linkedin/imports")({
           ok: true,
           imports: imports.map((i) => ({
             ...i,
-            latest_attempt: latestByImport.get(i.id as string) ?? null,
+            latest_attempt: latestByImport.get(i["id"] as string) ?? null,
+
           })),
         });
       },
