@@ -82,8 +82,11 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   (`csv_row|archive_file|html_section`), `source_locator`, `source_row_number`,
   `source_row_hash`, `source_content_hash`, `source_event_at`, `source_recorded_at`,
   `source_url`, `source_classification`), `source_identity_hash`,
-  `first_linkedin_import_id`, `last_linkedin_import_id`, `created_at`, `last_seen_at`.
+  `first_linkedin_import_id`, `last_linkedin_import_id`, `created_at`, `last_seen_at`,
+  `preserved_tombstone_id uuid NULL REFERENCES public.linkedin_import_tombstones(id)`
+  — settes **kun** når en stagingrad må bevares uten gjenværende aktiv import.
   Begge import-referansene er sammensatte FK-er med `user_id`.
+
   Unik indeks `(user_id, source_file, source_identity_hash)` og hjelpe-unike
   `(id, user_id)`, `(id, staging_domain)`, `(id, purpose)` som domenetabellene og
   koblingstabellen refererer til.
@@ -214,11 +217,21 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
   7. marker Storage-objektet for sletting og sett `archive_available = false`
 
   FK-ene på `first/last_linkedin_import_id` bruker aldri `ON DELETE SET NULL`: enten
-  peker de på en gyldig gjenværende import, eller raden er tombstone-forankret, eller
-  den er slettet. Serverhandlingen sletter Storage-objektet etter commit; feiler
-  Storage-sletting, blir objektet stående i slettekø og fjernes av sweepen —
-  databaserader gjenopprettes aldri halvveis. Samme referansereparasjon gjelder når
-  retention-sweepen purger en import.
+  peker de på en gyldig gjenværende import, eller raden er tombstone-forankret via
+  `preserved_tombstone_id`, eller den er slettet. Serverhandlingen sletter
+  Storage-objektet etter commit; feiler Storage-sletting, blir objektet stående i
+  slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis. Samme
+  referansereparasjon gjelder når retention-sweepen purger en import.
+- **Endelig tilstand (valgt modell: B, tombstone-markert rad).** Siste steg i samme
+  transaksjon, etter referansereparasjon, fil-/formålsopprydding og Storage-slettekø:
+  importraden beholdes med `purged_at = now()`, `status = 'cancelled'`,
+  `archive_available = false`, `active_phase = null`, nullstilte tellefelt og ingen
+  aktive fil-, formåls-, staging- eller Storage-koblinger. Raden er da rent historisk.
+  Tombstone ligger separat i `linkedin_import_tombstones`.
+  Den partielle unikindeksen `(user_id, archive_sha256)
+  WHERE purged_at IS NULL AND status <> 'cancelled'` treffer derfor ikke slike rader:
+  en slettet import kan aldri blokkere ny import av samme ZIP.
+
 
 
 - **Kanonisk import ved sletting:** dersom andre importrader peker til importen som
@@ -234,10 +247,18 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
   for Storage, og setter importer med utløpt `heartbeat_at` til `failed` med
   `staging_timeout`. Rører aldri CV-importer eller andre kilder. Testes mot
   syntetiske data; ikke planlagt i cron i denne fasen.
-- **Reimport etter sletting:** tombstone beholdes som revisjonsspor, men blokkerer
-  ikke ny import. Den partielle unikheten på `(user_id, archive_sha256)` gjelder kun
-  aktive rader, så identisk ZIP kan lastes opp igjen og gir en ny, ren importrad uten
-  arvede stagingkoblinger.
+- **Reopplasting etter retention ≠ reimport etter sletting.** To distinkte flyter,
+  avgjort av om det finnes en aktiv import med samme `(user_id, archive_sha256)`:
+  - *Aktiv import finnes, men `archive_available = false`* (ZIP slettet etter 7 dager):
+    dette er **ikke** en ny import. Flyten gjenbruker den eksisterende importraden,
+    oppretter nytt `attempt_id`, lagrer nytt privat ZIP-objekt, setter
+    `archive_available = true` **først** etter bekreftet Storage-skriv, beholder alle
+    eksisterende stagingkoblinger, og stager kun de nye, senere valgte formålene.
+  - *Ingen aktiv import (manuelt slettet eller purget)*: opplasting av samme ZIP
+    oppretter en ny, ren importrad. Tombstone beholdes som revisjonsspor og blokkerer
+    ikke, siden den partielle unikheten kun gjelder aktive rader. Ingen arvede
+    stagingkoblinger.
+
 - Kontraktdokumentet `docs/linkedin-import-contract-v1.md` oppdateres i samme
   leveranse slik at §6.1/§6.2/§9.5 og §1.3 har **én** autoritativ livssyklus:
   ZIP 7 dager, staging 90 dager, samme statusklassifisering som over — og slik at
@@ -273,16 +294,27 @@ Nye tester:
    `canonical_import_id` på tvers av to brukere avvises av sammensatt FK.
 6. Kanonisk import: sletting av en import som andre peker til flytter referansene
    atomisk, eller avvises med `canonical_import_in_use` — aldri ugyldig referanse.
-7. Reimport: slett/purge import → last opp identisk syntetisk ZIP → ny aktiv import
-   opprettes, tombstone består, ingen arvede stagingkoblinger.
+7. Reimport etter sletting: slett/purge import (rad står igjen med `purged_at` og
+   `status = cancelled`) → last opp identisk syntetisk ZIP → ny aktiv importrad
+   opprettes uten at den partielle unikindeksen blokkerer, tombstone består, ingen
+   arvede stagingkoblinger.
+7b. Reopplasting etter retention: aktiv import med `archive_available = false` →
+   identisk ZIP lastes opp → **ingen** ny importrad; samme import får nytt
+   `attempt_id`, nytt Storage-objekt, `archive_available = true` etter skriv,
+   eksisterende stagingkoblinger intakte, og kun nye valgte formål stages.
+
 8. `archive_available`: `true` kun etter bekreftet Storage-skriv; `false` ved
    minneparsing og etter retention-sweep.
 9. Formål i identitetshashen: samme kildeinnhold behandlet for to formål gir to
    distinkte stagingrader uten unikhetskollisjon.
 10. Delt stagingrad ved sletting: to importer deler samme stagingrad, første import
     slettes. Stagingraden beholdes, `first/last_linkedin_import_id` peker kun til den
-    gyldige gjenværende importen (eller tombstone), alle FK-er validerer, og den andre
-    importen kan fortsatt leses og senere slettes kontrollert.
+    gyldige gjenværende importen, alle FK-er validerer, og den andre importen kan
+    fortsatt leses og senere slettes kontrollert.
+11. Tombstoneforankring: når siste aktive import for en bevart stagingrad slettes,
+    settes `preserved_tombstone_id` til importens tombstone, FK-en validerer, og
+    `first/last_linkedin_import_id` blir aldri hengende på en slettet import.
+
 
 
 
