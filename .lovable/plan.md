@@ -151,8 +151,12 @@ brukerautentiseringen som gjelder for senere brukerutløste handlinger.
   krever en ny, eksplisitt parserversjon (`connections_csv_preamble_v2`).
 - `normalize.server.ts` — NFKC, whitespace, kontrollert ISO-datoparsing med
   eksplisitt presisjon, ingen gjetting; ugyldig verdi → null + maskinlesbar årsak.
-- `stage.server.ts` — skriver kun hvitlistede felt, kun for valgte formål; øvrige
-  filer får `skipped_no_consent` eller `deferred`.
+- `stage.server.ts` — skriver foreldrerad i `linkedin_staging_records` + domenerad +
+  koblingsrad (`linkedin_import_stage_records` med gjeldende `attempt_id`) i samme
+  transaksjon; kun hvitlistede felt og kun for valgte formål. Utfall per fil og formål
+  skrives til `linkedin_import_file_purposes` (`staged`, `skipped_no_consent`,
+  `deferred`, `failed`) med `staged_record_count`.
+
 
 Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkoder.
 
