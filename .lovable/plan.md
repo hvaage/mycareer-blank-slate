@@ -35,18 +35,23 @@ RLS og immutabilitet for varsler:
 - `SELECT`: kun `auth.uid() = user_id`.
 - `INSERT`/`DELETE`: ingen klientpolicy; kun `service_role`.
 - `UPDATE`: én avgrenset policy for eier, kombinert med en `BEFORE UPDATE`-trigger som avviser enhver endring av `notification_kind`, `title`, `body`, `deep_link`, `linkedin_import_id`, `attempt_id`, `user_id` og `created_at`. Kun `read_at` kan endres. Frontendlogikk regnes ikke som håndhevelse.
+- `read_at` er monoton: eneste tillatte klientovergang er `NULL → gyldig tidspunkt` (trigger setter verdien til `now()` og avviser fremtidige tidspunkt). Når `read_at` først er satt, kan den verken nullstilles eller endres. Varslingshistorikken kan dermed ikke manipuleres fra frontend.
+
 - GRANT: `SELECT, UPDATE` til `authenticated`, `ALL` til `service_role`.
 
 ## 2. Serverfunksjoner (SECURITY DEFINER, kun service_role)
 
-`linkedin_import_claim_next_attempt` (atomisk, `FOR UPDATE SKIP LOCKED`, setter lease 180 s), `linkedin_import_heartbeat`, `linkedin_import_complete_attempt`, `linkedin_import_fail_attempt` (skiller retrybar/ikke-retrybar, setter `next_retry_at` etter 1/5/15/60 min), `linkedin_import_reap_expired_attempts`.
+`linkedin_import_claim_next_attempt` (atomisk, `FOR UPDATE SKIP LOCKED`, setter lease 180 s), `linkedin_import_heartbeat`, `linkedin_import_complete_attempt`, `linkedin_import_fail_attempt`, `linkedin_import_reap_expired_attempts`.
 
-Reaper-semantikk (må gjenoppta, ikke bare markere):
-- Lease er >2x heartbeat-margin, så levende workere berøres aldri.
-- Utløpt lease → gammelt attempt settes `expired` med sanitert årsak (`lease_expired`).
-- I samme transaksjon opprettes atomisk et nytt `queued` attempt med `attempt_number + 1`, arvet `cursor_json` og `retry_count + 1`, så lenge samlet retrybudsjett (maks 5) tillater det.
-- Først når budsjettet er brukt opp settes importen `failed` og terminalt varsel opprettes.
-- Invariant som testes: en import kan aldri stå igjen med kun `expired`/avsluttede attempts og gjenværende budsjett.
+Felles videreføringsregel for `fail_attempt` og reaper — et avsluttet attempt må aldri etterlate importen uten arbeid:
+- Det avsluttede attemptet skrives immutabelt: `failed` ved retrybar/ikke-retrybar feil under normal kjøring, `expired` ved utløpt lease, alltid med sanitert feilkode og årsak. Avsluttede attempts endres aldri tilbake.
+- Ved retrybar feil og gjenværende retrybudsjett opprettes i **samme transaksjon** et nytt `queued` attempt med `attempt_number + 1`, arvet `cursor_json`, `retry_count + 1` og `next_retry_at` etter backoff 1/5/15/60 min.
+- `claim_next_attempt` velger kun `queued` attempts med `next_retry_at <= now()`.
+- Ikke-retrybare feilkoder oppretter aldri nytt attempt.
+- Når budsjettet (maks 5) er brukt opp, opprettes ingen ny `queued` rad; importen blir terminal `failed` og får nøyaktig ett terminalt varsel.
+- Lease er >2x heartbeat-margin, så reaper rører aldri en levende worker.
+- Invariant som testes eksplisitt: ingen import kan stå med bare avsluttede attempts (`failed`/`expired`) samtidig som retrybudsjettet gjenstår.
+
 
 
 ## 3. Ruter
