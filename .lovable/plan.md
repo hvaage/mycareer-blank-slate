@@ -51,11 +51,14 @@ Reaper-semantikk (må gjenoppta, ikke bare markere):
 
 ## 3. Ruter
 
-- `POST /api/linkedin/imports` gjøres om til ren kvittering: autentiser, valider minimal integritet, lagre ZIP i privat Storage-path, opprett/gjenbruk `linkedin_imports` (uendret sha256-dedupregel), opprett `queued` attempt, svar `{ import_id, status: "queued" }`. Ingen parsing i requesten. 5-minutters «stale»-stemplingen i `GET` fjernes; status kommer fra attempt-modellen.
+- `POST /api/linkedin/imports` gjøres om til ren kvittering: autentiser, valider minimal integritet, skriv ZIP til privat Storage, opprett/gjenbruk `linkedin_imports` (uendret sha256-dedupregel), opprett `queued` attempt, svar `{ import_id, status: "queued" }`. Ingen parsing i requesten. 5-minutters «stale»-stemplingen i `GET` fjernes; status kommer fra attempt-modellen.
+- Storage-integritet: `archive_storage_path` settes **kun** etter bekreftet vellykket privat skriving, i samme skritt som `archive_available = true`. Feiler Storage-skrivingen, settes ingen path, `archive_available` forblir `false`, importen/attemptet får kontrollert `storage_write_failed` og det opprettes aldri et `queued` attempt. En DB-invariant (CHECK/trigger) forbyr `archive_available = true` uten path. Workeren verifiserer at objektet finnes før arbeid startes, og feiler kontrollert som `archive_missing` (ikke-retrybar) ellers.
 - `GET /api/linkedin/imports` utvides med fase, tellere, `heartbeat_at`, retry-info og siste attempt.
 - `POST /api/public/linkedin/import-worker` og `POST /api/public/linkedin/import-reaper`: POST-only, `x-worker-secret` i konstant tid før all databasekontakt, avviser brukerens JWT, saniterte svar. Workeren claim'er én attempt, henter ZIP fra Storage, kjører avgrensede chunks av eksisterende `validateAndStageArchive` / `runReconciliation`, lagrer cursor + tellere + heartbeat mellom chunks, og avslutter innen tidsbudsjettet slik at neste invokasjon fortsetter.
 - `POST /api/linkedin/imports/:id/cancel` og `/retry`: setter cancellation requested (worker stopper på neste sikre chunk-grense, ingen sletting av gyldig staging) eller oppretter nytt attempt med bevart historikk.
-- pg_cron: worker hvert minutt, reaper hvert 5. minutt, begge med hemmelighet fra vault.
+- Hemmelighet i to miljøer: `LINKEDIN_IMPORT_WORKER_SECRET` lagres som runtime-secret for ruten (via `generate_secret`) og samme verdi legges i Supabase Vault under samme navn for pg_net-kallet. Ingen annen hemmelighet gjenbrukes. Før cron aktiveres kjøres en kontrollert hemmelighetstest: ett `net.http_post` med vault-verdien mot worker-ruten skal gi 200/`no_work`, og ett kall uten/med feil hemmelighet skal gi 401 — begge verifiseres i `net._http_response` uten at verdien logges.
+- pg_cron aktiveres først etter bestått hemmelighetstest: worker hvert minutt, reaper hvert 5. minutt, begge med hemmelighet hentet fra vault.
+
 
 ## 4. Statusavbildning
 
