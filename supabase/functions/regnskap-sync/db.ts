@@ -88,11 +88,11 @@ export async function releaseRegnskapSyncLock(c: PoolClient): Promise<void> {
 }
 
 const CLAIMABLE_LOCKED_SQL = `(
-  (s.status IN ('pending','retry','due')
+  (s.status IN ('pending','retry','due','retry_later')
       AND coalesce(s.backoff_until, '-infinity'::timestamptz) <= now()
       AND coalesce(s.next_attempt_at, '-infinity'::timestamptz) <= now())
   OR (s.status = 'ok' AND (s.next_attempt_at <= now() OR s.last_success_at < now() - interval '180 days'))
-  OR (s.status = 'no_regnskap' AND s.last_checked_at < now() - interval '90 days')
+  OR (s.status IN ('no_regnskap','ingen_regnskap') AND s.last_checked_at < now() - interval '90 days')
   OR (s.status = 'not_found' AND s.last_checked_at < now() - interval '180 days')
   OR (s.status = 'in_progress' AND s.last_checked_at < now() - interval '10 minutes')
 )`;
@@ -294,6 +294,30 @@ export async function selectCandidates(
      ORDER BY coalesce(s.next_attempt_at, '-infinity'::timestamptz), s.last_checked_at ASC NULLS FIRST
      LIMIT $1`,
     true,
+  );
+  // Enheter som aldri har fått en statusrad (nye rader fra Enhetsregisteret).
+  // Uten denne grenen blir de kun plukket opp i mode='all-missing'.
+  await runBranch(
+    "missing_status_row",
+    `SELECT e.organisasjonsnummer
+     FROM reg.enheter e
+     LEFT JOIN reg.regnskap_sync_status s ON s.organisasjonsnummer = e.organisasjonsnummer
+     WHERE coalesce(e.slettet,false)=false
+       AND s.organisasjonsnummer IS NULL
+     ORDER BY e.antall_ansatte DESC NULLS LAST
+     LIMIT $1`,
+  );
+  // Historiske statusverdier fra tidligere synkmotor.
+  await runBranch(
+    "legacy_status",
+    `SELECT s.organisasjonsnummer
+     FROM reg.regnskap_sync_status s
+     JOIN reg.enheter e ON e.organisasjonsnummer = s.organisasjonsnummer
+     WHERE coalesce(e.slettet,false)=false
+       AND s.status IN ('retry_later','ingen_regnskap')
+       AND s.last_checked_at < now() - interval '7 days'
+     ORDER BY s.last_checked_at ASC NULLS FIRST
+     LIMIT $1`,
   );
   await runBranch(
     "stale_in_progress",
