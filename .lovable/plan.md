@@ -1,56 +1,60 @@
-# LinkedIn-import: stillinger, kurs og kompetanse kommer aldri frem — årsak og løsning
+# LinkedIn-import: bakgrunnskjøring, varsling, attesteringer og fullstendig kontaktregister
 
-## Svaret på spørsmålet ditt
+## Status på det du spurte om (bekreftet i kode og data)
 
-Nei, stillinger og kompetanser fra LinkedIn er **ikke** lagret på deg, og de ble **ikke** vist i gjennomgangen. De er lest inn og ligger i mellomlageret — 12 stillinger, 95 kompetanser, 5 sertifiseringer, 1 utdanning, 2 frivillige verv og 1 språk — men de ble aldri gjort om til forslag.
+- **Importen kjører i dag i forgrunnen.** Opplastingen leser, validerer, stager og avstemmer hele arkivet i én forespørsel før svaret sendes. Med ~4000 kontakter betyr det lang venting og risiko for tidsavbrudd. Det finnes allerede en intern bakgrunnsrute for arbeidet, men opplastingen bruker den ikke.
+- **Læring og Innhold er valgbart** ved import («Læring» og «Innhold»), og lagringen for begge finnes. Du huket dem ikke av denne gangen, så filene ble funnet, men aldri lest. De blir lagret når du huker dem av — men feltkartleggingen for kurs er svak (kurs-URL hentes fra beskrivelsesfeltet, fullført-dato fra «sist sett»), så den må rettes for å bli riktig.
+- **Attesteringer (endorsements) lagres i dag feil.** Filene leses, men de havner i anbefalingslageret der kompetansenavnet presses inn i et «tittel»-felt sammen med selskap og stilling. Det finnes ingen kobling mellom kompetanse og antall som har støttet den.
+- **Kontaktregisteret er for tynt.** Mellomlageret har navn, selskap, stilling, tilkoblingsdato og profil-URL, men det ferdige kontaktregisteret har ikke felt for stilling eller profil-URL, så stillingen faller bort ved overføring.
 
-Årsaken er bekreftet i dataene: avstemmingen for «karriere» rapporterte «0 kilderader» og «0 forslag» selv om 468 rader var koblet til importen. Uttrekket av kilderadene gjøres i én enkelt spørring med hele id-listen, og den spørringen faller stille igjennom når listen blir stor. Jobbsignaler (301 rader) gikk gjennom, karriere (468) og nettverk (2017) gjorde det ikke — og kjøringen ble likevel markert som «vellykket». Derfor så du bare profilfelter og 300 jobbsignaler.
+## Det som skal gjøres
 
-Kurs er en egen sak: `Learning.csv` ble funnet i eksporten, men formålet «kurs/læring» ble aldri tilbudt i formålsvalget, så filen ble aldri lest inn.
+### 1. Importen kjøres i bakgrunnen med varsling
+- Opplastingen registrerer importen, kvitterer umiddelbart og starter arbeidet i bakgrunnen. Brukeren kan lukke siden, navigere videre eller logge ut.
+- Fremdrift vises på importkortet (validering → innlesing → avstemming) med hjerteslag, slik at en stanset kjøring oppdages og kan startes på nytt.
+- Når importen er ferdig — eller feiler — varsles brukeren:
+  - i appen, som en varsling i toppen med lenke til kildegjennomgangen,
+  - og på e-post med kort oppsummering (antall funn per område, eller feilårsak).
+- Feilmelding er alltid handlingsrettet: hva som gikk galt og hva brukeren kan gjøre.
 
-## Det som skal fikses
+### 2. Attesteringer lagres som støtte per kompetanse
+- Attesteringer skilles ut fra anbefalinger og lagres for seg, med kompetansenavn, hvem som støttet, og dato.
+- Per kompetanse beregnes antall som har gitt støtte, og tallet vises i kompetanseoversikten («Støttet av 14 på LinkedIn»).
+- Støtte fra andre er aldri belegg for din egen påstand. Den vises som ekstern indikasjon, tydelig atskilt fra ditt eget belegg, i tråd med evidensprinsippet.
+- Attesteringer du har gitt til andre lagres, men vises ikke i din kompetanseprofil.
 
-### 1. Karriereavstemmingen må faktisk kjøre
-- Uttrekket av kilderader deles i bolker, slik at antall rader ikke lenger avgjør om noe blir lest.
-- En kjøring som ikke fikk lest kildene skal aldri kunne rapportere «vellykket» — den feiler synlig, med årsak, og kan kjøres på nytt fra importsiden.
-- Karriereavstemming kjøres på nytt for importen din, slik at de 116 karriererader (stillinger, kompetanse, sertifiseringer, utdanning, språk, frivillig) blir til forslag.
+### 3. Kontaktregisteret utvides
+- Kontakter lagres med navn, stilling, selskap, tilkoblingsdato, profil-URL og siste oppdatering fra eksporten.
+- Ved ny import oppdateres eksisterende kontakter (endret stilling eller selskap) i stedet for å dupliseres, og endringen kan vises som historikk.
+- Selve nettverksimporten forblir en masseoperasjon uten enkeltbeslutninger — 4000 kontakter skal aldri bli 4000 forslag; brukeren tar én beslutning for hele nettverket.
 
-### 2. Kurs blir en del av importen
-- «Kurs og læring» legges til som valgbart formål ved import, slik at `Learning.csv` leses inn og avstemmes mot kvalifikasjonene dine.
-
-### 3. Stillinger vises kompakt, som i Trinn 1 ved CV-import
-- Egen seksjon «Stillinger fra LinkedIn» i kildegjennomgangen, med samme kompakte tidslinjeoppsett som CV-importens Trinn 1: én linje per stilling med tittel, arbeidsgiver og periode.
-- Hver stilling avstemmes mot rollene i «Erfaring og kompetanse»:
-  - **Finnes allerede** — samme rolle gjenkjent; vises som bekreftet uten å kreve handling, med mulighet til å fylle inn manglende dato eller beskrivelse.
-  - **Avvik** — samme rolle, men ulik periode/tittel/arbeidsgiver; vises side ved side med valget «behold mitt» / «bruk LinkedIn» / «rett manuelt».
-  - **Ny rolle** — legges til i «Erfaring og kompetanse» ved godkjenning, med LinkedIn som sporet kilde.
-- Massehandling: «Godkjenn alle nye roller» og avkryssing for delvis godkjenning. Avvik må alltid besluttes enkeltvis.
-- Har man ikke gjort CV-import, blir dette den naturlige starten: rollene opprettes her, og en senere CV-import avstemmes mot dem i stedet for å duplisere. LinkedIn-først blir dermed en fullverdig vei inn.
-
-### 4. Kompetanse (Skills) behandles som kompetanse, ikke som løse rader
-- 95 kompetanser skal ikke bli 95 kort. De vises som én gruppe med avkryssing, delt i «finnes allerede hos deg» og «ny».
-- Kompetanse fra LinkedIn er ubelagt påstand. Ved godkjenning legges den inn som kompetanse med LinkedIn som kilde og uten belegg, og den merkes tydelig som «mangler belegg» slik at den kan kobles til rolle eller resultat senere — på samme måte som i CV-flyten.
-- Sertifiseringer, utdanning, språk og frivillig arbeid vises som egne små grupper med samme kompakte oppsett.
+### 4. Læring og Innhold verifiseres
+- Feltkartleggingen for kurs rettes: kurstittel, tilbyder, faktisk fullført-dato og kurslenke fra riktige kolonner.
+- Kurs avstemmes mot kvalifikasjonene dine på samme måte som sertifiseringer.
+- Innhold (artikler og innlegg) lagres og vises som kontekst du kan bruke som dokumentasjon, ikke som påstander om kompetanse.
+- Begge deler dekkes av tester slik at avhuking faktisk gir lagrede rader.
 
 ### 5. Fortsatt gjeldende fra forrige plan
-- Jobbsignaler importeres ikke i det hele tatt, og eksisterende 299 rader tas ut av køen.
-- Forslag som ikke kan endre noe opprettes aldri og vises aldri.
-- Klikk gir umiddelbar respons, angremulighet og «Behandlet»-seksjon.
-- «Sikkerhet 50 %» erstattes med forklarende tekst.
-- Norsk er løsningens språk; engelsk kun ved eksplisitt generering.
+- Karriereavstemmingen rettes (bolkevis henting) og kjøres på nytt, slik at stillinger, kompetanse, sertifiseringer, utdanning, språk og frivillig arbeid faktisk blir forslag.
+- Stillinger vises kompakt som i CV-importens Trinn 1 og avstemmes mot rollene i «Erfaring og kompetanse».
+- Jobbsignaler importeres ikke; virkningsløse forslag opprettes aldri.
+- Klikk gir umiddelbar respons, angremulighet og «Behandlet»-seksjon; «Sikkerhet 50 %» erstattes med forklarende tekst.
+- Norsk er løsningens språk.
 
 ## Teknisk gjennomføring
 
-- `src/lib/linkedin/reconciliation/engine.server.ts`: bolkevis henting av staging-rader (`.in(...)` i porsjoner), feil fra kildeuttrekket propageres til kjøringsstatus i stedet for å bli svelget, og kjøring med null leste rader mot ikke-tom koblingsliste behandles som feil.
-- Formålsvalget ved import utvides med «learning», og klassifiseringen for `Learning.csv` kobles på.
-- Stillingsforslag får eget visningsspor i `kildegjennomgang.tsx`, som gjenbruker den kompakte tidslinjekomponenten fra CV-gjennomgangens Trinn 1.
-- Promotering av stillinger og kompetanse går gjennom eksisterende promoteringslag mot `career_atoms`, med kildesporing; ingen ny modell.
-- Karriere- og nettverksavstemmingen for eksisterende import kjøres på nytt etter rettelsen; ingen data slettes.
+- Opplastingsruten svarer etter registrering og delegerer validering, staging og avstemming til den eksisterende interne arbeidsruten, kalt uten at klienten venter. Arkivet mellomlagres slik at arbeideren kan lese det uavhengig av forespørselen.
+- Status, fase, hjerteslag og tellere finnes allerede på importraden og brukes til fremdriftsvisning og gjenoppretting av avbrutte kjøringer.
+- Varsling: en varslingsrad per fullført/feilet import som frontend leser, pluss e-post via eksisterende utsendingskø.
+- Ny lagring for attesteringer (kompetansenavn, retning, motpart, dato) med aggregert støttetelling per kompetanse; kildesporing som ellers.
+- Kontaktregisteret utvides med stilling, profil-URL og oppdateringstidspunkt, med oppdatering på nøkkel i stedet for duplisering.
+- Kartleggingen for kurs rettes i feltmappingen; avstemming for læring og innhold får tester.
 
 ## Rekkefølge
 
-1. Rett karriereavstemmingen og kjør den på nytt (uten dette er alt annet usynlig).
-2. Kompakt stillingsgjennomgang mot «Erfaring og kompetanse».
-3. Kompetanse, sertifisering, utdanning, språk og frivillig som grupper.
-4. Kurs som nytt formål.
-5. Øvrige punkter fra forrige plan (støyfjerning, respons på klikk, sikkerhetstekst).
+1. Bakgrunnskjøring med fremdrift og varsling (ellers er ikke store arkiv brukbare).
+2. Rett karriereavstemmingen og kjør den på nytt.
+3. Attesteringer med støttetelling per kompetanse.
+4. Utvidet kontaktregister.
+5. Kurs og innhold: rettet kartlegging og verifisering.
+6. Øvrige punkter fra forrige plan.
