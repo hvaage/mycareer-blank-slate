@@ -460,6 +460,9 @@ function emptyOutcome(status: string, errorCode: string): StageOutcome {
     stagedRecordCount: 0,
     excludedReasonCounts: {},
     contentManifestHash: "",
+    done: true,
+    nextFileIndex: 0,
     filePurposeOutcomes: [],
+
   };
 }
