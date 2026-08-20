@@ -29,11 +29,25 @@ Kun driftslaget. Ingen endring i feltmapping, endorsements, anbefalinger, kursma
 - `linkedin_imports` får `archive_storage_path` (privat path i `linkedin-imports`-bøtta) og `last_attempt_id`.
 - RLS: eier kan kun `SELECT` egne attempts. Ingen klientskriv til status, lease, cursor, heartbeat eller feilfelt. GRANT `SELECT` til `authenticated`, `ALL` til `service_role`.
 
-`public.user_notifications`: `id, user_id, notification_kind, linkedin_import_id, attempt_id, title, body, deep_link, read_at, created_at`. Unik indeks på `(user_id, linkedin_import_id, notification_kind)` gir idempotens — ett varsel per import per terminalt utfall. RLS: eier leser egne og kan sette `read_at`; innsetting kun via service_role.
+`public.user_notifications`: `id, user_id, notification_kind, linkedin_import_id, attempt_id, title, body, deep_link, read_at, created_at`. Unik indeks på `(user_id, linkedin_import_id, notification_kind)` gir idempotens — ett varsel per import per terminalt utfall.
+
+RLS og immutabilitet for varsler:
+- `SELECT`: kun `auth.uid() = user_id`.
+- `INSERT`/`DELETE`: ingen klientpolicy; kun `service_role`.
+- `UPDATE`: én avgrenset policy for eier, kombinert med en `BEFORE UPDATE`-trigger som avviser enhver endring av `notification_kind`, `title`, `body`, `deep_link`, `linkedin_import_id`, `attempt_id`, `user_id` og `created_at`. Kun `read_at` kan endres. Frontendlogikk regnes ikke som håndhevelse.
+- GRANT: `SELECT, UPDATE` til `authenticated`, `ALL` til `service_role`.
 
 ## 2. Serverfunksjoner (SECURITY DEFINER, kun service_role)
 
-`linkedin_import_claim_next_attempt` (atomisk, `FOR UPDATE SKIP LOCKED`, setter lease 180 s), `linkedin_import_heartbeat`, `linkedin_import_complete_attempt`, `linkedin_import_fail_attempt` (skiller retrybar/ikke-retrybar, setter `next_retry_at` etter 1/5/15/60 min), `linkedin_import_reap_expired_attempts` (kun leases som er utløpt; lease er >2x heartbeat-margin, så levende workere berøres ikke).
+`linkedin_import_claim_next_attempt` (atomisk, `FOR UPDATE SKIP LOCKED`, setter lease 180 s), `linkedin_import_heartbeat`, `linkedin_import_complete_attempt`, `linkedin_import_fail_attempt` (skiller retrybar/ikke-retrybar, setter `next_retry_at` etter 1/5/15/60 min), `linkedin_import_reap_expired_attempts`.
+
+Reaper-semantikk (må gjenoppta, ikke bare markere):
+- Lease er >2x heartbeat-margin, så levende workere berøres aldri.
+- Utløpt lease → gammelt attempt settes `expired` med sanitert årsak (`lease_expired`).
+- I samme transaksjon opprettes atomisk et nytt `queued` attempt med `attempt_number + 1`, arvet `cursor_json` og `retry_count + 1`, så lenge samlet retrybudsjett (maks 5) tillater det.
+- Først når budsjettet er brukt opp settes importen `failed` og terminalt varsel opprettes.
+- Invariant som testes: en import kan aldri stå igjen med kun `expired`/avsluttede attempts og gjenværende budsjett.
+
 
 ## 3. Ruter
 
