@@ -158,8 +158,8 @@ Følgende importeres **aldri**, verken til staging eller produkt:
 | --- | --- | --- | --- | --- | --- |
 | Registerprofil | `name`, `organisasjonsnummer`, `industry`, `size_estimate`, `country`, `ownership_type` | `companies` | `register` | `brreg_matched_at` | Nei |
 | Arbeidsgiverinnsikt | `employer_analysis_v2`, dimensjonsskår, kildeliste | `companies`, `employer_reports` | `employer_analysis` | `employer_analysis_rated_at` | Nei |
-| Brukerens relasjon | notater, status, prioritet | brukerens egne felt | `user_input` | `updated_at` | Ja |
-| Kontakter i selskapet | navn, rolle | `network_contacts` | `linkedin_observation` / `user_input` | observert/oppdatert | Ja (kontaktobjektet) |
+| Brukerens relasjon | notater, status, prioritet | `user_company_relationships` (user-scoped, unik på `(user_id, company_id)`) | `user_input` | `updated_at` | Ja |
+| Kontakter i selskapet | navn, rolle | `network_contacts` | aktiv verdi: `user_input` etter redigering, ellers `linkedin_observation`; historikk i `last_source_observation` | `updated_at` / `observed_at` | Ja (kontaktobjektet) |
 | Muligheter | stilling, status | `user_opportunities` | `user_input` | `updated_at` | Ja |
 | Søknader | status, dato | `applications` | `user_input` | `updated_at` | Ja |
 | Dokumenter | tittel, type | `documents` | `user_input` | `updated_at` | Ja |
