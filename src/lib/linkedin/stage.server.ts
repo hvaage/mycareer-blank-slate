@@ -268,10 +268,9 @@ async function writeStagingRecords(admin: AdminClient, records: StagingInput[]):
 
   // 3) Sett inn nye rader og tilhørende domenerader.
   const fresh = unique.filter((r) => !existing.has(r.identityHash));
-  const linkRows: Array<{ stagingId: string; identityHash: string }> = existingIds.map((id) => ({
-    stagingId: id,
-    identityHash: "",
-  }));
+  const linkRows: Array<{ stagingId: string; identityHash: string }> = [...existing.entries()].map(
+    ([identityHash, stagingId]) => ({ stagingId, identityHash }),
+  );
   let staged = existingIds.length;
 
   for (const part of chunked(fresh)) {
@@ -319,7 +318,7 @@ async function writeStagingRecords(admin: AdminClient, records: StagingInput[]):
       continue;
     }
 
-    for (const id of idByHash.values()) linkRows.push({ stagingId: id, identityHash: "" });
+    for (const [hash, id] of idByHash.entries()) linkRows.push({ stagingId: id, identityHash: hash });
     staged += domainRows.length;
   }
 
@@ -333,7 +332,7 @@ async function writeStagingRecords(admin: AdminClient, records: StagingInput[]):
         staging_record_id: l.stagingId,
         staging_domain: domain,
         purpose,
-        source_identity_hash: l.identityHash || null,
+        source_identity_hash: l.identityHash,
       })),
       { onConflict: "linkedin_import_id,attempt_id,staging_record_id" },
     );
