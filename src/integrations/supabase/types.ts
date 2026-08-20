@@ -7556,6 +7556,30 @@ export type Database = {
         }
         Returns: Json
       }
+      _linkedin_import_backoff: {
+        Args: { p_retry_count: number }
+        Returns: string
+      }
+      _linkedin_import_continue: {
+        Args: {
+          p_attempt: Database["public"]["Tables"]["linkedin_import_attempts"]["Row"]
+          p_error_code: string
+          p_error_summary: string
+        }
+        Returns: string
+      }
+      _linkedin_import_notify: {
+        Args: {
+          p_attempt_id: string
+          p_body: string
+          p_deep_link: string
+          p_import_id: string
+          p_kind: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       _linkedin_promotion_commit: {
         Args: {
           p_action: string
@@ -8290,9 +8314,71 @@ export type Database = {
         }
         Returns: string
       }
+      linkedin_import_claim_next_attempt: {
+        Args: { p_lease_owner: string; p_lease_seconds?: number }
+        Returns: {
+          archive_storage_path: string
+          attempt_id: string
+          attempt_number: number
+          cursor_json: Json
+          import_id: string
+          phase: string
+          purposes: string[]
+          retry_count: number
+          user_id: string
+        }[]
+      }
+      linkedin_import_complete_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_reconciliation_runs?: number
+          p_staged_records?: number
+          p_status: string
+          p_warning_count?: number
+        }
+        Returns: undefined
+      }
       linkedin_import_delete: {
         Args: { p_import_id: string; p_reason?: string }
         Returns: Json
+      }
+      linkedin_import_enqueue: {
+        Args: { p_import_id: string }
+        Returns: string
+      }
+      linkedin_import_fail_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_error_code: string
+          p_error_summary: string
+          p_retryable: boolean
+        }
+        Returns: string
+      }
+      linkedin_import_heartbeat: {
+        Args: {
+          p_attempt_id: string
+          p_cursor?: Json
+          p_lease_owner: string
+          p_lease_seconds?: number
+          p_phase?: string
+          p_processed_files?: number
+          p_processed_rows?: number
+          p_staged_records?: number
+        }
+        Returns: boolean
+      }
+      linkedin_import_manual_retry: {
+        Args: { p_import_id: string; p_user_id: string }
+        Returns: string
+      }
+      linkedin_import_reap_expired_attempts: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
+      linkedin_import_request_cancel: {
+        Args: { p_import_id: string; p_user_id: string }
+        Returns: string
       }
       linkedin_import_retention_sweep: { Args: never; Returns: Json }
       linkedin_promote_career_record: {
