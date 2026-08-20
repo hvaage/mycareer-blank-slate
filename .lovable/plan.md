@@ -14,6 +14,23 @@ Dokumentet inneholder også datamatrisen: kilde → staging → forslag → prom
 
 Dokumentet skiller eksplisitt mellom navngivning: «attestering» brukes ikke om LinkedIn-data. LinkedIn-endorsements er tredjepartssignal, aldri documented, verified eller user_attested.
 
+### Normativt vedlegg: «Skjermatferd for Nettverk og muligheter v1»
+
+Kontrakten får et eget normativt vedlegg som fastsetter visning og navigasjon:
+
+- **Modul og navigasjon.** «Nettverk og muligheter» ligger under «Min karriere», før «Marked». Nivå-2-navigasjon: Oversikt, Selskaper, Kontakter, Muligheter, Aktiviteter. Globalt søk er avgrenset til brukerens eget tenant og dekker kontakt, selskap og mulighet. Lenker mellom kontakt, selskap, mulighet, dokument og aktivitet åpner riktig detaljside. «Tilbake» returnerer til forrige kontekst, ikke alltid til registerets hovedliste.
+- **Arbeidsflate.** Desktopflatene er kompakte arbeidsflater, ikke lange landingssider. Detaljsider bruker faste paneler med rulling inne i panelet. Paneler kan kollapses til én linje, og panelets overskrift står fast så lenge panelet er åpent. Mobil har samme informasjonsprioritering uten horisontal overflyt.
+- **Oversikt.** KPI-ene «Trenger oppfølging», «Aktive muligheter», «Varme kontakter» og «Intervjuer» er alltid lenker til filtrerte underlister. Standardbildet viser kun nylig relevante selskaper og aktiviteter. AI-forslag til aktivitet er forslag til godkjenning, aldri automatisk registrerte aktiviteter.
+- **Kontakt.** Kontaktkortet viser identitet, rolle, selskap, LinkedIn-observasjon, siste og neste aktivitet, relasjonsopplysninger og eventuelle tredjepartssignaler. Navn og selskap er lenkbare. LinkedIn-data merkes med kilde og «sist observert», og presenteres aldri som bekreftet kontaktdata.
+- **Selskap.** Siden viser registerdata, arbeidsgiverinnsikt når tilgjengelig, brukerens kontakter, muligheter, dokumenter, aktivitet og neste steg. Arbeidsgiverinnsikt, registerdata og brukerens egen relasjon har tydelig ulike kildeetiketter. Manglende analyse eller registerdekning har eksplisitt tomtilstand.
+- **Mulighet.** Overskriften viser stilling først, deretter selskap. Kontaktperson fra annonsen er et eget kontaktobjekt når den finnes. Preferansematch og kompetansematch vises som to separate måltall. Dokumenter brukt, annonse-URL, tidslinje, neste aktivitet og relevante kontakter er direkte tilgjengelig. En lead blir aldri søknad eller mulighet uten eksplisitt brukerhandling.
+- **Aktiviteter.** Aktivitet har type, knytning til kontakt/selskap/mulighet, prioritet, forfallsdato eller «om X dager», status og gjennomført-tidspunkt. Å markere som utført lagrer faktisk dato og flytter aktiviteten til gjennomført historikk. AI-genererte forslag må godkjennes og få frist før de opprettes.
+- **Datatilgjengelighet.** Alle UI-DTO-er skiller mellom: data finnes, data mangler i kilden, data er ikke importert for valgt formål, data er ikke ennå analysert, og data er utløpt eller ikke lenger fersk.
+
+Vedlegget lenker til en godkjent wireframe-/designreferanse som illustrerer reglene. Referansen er illustrasjon, ikke produksjonskode.
+
+
+
 Kontrakten fastsetter også kildeavgrensning: jobbsignaler, annonseklikk og inferert annonseprofil importeres aldri; application-bundne kontakter er ikke nettverksregister.
 
 ## Leveranse A (senere): driftslag for LinkedIn-import
