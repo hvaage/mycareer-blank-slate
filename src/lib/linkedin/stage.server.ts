@@ -236,6 +236,37 @@ async function stageFile(params: {
   const parsed = parseCsvFile(entry.archivePath, entry.bytes);
   if (!parsed.ok) return { ok: false, errorCode: parsed.code };
 
+  const isEndorsement = domain === "recommendation" && recordKind.startsWith("endorsement_");
+
+  if (isEndorsement) {
+    const endorsementRows: Array<{
+      userId: string; importId: string; sourceFile: string; rowNumber: number; rowHash: string;
+      direction: "received_for_user_skill" | "given_by_user_to_other";
+      skillSourceLabel: string | null; skillCanonicalKey: string | null;
+      endorserIdentityHash: string | null; observedAt: string | null;
+    }> = [];
+    for (const row of parsed.rows) {
+      if (row.values.every((v) => v.trim() === "")) continue;
+      const obj = rowToObject(parsed.header, row.values);
+      const mapped = mapRow(recordKind, obj);
+      if (!mapped) continue;
+      if (Object.values(mapped.identityFields).every((v) => v == null)) continue;
+
+      const rowHash = await sha256Hex(JSON.stringify(row.values));
+      const f = mapped.domainFields as Record<string, unknown>;
+      endorsementRows.push({
+        userId, importId, sourceFile: entry.archivePath, rowNumber: row.rowNumber, rowHash,
+        direction: recordKind === "endorsement_received" ? "received_for_user_skill" : "given_by_user_to_other",
+        skillSourceLabel: (f.skill_source_label as string | null) ?? null,
+        skillCanonicalKey: (f.skill_canonical_key as string | null) ?? null,
+        endorserIdentityHash: (f.endorser_identity_hash as string | null) ?? null,
+        observedAt: (f.observed_at as string | null) ?? null,
+      });
+    }
+    const stagedCount = await writeEndorsementStagingRecords(admin, endorsementRows);
+    return { ok: true, rowCount: parsed.rows.length, stagedCount };
+  }
+
   const pending: StagingInput[] = [];
   for (const row of parsed.rows) {
     if (row.values.every((v) => v.trim() === "")) continue;
@@ -259,6 +290,48 @@ async function stageFile(params: {
 
   const stagedCount = await writeStagingRecords(admin, pending);
   return { ok: true, rowCount: parsed.rows.length, stagedCount };
+}
+
+/**
+ * Endorsements holdes utenfor anbefalings-domenetabellen (produktkontrakt v1.1):
+ * skrives til linkedin_endorsement_staging, idempotent per (user_id, linkedin_import_id, source_row_hash).
+ */
+async function writeEndorsementStagingRecords(
+  admin: AdminClient,
+  rows: Array<{
+    userId: string; importId: string; sourceFile: string; rowNumber: number; rowHash: string;
+    direction: "received_for_user_skill" | "given_by_user_to_other";
+    skillSourceLabel: string | null; skillCanonicalKey: string | null;
+    endorserIdentityHash: string | null; observedAt: string | null;
+  }>,
+): Promise<number> {
+  if (rows.length === 0) return 0;
+  let staged = 0;
+  for (const part of chunked(rows)) {
+    const { data, error } = await admin
+      .from("linkedin_endorsement_staging")
+      .upsert(
+        part.map((r) => ({
+          user_id: r.userId,
+          linkedin_import_id: r.importId,
+          source_file: r.sourceFile,
+          source_row_number: r.rowNumber,
+          source_row_hash: r.rowHash,
+          source_classification: "A",
+          direction: r.direction,
+          skill_source_label: r.skillSourceLabel,
+          skill_canonical_key: r.skillCanonicalKey,
+          endorser_identity_hash: r.endorserIdentityHash,
+          observed_at: r.observedAt,
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: "user_id,linkedin_import_id,source_row_hash" },
+      )
+      .select("id");
+    if (error) continue;
+    staged += data?.length ?? part.length;
+  }
+  return staged;
 }
 
 type StagingInput = {

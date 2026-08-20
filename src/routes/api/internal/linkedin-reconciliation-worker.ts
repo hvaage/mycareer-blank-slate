@@ -75,6 +75,15 @@ export const Route = createFileRoute("/api/internal/linkedin-reconciliation-work
 
         if (!result.ok) return fail(500, "database_error");
 
+        const { runNetworkReconciliationV2 } = await import(
+          "@/lib/linkedin/reconciliation/v2/engine.server"
+        );
+        const networkV2 = await runNetworkReconciliationV2(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          supabaseAdmin as any,
+          { userId: importRow.user_id, importId: importRow.id },
+        );
+
         return Response.json({
           ok: true,
           import_id: importRow.id,
@@ -86,6 +95,12 @@ export const Route = createFileRoute("/api/internal/linkedin-reconciliation-work
             proposal_count: r.proposals,
             reused: r.reused ?? false,
           })),
+          network_v2: {
+            batch_id: networkV2.batchId ?? null,
+            status: networkV2.status ?? null,
+            counts: networkV2.counts ?? null,
+            error: networkV2.error ?? null,
+          },
         });
       },
     },

@@ -56,6 +56,8 @@ export async function runReconciliation(
   admin: Admin,
   input: { userId: string; importId: string },
 ): Promise<ReconcileResult> {
+  const authorHmacSecret = process.env["LINKEDIN_AUTHOR_HMAC_SECRET"] ?? "";
+
   const { data: purposeRows, error: purposeError } = await admin
     .from("linkedin_import_purposes")
     .select("purpose")
@@ -77,6 +79,18 @@ export async function runReconciliation(
   const runs: ReconcileResult["runs"] = [];
 
   for (const purpose of allPurposes) {
+    if (purpose === "jobs") {
+      // Produktkontrakt v1.1: "jobs" er ekskludert fra avstemming i Fase 3
+      // og behandles som om formålet aldri var valgt.
+      runs.push({
+        purpose,
+        runId: null,
+        status: "cancelled",
+        skipReason: "excluded_by_product_contract_v1_1",
+        proposals: 0,
+      });
+      continue;
+    }
     if (!selected.has(purpose)) {
       runs.push({
         purpose,
@@ -87,7 +101,7 @@ export async function runReconciliation(
       });
       continue;
     }
-    runs.push(await reconcilePurpose(admin, input, purpose, target));
+    runs.push(await reconcilePurpose(admin, input, purpose, target, authorHmacSecret));
   }
 
   return { ok: true, runs };
@@ -187,6 +201,7 @@ async function reconcilePurpose(
   input: { userId: string; importId: string },
   purpose: LinkedInPurpose,
   target: TargetSnapshot,
+  authorHmacSecret: string,
 ): Promise<ReconcileResult["runs"][number]> {
   const { data: linkRows } = await admin
     .from("linkedin_import_stage_records")
@@ -260,7 +275,7 @@ async function reconcilePurpose(
 
   let drafts: ProposalDraft[] = [];
   try {
-    drafts = await buildDrafts(admin, purpose, staging, target);
+    drafts = await buildDrafts(admin, purpose, staging, target, authorHmacSecret);
   } catch {
     await admin
       .from("linkedin_reconciliation_runs")
@@ -363,6 +378,7 @@ async function buildDrafts(
   purpose: LinkedInPurpose,
   staging: StagingRow[],
   target: TargetSnapshot,
+  authorHmacSecret: string,
 ): Promise<ProposalDraft[]> {
   const byId = new Map(staging.map((s) => [s.id, s]));
   const ids = staging.map((s) => s.id);
@@ -392,7 +408,7 @@ async function buildDrafts(
         .in("staging_record_id", ids),
       admin
         .from("linkedin_recommendation_staging")
-        .select("staging_record_id, direction, counterpart_name, counterpart_headline, status")
+        .select("staging_record_id, direction, counterpart_name, counterpart_headline, counterpart_profile_url, status")
         .in("staging_record_id", ids),
     ]);
 
@@ -407,7 +423,7 @@ async function buildDrafts(
     for (const row of recommendations ?? []) {
       const src = byId.get(row.staging_record_id);
       if (!src) continue;
-      drafts.push(recommendationDraft(row, src, ref));
+      drafts.push(await recommendationDraft(row, src, ref, authorHmacSecret));
     }
     return drafts;
   }
@@ -698,17 +714,34 @@ function qualificationDraft(
   };
 }
 
-function recommendationDraft(
+async function recommendationDraft(
   row: {
     staging_record_id: string;
     direction: string;
     counterpart_name: string | null;
     counterpart_headline: string | null;
+    counterpart_profile_url: string | null;
   },
   src: StagingRow,
   ref: RefFn,
-): ProposalDraft {
+  authorHmacSecret: string,
+): Promise<ProposalDraft> {
   const isEndorsement = src.record_kind.startsWith("endorsement");
+  // Retning skal alltid være avledet fra kildens record_kind når feltet
+  // mangler eller er tomt, slik at "given"/"received" aldri er udefinert.
+  const direction =
+    row.direction || (src.record_kind.includes("received") ? "received" : "given");
+
+  const { hashRecommendationAuthor } = await import("@/lib/linkedin/hmac.server");
+  const authorIdentityHash =
+    direction === "received" && authorHmacSecret
+      ? await hashRecommendationAuthor({
+          authorName: row.counterpart_name,
+          profileUrl: row.counterpart_profile_url,
+          secret: authorHmacSecret,
+        })
+      : null;
+
   return {
     domain: isEndorsement ? "endorsements" : "recommendations",
     kind: "not_actionable_in_phase_3",
@@ -717,9 +750,10 @@ function recommendationDraft(
     matchMethod: "none",
     sourceClassification: src.source_classification,
     sourceSnapshot: {
-      direction: row.direction,
+      direction,
       counterpart: snapshotText(row.counterpart_name),
       counterpart_headline: snapshotText(row.counterpart_headline),
+      author_identity_hash: authorIdentityHash,
     },
     targetSnapshot: null,
     proposedPayload: null,

@@ -74,7 +74,7 @@ Alle nye tabeller: RLS på, ingen tilgang for uinnloggede, kun lesing av egne ra
 
 Alle 27 punktene fra bestillingen, inkludert: mottatt vs. gitt endorsement, at endorser-identitet aldri når produktmodellen, retning på anbefalinger, dublettsperre, eksakt identitetsmatch vs. navnelikhet, reimport som ikke overskriver manuelle rettinger, ingen fuzzy selskapkobling, kursdato- og URL-reglene, kurs vs. sertifisering, parallelle roller, at ny versjon ikke rører behandlet historikk, idempotens, aktivitetsmigrering med null tomme eiere, kryssbruker-sperre, RLS-isolasjon, og før/etter-telling som viser at ingen produktdata endres.
 
-I tillegg to nye tester: at jobbsignalene er ryddet historisk og blokkert ved ny import, og at nettverksbatchen er idempotent, aldri skriver kontakter, og gir riktig kategori for navnelikhet, eksakt identitet og observert profilendring.
+I tillegg to nye tester: at jobbsignalene er ryddet historisk og blokkert ved ny import, og at nettverksbatchen er idempotent, aldri skriver kontakter, og gir riktig kategori for navnelikhet, eksakt identitet og observert profilendring. Retention-testen verifiserer eksplisitt at en batchrad etter kildesletting ikke inneholder navn, profil-URL, selskapstekst eller levende stagingreferanse — kun batch-id, kategori, handling, status, hash, tidspunkt og årsakskode.
 
 ## Leveranse
 

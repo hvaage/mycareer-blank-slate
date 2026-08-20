@@ -47,6 +47,7 @@ export const SKIP_REASONS = [
   "skipped_no_selected_purpose",
   "skipped_no_source_records",
   "skipped_import_purged",
+  "excluded_by_product_contract_v1_1",
 ] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
 

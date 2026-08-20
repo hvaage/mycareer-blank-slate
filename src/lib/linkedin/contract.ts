@@ -86,12 +86,12 @@ export const LINKEDIN_FILE_SPECS: LinkedInFileSpec[] = [
   { pattern: /^Member_Follows_\d+\.csv$/i, fileClass: "A", domain: "network", recordKind: "member_follow", purpose: "network", locatorType: "csv_row" },
   { pattern: /^Saved_Items_\d+\.csv$/i, fileClass: "A", domain: "network", recordKind: "saved_item", purpose: "network", locatorType: "csv_row" },
 
-  // ---------- Klasse A: jobb ----------
-  { pattern: /^Jobs\/Job Seeker Preferences\.csv$/i, fileClass: "A", domain: "job", recordKind: "job_seeker_preference", purpose: "jobs", locatorType: "csv_row" },
-  { pattern: /^SavedJobAlerts\.csv$/i, fileClass: "A", domain: "job", recordKind: "job_alert", purpose: "jobs", locatorType: "csv_row" },
-  { pattern: /^Jobs\/Saved Jobs(_\d+)?\.csv$/i, fileClass: "A", domain: "job", recordKind: "saved_job", purpose: "jobs", locatorType: "csv_row" },
-  { pattern: /^Jobs\/Online Job Postings\.csv$/i, fileClass: "A", domain: "job", recordKind: "online_job_posting", purpose: "jobs", locatorType: "csv_row" },
-  { pattern: /^Jobs\/Job Applications\.csv$/i, fileClass: "A", domain: "job", recordKind: "application", purpose: "jobs", locatorType: "csv_row" },
+  // ---------- Klasse C: jobb (utelukket per produktkontrakt v1.1) ----------
+  { pattern: /^Jobs\/Job Seeker Preferences\.csv$/i, fileClass: "C", excludedReason: "excluded_by_product_contract_v1_1" },
+  { pattern: /^SavedJobAlerts\.csv$/i, fileClass: "C", excludedReason: "excluded_by_product_contract_v1_1" },
+  { pattern: /^Jobs\/Saved Jobs(_\d+)?\.csv$/i, fileClass: "C", excludedReason: "excluded_by_product_contract_v1_1" },
+  { pattern: /^Jobs\/Online Job Postings\.csv$/i, fileClass: "C", excludedReason: "excluded_by_product_contract_v1_1" },
+  { pattern: /^Jobs\/Job Applications\.csv$/i, fileClass: "C", excludedReason: "excluded_by_product_contract_v1_1" },
 
   // ---------- Klasse A: læring ----------
   { pattern: /^Learning\.csv$/i, fileClass: "A", domain: "learning", recordKind: "course", purpose: "learning", locatorType: "csv_row" },
