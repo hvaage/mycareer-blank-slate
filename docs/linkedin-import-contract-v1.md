@@ -657,9 +657,87 @@ sletting av import → ZIP + staging + fritekst slettes umiddelbart
 | `Articles/**`, `Rich_Media.csv`, `Saved_Items_*.csv`, `Hashtag_Follows_*.csv` | fase 5 | innholds- og interesseprofil kommer sist |
 | `Causes You Care About.csv` | fase 5, opt-in | potensielt sensitivt |
 
-### 9.8 Bekreftelse
+### 9.8 Bekreftelse (gjaldt fase 1)
 
-Ingen kode er endret, ingen migrasjon er opprettet eller kjørt, ingen Edge Function er
-deployet, ingen tabell eller RPC er opprettet, og ingen produktdata er endret. Den
-vedlagte eksporten er lest read-only fra opplastingsområdet og er ikke lagret,
-importert eller koblet til noen bruker i databasen.
+Ved fase 1 var ingen kode endret, ingen migrasjon kjørt, ingen Edge Function deployet,
+ingen tabell eller RPC opprettet, og ingen produktdata endret. Den vedlagte eksporten
+ble lest read-only og ble ikke lagret eller koblet til noen bruker.
+
+Fase 2 er nå bygget. Faktisk implementert modell, avvik fra §9.4/§9.5 og fullt
+testresultat står i §10.
+
+---
+
+## 10. Fase 2: implementert importlag (status og testresultat)
+
+### 10.1 Implementert datamodell
+
+| Objekt | Rolle |
+| --- | --- |
+| `linkedin_imports` | én rad per opplastet arkiv: `archive_sha256`, `content_manifest_hash`, status, tellinger, `attempt_id`/`heartbeat_at`, `purged_at` |
+| `linkedin_import_tombstones` | minimalt revisjonsspor etter sletting (kun hash, formål, tellinger — ingen LinkedIn-tekst) |
+| `linkedin_import_purposes` | samtykke per behandlingsformål (§7) |
+| `linkedin_import_files` / `linkedin_import_file_purposes` | filinventar med klasse A/B/C, filhash, parserversjon, radtellere, status per formål |
+| `linkedin_staging_records` | felles forelder for all mellomlagring: domene, `record_kind`, formål, lokator, `source_identity_hash`, første/siste import |
+| `linkedin_profile_/career_/recommendation_/network_/job_/learning_/content_staging` | 1:1 domenerader med hvitlistede felt, `ON DELETE CASCADE` fra forelderen |
+| `linkedin_import_stage_records` | mange-til-mange-kobling import ↔ stagingrad, isolert per `attempt_id` |
+| `linkedin_storage_delete_queue` | køen for sletting av rå ZIP i storage (kun service_role) |
+| `linkedin_import_delete(uuid, text)` | kontrollert sletting (modell B) |
+| `linkedin_import_retention_sweep()` | 7 dagers ZIP-retention, 30 min hjerteslag-timeout, 90 dagers staging-purge |
+
+Kodelag (server-only): `contract.ts`, `preflight.server.ts`, `csv.server.ts`,
+`normalize.server.ts`, `classify.server.ts`, `domain-mapping.server.ts`,
+`stage.server.ts` og den interne ruten
+`POST /api/internal/linkedin-import-worker` (POST-only, egen worker-hemmelighet
+sammenlignet i konstant tid, saniterte svar).
+
+### 10.2 Avvik fra fase 1-anbefalingen
+
+1. `linkedin_reconciliation_decisions` er **ikke** opprettet — avstemming tilhører fase 3.
+2. `duplicate_of_import_id` heter `canonical_import_id`.
+3. ZIP-retention er strammet fra 30 til **7 dager**.
+4. Staging bevares aldri som tombstone: når siste aktive importkobling forsvinner,
+   slettes stagingraden og domeneraden. Tombstone finnes kun på importnivå.
+5. Klasse B-filer registreres teknisk (hash, status `deferred`) men stages ikke.
+
+### 10.3 Tilgangskontroll
+
+- RLS er på for alle 15 `linkedin_*`-tabeller.
+- `anon` har ingen `GRANT` og ingen policy. Verifisert mot API-et:
+  `42501 permission denied` for lesing, `401` for skriving.
+- `authenticated` har kun `SELECT`, med policy `auth.uid() = user_id`.
+  Verifisert med en annen innlogget bruker: tomt resultat (`[]`) på
+  `linkedin_imports`, `linkedin_staging_records` og alle domenetabellene mens
+  testdata fantes.
+- All skriving skjer med service-role fra worker-ruten. `linkedin_import_delete`
+  og `linkedin_import_retention_sweep` er `REVOKE`-t fra `anon`/`authenticated`.
+
+### 10.4 Testresultat (syntetisk arkiv, 16 filer)
+
+| # | Test | Resultat |
+| --- | --- | --- |
+| 1 | Klassifisering: 12 kjente (11×A, 1×B), 1 ukjent, 3 klasse C | OK |
+| 2 | Klasse C leses aldri; kun `excluded_reason_counts` = `{private_messages:1, contact_identifiers:1, advertising:1}` | OK |
+| 3 | `Connections.csv`-preamble: 3 linjer hoppes over, header valideres på linje 4, radene lokaliseres til linje 5 og 6 | OK |
+| 4 | Staging: 15 rader fordelt på profile 1, career 8, recommendation 1, network 2, job 1, learning 1, content 1 | OK |
+| 5 | Datoparsing: `Jan 2015` → 2015-01-01, `01 Jan 2020` → 2020-01-01 | OK |
+| 6 | Idempotent kjøring av samme import: fortsatt 15 stagingrader, ny `attempt_id` | OK |
+| 7 | Brukerisolasjon: identisk arkiv for bruker B gir 15 egne rader (identitetshash inkluderer bruker) | OK |
+| 8 | Andre import med overlappende innhold: 16 rader totalt, 15 deles mellom to importer | OK |
+| 9 | Sletting av import 1: 0 stagingrader slettet (delt), tombstone + ZIP-kø opprettet, filinventar fjernet | OK |
+| 10 | Sletting av siste aktive importkobling: 16 stagingrader **og** alle domenerader slettet | OK |
+| 11 | Reimport etter purge: samme `archive_sha256` tillates på nytt, 15 rader gjenskapt | OK |
+| 12 | Aktiv duplikat blokkeres: unik indeks avviser samme hash mens en import er aktiv | OK |
+| 13 | Feil worker-hemmelighet → `401`; GET → `405`; ugyldig ZIP → `rejected` / `invalid_archive` | OK |
+| 14 | Retention-sweep: 1 ZIP utløpt (7 d), 1 hjerteslag-timeout (30 min), 1 import purget (90 d) | OK |
+| 15 | Produktdata: teller på `career_atoms`, `cv_parse_candidates`, `profiles`, `professional_results`, `documents`, `user_career_profiles`, `contacts`, `job_applications` identisk før og etter alle kjøringer | OK |
+
+Alle syntetiske testrader er fjernet etterpå; `linkedin_*`-tabellene står på 0 rader.
+
+### 10.5 Bekreftelse fase 2
+
+Ingen produktdata ble skrevet, endret eller slettet. Staging- og importlaget er
+fullstendig isolert: `stage.server.ts` skriver kun til `linkedin_*`-tabeller, og
+worker-ruten har ingen kodesti mot atom-, kandidat-, dokument- eller kontakttabeller.
+Avstemming og gjennomgang bygges i fase 3 oppå dette laget.
+
