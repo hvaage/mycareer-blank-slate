@@ -85,6 +85,7 @@ export function LinkedInImportCard() {
       setFile(null);
       queryClient.invalidateQueries({ queryKey: ["review-inbox-counts"] });
       queryClient.invalidateQueries({ queryKey: ["linkedin-reconciliation-proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["linkedin-imports"] });
       toast.success("LinkedIn-eksporten er lest inn");
     },
     onError: (error: Error) => toast.error(error.message),
@@ -152,6 +153,17 @@ export function LinkedInImportCard() {
           </Link>
         </Button>
       </div>
+
+      {latest && !result ? (
+        <Alert>
+          <AlertDescription className="text-sm">
+            Siste import: {STATUS_TEXT[String(latest.status)] ?? String(latest.status)}
+            {latest.status === "failed" ? (
+              <> — last opp filen på nytt. Det du allerede har lest inn blir ikke duplisert.</>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {result ? (
         <Alert>
