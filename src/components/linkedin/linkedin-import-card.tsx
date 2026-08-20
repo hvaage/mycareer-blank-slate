@@ -6,7 +6,7 @@
 // ============================================================
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -24,11 +24,38 @@ const PURPOSE_OPTIONS: Array<{ value: string; label: string; hint: string }> = [
   { value: "content", label: "Innhold", hint: "Innlegg og artikler du har skrevet" },
 ];
 
+const STATUS_TEXT: Record<string, string> = {
+  uploaded: "Leser eksporten…",
+  validating: "Leser eksporten…",
+  staging: "Leser eksporten…",
+  reconciliation_ready: "Ferdig lest — forslag er klare",
+  failed: "Importen ble avbrutt før den var ferdig",
+  rejected: "Arkivet kunne ikke leses",
+};
+
+async function authedFetch(path: string) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Du må være pålogget.");
+  const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.ok) throw new Error(json?.error?.message ?? "Kunne ikke hente importene.");
+  return json;
+}
+
 export function LinkedInImportCard() {
   const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [purposes, setPurposes] = useState<string[]>(["profile", "career"]);
   const [result, setResult] = useState<{ proposals: number; staged: number } | null>(null);
+
+  const imports = useQuery({
+    queryKey: ["linkedin-imports"],
+    queryFn: async () => (await authedFetch("/api/linkedin/imports")).imports as Array<Record<string, unknown>>,
+    refetchInterval: 20000,
+  });
+  const latest = imports.data?.[0];
+
 
   const upload = useMutation({
     mutationFn: async () => {
