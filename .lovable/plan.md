@@ -18,7 +18,7 @@ Ingen blokkerende avvik funnet. Ett avvik meldes eksplisitt: **jobbpreferanser h
 ## Datamodell (additiv)
 
 1. `linkedin_promotion_events` — append-only revisjonsspor med feltene i instruksen (proposal-id, decision-id, domene, action, status, `idempotency_key` unik per bruker, målreferanse, LinkedIn-proveniens, snapshot-hasher før/etter, feilkode). Ingen FK til staging-rader; kun kildeidentitet + hash overlever retention. Slettet produktdata sletter ikke hendelsen (målreferanse er løs, ikke FK-kaskade).
-2. `linkedin_promotion_targets` — kobling hendelse → (entity_type, entity_id) for oppslag «hva ble dette til».
+2. `linkedin_promotion_targets` — kobling hendelse → produktmål. Egen `user_id`, sammensatt FK `(promotion_event_id, user_id)` mot `linkedin_promotion_events`, CHECK på tillatte `entity_type`-verdier, unikhet på `(promotion_event_id, entity_type, entity_id)`, RLS `auth.uid() = user_id`. `entity_id` er ren revisjonsreferanse — ingen FK til staging, og aldri en vei inn i en annen brukers produktdata (all lesing filtreres på `user_id`).
 3. `career_recommendations` — tredjepartsanbefalinger, `source_classification='third_party_recommendation'`, aldri attestasjon, aldri synlig for CV-/søknadsgenerering.
 4. `network_contacts` (+ `network_contact_identities` for LinkedIn-URL som foretrukket identitet). Ingen e-post/telefon fra LinkedIn. Ingen relasjonsklassifisering.
 5. `career_skill_source_signals` — endorsement-antall og kilde som tredjepartssignal knyttet til et kompetanseatom; aldri nivå, aldri bevisstatus.
@@ -32,10 +32,22 @@ Alle nye tabeller: `GRANT SELECT` til `authenticated`, `GRANT ALL` til `service_
 
 `linkedin_promote_profile_field`, `linkedin_promote_career_record`, `linkedin_promote_qualification`, `linkedin_promote_skill_or_signal`, `linkedin_promote_recommendation`, `linkedin_promote_network_contact`, `linkedin_promote_job_preference`, `linkedin_promote_saved_job`.
 
-Felles forport (delt intern funksjon) i én transaksjon:
-auth.uid() → eierskap på forslag+beslutning → `approved_for_promotion` → aktiv import og ikke `stale_*`/`superseded`/`dismissed` → formål dekker domenet → klasse A → reles gjeldende mål og sammenlign mot `target_snapshot_hash` (avvik ⇒ `stale_target` + konflikt-DTO) → domeneoperasjon → hendelse → `status='promoted'`. Feil ⇒ rollback + `promotion_failed`-hendelse, ingen delvis effekt.
+Felles forport (delt intern funksjon), validering før skriving:
+auth.uid() → eierskap på forslag+beslutning → `approved_for_promotion` → aktiv import og ikke `stale_*`/`superseded`/`dismissed` → formål dekker domenet → klasse A → reles gjeldende mål og sammenlign mot `target_snapshot_hash` (avvik ⇒ `stale_target` + konflikt-DTO).
 
-`resolution` er påkrevd: `create_new | link_to_existing | use_linkedin_value | keep_existing | manual_edit_required`. Ingen `replace_existing`.
+**Suksess** (én atomisk transaksjon): produktendring + varig proveniens + suksesshendelse (`promotion_status='promoted'`) + `linkedin_promotion_targets`-rad + forslagsstatus `promoted`. Alt eller ingenting.
+
+**Feil**: produkttransaksjonen rulles helt tilbake (RPC-en kjøres i en indre transaksjonsblokk / savepoint, slik at ingen produktskriving overlever). Deretter skriver serverruten en **separat** append-only feilhendelse med `promotion_status='promotion_failed'`, `error_code` og sanitert `error_summary` — aldri rå LinkedIn-innhold, aldri rå databasefeil.
+
+Retry-regel (entydig):
+- **Retrybar feil** (lås, timeout, midlertidig referansefeil): forslaget forblir `approved_for_promotion`; siste promoteringsutfall er `promotion_failed`. Samme `idempotency_key` kan brukes på nytt når årsaken er rettet.
+- **Ikke-retrybar valideringsfeil** (ugyldig resolution, brutt domeneregel): forslaget settes til `promotion_failed`. Brukeren kommer videre kun ved å reåpne grunnlaget gjennom `linkedin_reconciliation_decide` (ny beslutning) eller ved å kjøre ny avstemming som lager en ny forslagsversjon. Dette dokumenteres i kontraktdokumentet og vises i UI-et.
+
+`resolution` deles i to spor:
+- **Promotering** (går gjennom promoterings-RPC): `create_new`, `link_to_existing`, `use_linkedin_value`. `link_to_existing` regnes som promotert kun når den varige provenienskoblingen til det valgte eksisterende produktobjektet faktisk opprettes atomisk i samme transaksjon; innholdet i målet endres ikke.
+- **Ikke promotering** (går gjennom Fase 3-beslutningslaget, ingen `promoted`-hendelse): `keep_existing` ⇒ `linkedin_reconciliation_decide` med `dismiss` og `reason_code='keep_existing'`. `manual_edit_required` ⇒ beslutning som markerer manuell retting og senere sender brukeren til riktig redigeringsflate.
+
+Ingen `replace_existing`.
 
 En TanStack-serverrute `POST /api/linkedin/promote` velger riktig RPC ut fra forslagstype og returnerer sanitert DTO.
 
