@@ -4778,6 +4778,7 @@ export type Database = {
           id: string
           input_signature: string
           linkedin_import_id: string
+          new_contact_count: number
           observed_profile_change_count: number
           possible_duplicate_count: number
           prepared_at: string | null
@@ -4798,6 +4799,7 @@ export type Database = {
           id?: string
           input_signature: string
           linkedin_import_id: string
+          new_contact_count?: number
           observed_profile_change_count?: number
           possible_duplicate_count?: number
           prepared_at?: string | null
@@ -4818,6 +4820,7 @@ export type Database = {
           id?: string
           input_signature?: string
           linkedin_import_id?: string
+          new_contact_count?: number
           observed_profile_change_count?: number
           possible_duplicate_count?: number
           prepared_at?: string | null
@@ -5071,6 +5074,7 @@ export type Database = {
         Row: {
           counterpart_headline: string | null
           counterpart_name: string | null
+          counterpart_profile_url: string | null
           direction: string
           recommendation_text: string | null
           staging_domain: string
@@ -5081,6 +5085,7 @@ export type Database = {
         Insert: {
           counterpart_headline?: string | null
           counterpart_name?: string | null
+          counterpart_profile_url?: string | null
           direction: string
           recommendation_text?: string | null
           staging_domain?: string
@@ -5091,6 +5096,7 @@ export type Database = {
         Update: {
           counterpart_headline?: string | null
           counterpart_name?: string | null
+          counterpart_profile_url?: string | null
           direction?: string
           recommendation_text?: string | null
           staging_domain?: string
