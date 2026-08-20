@@ -214,11 +214,21 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
   7. marker Storage-objektet for sletting og sett `archive_available = false`
 
   FK-ene på `first/last_linkedin_import_id` bruker aldri `ON DELETE SET NULL`: enten
-  peker de på en gyldig gjenværende import, eller raden er tombstone-forankret, eller
-  den er slettet. Serverhandlingen sletter Storage-objektet etter commit; feiler
-  Storage-sletting, blir objektet stående i slettekø og fjernes av sweepen —
-  databaserader gjenopprettes aldri halvveis. Samme referansereparasjon gjelder når
-  retention-sweepen purger en import.
+  peker de på en gyldig gjenværende import, eller raden er tombstone-forankret via
+  `preserved_tombstone_id`, eller den er slettet. Serverhandlingen sletter
+  Storage-objektet etter commit; feiler Storage-sletting, blir objektet stående i
+  slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis. Samme
+  referansereparasjon gjelder når retention-sweepen purger en import.
+- **Endelig tilstand (valgt modell: B, tombstone-markert rad).** Siste steg i samme
+  transaksjon, etter referansereparasjon, fil-/formålsopprydding og Storage-slettekø:
+  importraden beholdes med `purged_at = now()`, `status = 'cancelled'`,
+  `archive_available = false`, `active_phase = null`, nullstilte tellefelt og ingen
+  aktive fil-, formåls-, staging- eller Storage-koblinger. Raden er da rent historisk.
+  Tombstone ligger separat i `linkedin_import_tombstones`.
+  Den partielle unikindeksen `(user_id, archive_sha256)
+  WHERE purged_at IS NULL AND status <> 'cancelled'` treffer derfor ikke slike rader:
+  en slettet import kan aldri blokkere ny import av samme ZIP.
+
 
 
 - **Kanonisk import ved sletting:** dersom andre importrader peker til importen som
