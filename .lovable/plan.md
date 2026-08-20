@@ -146,10 +146,15 @@ arkivet må gjenbrukes for utsatt staging (utvidede formål). Sletting: umiddelb
 `rejected`/`cancelled`, ellers senest 7 dager etter staging. Kun sanitert objektsti
 logges.
 
+`archive_available` speiler faktisk tilstand og settes eksplisitt i hver kontrollflyt:
+`true` først etter bekreftet skriv til bucketen, `false` ved rein minneparsing, og
+`false` i samme flyt som sletter objektet (manuell sletting eller retention-sweep).
+
 **Konsekvens som må være synlig i senere UI:** når ZIP-en er slettet etter 7 dager,
 kan ikke nye behandlingsformål utvides på den eksisterende importen — brukeren må
-laste opp ZIP-en på nytt. Importen får et eksplisitt felt (`archive_available=false`)
-slik at fase 3-UI kan vise dette som et tydelig valg, ikke som en stille begrensning.
+laste opp ZIP-en på nytt, og partiell unikhet gjør at identisk ZIP kan lastes opp
+igjen etter purge.
+
 
 
 ## 3. Parser- og normaliseringsmodul (server-only)
