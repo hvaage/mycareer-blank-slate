@@ -309,8 +309,12 @@ Nye tester:
    distinkte stagingrader uten unikhetskollisjon.
 10. Delt stagingrad ved sletting: to importer deler samme stagingrad, første import
     slettes. Stagingraden beholdes, `first/last_linkedin_import_id` peker kun til den
-    gyldige gjenværende importen (eller tombstone), alle FK-er validerer, og den andre
-    importen kan fortsatt leses og senere slettes kontrollert.
+    gyldige gjenværende importen, alle FK-er validerer, og den andre importen kan
+    fortsatt leses og senere slettes kontrollert.
+11. Tombstoneforankring: når siste aktive import for en bevart stagingrad slettes,
+    settes `preserved_tombstone_id` til importens tombstone, FK-en validerer, og
+    `first/last_linkedin_import_id` blir aldri hengende på en slettet import.
+
 
 
 
