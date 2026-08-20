@@ -28,20 +28,25 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   tellefelt (`known/unknown/excluded/valid/invalid_file_count`, `staged_record_count`,
   aggregert klasse C-eksklusjonsteller per årsak som `jsonb` med kun kodenøkler).
   Unik indeks `(user_id, archive_sha256)`.
+  Driftsfelt: `active_phase` (`validation|staging|null`), `attempt_id`,
+  `heartbeat_at`, `staging_started_at`.
   **Statusklassifisering:** `uploaded`, `validating` er i arbeid; `validated` og
   `partially_validated` er ikke terminale — de er klare for staging;
   `staged` er mellomtilstand mot avstemming; `reconciliation_ready` er terminal for
   fase 2; `rejected`, `cancelled`, `failed` er terminale forsøkstilstander.
   Nytt forsøk etter `failed`/`cancelled` skjer aldri ved å fortsette den gamle raden:
-  serverhandlingen oppretter/gjenbruker importen eksplisitt, nullstiller tellefelt og
-  fjerner delvis staging fra det forsøket før ny kjøring — idempotent på
-  `(user_id, archive_sha256)`.
-  **Staging-overgang uten misvisende status:** staging kjøres i avgrensede porsjoner
-  per fil; `status` settes til `validating`/`staged` med `heartbeat_at` og
-  `attempt_id`, tellefelt oppdateres transaksjonelt sammen med filstatus, og en import
-  hvis `heartbeat_at` er eldre enn tidsgrensen settes deterministisk til `failed` med
-  `error_code = staging_timeout` av oppryddingsfunksjonen — aldri liggende i
-  `validating`.
+  serverhandlingen starter et nytt `attempt_id`, nullstiller tellefelt og fjerner
+  koblinger/stagingrader fra det feilede forsøket (kun de uten andre importreferanser,
+  se `linkedin_import_stage_records`) — idempotent på `(user_id, archive_sha256)`.
+  **Staging-overgang uten misvisende status:** under staging beholdes `status` som
+  `validated`/`partially_validated`; kun `active_phase = 'staging'`,
+  `staging_started_at`, `attempt_id` og `heartbeat_at` settes. Filstatus og tellefelt
+  oppdateres transaksjonelt per fil/porsjon. Når alle valgte filer er staged:
+  `active_phase = null` og `status = staged`, deretter `reconciliation_ready`.
+  Stale-run-opprydding bruker `active_phase` + `heartbeat_at` + `attempt_id`, setter
+  `active_phase = null` og `error_code = staging_timeout`, og gjør aldri en ferdig
+  validert import om til `validating`.
+
 - `linkedin_import_purposes` — formål med CHECK på
   `profile|career|network|jobs|learning|content`, `selected_at`, `selection_source`,
   unik `(linkedin_import_id, purpose)`.
@@ -65,16 +70,26 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   `source_row_number`, `source_row_hash`, `source_content_hash`, `source_event_at`,
   `source_recorded_at`, `source_url`, `source_classification`, `source_identity_hash`,
   `created_at`, `last_seen_at`.
-  **`source_identity_hash` = sha256 over `user_id || source_file || record_kind ||
-  normalisert kildeinnhold`** (NFKC-normaliserte, whitespace-trimmede, hvitlistede
-  feltverdier i fast rekkefølge). Radnummer inngår ikke, så omorganiserte CSV-rader
-  gir ingen dubletter. Unik indeks `(user_id, source_file, source_identity_hash)`:
+  **`source_identity_hash`** = SHA-256 av en **kanonisk serialisert, versjonert
+  struktur** (`{"v":"linkedin_identity_v1","user_id":…,"source_file":…,
+  "record_kind":…,"fields":{navngitte hvitlistede felt i sortert rekkefølge}}`) med
+  entydige skilletegn — aldri ren strengkonkatenering. Feltverdier er NFKC-normaliserte
+  og whitespace-trimmede. Radnummer inngår ikke, så omorganiserte CSV-rader gir ingen
+  dubletter. Unik indeks `(user_id, source_file, source_identity_hash)`:
   identisk innhold oppdaterer kun `last_linkedin_import_id`/`last_seen_at`; endret
   innhold gir ny stagingrad, aldri overskriving.
-  **Proveniens-CHECK:** `csv_row` krever `source_row_number` og `source_row_hash` og
-  krever `source_content_hash IS NULL`; `html_section` krever `source_content_hash`;
-  `archive_file` krever `source_content_hash`.
+  **Proveniens-CHECK:** `csv_row` krever `source_row_number` + `source_row_hash` og
+  forbyr `source_content_hash`; `html_section` og `archive_file` krever
+  `source_content_hash` og forbyr `source_row_number`/`source_row_hash`.
+- `linkedin_import_stage_records` — kobling import ↔ stagingrad:
+  `linkedin_import_id`, `user_id`, `staging_domain`, `staging_record_id`,
+  `source_identity_hash`, `linked_at`, unik
+  `(linkedin_import_id, staging_domain, staging_record_id)`. Gjør det mulig å rydde
+  kun ett forsøks koblinger, beholde stagingrader som deles med andre importer,
+  slette en import uten å fjerne delt grunnlag, dokumentere hva importen faktisk
+  produserte, og teste idempotens ved ompakket ZIP og utvidede formål.
 - `linkedin_import_tombstones` — minimalt revisjonsspor per §6.3.
+
 
 RLS: eier-policyer (`auth.uid() = user_id`) kun for SELECT på alle tabeller.
 `authenticated` har **ingen** INSERT/UPDATE/DELETE-policy — heller ikke DELETE på
@@ -123,14 +138,20 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
 
 ## 4. Retention og sletting
 
-- `public.linkedin_import_delete(p_import_id uuid)` — kalles kun fra serverlaget etter
-  verifisert brukeridentitet, kontrollerer eierskap eksplisitt mot innsendt bruker-id,
-  `SECURITY DEFINER` med `SET search_path = ''` og fullt kvalifiserte objektnavn,
+- Sletteflyt: (1) serverruten verifiserer JWT, (2) henter `user_id` **utelukkende**
+  fra den verifiserte sesjonen, (3) leser importen og bekrefter
+  `linkedin_imports.user_id = session.user.id`, (4) kaller først da databasefunksjonen
+  med import-id. Klientens body eller parametre inneholder aldri autoritativ `user_id`.
+- `public.linkedin_import_delete(p_import_id uuid)` — `SECURITY DEFINER` med
+  `SET search_path = ''` og fullt kvalifiserte objektnavn,
   `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` (kun `service_role`).
-  Rekkefølge: opprett tombstone → slett staging, filrader og fritekst → marker
+  Rekkefølge: opprett tombstone → slett denne importens koblinger i
+  `linkedin_import_stage_records` → slett stagingrader som ikke lenger har noen
+  importreferanse (delte rader beholdes) → slett filrader og fritekst → marker
   Storage-objektet for sletting. Serverhandlingen sletter Storage-objektet etter at
   transaksjonen er committet; feiler Storage-sletting, blir objektet stående i
   slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis.
+
 - `public.linkedin_import_retention_sweep()` — idempotent, samme
   `SECURITY DEFINER`/`search_path`/grant-regler; sletter ZIP ≥7 dager, staging
   ≥90 dager etter `reconciliation_ready`, staging uten brukerhandling per kontraktens
