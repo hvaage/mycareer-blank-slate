@@ -27,11 +27,19 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   tidsstempler (`created_at`, `validated_at`, `staged_at`, `cancelled_at`, `purged_at`),
   tellefelt (`known/unknown/excluded/valid/invalid_file_count`, `staged_record_count`,
   aggregert klasse C-eksklusjonsteller per årsak som `jsonb` med kun kodenøkler).
-  `archive_available boolean not null default true` — settes eksplisitt til `false`
-  når ZIP-en er slettet, slik at fase 3-UI kan vise at nye formål krever ny opplasting.
-  Unik indeks `(user_id, archive_sha256)`.
+  `archive_available boolean not null` — **ingen default**. Settes `true` først etter
+  vellykket skriv til privat Storage-bucket; parsing i minne uten lagret ZIP settes
+  eksplisitt `false`; retention-sweep setter `false` i samme kontrollflyt som sletter
+  objektet. Fase 3-UI leser feltet for å vise at nye formål krever ny opplasting.
+  `canonical_import_id` er en **self-FK** til `public.linkedin_imports(id)`, sammensatt
+  som `(canonical_import_id, user_id)` → `(id, user_id)` slik at kanonisk import alltid
+  tilhører samme bruker. Hjelpe-unik `(id, user_id)` på tabellen.
+  **Unikhet ved reimport:** partiell unik indeks `(user_id, archive_sha256)`
+  `WHERE purged_at IS NULL AND status <> 'cancelled'` — en slettet/purget import
+  blokkerer ikke ny opplasting av identisk ZIP, og tombstone beholdes urørt.
   Driftsfelt: `active_phase` (`validation|staging|null`), `attempt_id`,
   `heartbeat_at`, `staging_started_at`.
+
 
   **Statusklassifisering:** `uploaded`, `validating` er i arbeid; `validated` og
   `partially_validated` er ikke terminale — de er klare for staging;
