@@ -27,11 +27,19 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   tidsstempler (`created_at`, `validated_at`, `staged_at`, `cancelled_at`, `purged_at`),
   tellefelt (`known/unknown/excluded/valid/invalid_file_count`, `staged_record_count`,
   aggregert klasse C-eksklusjonsteller per årsak som `jsonb` med kun kodenøkler).
-  `archive_available boolean not null default true` — settes eksplisitt til `false`
-  når ZIP-en er slettet, slik at fase 3-UI kan vise at nye formål krever ny opplasting.
-  Unik indeks `(user_id, archive_sha256)`.
+  `archive_available boolean not null` — **ingen default**. Settes `true` først etter
+  vellykket skriv til privat Storage-bucket; parsing i minne uten lagret ZIP settes
+  eksplisitt `false`; retention-sweep setter `false` i samme kontrollflyt som sletter
+  objektet. Fase 3-UI leser feltet for å vise at nye formål krever ny opplasting.
+  `canonical_import_id` er en **self-FK** til `public.linkedin_imports(id)`, sammensatt
+  som `(canonical_import_id, user_id)` → `(id, user_id)` slik at kanonisk import alltid
+  tilhører samme bruker. Hjelpe-unik `(id, user_id)` på tabellen.
+  **Unikhet ved reimport:** partiell unik indeks `(user_id, archive_sha256)`
+  `WHERE purged_at IS NULL AND status <> 'cancelled'` — en slettet/purget import
+  blokkerer ikke ny opplasting av identisk ZIP, og tombstone beholdes urørt.
   Driftsfelt: `active_phase` (`validation|staging|null`), `attempt_id`,
   `heartbeat_at`, `staging_started_at`.
+
 
   **Statusklassifisering:** `uploaded`, `validating` er i arbeid; `validated` og
   `partially_validated` er ikke terminale — de er klare for staging;
@@ -51,18 +59,22 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   validert import om til `validating`.
 
 - `linkedin_import_purposes` — formål med CHECK på
-  `profile|career|network|jobs|learning|content`, `selected_at`, `selection_source`,
-  unik `(linkedin_import_id, purpose)`.
+  `profile|career|network|jobs|learning|content`, `user_id`, `selected_at`,
+  `selection_source`, unik `(linkedin_import_id, purpose)`, sammensatt FK
+  `(linkedin_import_id, user_id)` → `linkedin_imports(id, user_id)`.
 - `linkedin_import_files` — kun klasse A og B (CHECK `file_class in ('A','B')`),
-  arkivsti, `file_hash`, komprimert/ukomprimert størrelse, `status` CHECK med **kun
-  teknisk filstatus**: `discovered|validated|partially_validated|invalid`,
+  `user_id`, arkivsti, `file_hash`, komprimert/ukomprimert størrelse, `status` CHECK
+  med **kun teknisk filstatus**: `discovered|validated|partially_validated|invalid`,
   radtellere, `error_code`, `parser_version`, timestamps. **Ingen `purpose`-kolonne**
   og ingen samtykke-/formålsutfall i denne statusen. Klasse C får aldri rad her.
+  Sammensatt FK `(linkedin_import_id, user_id)` → `linkedin_imports(id, user_id)`;
+  hjelpe-unik `(id, user_id)`.
 - `linkedin_import_file_purposes` — `(linkedin_import_file_id, purpose)` unik, med
   `user_id`, `status` CHECK (`pending|staged|skipped_no_consent|deferred|failed`),
   `staged_record_count`, `error_code`, `created_at`, `updated_at`. Formålsutfall bor
   her: samme fil kan være `staged` for ett formål, `skipped_no_consent` for et annet
-  og `deferred` når innholdet er klasse B.
+  og `deferred` når innholdet er klasse B. Sammensatt FK
+  `(linkedin_import_file_id, user_id)` → `linkedin_import_files(id, user_id)`.
 - `linkedin_staging_records` — **felles foreldretabell** for all staging:
   `id`, `user_id`, `staging_domain` (CHECK mot de sju domenene), `record_kind`,
   `purpose` (nøyaktig ett, NOT NULL, CHECK mot formålslisten), all felles proveniens
@@ -71,38 +83,48 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   `source_row_hash`, `source_content_hash`, `source_event_at`, `source_recorded_at`,
   `source_url`, `source_classification`), `source_identity_hash`,
   `first_linkedin_import_id`, `last_linkedin_import_id`, `created_at`, `last_seen_at`.
-  Unik indeks `(user_id, source_file, source_identity_hash)` og en hjelpe-unik
-  `(id, staging_domain)` som domenetabellene og koblingstabellen kan referere til.
+  Begge import-referansene er sammensatte FK-er med `user_id`.
+  Unik indeks `(user_id, source_file, source_identity_hash)` og hjelpe-unike
+  `(id, user_id)`, `(id, staging_domain)`, `(id, purpose)` som domenetabellene og
+  koblingstabellen refererer til.
 - Domenetabeller: `linkedin_profile_staging`, `linkedin_career_staging`,
   `linkedin_recommendation_staging`, `linkedin_network_staging`,
   `linkedin_job_staging`, `linkedin_learning_staging`, `linkedin_content_staging`.
   Hver har `staging_record_id uuid PRIMARY KEY REFERENCES
   public.linkedin_staging_records(id) ON DELETE CASCADE` (1:1), `user_id` og kun
   domenespesifikke, hvitlistede normaliserte felt — ingen rå CSV-rad som `jsonb`,
-  ingen duplisert proveniens. Domenetilhørighet håndheves med FK mot
-  `(staging_record_id, staging_domain)` og en genererte/CHECK-låst domenekolonne, slik
-  at f.eks. en karriererad ikke kan henge på en `network`-forelder.
+  ingen duplisert proveniens. Domenetilhørighet håndheves med sammensatt FK
+  `(staging_record_id, staging_domain)` mot foreldreraden, der domenekolonnen er en
+  generert konstant per tabell; tenant-samsvar håndheves med
+  `(staging_record_id, user_id)` → `linkedin_staging_records(id, user_id)`.
   **`source_identity_hash`** = SHA-256 av en **kanonisk serialisert, versjonert
-  struktur** (`{"v":"linkedin_identity_v1","user_id":…,"source_file":…,
+  struktur** (`{"v":"linkedin_identity_v1","user_id":…,"purpose":…,"source_file":…,
   "record_kind":…,"fields":{navngitte hvitlistede felt i sortert rekkefølge}}`) med
-  entydige skilletegn — aldri ren strengkonkatenering. Feltverdier er NFKC-normaliserte
-  og whitespace-trimmede. Radnummer inngår ikke, så omorganiserte CSV-rader gir ingen
-  dubletter: identisk innhold oppdaterer kun `last_linkedin_import_id`/`last_seen_at`;
-  endret innhold gir ny stagingrad, aldri overskriving.
+  entydige skilletegn — aldri ren strengkonkatenering. `purpose` inngår i strukturen,
+  så samme kildeinnhold behandlet for to ulike formål gir to distinkte stagingrader
+  uten kollisjon. Feltverdier er NFKC-normaliserte og whitespace-trimmede. Radnummer
+  inngår ikke, så omorganiserte CSV-rader gir ingen dubletter: identisk innhold
+  oppdaterer kun `last_linkedin_import_id`/`last_seen_at`; endret innhold gir ny
+  stagingrad, aldri overskriving.
   **Proveniens-CHECK** (på foreldretabellen): `csv_row` krever `source_row_number` +
   `source_row_hash` og forbyr `source_content_hash`; `html_section` og `archive_file`
   krever `source_content_hash` og forbyr `source_row_number`/`source_row_hash`.
-- `linkedin_import_stage_records` — kobling import ↔ stagingrad, med ekte FK:
+- `linkedin_import_stage_records` — kobling import ↔ stagingrad, med ekte FK-er:
   `linkedin_import_id`, `attempt_id`, `user_id`, `staging_record_id` →
-  `public.linkedin_staging_records(id)`, `staging_domain` (validert mot foreldreraden
-  via sammensatt FK `(staging_record_id, staging_domain)`, ikke polymorf tekst),
-  `purpose`, `source_identity_hash`, `linked_at`. Unik
+  `public.linkedin_staging_records(id)`, `staging_domain`, `purpose`,
+  `source_identity_hash`, `linked_at`. Unik
   `(linkedin_import_id, attempt_id, staging_record_id)`.
+  Integritet håndheves i databasen, ikke bare i serverkoden: sammensatte FK-er
+  `(linkedin_import_id, user_id)` → `linkedin_imports(id, user_id)`,
+  `(staging_record_id, user_id)` → `linkedin_staging_records(id, user_id)`,
+  `(staging_record_id, staging_domain)` og `(staging_record_id, purpose)` mot
+  foreldreradens tilsvarende hjelpe-unike nøkler. Ingen polymorf tekstreferanse.
   Ved retry fjernes **kun** koblinger med det feilede `attempt_id`; en stagingrad
   slettes bare når den ikke har koblinger fra noen annen import eller noe annet
   forsøk. Det beskytter allerede staget grunnlag når samme import senere utvides med
   et nytt behandlingsformål.
-- `linkedin_import_tombstones` — minimalt revisjonsspor per §6.3.
+- `linkedin_import_tombstones` — minimalt revisjonsspor per §6.3. Tombstone har ingen
+  FK til importraden og blokkerer aldri en senere identisk reimport.
 
 
 
@@ -110,6 +132,9 @@ RLS: eier-policyer (`auth.uid() = user_id`) kun for SELECT på alle tabeller.
 `authenticated` har **ingen** INSERT/UPDATE/DELETE-policy — heller ikke DELETE på
 `linkedin_imports`; sletting går utelukkende via den kontrollerte serverhandlingen i
 §4 slik at tombstone, Storage-sletting og revisjonsregelen ikke kan omgås.
+Tenant-samsvar hviler på sammensatte FK-er over, ikke på at service-role alltid
+sender riktig `user_id`.
+
 `GRANT SELECT` til `authenticated`, `GRANT ALL` til `service_role`, ingen `anon`.
 
 
@@ -121,10 +146,15 @@ arkivet må gjenbrukes for utsatt staging (utvidede formål). Sletting: umiddelb
 `rejected`/`cancelled`, ellers senest 7 dager etter staging. Kun sanitert objektsti
 logges.
 
+`archive_available` speiler faktisk tilstand og settes eksplisitt i hver kontrollflyt:
+`true` først etter bekreftet skriv til bucketen, `false` ved rein minneparsing, og
+`false` i samme flyt som sletter objektet (manuell sletting eller retention-sweep).
+
 **Konsekvens som må være synlig i senere UI:** når ZIP-en er slettet etter 7 dager,
 kan ikke nye behandlingsformål utvides på den eksisterende importen — brukeren må
-laste opp ZIP-en på nytt. Importen får et eksplisitt felt (`archive_available=false`)
-slik at fase 3-UI kan vise dette som et tydelig valg, ikke som en stille begrensning.
+laste opp ZIP-en på nytt, og partiell unikhet gjør at identisk ZIP kan lastes opp
+igjen etter purge.
+
 
 
 ## 3. Parser- og normaliseringsmodul (server-only)
@@ -176,17 +206,31 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
   transaksjonen er committet; feiler Storage-sletting, blir objektet stående i
   slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis.
 
+- **Kanonisk import ved sletting:** dersom andre importrader peker til importen som
+  slettes, må flyten enten (a) velge og validere en ny kanonisk import blant de
+  gjenværende importene for samme bruker og flytte alle `canonical_import_id`-
+  referanser atomisk i samme transaksjon, eller (b) avvise slettingen med
+  `canonical_import_in_use`. Self-FK-en garanterer at ingen import blir stående med
+  en ugyldig kanonisk referanse.
 - `public.linkedin_import_retention_sweep()` — idempotent, samme
-  `SECURITY DEFINER`/`search_path`/grant-regler; sletter ZIP ≥7 dager, staging
-  ≥90 dager etter `reconciliation_ready`, staging uten brukerhandling per kontraktens
-  inaktivitetsgrense, rydder slettekøen for Storage, og setter importer med utløpt
-  `heartbeat_at` til `failed` med `staging_timeout`. Rører aldri CV-importer eller
-  andre kilder. Testes mot syntetiske data; ikke planlagt i cron i denne fasen.
+  `SECURITY DEFINER`/`search_path`/grant-regler; sletter ZIP ≥7 dager (og setter
+  `archive_available = false`), staging ≥90 dager etter `reconciliation_ready`,
+  staging uten brukerhandling per kontraktens inaktivitetsgrense, rydder slettekøen
+  for Storage, og setter importer med utløpt `heartbeat_at` til `failed` med
+  `staging_timeout`. Rører aldri CV-importer eller andre kilder. Testes mot
+  syntetiske data; ikke planlagt i cron i denne fasen.
+- **Reimport etter sletting:** tombstone beholdes som revisjonsspor, men blokkerer
+  ikke ny import. Den partielle unikheten på `(user_id, archive_sha256)` gjelder kun
+  aktive rader, så identisk ZIP kan lastes opp igjen og gir en ny, ren importrad uten
+  arvede stagingkoblinger.
 - Kontraktdokumentet `docs/linkedin-import-contract-v1.md` oppdateres i samme
   leveranse slik at §6.1/§6.2/§9.5 og §1.3 har **én** autoritativ livssyklus:
   ZIP 7 dager, staging 90 dager, samme statusklassifisering som over — og slik at
   datamodellavsnittet beskriver felles `linkedin_staging_records` med 1:1
-  domenetabeller, formålsstatus per fil, `attempt_id`-isolasjon og `archive_available`.
+  domenetabeller, tenant-samsvar via sammensatte FK-er, formål i identitetshashen,
+  formålsstatus per fil, `attempt_id`-isolasjon, self-FK for kanonisk import,
+  reimportregelen og `archive_available` uten default.
+
 
 
 ## 5. Tester
@@ -209,6 +253,17 @@ Nye tester:
    tidligere vellykket stagingkobling og delt stagingrad består.
 4. Kall mot internruten uten korrekt intern autorisasjon avvises (401) uten
    databasekontakt.
+5. Tenant-samsvar: forsøk på å knytte fil, formål, domenestaging, koblingsrad eller
+   `canonical_import_id` på tvers av to brukere avvises av sammensatt FK.
+6. Kanonisk import: sletting av en import som andre peker til flytter referansene
+   atomisk, eller avvises med `canonical_import_in_use` — aldri ugyldig referanse.
+7. Reimport: slett/purge import → last opp identisk syntetisk ZIP → ny aktiv import
+   opprettes, tombstone består, ingen arvede stagingkoblinger.
+8. `archive_available`: `true` kun etter bekreftet Storage-skriv; `false` ved
+   minneparsing og etter retention-sweep.
+9. Formål i identitetshashen: samme kildeinnhold behandlet for to formål gir to
+   distinkte stagingrader uten unikhetskollisjon.
+
 
 
 ## 6. Rapport
