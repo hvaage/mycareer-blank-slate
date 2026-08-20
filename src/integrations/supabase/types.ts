@@ -4515,6 +4515,300 @@ export type Database = {
           },
         ]
       }
+      linkedin_reconciliation_decisions: {
+        Row: {
+          created_at: string
+          decided_at: string
+          decision: string
+          id: string
+          note: string | null
+          proposal_id: string
+          reason_code: string | null
+          resulting_status: string
+          supersedes_decision_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string
+          decision: string
+          id?: string
+          note?: string | null
+          proposal_id: string
+          reason_code?: string | null
+          resulting_status: string
+          supersedes_decision_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string
+          decision?: string
+          id?: string
+          note?: string | null
+          proposal_id?: string
+          reason_code?: string | null
+          resulting_status?: string
+          supersedes_decision_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_reconciliation_decisions_proposal_fk"
+            columns: ["proposal_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_reconciliation_proposals"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "linkedin_reconciliation_decisions_supersedes_fk"
+            columns: ["supersedes_decision_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_reconciliation_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      linkedin_reconciliation_proposal_sources: {
+        Row: {
+          created_at: string
+          id: string
+          linkedin_staging_record_id: string
+          proposal_id: string
+          source_reference_json: Json
+          source_role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          linkedin_staging_record_id: string
+          proposal_id: string
+          source_reference_json?: Json
+          source_role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          linkedin_staging_record_id?: string
+          proposal_id?: string
+          source_reference_json?: Json
+          source_role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_reconciliation_proposal_sources_proposal_fk"
+            columns: ["proposal_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_reconciliation_proposals"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "linkedin_reconciliation_proposal_sources_record_fk"
+            columns: ["linkedin_staging_record_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_reconciliation_proposals: {
+        Row: {
+          comparison_json: Json
+          confidence: number
+          created_at: string
+          dedupe_key: string
+          id: string
+          linkedin_import_id: string
+          match_method: string
+          minimized_at: string | null
+          proposal_domain: string
+          proposal_kind: string
+          proposed_payload_json: Json | null
+          purpose: string
+          reason_codes: string[]
+          reconciliation_run_id: string
+          reconciliation_version: string
+          review_message: string | null
+          source_classification: string
+          source_snapshot_hash: string
+          source_snapshot_json: Json
+          status: string
+          superseded_at: string | null
+          supersedes_proposal_id: string | null
+          target_snapshot_hash: string | null
+          target_snapshot_json: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comparison_json?: Json
+          confidence?: number
+          created_at?: string
+          dedupe_key: string
+          id?: string
+          linkedin_import_id: string
+          match_method?: string
+          minimized_at?: string | null
+          proposal_domain: string
+          proposal_kind: string
+          proposed_payload_json?: Json | null
+          purpose: string
+          reason_codes?: string[]
+          reconciliation_run_id: string
+          reconciliation_version?: string
+          review_message?: string | null
+          source_classification?: string
+          source_snapshot_hash: string
+          source_snapshot_json?: Json
+          status?: string
+          superseded_at?: string | null
+          supersedes_proposal_id?: string | null
+          target_snapshot_hash?: string | null
+          target_snapshot_json?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comparison_json?: Json
+          confidence?: number
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          linkedin_import_id?: string
+          match_method?: string
+          minimized_at?: string | null
+          proposal_domain?: string
+          proposal_kind?: string
+          proposed_payload_json?: Json | null
+          purpose?: string
+          reason_codes?: string[]
+          reconciliation_run_id?: string
+          reconciliation_version?: string
+          review_message?: string | null
+          source_classification?: string
+          source_snapshot_hash?: string
+          source_snapshot_json?: Json
+          status?: string
+          superseded_at?: string | null
+          supersedes_proposal_id?: string | null
+          target_snapshot_hash?: string | null
+          target_snapshot_json?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_reconciliation_proposals_import_fk"
+            columns: ["linkedin_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "linkedin_reconciliation_proposals_run_fk"
+            columns: ["reconciliation_run_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_reconciliation_runs"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "linkedin_reconciliation_proposals_supersedes_fk"
+            columns: ["supersedes_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_reconciliation_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      linkedin_reconciliation_runs: {
+        Row: {
+          conflict_count: number
+          created_at: string
+          created_count: number
+          domain_status: Json
+          error_code: string | null
+          error_summary: string | null
+          finished_at: string | null
+          id: string
+          input_signature: string
+          linkedin_import_id: string
+          match_count: number
+          normalization_version: string
+          possible_duplicate_count: number
+          proposal_count: number
+          purpose: string
+          reconciliation_version: string
+          skip_reason: string | null
+          skipped_count: number
+          source_record_count: number
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conflict_count?: number
+          created_at?: string
+          created_count?: number
+          domain_status?: Json
+          error_code?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          id?: string
+          input_signature: string
+          linkedin_import_id: string
+          match_count?: number
+          normalization_version?: string
+          possible_duplicate_count?: number
+          proposal_count?: number
+          purpose: string
+          reconciliation_version?: string
+          skip_reason?: string | null
+          skipped_count?: number
+          source_record_count?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conflict_count?: number
+          created_at?: string
+          created_count?: number
+          domain_status?: Json
+          error_code?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          id?: string
+          input_signature?: string
+          linkedin_import_id?: string
+          match_count?: number
+          normalization_version?: string
+          possible_duplicate_count?: number
+          proposal_count?: number
+          purpose?: string
+          reconciliation_version?: string
+          skip_reason?: string | null
+          skipped_count?: number
+          source_record_count?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_reconciliation_runs_import_fk"
+            columns: ["linkedin_import_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
       linkedin_staging_records: {
         Row: {
           created_at: string
@@ -7548,6 +7842,19 @@ export type Database = {
         Returns: Json
       }
       linkedin_import_retention_sweep: { Args: never; Returns: Json }
+      linkedin_reconciliation_decide: {
+        Args: {
+          p_decision: string
+          p_note?: string
+          p_proposal_id: string
+          p_reason_code?: string
+        }
+        Returns: Json
+      }
+      linkedin_reconciliation_minimize_stale: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       list_regnskap_cron_runs: {
         Args: { p_limit?: number }
         Returns: {

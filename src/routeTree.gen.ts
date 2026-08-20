@@ -59,6 +59,7 @@ import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/s
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
+import { Route as ApiInternalLinkedinReconciliationWorkerRouteImport } from './routes/api/internal/linkedin-reconciliation-worker'
 import { Route as ApiInternalLinkedinImportWorkerRouteImport } from './routes/api/internal/linkedin-import-worker'
 import { Route as ApiInternalCvGenerationWorkerRouteImport } from './routes/api/internal/cv-generation-worker'
 import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
@@ -378,6 +379,12 @@ const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
   path: '/api/public/ingest-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiInternalLinkedinReconciliationWorkerRoute =
+  ApiInternalLinkedinReconciliationWorkerRouteImport.update({
+    id: '/api/internal/linkedin-reconciliation-worker',
+    path: '/api/internal/linkedin-reconciliation-worker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiInternalLinkedinImportWorkerRoute =
   ApiInternalLinkedinImportWorkerRouteImport.update({
     id: '/api/internal/linkedin-import-worker',
@@ -713,6 +720,7 @@ export interface FileRoutesByFullPath {
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
   '/api/internal/linkedin-import-worker': typeof ApiInternalLinkedinImportWorkerRoute
+  '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -807,6 +815,7 @@ export interface FileRoutesByTo {
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
   '/api/internal/linkedin-import-worker': typeof ApiInternalLinkedinImportWorkerRoute
+  '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -906,6 +915,7 @@ export interface FileRoutesById {
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
   '/api/internal/cv-generation-worker': typeof ApiInternalCvGenerationWorkerRoute
   '/api/internal/linkedin-import-worker': typeof ApiInternalLinkedinImportWorkerRoute
+  '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -1005,6 +1015,7 @@ export interface FileRouteTypes {
     | '/api/cv/propose-cv-atoms'
     | '/api/internal/cv-generation-worker'
     | '/api/internal/linkedin-import-worker'
+    | '/api/internal/linkedin-reconciliation-worker'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -1099,6 +1110,7 @@ export interface FileRouteTypes {
     | '/api/cv/propose-cv-atoms'
     | '/api/internal/cv-generation-worker'
     | '/api/internal/linkedin-import-worker'
+    | '/api/internal/linkedin-reconciliation-worker'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -1197,6 +1209,7 @@ export interface FileRouteTypes {
     | '/api/cv/propose-cv-atoms'
     | '/api/internal/cv-generation-worker'
     | '/api/internal/linkedin-import-worker'
+    | '/api/internal/linkedin-reconciliation-worker'
     | '/api/public/ingest-report'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
@@ -1248,6 +1261,7 @@ export interface RootRouteChildren {
   ApiCvProposeCvAtomsRoute: typeof ApiCvProposeCvAtomsRoute
   ApiInternalCvGenerationWorkerRoute: typeof ApiInternalCvGenerationWorkerRoute
   ApiInternalLinkedinImportWorkerRoute: typeof ApiInternalLinkedinImportWorkerRoute
+  ApiInternalLinkedinReconciliationWorkerRoute: typeof ApiInternalLinkedinReconciliationWorkerRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
@@ -1610,6 +1624,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/ingest-report'
       fullPath: '/api/public/ingest-report'
       preLoaderRoute: typeof ApiPublicIngestReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/linkedin-reconciliation-worker': {
+      id: '/api/internal/linkedin-reconciliation-worker'
+      path: '/api/internal/linkedin-reconciliation-worker'
+      fullPath: '/api/internal/linkedin-reconciliation-worker'
+      preLoaderRoute: typeof ApiInternalLinkedinReconciliationWorkerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/internal/linkedin-import-worker': {
@@ -2164,6 +2185,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCvProposeCvAtomsRoute: ApiCvProposeCvAtomsRoute,
   ApiInternalCvGenerationWorkerRoute: ApiInternalCvGenerationWorkerRoute,
   ApiInternalLinkedinImportWorkerRoute: ApiInternalLinkedinImportWorkerRoute,
+  ApiInternalLinkedinReconciliationWorkerRoute:
+    ApiInternalLinkedinReconciliationWorkerRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
