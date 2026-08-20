@@ -7852,8 +7852,16 @@ export type Database = {
         Returns: Json
       }
       linkedin_reconciliation_minimize_stale: {
-        Args: { p_user_id: string }
+        Args: { p_proposal_ids?: string[]; p_user_id: string }
         Returns: number
+      }
+      linkedin_reconciliation_phase3_canary: {
+        Args: never
+        Returns: {
+          check_name: string
+          detail: string
+          passed: boolean
+        }[]
       }
       list_regnskap_cron_runs: {
         Args: { p_limit?: number }
