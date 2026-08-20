@@ -28,20 +28,25 @@ Backend-only. Ingen brukerflate, ingen AI, ingen skriving til produktdata
   tellefelt (`known/unknown/excluded/valid/invalid_file_count`, `staged_record_count`,
   aggregert klasse C-eksklusjonsteller per årsak som `jsonb` med kun kodenøkler).
   Unik indeks `(user_id, archive_sha256)`.
+  Driftsfelt: `active_phase` (`validation|staging|null`), `attempt_id`,
+  `heartbeat_at`, `staging_started_at`.
   **Statusklassifisering:** `uploaded`, `validating` er i arbeid; `validated` og
   `partially_validated` er ikke terminale — de er klare for staging;
   `staged` er mellomtilstand mot avstemming; `reconciliation_ready` er terminal for
   fase 2; `rejected`, `cancelled`, `failed` er terminale forsøkstilstander.
   Nytt forsøk etter `failed`/`cancelled` skjer aldri ved å fortsette den gamle raden:
-  serverhandlingen oppretter/gjenbruker importen eksplisitt, nullstiller tellefelt og
-  fjerner delvis staging fra det forsøket før ny kjøring — idempotent på
-  `(user_id, archive_sha256)`.
-  **Staging-overgang uten misvisende status:** staging kjøres i avgrensede porsjoner
-  per fil; `status` settes til `validating`/`staged` med `heartbeat_at` og
-  `attempt_id`, tellefelt oppdateres transaksjonelt sammen med filstatus, og en import
-  hvis `heartbeat_at` er eldre enn tidsgrensen settes deterministisk til `failed` med
-  `error_code = staging_timeout` av oppryddingsfunksjonen — aldri liggende i
-  `validating`.
+  serverhandlingen starter et nytt `attempt_id`, nullstiller tellefelt og fjerner
+  koblinger/stagingrader fra det feilede forsøket (kun de uten andre importreferanser,
+  se `linkedin_import_stage_records`) — idempotent på `(user_id, archive_sha256)`.
+  **Staging-overgang uten misvisende status:** under staging beholdes `status` som
+  `validated`/`partially_validated`; kun `active_phase = 'staging'`,
+  `staging_started_at`, `attempt_id` og `heartbeat_at` settes. Filstatus og tellefelt
+  oppdateres transaksjonelt per fil/porsjon. Når alle valgte filer er staged:
+  `active_phase = null` og `status = staged`, deretter `reconciliation_ready`.
+  Stale-run-opprydding bruker `active_phase` + `heartbeat_at` + `attempt_id`, setter
+  `active_phase = null` og `error_code = staging_timeout`, og gjør aldri en ferdig
+  validert import om til `validating`.
+
 - `linkedin_import_purposes` — formål med CHECK på
   `profile|career|network|jobs|learning|content`, `selected_at`, `selection_source`,
   unik `(linkedin_import_id, purpose)`.
