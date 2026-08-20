@@ -48,6 +48,8 @@ Karriere, kurs og innhold: karriereavstemmingen rettes som ny reconciliation_ver
 ## Rekkefølge og stoppunkt
 
 1. Produktkontrakt og datamatrise leveres som dokument. **Stopp for godkjenning.**
-2. Leveranse A.
-3. Leveranse B.
-4. UI for Nettverk og muligheter bygges først etter at kontrakten er godkjent.
+2. Leveranse A: driftslag for LinkedIn-import. Syntetisk test- og driftsrapport leveres. **Stopp ved avvik.**
+3. Leveranse B: korrigert data- og promoteringsmodell. Syntetisk datakvalitets-, RLS- og idempotensrapport leveres. **Stopp for godkjenning.**
+4. Separat, eksplisitt godkjent ende-til-ende-akseptansetest med Henriks LinkedIn-eksport. Testen kjører import, staging og avstemming, men ingen automatisk promotering. Testinstruksen leveres før kjøring. **Stopp for rapport og godkjenning.**
+5. UI for Nettverk og muligheter bygges først etter at produktkontrakten, Leveranse A, Leveranse B og akseptansetesten er godkjent.
+
