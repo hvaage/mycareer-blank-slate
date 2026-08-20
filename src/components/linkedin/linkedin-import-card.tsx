@@ -1,6 +1,8 @@
 // @ts-nocheck
 // ============================================================
 // LinkedIn-import: brukerens opplasting av eksportarkivet.
+// Opplastingen gir umiddelbar kvittering. Selve lesingen skjer i
+// bakgrunnen og fortsetter selv om nettleseren lukkes.
 // Ingenting skrives til karriereoversikten her — importen lager
 // kun forslag som brukeren tar stilling til i kildegjennomgangen.
 // ============================================================
@@ -11,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
@@ -24,22 +27,37 @@ const PURPOSE_OPTIONS: Array<{ value: string; label: string; hint: string }> = [
   { value: "content", label: "Innhold", hint: "Innlegg og artikler du har skrevet" },
 ];
 
+const PHASE_TEXT: Record<string, string> = {
+  queued: "Venter på tur",
+  validating_archive: "Sjekker arkivet",
+  staging: "Leser filene i eksporten",
+  reconciling: "Sammenligner med det du har fra før",
+  finalizing: "Gjør ferdig",
+};
+
 const STATUS_TEXT: Record<string, string> = {
-  uploaded: "Leser eksporten…",
-  validating: "Leser eksporten…",
-  staging: "Leser eksporten…",
+  uploaded: "Venter på tur",
+  validating: "Sjekker arkivet",
+  staging: "Leser filene i eksporten",
+  staged: "Sammenligner med det du har fra før",
   reconciliation_ready: "Ferdig lest — forslag er klare",
   failed: "Importen ble avbrutt før den var ferdig",
+  cancelled: "Importen ble avbrutt",
   rejected: "Arkivet kunne ikke leses",
 };
 
-async function authedFetch(path: string) {
+const ACTIVE_STATUSES = new Set(["uploaded", "validating", "staging", "staged"]);
+
+async function authedFetch(path: string, init?: RequestInit) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Du må være pålogget.");
-  const res = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(path, {
+    ...init,
+    headers: { ...(init?.headers ?? {}), Authorization: `Bearer ${token}` },
+  });
   const json = await res.json().catch(() => null);
-  if (!res.ok || !json?.ok) throw new Error(json?.error?.message ?? "Kunne ikke hente importene.");
+  if (!res.ok || !json?.ok) throw new Error(json?.error?.message ?? "Handlingen kunne ikke utføres.");
   return json;
 }
 
@@ -47,15 +65,26 @@ export function LinkedInImportCard() {
   const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [purposes, setPurposes] = useState<string[]>(["profile", "career"]);
-  const [result, setResult] = useState<{ proposals: number; staged: number } | null>(null);
+  const [receipt, setReceipt] = useState<string | null>(null);
 
   const imports = useQuery({
     queryKey: ["linkedin-imports"],
-    queryFn: async () => (await authedFetch("/api/linkedin/imports")).imports as Array<Record<string, unknown>>,
-    refetchInterval: 20000,
+    queryFn: async () =>
+      (await authedFetch("/api/linkedin/imports")).imports as Array<Record<string, unknown>>,
+    // Tettere puls mens noe er under arbeid; ellers rolig.
+    refetchInterval: (query) => {
+      const rows = (query.state.data ?? []) as Array<Record<string, unknown>>;
+      return rows.some((r) => ACTIVE_STATUSES.has(String(r.status))) ? 5000 : 30000;
+    },
   });
-  const latest = imports.data?.[0];
 
+  const latest = imports.data?.[0];
+  const attempt = (latest?.latest_attempt ?? null) as Record<string, unknown> | null;
+  const isActive = latest ? ACTIVE_STATUSES.has(String(latest.status)) : false;
+  const knownFiles = Number(latest?.known_file_count ?? 0);
+  const processedFiles = Number(attempt?.processed_files_count ?? 0);
+  const progressPct =
+    knownFiles > 0 ? Math.min(99, Math.round((processedFiles / knownFiles) * 100)) : null;
 
   const upload = useMutation({
     mutationFn: async () => {
@@ -78,15 +107,31 @@ export function LinkedInImportCard() {
       if (!res.ok || !json?.ok) {
         throw new Error(json?.error?.message ?? "Importen feilet. Prøv igjen.");
       }
-      return json as { proposals: number; counts: { staged_records: number } };
+      return json as { message?: string };
     },
     onSuccess: (json) => {
-      setResult({ proposals: json.proposals ?? 0, staged: json.counts?.staged_records ?? 0 });
+      setReceipt(
+        json.message ??
+          "Importen er mottatt og kjøres i bakgrunnen. Du får varsel når den er klar.",
+      );
       setFile(null);
-      queryClient.invalidateQueries({ queryKey: ["review-inbox-counts"] });
-      queryClient.invalidateQueries({ queryKey: ["linkedin-reconciliation-proposals"] });
       queryClient.invalidateQueries({ queryKey: ["linkedin-imports"] });
-      toast.success("LinkedIn-eksporten er lest inn");
+      toast.success("Eksporten er mottatt — vi leser den i bakgrunnen");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const importAction = useMutation({
+    mutationFn: async (action: "cancel" | "retry") =>
+      await authedFetch("/api/linkedin/imports", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ import_id: latest?.id, action }),
+      }),
+    onSuccess: (_data, action) => {
+      setReceipt(null);
+      queryClient.invalidateQueries({ queryKey: ["linkedin-imports"] });
+      toast.success(action === "cancel" ? "Importen avbrytes" : "Nytt forsøk er satt i kø");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -139,11 +184,11 @@ export function LinkedInImportCard() {
         <Button size="sm" disabled={!file || upload.isPending} onClick={() => upload.mutate()}>
           {upload.isPending ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> Leser eksporten…
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> Laster opp…
             </>
           ) : (
             <>
-              <Upload className="mr-2 h-4 w-4" aria-hidden /> Last opp og lag forslag
+              <Upload className="mr-2 h-4 w-4" aria-hidden /> Last opp og les i bakgrunnen
             </>
           )}
         </Button>
@@ -154,30 +199,85 @@ export function LinkedInImportCard() {
         </Button>
       </div>
 
-      {latest && !result ? (
+      {receipt ? (
         <Alert>
-          <AlertDescription className="text-sm">
-            Siste import: {STATUS_TEXT[String(latest.status)] ?? String(latest.status)}
-            {latest.status === "failed" ? (
-              <> — last opp filen på nytt. Det du allerede har lest inn blir ikke duplisert.</>
-            ) : null}
-          </AlertDescription>
+          <AlertDescription className="text-sm">{receipt}</AlertDescription>
         </Alert>
       ) : null}
 
-      {result ? (
+      {latest ? (
         <Alert>
-          <AlertDescription className="text-sm">
-            Vi leste {result.staged} rader og laget {result.proposals} forslag. Ingenting er lagt til
-            i karriereoversikten din ennå —{" "}
-            <Link
-              to="/kildegjennomgang"
-              search={{ source: "linkedin" }}
-              className="underline underline-offset-2"
-            >
-              gå til kildegjennomgangen
-            </Link>{" "}
-            for å ta stilling til forslagene.
+          <AlertDescription className="space-y-2 text-sm">
+            <div>
+              Siste import:{" "}
+              {attempt && isActive
+                ? (PHASE_TEXT[String(attempt.phase)] ?? STATUS_TEXT[String(latest.status)])
+                : (STATUS_TEXT[String(latest.status)] ?? String(latest.status))}
+              {attempt && isActive && Number(attempt.retry_count ?? 0) > 0 ? (
+                <> (forsøk {Number(attempt.attempt_number)} av {Number(attempt.max_attempts)})</>
+              ) : null}
+            </div>
+
+            {isActive && progressPct !== null ? (
+              <div className="space-y-1">
+                <Progress value={progressPct} />
+                <p className="text-xs text-muted-foreground">
+                  {processedFiles} av {knownFiles} filer lest
+                  {Number(attempt?.staged_records_count ?? 0) > 0
+                    ? ` — ${Number(attempt?.staged_records_count)} rader så langt`
+                    : ""}
+                </p>
+              </div>
+            ) : null}
+
+            {isActive ? (
+              <p className="text-xs text-muted-foreground">
+                Du kan lukke siden. Vi varsler deg her i appen når importen er ferdig.
+              </p>
+            ) : null}
+
+            {latest.status === "reconciliation_ready" ? (
+              <p>
+                Ingenting er lagt til i karriereoversikten din ennå —{" "}
+                <Link
+                  to="/kildegjennomgang"
+                  search={{ source: "linkedin" }}
+                  className="underline underline-offset-2"
+                >
+                  gå til kildegjennomgangen
+                </Link>{" "}
+                for å ta stilling til forslagene.
+              </p>
+            ) : null}
+
+            {String(latest.error_code ?? "") ? (
+              <p className="text-xs text-muted-foreground">
+                Årsak: {String(latest.error_summary ?? latest.error_code)}
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {isActive ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={importAction.isPending}
+                  onClick={() => importAction.mutate("cancel")}
+                >
+                  Avbryt importen
+                </Button>
+              ) : null}
+              {latest.status === "failed" && latest.archive_available ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={importAction.isPending}
+                  onClick={() => importAction.mutate("retry")}
+                >
+                  Prøv igjen
+                </Button>
+              ) : null}
+            </div>
           </AlertDescription>
         </Alert>
       ) : null}
