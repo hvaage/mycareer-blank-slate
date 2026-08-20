@@ -28,6 +28,7 @@ Jobbrelaterte LinkedIn-data er utelukket av produktkontrakt v1.1 og skal ikke li
 - Alt innhold som stammer fra jobbsignaler tømmes: kildeøyeblikksbilde, foreslått innhold og sammenligningsdata. Igjen står kun et minimalt revisjonsspor: id, import, domene/type, status, hash, tidspunkt og årsak.
 - Tilhørende aktive staging-koblinger fjernes, og jobbsignal-staging slettes når siste aktive kobling er borte.
 - Nye importer klassifiserer disse filene som ekskludert allerede før staging, så ingen jobbrelaterte data kan nå avstemming, forslag eller produktdata.
+- Dette er en kontrollert, reell dataendring i forslagslaget, kjørt med før/etter-telling. De fire avviste og det ene avklaringsforslaget endres ikke.
 - Egen test beviser både den historiske oppryddingen og blokkeringen ved ny import.
 
 ### 1. LinkedIn-endorsements som eget tredjepartssignal
@@ -36,7 +37,7 @@ Nytt staginglag skilt fra anbefalinger, med retning (mottatt for din kompetanse 
 Produktlaget lagrer kun et aggregat: antall LinkedIn-støttesignaler per kompetanse, én aktiv rad per bruker og kompetanse. Navn på personer som har gitt støtte lagres aldri i produktdata, logger eller DTO-er. Antallet er aldri en score, et ferdighetsnivå eller en attestering, og kobles bare til en kompetanse du allerede har valgt.
 
 ### 2. Anbefalinger med retning
-`career_recommendations` utvides additivt med retning (obligatorisk, kun «mottatt» tillatt i produkt), kildesystem, kildeklasse, import-id, kildehash, anbefalingsdato og forfatteridentitets-hash. Duplikater fanges på bruker + forfatteridentitet + teksthash + kildesystem. Gitte anbefalinger blir liggende i staging. Kobling til en nettverkskontakt krever eksplisitt brukerbekreftelse — aldri navnelikhet.
+`career_recommendations` utvides additivt med retning (obligatorisk, kun «mottatt» tillatt i produkt), kildesystem, kildeklasse, import-id, kildehash, anbefalingsdato og forfatteridentitets-hash. Forfatteridentiteten hashes med en nøklet hash (HMAC) og en serverhemmelighet — aldri en ren hash av navn eller profil-URL — slik at verdien verken kan gjenkjennes eller korreleres på tvers av brukere. Duplikater fanges på bruker + forfatteridentitet + teksthash + kildesystem. Gitte anbefalinger blir liggende i staging. Kobling til en nettverkskontakt krever eksplisitt brukerbekreftelse — aldri navnelikhet.
 
 ### 3. Nettverk, reimport og selskaper
 - «Sist observert» på kontakt; profil-URL eies fortsatt kun av identitetstabellen.
@@ -48,10 +49,11 @@ Produktlaget lagrer kun et aggregat: antall LinkedIn-støttesignaler per kompeta
 Nettverksavstemming lagres som en frossen, reviderbar batch — ikke en beregning som gjøres på nytt hver gang.
 
 - Batchen eier bruker, import, kjøring, inndatasignatur, avstemmingsversjon, status, tidspunkter og rene tellere: nye, eksakte identitetsmatcher, mulige dubletter, uten stabil identitet, observert profilendring og ekskluderte. Ingen kontaktdata i aggregatfeltene.
-- Radene under batchen peker til staging- eller kontaktidentitet og bærer kategori, foreslått handling, kildehash, eventuell målidentitet, status og årsakskoder.
+- Radene under batchen peker til staging- eller kontaktidentitet og bærer kategori, foreslått handling, kildehash, eventuell målidentitet, status og årsakskoder. Målidentiteten er valgfri og alltid bruker-scopet.
 - Samme inndata gjenbruker samme batch (idempotent) for både første import og reimport.
 - Batchen skriver aldri kontakter direkte. Navnelikhet gir «mulig dublett»; eksakt LinkedIn-identitet gir «eksakt treff» eller «observert profilendring».
 - En senere massegodkjenning konsumerer nøyaktig denne frosne batchen, aldri en ny ad hoc-beregning.
+- Dataminimering som i Fase 3: når en import slettes eller staging utløper, nullstilles kildereferansene på batchraden. Igjen står kun batch-id, kategori, handling, status, hash, tidspunkt og årsakskode — aldri navn, profil-URL, selskapstekst eller andre kontaktdata via batchraden.
 - RLS og bruker-scopede, sammensatte fremmednøkler på både batch og rader. Fase 5 kan vise batchen; her bygges kun modell og DTO.
 
 
