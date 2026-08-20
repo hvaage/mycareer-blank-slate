@@ -191,7 +191,74 @@ feilmeldinger. Kun filnavn, størrelse og eksklusjonsårsak registreres.
 | `Inferences_about_you.csv` | `inferred_sensitive_data` |
 | `Ad_Targeting.csv` | `inferred_sensitive_data` |
 
+
+### 2.5 Avstemming — alle 52 arkivstier med nøyaktig én klasse
+
+Avviket i tidligere utkast (29 + 9 + 13 = 51) skyldtes at raden `Articles/**` i
+klasse A-tabellen dekker **to** filer. Korrekt fordeling er derfor
+**30 klasse A-filer** (29 tabellrader), 9 klasse B og 13 klasse C = 52.
+Ingen fil står uten klasse; ingen fil har mer enn én klasse.
+
+| # | Arkivsti | Klasse |
+| --- | --- | --- |
+| 1 | `Profile.csv` | A |
+| 2 | `Profile Summary.csv` | A |
+| 3 | `Positions.csv` | A |
+| 4 | `Education.csv` | A |
+| 5 | `Certifications.csv` | A |
+| 6 | `Languages.csv` | A |
+| 7 | `Skills.csv` | A |
+| 8 | `Volunteering.csv` | A |
+| 9 | `Recommendations_Received.csv` | A |
+| 10 | `Recommendations_Given.csv` | A |
+| 11 | `Endorsement_Received_Info.csv` | A |
+| 12 | `Endorsement_Given_Info.csv` | A |
+| 13 | `Connections.csv` | A |
+| 14 | `Invitations.csv` | A |
+| 15 | `Company Follows.csv` | A |
+| 16 | `Jobs/Job Seeker Preferences.csv` | A |
+| 17 | `SavedJobAlerts.csv` | A |
+| 18 | `Jobs/Saved Jobs.csv` | A |
+| 19 | `Jobs/Saved Jobs_1.csv` | A |
+| 20 | `Jobs/Online Job Postings.csv` | A |
+| 21 | `Jobs/Job Applications.csv` | A |
+| 22 | `Learning.csv` | A |
+| 23 | `Events.csv` | A |
+| 24 | `Hashtag_Follows_997361.csv` | A |
+| 25 | `Member_Follows_997361.csv` | A |
+| 26 | `Saved_Items_997361.csv` | A |
+| 27 | `Rich_Media.csv` | A |
+| 28 | `Causes You Care About.csv` | A (opt-in) |
+| 29 | `Articles/Articles/available-positions-cisco-norway-henrik-vaage.html` | A |
+| 30 | `Articles/Articles/why-apples-tim-cook-just-made-surprise-appearance-ciscos-henrik-vaage.html` | A |
+| 31 | `Shares_997361.csv` | B |
+| 32 | `Reactions_997361.csv` | B |
+| 33 | `Comments_997361.csv` | B |
+| 34 | `Votes_997361.csv` | B |
+| 35 | `InstantReposts_997361.csv` | B |
+| 36 | `learning_role_play_messages.csv` | B |
+| 37 | `learning_coach_messages.csv` | B |
+| 38 | `guide_messages.csv` | B |
+| 39 | `VerifiedExternalCapability.csv` | B |
+| 40 | `messages.csv` | C |
+| 41 | `Email Addresses.csv` | C |
+| 42 | `PhoneNumbers.csv` | C |
+| 43 | `Whatsapp Phone Numbers.csv` | C |
+| 44 | `Logins.csv` | C |
+| 45 | `Security Challenges.csv` | C |
+| 46 | `Verifications/Verifications.csv` | C |
+| 47 | `Receipts_v2.csv` | C |
+| 48 | `Registration.csv` | C |
+| 49 | `LAN Ads Engagement.csv` | C |
+| 50 | `Ads Clicked.csv` | C |
+| 51 | `Inferences_about_you.csv` | C |
+| 52 | `Ad_Targeting.csv` | C |
+
+Sum: A = 30, B = 9, C = 13, totalt 52 = antall datafiler = antall kjente filer.
+Ukjente filer = 0.
+
 ---
+
 
 ## 3. Datakontrakt per produktområde
 
