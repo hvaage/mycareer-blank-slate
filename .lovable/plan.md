@@ -28,6 +28,7 @@ Jobbrelaterte LinkedIn-data er utelukket av produktkontrakt v1.1 og skal ikke li
 - Alt innhold som stammer fra jobbsignaler tømmes: kildeøyeblikksbilde, foreslått innhold og sammenligningsdata. Igjen står kun et minimalt revisjonsspor: id, import, domene/type, status, hash, tidspunkt og årsak.
 - Tilhørende aktive staging-koblinger fjernes, og jobbsignal-staging slettes når siste aktive kobling er borte.
 - Nye importer klassifiserer disse filene som ekskludert allerede før staging, så ingen jobbrelaterte data kan nå avstemming, forslag eller produktdata.
+- Dette er en kontrollert, reell dataendring i forslagslaget, kjørt med før/etter-telling. De fire avviste og det ene avklaringsforslaget endres ikke.
 - Egen test beviser både den historiske oppryddingen og blokkeringen ved ny import.
 
 ### 1. LinkedIn-endorsements som eget tredjepartssignal
