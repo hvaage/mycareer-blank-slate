@@ -63,7 +63,25 @@ Alle UI-DTO-er skiller mellom fem tilstander per informasjonsgruppe. Frontend sk
 | Ikke ennå analysert | `not_analyzed` | «Ingen analyse kjørt» med handling for å starte analyse. |
 | Utløpt / ikke fersk | `stale` | Verdien vises dempet med «Sist observert <dato>» og oppdateringshandling. |
 
-DTO-form: `{ state: DataState, value?: T, source: SourceClass, observed_at?, imported_at?, analyzed_at? }`.
+DTO-form:
+
+```text
+{
+  state: DataState,
+  value?: T,
+  source_class: SourceClass,          // gjelder aktiv verdi, alltid nøyaktig én
+  observed_at?, imported_at?, analyzed_at?, updated_at?,
+  evaluation?: { model_version, rule_version?, input_observed_at },  // kun derived_evaluation
+  last_source_observation?: {          // historisk proveniens, aldri aktiv verdi
+    source_class: 'linkedin_observation',
+    value: T,
+    observed_at
+  }
+}
+```
+
+`last_source_observation` fylles når aktiv verdi er `user_input` og en avvikende LinkedIn-observasjon finnes. UI viser den som sekundærlinje «Sist observert i LinkedIn: …», aldri som feltverdi.
+
 
 ### 0.4 Kildeavgrensning
 
