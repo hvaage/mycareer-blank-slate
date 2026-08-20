@@ -244,10 +244,18 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
   for Storage, og setter importer med utløpt `heartbeat_at` til `failed` med
   `staging_timeout`. Rører aldri CV-importer eller andre kilder. Testes mot
   syntetiske data; ikke planlagt i cron i denne fasen.
-- **Reimport etter sletting:** tombstone beholdes som revisjonsspor, men blokkerer
-  ikke ny import. Den partielle unikheten på `(user_id, archive_sha256)` gjelder kun
-  aktive rader, så identisk ZIP kan lastes opp igjen og gir en ny, ren importrad uten
-  arvede stagingkoblinger.
+- **Reopplasting etter retention ≠ reimport etter sletting.** To distinkte flyter,
+  avgjort av om det finnes en aktiv import med samme `(user_id, archive_sha256)`:
+  - *Aktiv import finnes, men `archive_available = false`* (ZIP slettet etter 7 dager):
+    dette er **ikke** en ny import. Flyten gjenbruker den eksisterende importraden,
+    oppretter nytt `attempt_id`, lagrer nytt privat ZIP-objekt, setter
+    `archive_available = true` **først** etter bekreftet Storage-skriv, beholder alle
+    eksisterende stagingkoblinger, og stager kun de nye, senere valgte formålene.
+  - *Ingen aktiv import (manuelt slettet eller purget)*: opplasting av samme ZIP
+    oppretter en ny, ren importrad. Tombstone beholdes som revisjonsspor og blokkerer
+    ikke, siden den partielle unikheten kun gjelder aktive rader. Ingen arvede
+    stagingkoblinger.
+
 - Kontraktdokumentet `docs/linkedin-import-contract-v1.md` oppdateres i samme
   leveranse slik at §6.1/§6.2/§9.5 og §1.3 har **én** autoritativ livssyklus:
   ZIP 7 dager, staging 90 dager, samme statusklassifisering som over — og slik at
