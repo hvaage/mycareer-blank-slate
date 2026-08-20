@@ -3996,6 +3996,98 @@ export type Database = {
           },
         ]
       }
+      linkedin_import_attempts: {
+        Row: {
+          attempt_number: number
+          cancellation_requested_at: string | null
+          created_at: string
+          cursor_json: Json
+          error_code: string | null
+          error_summary: string | null
+          finished_at: string | null
+          heartbeat_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_owner: string | null
+          linkedin_import_id: string
+          max_attempts: number
+          next_retry_at: string
+          phase: string
+          processed_files_count: number
+          processed_rows_count: number
+          reconciliation_runs_count: number
+          retry_count: number
+          staged_records_count: number
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          warning_count: number
+        }
+        Insert: {
+          attempt_number?: number
+          cancellation_requested_at?: string | null
+          created_at?: string
+          cursor_json?: Json
+          error_code?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          heartbeat_at?: string | null
+          id?: string
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          linkedin_import_id: string
+          max_attempts?: number
+          next_retry_at?: string
+          phase?: string
+          processed_files_count?: number
+          processed_rows_count?: number
+          reconciliation_runs_count?: number
+          retry_count?: number
+          staged_records_count?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          warning_count?: number
+        }
+        Update: {
+          attempt_number?: number
+          cancellation_requested_at?: string | null
+          created_at?: string
+          cursor_json?: Json
+          error_code?: string | null
+          error_summary?: string | null
+          finished_at?: string | null
+          heartbeat_at?: string | null
+          id?: string
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          linkedin_import_id?: string
+          max_attempts?: number
+          next_retry_at?: string
+          phase?: string
+          processed_files_count?: number
+          processed_rows_count?: number
+          reconciliation_runs_count?: number
+          retry_count?: number
+          staged_records_count?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          warning_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_import_attempts_linkedin_import_id_fkey"
+            columns: ["linkedin_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       linkedin_import_file_purposes: {
         Row: {
           created_at: string
@@ -4249,6 +4341,7 @@ export type Database = {
           active_phase: string | null
           archive_available: boolean
           archive_sha256: string
+          archive_storage_path: string | null
           attempt_id: string | null
           cancelled_at: string | null
           canonical_import_id: string | null
@@ -4263,6 +4356,7 @@ export type Database = {
           id: string
           invalid_file_count: number
           known_file_count: number
+          last_attempt_id: string | null
           purged_at: string | null
           staged_at: string | null
           staged_record_count: number
@@ -4277,6 +4371,7 @@ export type Database = {
           active_phase?: string | null
           archive_available: boolean
           archive_sha256: string
+          archive_storage_path?: string | null
           attempt_id?: string | null
           cancelled_at?: string | null
           canonical_import_id?: string | null
@@ -4291,6 +4386,7 @@ export type Database = {
           id?: string
           invalid_file_count?: number
           known_file_count?: number
+          last_attempt_id?: string | null
           purged_at?: string | null
           staged_at?: string | null
           staged_record_count?: number
@@ -4305,6 +4401,7 @@ export type Database = {
           active_phase?: string | null
           archive_available?: boolean
           archive_sha256?: string
+          archive_storage_path?: string | null
           attempt_id?: string | null
           cancelled_at?: string | null
           canonical_import_id?: string | null
@@ -4319,6 +4416,7 @@ export type Database = {
           id?: string
           invalid_file_count?: number
           known_file_count?: number
+          last_attempt_id?: string | null
           purged_at?: string | null
           staged_at?: string | null
           staged_record_count?: number
@@ -6950,6 +7048,53 @@ export type Database = {
           },
         ]
       }
+      user_notifications: {
+        Row: {
+          attempt_id: string | null
+          body: string
+          created_at: string
+          deep_link: string
+          id: string
+          linkedin_import_id: string | null
+          notification_kind: string
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          attempt_id?: string | null
+          body: string
+          created_at?: string
+          deep_link: string
+          id?: string
+          linkedin_import_id?: string | null
+          notification_kind: string
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string | null
+          body?: string
+          created_at?: string
+          deep_link?: string
+          id?: string
+          linkedin_import_id?: string | null
+          notification_kind?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_linkedin_import_id_fkey"
+            columns: ["linkedin_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_opportunities: {
         Row: {
           ai_concerns: string | null
@@ -7410,6 +7555,30 @@ export type Database = {
           p_query?: string
         }
         Returns: Json
+      }
+      _linkedin_import_backoff: {
+        Args: { p_retry_count: number }
+        Returns: string
+      }
+      _linkedin_import_continue: {
+        Args: {
+          p_attempt: Database["public"]["Tables"]["linkedin_import_attempts"]["Row"]
+          p_error_code: string
+          p_error_summary: string
+        }
+        Returns: string
+      }
+      _linkedin_import_notify: {
+        Args: {
+          p_attempt_id: string
+          p_body: string
+          p_deep_link: string
+          p_import_id: string
+          p_kind: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       _linkedin_promotion_commit: {
         Args: {
@@ -8145,11 +8314,84 @@ export type Database = {
         }
         Returns: string
       }
+      linkedin_import_claim_next_attempt: {
+        Args: { p_lease_owner: string; p_lease_seconds?: number }
+        Returns: {
+          archive_storage_path: string
+          attempt_id: string
+          attempt_number: number
+          cursor_json: Json
+          import_id: string
+          phase: string
+          purposes: string[]
+          retry_count: number
+          user_id: string
+        }[]
+      }
+      linkedin_import_complete_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_reconciliation_runs?: number
+          p_staged_records?: number
+          p_status: string
+          p_warning_count?: number
+        }
+        Returns: undefined
+      }
       linkedin_import_delete: {
         Args: { p_import_id: string; p_reason?: string }
         Returns: Json
       }
+      linkedin_import_enqueue: {
+        Args: { p_import_id: string }
+        Returns: string
+      }
+      linkedin_import_fail_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_error_code: string
+          p_error_summary: string
+          p_retryable: boolean
+        }
+        Returns: string
+      }
+      linkedin_import_heartbeat: {
+        Args: {
+          p_attempt_id: string
+          p_cursor?: Json
+          p_lease_owner: string
+          p_lease_seconds?: number
+          p_phase?: string
+          p_processed_files?: number
+          p_processed_rows?: number
+          p_staged_records?: number
+        }
+        Returns: boolean
+      }
+      linkedin_import_manual_retry: {
+        Args: { p_import_id: string; p_user_id: string }
+        Returns: string
+      }
+      linkedin_import_reap_expired_attempts: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
+      linkedin_import_request_cancel: {
+        Args: { p_import_id: string; p_user_id: string }
+        Returns: string
+      }
       linkedin_import_retention_sweep: { Args: never; Returns: Json }
+      linkedin_import_yield_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_cursor: Json
+          p_lease_owner: string
+          p_phase: string
+          p_processed_files?: number
+          p_staged_records?: number
+        }
+        Returns: boolean
+      }
       linkedin_promote_career_record: {
         Args: {
           p_existing_atom_id?: string
@@ -8232,6 +8474,11 @@ export type Database = {
           detail: string
           passed: boolean
         }[]
+      }
+      linkedin_worker_secret_present: { Args: never; Returns: boolean }
+      linkedin_worker_secret_sync: {
+        Args: { p_secret: string }
+        Returns: boolean
       }
       list_regnskap_cron_runs: {
         Args: { p_limit?: number }

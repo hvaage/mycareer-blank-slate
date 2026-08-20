@@ -25,6 +25,10 @@ export type StageOutcome = {
   stagedRecordCount: number;
   excludedReasonCounts: Record<string, number>;
   contentManifestHash: string;
+  /** Sant når alle kjente filer i arkivet er behandlet i denne kjøringen. */
+  done: boolean;
+  /** Neste filindeks å fortsette fra når tidsbudsjettet ble brukt opp. */
+  nextFileIndex: number;
   filePurposeOutcomes: Array<{
     archivePath: string;
     purpose: LinkedInPurpose;
@@ -37,6 +41,10 @@ export type StageOutcome = {
 /**
  * Validerer og stager ett arkiv for de valgte formålene.
  * Idempotent på (user_id, source_file, source_identity_hash).
+ *
+ * Kjøringen kan deles opp: `startFileIndex` fortsetter der forrige kjøring
+ * slapp, og `timeBudgetMs` stopper kontrollert mellom to filer slik at
+ * arbeideren rekker å melde fra før tidsavbrudd.
  */
 export async function validateAndStageArchive(params: {
   admin: AdminClient;
@@ -45,8 +53,17 @@ export async function validateAndStageArchive(params: {
   attemptId: string;
   archive: Uint8Array;
   selectedPurposes: LinkedInPurpose[];
+  startFileIndex?: number;
+  timeBudgetMs?: number;
+  onProgress?: (progress: {
+    fileIndex: number;
+    archivePath: string;
+    stagedRecordCount: number;
+  }) => Promise<boolean | void>;
 }): Promise<StageOutcome> {
   const { admin, userId, importId, attemptId, archive, selectedPurposes } = params;
+  const startFileIndex = params.startFileIndex ?? 0;
+  const deadline = params.timeBudgetMs ? Date.now() + params.timeBudgetMs : null;
   const selected = new Set(selectedPurposes);
 
   const pre = await runPreflight(archive);
@@ -55,6 +72,7 @@ export async function validateAndStageArchive(params: {
   }
 
   const { known, excludedReasonCounts, excludedFileCount, unknownPaths } = classifyEntries(pre.entries);
+
 
   // Innholdsmanifest: hash over (sti + filhash), uavhengig av ZIP-pakking.
   const perFileHash = new Map<string, string>();
@@ -65,12 +83,24 @@ export async function validateAndStageArchive(params: {
     [...perFileHash.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([p, h]) => `${p}:${h}`).join("\n"),
   );
 
+  // Stabil rekkefølge: gjenopptakelse må treffe samme fil på samme indeks.
+  const ordered = [...known].sort((a, b) => a.entry.archivePath.localeCompare(b.entry.archivePath));
+
   let validFileCount = 0;
   let invalidFileCount = 0;
   let stagedRecordCount = 0;
+  let nextFileIndex = startFileIndex;
+  let done = true;
   const filePurposeOutcomes: StageOutcome["filePurposeOutcomes"] = [];
 
-  for (const { entry, spec } of known) {
+  for (let fileIndex = startFileIndex; fileIndex < ordered.length; fileIndex += 1) {
+    if (deadline && Date.now() > deadline) {
+      done = false;
+      nextFileIndex = fileIndex;
+      break;
+    }
+
+    const { entry, spec } = ordered[fileIndex]!;
     const fileHash = perFileHash.get(entry.archivePath)!;
     const purpose = spec.purpose ?? null;
     const parserVersion =
@@ -87,6 +117,7 @@ export async function validateAndStageArchive(params: {
         await upsertFilePurpose(admin, fileId, userId, p, "deferred", 0, "class_b_deferred");
         filePurposeOutcomes.push({ archivePath: entry.archivePath, purpose: p, status: "deferred", stagedRecordCount: 0 });
       }
+      nextFileIndex = fileIndex + 1;
       continue;
     }
 
@@ -103,6 +134,7 @@ export async function validateAndStageArchive(params: {
           archivePath: entry.archivePath, purpose, status: "skipped_no_consent", stagedRecordCount: 0,
         });
       }
+      nextFileIndex = fileIndex + 1;
       continue;
     }
 
@@ -118,6 +150,7 @@ export async function validateAndStageArchive(params: {
       filePurposeOutcomes.push({
         archivePath: entry.archivePath, purpose, status: "failed", stagedRecordCount: 0, errorCode: parsed.errorCode,
       });
+      nextFileIndex = fileIndex + 1;
       continue;
     }
 
@@ -133,6 +166,19 @@ export async function validateAndStageArchive(params: {
     filePurposeOutcomes.push({
       archivePath: entry.archivePath, purpose, status: "staged", stagedRecordCount: parsed.stagedCount,
     });
+    nextFileIndex = fileIndex + 1;
+
+    if (params.onProgress) {
+      const keepGoing = await params.onProgress({
+        fileIndex: nextFileIndex,
+        archivePath: entry.archivePath,
+        stagedRecordCount,
+      });
+      if (keepGoing === false) {
+        done = false;
+        break;
+      }
+    }
   }
 
   const status = invalidFileCount > 0 ? "partially_validated" : "validated";
@@ -148,9 +194,12 @@ export async function validateAndStageArchive(params: {
     stagedRecordCount,
     excludedReasonCounts,
     contentManifestHash,
+    done,
+    nextFileIndex,
     filePurposeOutcomes,
   };
 }
+
 
 async function stageFile(params: {
   admin: AdminClient;
@@ -411,6 +460,9 @@ function emptyOutcome(status: string, errorCode: string): StageOutcome {
     stagedRecordCount: 0,
     excludedReasonCounts: {},
     contentManifestHash: "",
+    done: true,
+    nextFileIndex: 0,
     filePurposeOutcomes: [],
+
   };
 }

@@ -105,6 +105,7 @@ import { Route as ApiPublicSyncBrregEnheterRouteImport } from './routes/api/publ
 import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './routes/api/public/selskapsanalyse/preview-email'
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
 import { Route as ApiPublicOpsWatchdogRouteImport } from './routes/api/public/ops/watchdog'
+import { Route as ApiPublicLinkedinWorkerRouteImport } from './routes/api/public/linkedin/worker'
 import { Route as ApiPublicCvAtomizationWorkerRouteImport } from './routes/api/public/cv/atomization-worker'
 import { Route as ApiCvGenerationsJobIdRouteImport } from './routes/api/cv/generations.$jobId'
 import { Route as ApiCvAtomizationJobsJobIdRouteImport } from './routes/api/cv/atomization-jobs.$jobId'
@@ -648,6 +649,11 @@ const ApiPublicOpsWatchdogRoute = ApiPublicOpsWatchdogRouteImport.update({
   path: '/api/public/ops/watchdog',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLinkedinWorkerRoute = ApiPublicLinkedinWorkerRouteImport.update({
+  id: '/api/public/linkedin/worker',
+  path: '/api/public/linkedin/worker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCvAtomizationWorkerRoute =
   ApiPublicCvAtomizationWorkerRouteImport.update({
     id: '/api/public/cv/atomization-worker',
@@ -758,6 +764,7 @@ export interface FileRoutesByFullPath {
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
+  '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -855,6 +862,7 @@ export interface FileRoutesByTo {
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
+  '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -957,6 +965,7 @@ export interface FileRoutesById {
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
+  '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -1059,6 +1068,7 @@ export interface FileRouteTypes {
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
+    | '/api/public/linkedin/worker'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1156,6 +1166,7 @@ export interface FileRouteTypes {
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
+    | '/api/public/linkedin/worker'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1257,6 +1268,7 @@ export interface FileRouteTypes {
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
+    | '/api/public/linkedin/worker'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1291,6 +1303,7 @@ export interface RootRouteChildren {
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
+  ApiPublicLinkedinWorkerRoute: typeof ApiPublicLinkedinWorkerRoute
   ApiPublicOpsWatchdogRoute: typeof ApiPublicOpsWatchdogRoute
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
   ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -1974,6 +1987,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOpsWatchdogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/linkedin/worker': {
+      id: '/api/public/linkedin/worker'
+      path: '/api/public/linkedin/worker'
+      fullPath: '/api/public/linkedin/worker'
+      preLoaderRoute: typeof ApiPublicLinkedinWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cv/atomization-worker': {
       id: '/api/public/cv/atomization-worker'
       path: '/api/public/cv/atomization-worker'
@@ -2233,6 +2253,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
+  ApiPublicLinkedinWorkerRoute: ApiPublicLinkedinWorkerRoute,
   ApiPublicOpsWatchdogRoute: ApiPublicOpsWatchdogRoute,
   ApiPublicSelskapsanalyseDownloadRoute: ApiPublicSelskapsanalyseDownloadRoute,
   ApiPublicSelskapsanalysePreviewEmailRoute:

@@ -49,28 +49,48 @@ export const Route = createFileRoute("/api/linkedin/imports")({
         const auth = await authenticate(request);
         if ("error" in auth) return auth.error;
 
-        // Importer som ble avbrutt underveis (f.eks. tidsavbrudd) markeres som
-        // feilet slik at brukeren ser hva som skjedde og kan prøve på nytt.
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const staleBefore = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        await supabaseAdmin
-          .from("linkedin_imports")
-          .update({ status: "failed", error_code: "import_interrupted", active_phase: null, heartbeat_at: null })
-          .eq("user_id", auth.userId)
-          .in("status", ["uploaded", "validating", "staging"])
-          .lt("created_at", staleBefore);
-
         const { data, error } = await auth.userClient
           .from("linkedin_imports")
           .select(
-            "id, status, error_code, created_at, staged_at, staged_record_count, known_file_count, unknown_file_count, excluded_file_count, invalid_file_count, purged_at",
+            "id, status, error_code, error_summary, active_phase, heartbeat_at, created_at, staged_at, staged_record_count, known_file_count, unknown_file_count, excluded_file_count, invalid_file_count, purged_at, archive_available",
           )
           .order("created_at", { ascending: false })
           .limit(20);
         if (error) return fail(500, "database_error", "Kunne ikke hente importene dine.");
-        return Response.json({ ok: true, imports: data ?? [] });
-      },
 
+        const imports = (data ?? []) as Array<Record<string, unknown>>;
+        const ids = imports.map((i) => i["id"] as string);
+
+
+        // Fremdrift kommer fra forsøkstabellen, ikke fra denne forespørselen:
+        // arbeideren jobber videre uavhengig av om nettleseren er åpen.
+        let attempts: Array<Record<string, unknown>> = [];
+        if (ids.length > 0) {
+          const { data: attemptRows } = await auth.userClient
+            .from("linkedin_import_attempts")
+            .select(
+              "id, linkedin_import_id, attempt_number, status, phase, retry_count, max_attempts, next_retry_at, heartbeat_at, processed_files_count, staged_records_count, warning_count, error_code, created_at",
+            )
+            .in("linkedin_import_id", ids)
+            .order("attempt_number", { ascending: false });
+          attempts = attemptRows ?? [];
+        }
+
+        const latestByImport = new Map<string, Record<string, unknown>>();
+        for (const a of attempts) {
+          const key = a["linkedin_import_id"] as string;
+          if (!latestByImport.has(key)) latestByImport.set(key, a);
+        }
+
+        return Response.json({
+          ok: true,
+          imports: imports.map((i) => ({
+            ...i,
+            latest_attempt: latestByImport.get(i["id"] as string) ?? null,
+
+          })),
+        });
+      },
 
       POST: async ({ request }) => {
         const auth = await authenticate(request);
@@ -118,7 +138,8 @@ export const Route = createFileRoute("/api/linkedin/imports")({
               user_id: userId,
               archive_sha256: archiveSha256,
               status: "uploaded",
-              archive_available: true,
+              // Settes først når ZIP-filen faktisk ligger i lagringen.
+              archive_available: false,
             })
             .select("id")
             .single();
@@ -139,7 +160,7 @@ export const Route = createFileRoute("/api/linkedin/imports")({
             .limit(1)
             .maybeSingle();
 
-          const activeStatuses = ["uploaded", "validating", "staged", "reconciliation_ready"];
+          const activeStatuses = ["uploaded", "validating", "staging", "staged", "reconciliation_ready"];
           if (existing && activeStatuses.includes(existing.status as string)) {
             return fail(
               409,
@@ -164,7 +185,6 @@ export const Route = createFileRoute("/api/linkedin/imports")({
         }
         const importId = importRow.id as string;
 
-
         const { error: purposeError } = await supabaseAdmin
           .from("linkedin_import_purposes")
           .insert(
@@ -179,99 +199,112 @@ export const Route = createFileRoute("/api/linkedin/imports")({
           return fail(500, "database_error", "Kunne ikke lagre formålene for importen.");
         }
 
-        const attemptId = crypto.randomUUID();
-        await supabaseAdmin
-          .from("linkedin_imports")
-          .update({
-            active_phase: "validation",
-            attempt_id: attemptId,
-            heartbeat_at: new Date().toISOString(),
-            staging_started_at: new Date().toISOString(),
-          })
-          .eq("id", importId);
+        // Lagring av arkivet er en forutsetning for bakgrunnskjøring.
+        // Feiler den, feiler importen kontrollert her og nå.
+        const storagePath = `${userId}/${importId}.zip`;
+        const upload = await supabaseAdmin.storage
+          .from("linkedin-imports")
+          .upload(storagePath, archive, { contentType: "application/zip", upsert: true });
 
-        try {
-          const { validateAndStageArchive } = await import("@/lib/linkedin/stage.server");
-          const outcome = await validateAndStageArchive({
-            admin: supabaseAdmin as never,
-            userId,
-            importId,
-            attemptId,
-            archive,
-            selectedPurposes: purposes,
-          });
-
-          await supabaseAdmin
-            .from("linkedin_imports")
-            .update({
-              status: outcome.ok ? "reconciliation_ready" : outcome.status,
-              error_code: outcome.errorCode ?? null,
-              active_phase: null,
-              heartbeat_at: null,
-              content_manifest_hash: outcome.contentManifestHash || null,
-              known_file_count: outcome.knownFileCount,
-              unknown_file_count: outcome.unknownFileCount,
-              excluded_file_count: outcome.excludedFileCount,
-              valid_file_count: outcome.validFileCount,
-              invalid_file_count: outcome.invalidFileCount,
-              staged_record_count: outcome.stagedRecordCount,
-              excluded_reason_counts: outcome.excludedReasonCounts,
-              validated_at: new Date().toISOString(),
-              staged_at: outcome.ok ? new Date().toISOString() : null,
-            })
-            .eq("id", importId);
-
-          if (!outcome.ok) {
-            return Response.json(
-              {
-                ok: false,
-                import_id: importId,
-                status: outcome.status,
-                error: {
-                  code: outcome.errorCode ?? "staging_failed",
-                  message: "Arkivet kunne ikke leses. Last ned en ny eksport og prøv igjen.",
-                },
-              },
-              { status: 422 },
-            );
-          }
-
-          // Avstemming: deterministisk, skriver kun forslag — aldri produktdata.
-          const { runReconciliation } = await import("@/lib/linkedin/reconciliation/engine.server");
-          const result = await runReconciliation(supabaseAdmin as never, { userId, importId });
-
-          return Response.json({
-            ok: true,
-            import_id: importId,
-            status: "reconciliation_ready",
-            counts: {
-              known: outcome.knownFileCount,
-              unknown: outcome.unknownFileCount,
-              excluded: outcome.excludedFileCount,
-              invalid: outcome.invalidFileCount,
-              staged_records: outcome.stagedRecordCount,
-            },
-            proposals: result.ok
-              ? result.runs.reduce((sum, r) => sum + (r.proposals ?? 0), 0)
-              : 0,
-          });
-        } catch (error) {
-          console.error(
-            "[linkedin-imports] staging failed",
-            error instanceof Error ? error.name : "unknown",
-          );
+        if (upload.error) {
+          console.error("[linkedin/imports] storage upload failed", upload.error.message);
           await supabaseAdmin
             .from("linkedin_imports")
             .update({
               status: "failed",
-              error_code: "worker_error",
-              active_phase: null,
-              heartbeat_at: null,
+              error_code: "archive_storage_failed",
+              error_summary: "Arkivet kunne ikke lagres.",
             })
             .eq("id", importId);
-          return fail(500, "staging_failed", "Importen feilet. Prøv igjen.");
+          return fail(500, "archive_storage_failed", "Arkivet kunne ikke lagres. Prøv igjen.");
         }
+
+        await supabaseAdmin
+          .from("linkedin_imports")
+          .update({ archive_storage_path: storagePath, archive_available: true })
+          .eq("id", importId);
+
+        const { data: attemptId, error: enqueueError } = await supabaseAdmin.rpc(
+          "linkedin_import_enqueue",
+          { p_import_id: importId },
+        );
+        if (enqueueError) {
+          console.error("[linkedin/imports] enqueue failed", enqueueError.code);
+          return fail(500, "enqueue_failed", "Importen kunne ikke settes i kø. Prøv igjen.");
+        }
+
+        // Umiddelbar kvittering. Videre arbeid skjer i bakgrunnen, og brukeren
+        // får varsel i appen når importen er ferdig.
+        return Response.json(
+          {
+            ok: true,
+            import_id: importId,
+            attempt_id: attemptId,
+            status: "queued",
+            message:
+              "Importen er mottatt og kjøres i bakgrunnen. Du kan lukke siden — du får varsel når den er klar til gjennomgang.",
+          },
+          { status: 202 },
+        );
       },
+
+      // PATCH — brukerstyrt avbrudd eller nytt forsøk på en import.
+      PATCH: async ({ request }) => {
+        const auth = await authenticate(request);
+        if ("error" in auth) return auth.error;
+
+        let body: { import_id?: string; action?: string };
+        try {
+          body = (await request.json()) as typeof body;
+        } catch {
+          return fail(400, "invalid_body", "Kunne ikke lese forespørselen.");
+        }
+        const importId = body.import_id;
+        const action = body.action;
+        if (!importId || (action !== "cancel" && action !== "retry")) {
+          return fail(400, "invalid_body", "Ugyldig handling.");
+        }
+
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        // Eierkontroll før all skriving.
+        const { data: owned } = await supabaseAdmin
+          .from("linkedin_imports")
+          .select("id")
+          .eq("id", importId)
+          .eq("user_id", auth.userId)
+          .maybeSingle();
+        if (!owned) return fail(404, "import_not_found", "Fant ikke importen.");
+
+        if (action === "cancel") {
+          const { data, error } = await supabaseAdmin.rpc("linkedin_import_request_cancel", {
+            p_import_id: importId,
+            p_user_id: auth.userId,
+          });
+          if (error) return fail(500, "cancel_failed", "Kunne ikke avbryte importen.");
+          return Response.json({ ok: true, result: data });
+        }
+
+        const { data, error } = await supabaseAdmin.rpc("linkedin_import_manual_retry", {
+          p_import_id: importId,
+          p_user_id: auth.userId,
+        });
+        if (error) {
+          const code = error.message?.includes("archive_not_available")
+            ? "archive_not_available"
+            : "retry_failed";
+          return fail(
+            409,
+            code,
+            code === "archive_not_available"
+              ? "Arkivet er ikke tilgjengelig lenger. Last opp eksporten på nytt."
+              : "Kunne ikke starte et nytt forsøk.",
+          );
+        }
+        return Response.json({ ok: true, attempt_id: data, status: "queued" }, { status: 202 });
+      },
+
     },
   },
 });
+
