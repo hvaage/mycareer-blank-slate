@@ -73,15 +73,30 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
       return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
     }
     case "recommendation_received":
-    case "recommendation_given":
-    case "endorsement_received":
-    case "endorsement_given": {
+    case "recommendation_given": {
+      const direction = recordKind.endsWith("received") ? "received" : "given";
+      const recommendedOn = parseLinkedInDate(pick(row, "Created On", "Date", "Recommendation Date"))?.value ?? null;
       const f = {
-        direction: recordKind.endsWith("received") ? "received" : "given",
+        direction,
         counterpart_name: [pick(row, "First Name"), pick(row, "Last Name")].filter(Boolean).join(" ") || null,
-        counterpart_headline: pick(row, "Company", "Job Title", "Skill Name"),
+        counterpart_profile_url: pick(row, "URL", "Link", "profileUrl"),
+        counterpart_headline: pick(row, "Company", "Job Title"),
         recommendation_text: pick(row, "Text"),
         status: pick(row, "Status", "Endorsement Status"),
+        recommended_on: recommendedOn,
+      };
+      return { domainFields: f, identityFields: stringFields(f), sourceEventAt: recommendedOn };
+    }
+    case "endorsement_received":
+    case "endorsement_given": {
+      const direction = recordKind.endsWith("received") ? "received" : "given";
+      const skillSourceLabel = pick(row, "Skill Name");
+      const f = {
+        direction,
+        skill_source_label: skillSourceLabel,
+        skill_canonical_key: skillSourceLabel ? skillSourceLabel.toLowerCase() : null,
+        endorser_identity_hash: null,
+        observed_at: null,
       };
       return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
     }
@@ -127,12 +142,22 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
       return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
     }
     case "course": {
+      const lastWatchedOn = parseLinkedInDate(pick(row, "Content Last Watched Date"))?.value ?? null;
+      const completedOn =
+        parseLinkedInDate(pick(row, "Content Completed At (if completed)"))?.value ??
+        parseLinkedInDate(pick(row, "Completed Date"))?.value ??
+        null;
+      const isCompleted =
+        pick(row, "Content Completed At (if completed)") != null || pick(row, "Completed Date") != null;
       const f = {
+        content_type: "course",
         course_title: pick(row, "Content Title", "Title"),
         provider: pick(row, "Content Provider", "Provider"),
-        completed_on: parseLinkedInDate(pick(row, "Content Last Watched Date", "Completed Date"))?.value ?? null,
+        completed_on: completedOn,
+        last_watched_on: lastWatchedOn,
+        is_completed: isCompleted,
         content_url: pick(row, "Content Description", "Content URL", "URL"),
-        progress_label: pick(row, "Content Completed At (if completed)", "Notes"),
+        progress_label: isCompleted ? "Fullført" : null,
       };
       return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
     }

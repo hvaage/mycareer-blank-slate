@@ -209,6 +209,21 @@ async function processAttempt(
     return "failed";
   }
 
+  // 3b) Nettverksavstemming v2: frosset batch for kontakter.
+  const { runNetworkReconciliationV2 } = await import(
+    "@/lib/linkedin/reconciliation/v2/engine.server"
+  );
+  const networkV2 = await runNetworkReconciliationV2(admin as never, { userId, importId });
+  if (!networkV2.ok) {
+    await admin.rpc("linkedin_import_fail_attempt", {
+      p_attempt_id: job.attempt_id,
+      p_error_code: networkV2.error ?? "network_reconciliation_v2_failed",
+      p_error_summary: "Nettverksavstemming v2 kunne ikke fullføres.",
+      p_retryable: true,
+    });
+    return "failed";
+  }
+
   const { count: invalidFiles } = await admin
     .from("linkedin_import_files")
     .select("id", { count: "exact", head: true })

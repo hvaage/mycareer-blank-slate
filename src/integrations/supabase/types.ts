@@ -796,17 +796,24 @@ export type Database = {
       }
       career_recommendations: {
         Row: {
+          archived_at: string | null
           author_company: string | null
+          author_identity_hash: string | null
           author_identity_key: string
           author_name: string | null
           author_title: string | null
           created_at: string
+          direction:
+            | Database["public"]["Enums"]["career_recommendation_direction"]
+            | null
           id: string
           is_active: boolean
           recommendation_text: string
           recommended_on: string | null
           relationship_text: string | null
           source_classification: string
+          source_hash: string | null
+          source_import_id: string | null
           source_ref: string | null
           source_system: string
           text_hash: string
@@ -814,17 +821,24 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           author_company?: string | null
+          author_identity_hash?: string | null
           author_identity_key: string
           author_name?: string | null
           author_title?: string | null
           created_at?: string
+          direction?:
+            | Database["public"]["Enums"]["career_recommendation_direction"]
+            | null
           id?: string
           is_active?: boolean
           recommendation_text: string
           recommended_on?: string | null
           relationship_text?: string | null
           source_classification?: string
+          source_hash?: string | null
+          source_import_id?: string | null
           source_ref?: string | null
           source_system?: string
           text_hash: string
@@ -832,17 +846,24 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           author_company?: string | null
+          author_identity_hash?: string | null
           author_identity_key?: string
           author_name?: string | null
           author_title?: string | null
           created_at?: string
+          direction?:
+            | Database["public"]["Enums"]["career_recommendation_direction"]
+            | null
           id?: string
           is_active?: boolean
           recommendation_text?: string
           recommended_on?: string | null
           relationship_text?: string | null
           source_classification?: string
+          source_hash?: string | null
+          source_import_id?: string | null
           source_ref?: string | null
           source_system?: string
           text_hash?: string
@@ -3996,6 +4017,131 @@ export type Database = {
           },
         ]
       }
+      linkedin_endorsement_signals: {
+        Row: {
+          archived_at: string | null
+          career_atom_id: string | null
+          created_at: string
+          endorsement_count: number
+          id: string
+          observed_at: string | null
+          promoted_at: string | null
+          skill_canonical_key: string | null
+          source_classification: string
+          source_hash: string | null
+          source_import_id: string | null
+          source_system: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          career_atom_id?: string | null
+          created_at?: string
+          endorsement_count?: number
+          id?: string
+          observed_at?: string | null
+          promoted_at?: string | null
+          skill_canonical_key?: string | null
+          source_classification: string
+          source_hash?: string | null
+          source_import_id?: string | null
+          source_system: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          career_atom_id?: string | null
+          created_at?: string
+          endorsement_count?: number
+          id?: string
+          observed_at?: string | null
+          promoted_at?: string | null
+          skill_canonical_key?: string | null
+          source_classification?: string
+          source_hash?: string | null
+          source_import_id?: string | null
+          source_system?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_endorsement_signals_career_atom_id_fkey"
+            columns: ["career_atom_id"]
+            isOneToOne: false
+            referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_endorsement_signals_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      linkedin_endorsement_staging: {
+        Row: {
+          created_at: string
+          direction: Database["public"]["Enums"]["linkedin_endorsement_direction"]
+          endorser_identity_hash: string | null
+          id: string
+          linkedin_import_id: string
+          observed_at: string | null
+          skill_canonical_key: string | null
+          skill_source_label: string | null
+          source_classification: Database["public"]["Enums"]["linkedin_staging_classification"]
+          source_file: string
+          source_row_hash: string
+          source_row_number: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          direction: Database["public"]["Enums"]["linkedin_endorsement_direction"]
+          endorser_identity_hash?: string | null
+          id?: string
+          linkedin_import_id: string
+          observed_at?: string | null
+          skill_canonical_key?: string | null
+          skill_source_label?: string | null
+          source_classification?: Database["public"]["Enums"]["linkedin_staging_classification"]
+          source_file: string
+          source_row_hash: string
+          source_row_number: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          direction?: Database["public"]["Enums"]["linkedin_endorsement_direction"]
+          endorser_identity_hash?: string | null
+          id?: string
+          linkedin_import_id?: string
+          observed_at?: string | null
+          skill_canonical_key?: string | null
+          skill_source_label?: string | null
+          source_classification?: Database["public"]["Enums"]["linkedin_staging_classification"]
+          source_file?: string
+          source_row_hash?: string
+          source_row_number?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_endorsement_staging_linkedin_import_id_fkey"
+            columns: ["linkedin_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       linkedin_import_attempts: {
         Row: {
           attempt_number: number
@@ -4547,6 +4693,157 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_staging_records"
             referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_network_reconciliation_batch_items: {
+        Row: {
+          batch_id: string
+          category: Database["public"]["Enums"]["linkedin_network_batch_item_category"]
+          created_at: string
+          id: string
+          observed_at: string | null
+          proposed_action: Database["public"]["Enums"]["linkedin_network_batch_item_action"]
+          reason_codes: string[] | null
+          source_hash: string | null
+          source_identity_hash: string | null
+          staging_record_id: string | null
+          status: Database["public"]["Enums"]["linkedin_network_batch_item_status"]
+          target_contact_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          batch_id: string
+          category: Database["public"]["Enums"]["linkedin_network_batch_item_category"]
+          created_at?: string
+          id?: string
+          observed_at?: string | null
+          proposed_action: Database["public"]["Enums"]["linkedin_network_batch_item_action"]
+          reason_codes?: string[] | null
+          source_hash?: string | null
+          source_identity_hash?: string | null
+          staging_record_id?: string | null
+          status?: Database["public"]["Enums"]["linkedin_network_batch_item_status"]
+          target_contact_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string
+          category?: Database["public"]["Enums"]["linkedin_network_batch_item_category"]
+          created_at?: string
+          id?: string
+          observed_at?: string | null
+          proposed_action?: Database["public"]["Enums"]["linkedin_network_batch_item_action"]
+          reason_codes?: string[] | null
+          source_hash?: string | null
+          source_identity_hash?: string | null
+          staging_record_id?: string | null
+          status?: Database["public"]["Enums"]["linkedin_network_batch_item_status"]
+          target_contact_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_network_reconciliation_batch_it_staging_record_id_fkey"
+            columns: ["staging_record_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_staging_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_network_reconciliation_batch_it_target_contact_id_fkey"
+            columns: ["target_contact_id"]
+            isOneToOne: false
+            referencedRelation: "network_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_network_reconciliation_batch_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_network_reconciliation_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      linkedin_network_reconciliation_batches: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          exact_identity_match_count: number
+          excluded_count: number
+          id: string
+          input_signature: string
+          linkedin_import_id: string
+          observed_profile_change_count: number
+          possible_duplicate_count: number
+          prepared_at: string | null
+          reconciliation_run_id: string | null
+          reconciliation_version: string
+          status: Database["public"]["Enums"]["linkedin_network_batch_status"]
+          superseded_at: string | null
+          total_count: number
+          updated_at: string
+          user_id: string
+          without_stable_identity_count: number
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          exact_identity_match_count?: number
+          excluded_count?: number
+          id?: string
+          input_signature: string
+          linkedin_import_id: string
+          observed_profile_change_count?: number
+          possible_duplicate_count?: number
+          prepared_at?: string | null
+          reconciliation_run_id?: string | null
+          reconciliation_version?: string
+          status?: Database["public"]["Enums"]["linkedin_network_batch_status"]
+          superseded_at?: string | null
+          total_count?: number
+          updated_at?: string
+          user_id: string
+          without_stable_identity_count?: number
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          exact_identity_match_count?: number
+          excluded_count?: number
+          id?: string
+          input_signature?: string
+          linkedin_import_id?: string
+          observed_profile_change_count?: number
+          possible_duplicate_count?: number
+          prepared_at?: string | null
+          reconciliation_run_id?: string | null
+          reconciliation_version?: string
+          status?: Database["public"]["Enums"]["linkedin_network_batch_status"]
+          superseded_at?: string | null
+          total_count?: number
+          updated_at?: string
+          user_id?: string
+          without_stable_identity_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_network_reconciliation_batc_reconciliation_run_id_fkey"
+            columns: ["reconciliation_run_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_network_reconciliation_batches_linkedin_import_id_fkey"
+            columns: ["linkedin_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5537,29 +5834,124 @@ export type Database = {
         }
         Relationships: []
       }
+      network_contact_company_relations: {
+        Row: {
+          company_id: string | null
+          company_name_canonical: string | null
+          company_name_observed: string | null
+          created_at: string
+          id: string
+          network_contact_id: string
+          observed_at: string | null
+          relation_kind: string
+          source_import_id: string | null
+          source_system: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          company_name_canonical?: string | null
+          company_name_observed?: string | null
+          created_at?: string
+          id?: string
+          network_contact_id: string
+          observed_at?: string | null
+          relation_kind: string
+          source_import_id?: string | null
+          source_system: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          company_name_canonical?: string | null
+          company_name_observed?: string | null
+          created_at?: string
+          id?: string
+          network_contact_id?: string
+          observed_at?: string | null
+          relation_kind?: string
+          source_import_id?: string | null
+          source_system?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_contact_company_relations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_contact_company_relations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "employer_search_v1"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "network_contact_company_relations_network_contact_id_fkey"
+            columns: ["network_contact_id"]
+            isOneToOne: false
+            referencedRelation: "network_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_contact_company_relations_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       network_contact_identities: {
         Row: {
           created_at: string
+          first_observed_at: string
           id: string
           identity_key: string
           identity_kind: string
+          identity_value_hash: string | null
+          identity_value_preview: string | null
+          last_observed_at: string
           network_contact_id: string
+          source_import_id: string | null
+          source_system: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          first_observed_at?: string
           id?: string
           identity_key: string
           identity_kind: string
+          identity_value_hash?: string | null
+          identity_value_preview?: string | null
+          last_observed_at?: string
           network_contact_id: string
+          source_import_id?: string | null
+          source_system?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          first_observed_at?: string
           id?: string
           identity_key?: string
           identity_kind?: string
+          identity_value_hash?: string | null
+          identity_value_preview?: string | null
+          last_observed_at?: string
           network_contact_id?: string
+          source_import_id?: string | null
+          source_system?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -5569,6 +5961,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "network_contacts"
             referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "network_contact_identities_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5581,6 +5980,8 @@ export type Database = {
           headline: string | null
           id: string
           is_active: boolean
+          linkedin_profile_url: string | null
+          source_import_id: string | null
           source_ref: string | null
           source_system: string
           updated_at: string
@@ -5594,6 +5995,8 @@ export type Database = {
           headline?: string | null
           id?: string
           is_active?: boolean
+          linkedin_profile_url?: string | null
+          source_import_id?: string | null
           source_ref?: string | null
           source_system?: string
           updated_at?: string
@@ -5607,46 +6010,77 @@ export type Database = {
           headline?: string | null
           id?: string
           is_active?: boolean
+          linkedin_profile_url?: string | null
+          source_import_id?: string | null
           source_ref?: string | null
           source_system?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "network_contacts_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       next_steps: {
         Row: {
           application_id: string
+          archived_at: string | null
+          company_id: string | null
           completed: boolean
           completed_at: string | null
+          contact_id: string | null
           created_at: string
           description: string | null
           due_date: string | null
           id: string
+          opportunity_id: string | null
           priority: Database["public"]["Enums"]["priority_level"] | null
+          source_import_id: string | null
+          source_system: string | null
           title: string
+          user_id: string
         }
         Insert: {
           application_id: string
+          archived_at?: string | null
+          company_id?: string | null
           completed?: boolean
           completed_at?: string | null
+          contact_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
           id?: string
+          opportunity_id?: string | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
+          source_import_id?: string | null
+          source_system?: string | null
           title: string
+          user_id: string
         }
         Update: {
           application_id?: string
+          archived_at?: string | null
+          company_id?: string | null
           completed?: boolean
           completed_at?: string | null
+          contact_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
           id?: string
+          opportunity_id?: string | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
+          source_import_id?: string | null
+          source_system?: string | null
           title?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -5661,6 +6095,41 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "applications_with_urgency"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "next_steps_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "next_steps_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "employer_search_v1"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "next_steps_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "network_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "next_steps_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "user_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "next_steps_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
             referencedColumns: ["id"]
           },
         ]
@@ -6950,6 +7419,67 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "employer_search_v1"
             referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      user_company_relationships: {
+        Row: {
+          company_id: string | null
+          company_name_user: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          relationship_kind: string
+          source_import_id: string | null
+          source_system: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          company_name_user?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_kind: string
+          source_import_id?: string | null
+          source_system?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          company_name_user?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          relationship_kind?: string
+          source_import_id?: string | null
+          source_system?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_company_relationships_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_company_relationships_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "employer_search_v1"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "user_company_relationships_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -8936,6 +9466,7 @@ export type Database = {
         | "needs_more_context"
         | "superseded"
         | "expired"
+      career_recommendation_direction: "received" | "given"
       document_type:
         | "cv"
         | "søknadsbrev"
@@ -8951,6 +9482,35 @@ export type Database = {
         | "failed"
         | "rate_limited"
       job_lead_status: "ny" | "avvist" | "promotert" | "arkivert"
+      linkedin_endorsement_direction:
+        | "received_for_user_skill"
+        | "given_by_user_to_other"
+        | "unknown"
+      linkedin_network_batch_item_action:
+        | "create_contact"
+        | "merge_into_contact"
+        | "review_manually"
+        | "skip"
+      linkedin_network_batch_item_category:
+        | "exact_identity_match"
+        | "possible_duplicate"
+        | "without_stable_identity"
+        | "observed_profile_change"
+        | "excluded"
+      linkedin_network_batch_item_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "auto_applied"
+      linkedin_network_batch_status:
+        | "preparing"
+        | "ready"
+        | "consumed"
+        | "superseded"
+      linkedin_staging_classification:
+        | "A"
+        | "B"
+        | "excluded_by_product_contract_v1_1"
       priority_level: "høy" | "middels" | "lav"
       survey_question_type:
         | "single_choice"
@@ -9130,6 +9690,7 @@ export const Constants = {
         "superseded",
         "expired",
       ],
+      career_recommendation_direction: ["received", "given"],
       document_type: [
         "cv",
         "søknadsbrev",
@@ -9147,6 +9708,41 @@ export const Constants = {
         "rate_limited",
       ],
       job_lead_status: ["ny", "avvist", "promotert", "arkivert"],
+      linkedin_endorsement_direction: [
+        "received_for_user_skill",
+        "given_by_user_to_other",
+        "unknown",
+      ],
+      linkedin_network_batch_item_action: [
+        "create_contact",
+        "merge_into_contact",
+        "review_manually",
+        "skip",
+      ],
+      linkedin_network_batch_item_category: [
+        "exact_identity_match",
+        "possible_duplicate",
+        "without_stable_identity",
+        "observed_profile_change",
+        "excluded",
+      ],
+      linkedin_network_batch_item_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "auto_applied",
+      ],
+      linkedin_network_batch_status: [
+        "preparing",
+        "ready",
+        "consumed",
+        "superseded",
+      ],
+      linkedin_staging_classification: [
+        "A",
+        "B",
+        "excluded_by_product_contract_v1_1",
+      ],
       priority_level: ["høy", "middels", "lav"],
       survey_question_type: [
         "single_choice",
