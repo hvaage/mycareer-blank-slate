@@ -91,6 +91,12 @@ arkivet må gjenbrukes for utsatt staging (utvidede formål). Sletting: umiddelb
 `rejected`/`cancelled`, ellers senest 7 dager etter staging. Kun sanitert objektsti
 logges.
 
+**Konsekvens som må være synlig i senere UI:** når ZIP-en er slettet etter 7 dager,
+kan ikke nye behandlingsformål utvides på den eksisterende importen — brukeren må
+laste opp ZIP-en på nytt. Importen får et eksplisitt felt (`archive_available=false`)
+slik at fase 3-UI kan vise dette som et tydelig valg, ikke som en stille begrensning.
+
+
 ## 3. Parser- og normaliseringsmodul (server-only)
 
 `src/lib/linkedin/*.server.ts` (filnavn-basert klientblokkering), kalt fra en intern
