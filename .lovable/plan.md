@@ -45,7 +45,16 @@ Ny rute `/kildegjennomgang?source=linkedin&import=<id>`, adskilt fra CV-gjennomg
 
 ## 5. Retention og staleness
 
-Fase 2-reglene gjelder (7 dagers ZIP, 90 dagers staging). Fjernet staging → `stale_source`. Endret produktmål → `stale_target` før eventuell promotering. Manuelt slettet import → åpne forslag avsluttes/markeres med tydelig årsak, ikke hengende arbeidsoppgaver. Reimport etter purge gir ny kjøring uten å gjenopplive gamle beslutninger.
+Fase 2-reglene gjelder (7 dagers ZIP, 90 dagers staging). Endret produktmål → `stale_target` før eventuell promotering.
+
+Ved manuell sletting, retention-sweep eller annen fjerning av siste aktive stagingkobling gjør prosedyren følgende i samme transaksjon, før staging fjernes:
+
+1. markerer alle ikke-terminale koblede forslag `stale_source`
+2. fjerner eller redigerer promoterbar `proposed_payload_json` og innholdstunge felter i `source_snapshot_json`
+3. beholder kun minimalt revisjonsspor: forslag-id, domene, type, status, kildeklassifisering, hash, import-id, tidspunkt og årsak
+4. fjerner source-koblinger som ellers ville peke mot slettet staging
+
+Anbefalingstekst, kontaktopplysninger og annet rått LinkedIn-innhold skal ikke overleve staging-retention indirekte i forslagstabellene. Reimport etter purge gir ny kjøring uten å gjenopplive gamle beslutninger. Fase 4 skal alltid avvise promotering av `stale_source`, `stale_target`, `superseded` og `dismissed` forslag og kreve ny aktiv avstemming.
 
 ## 6. Validering og leveranse
 
