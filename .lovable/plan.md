@@ -37,7 +37,7 @@ Nytt staginglag skilt fra anbefalinger, med retning (mottatt for din kompetanse 
 Produktlaget lagrer kun et aggregat: antall LinkedIn-støttesignaler per kompetanse, én aktiv rad per bruker og kompetanse. Navn på personer som har gitt støtte lagres aldri i produktdata, logger eller DTO-er. Antallet er aldri en score, et ferdighetsnivå eller en attestering, og kobles bare til en kompetanse du allerede har valgt.
 
 ### 2. Anbefalinger med retning
-`career_recommendations` utvides additivt med retning (obligatorisk, kun «mottatt» tillatt i produkt), kildesystem, kildeklasse, import-id, kildehash, anbefalingsdato og forfatteridentitets-hash. Duplikater fanges på bruker + forfatteridentitet + teksthash + kildesystem. Gitte anbefalinger blir liggende i staging. Kobling til en nettverkskontakt krever eksplisitt brukerbekreftelse — aldri navnelikhet.
+`career_recommendations` utvides additivt med retning (obligatorisk, kun «mottatt» tillatt i produkt), kildesystem, kildeklasse, import-id, kildehash, anbefalingsdato og forfatteridentitets-hash. Forfatteridentiteten hashes med en nøklet hash (HMAC) og en serverhemmelighet — aldri en ren hash av navn eller profil-URL — slik at verdien verken kan gjenkjennes eller korreleres på tvers av brukere. Duplikater fanges på bruker + forfatteridentitet + teksthash + kildesystem. Gitte anbefalinger blir liggende i staging. Kobling til en nettverkskontakt krever eksplisitt brukerbekreftelse — aldri navnelikhet.
 
 ### 3. Nettverk, reimport og selskaper
 - «Sist observert» på kontakt; profil-URL eies fortsatt kun av identitetstabellen.
