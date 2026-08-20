@@ -1,58 +1,63 @@
-# Kildegjennomgang: rask beslutning, språkvalg og tydelig sikkerhetsgrad
+# Kildegjennomgang: rask beslutning, ingen støyforslag, norsk som språk
 
 ## Hva jeg fant (bekreftet mot data og kode)
 
-- Klikkene registreres faktisk. Databasen viser at både «Avvis» og «Behold det jeg har» har blitt lagret (3 profilforslag og 1 jobbforslag står som avvist). Problemet er at siden ikke gir noe synlig svar: det kommer ingen bekreftelse, kortet blir liggende på samme plass i listen, og hele listen på 305 forslag hentes på nytt før den lille statusmerkelappen endrer seg. For brukeren ser det ut som ingenting skjedde.
-- 299 av 305 forslag er «Jobbsignaler» — lagrede/søkte stillinger fra LinkedIn. De er markert som ren kontekst og kan ikke overføres til karriereoversikten i det hele tatt. De burde altså aldri ha vært 299 enkeltbeslutninger.
+- Klikkene registreres faktisk. Databasen viser at både «Avvis» og «Behold det jeg har» har blitt lagret (3 profilforslag og 1 jobbforslag står som avvist). Problemet er at siden ikke gir noe synlig svar: det kommer ingen bekreftelse, kortet blir liggende på samme plass, og hele listen på 305 forslag hentes på nytt før statusmerkelappen endrer seg. For brukeren ser det ut som ingenting skjedde.
+- 299 av 305 forslag er «Jobbsignaler» — historisk jobbsøk-aktivitet fra LinkedIn. De kan ikke overføres til karriereoversikten i det hele tatt og har ingen verdi i denne løsningen.
 - Reelle beslutninger er 6: 4 profilfelter (navn, sted, sammendrag, tittelrad) og 2 nye elementer.
-- Språkkonflikten er reell: LinkedIn-profilen er skrevet på engelsk, profilen i systemet på norsk. Sammendrag og tittelrad blir derfor rapportert som «motstrid» selv om innholdet i praksis er samme person beskrevet på to språk. Profilen har i dag ikke noe felt for hvilket språk innholdet skal være på.
-- «Sikkerhet 50 %» er avstemmingens interne tillit til at forslaget er riktig koblet. Den vises som et nakent tall uten forklaring, og for kontekstforslagene er verdien fast (20 %) og helt uten mening for brukeren.
+- Profilteksten fra LinkedIn er engelsk, profilen her er norsk. Det gir «motstrid» på sammendrag og tittelrad.
+- «Sikkerhet 50 %» er avstemmingens interne tillit til koblingen. Den vises som et nakent tall uten forklaring.
 
 ## Det jeg foreslår
 
-### 1. Klikk skal svare umiddelbart
-- Beslutningen oppdaterer kortet med én gang (optimistisk), uten å vente på ny henting av hele listen.
-- Kort som er ferdig behandlet forsvinner ut av arbeidslisten og legges i en sammenleggbar seksjon «Behandlet (n)» med «Angre».
-- Kort bekreftelse nederst: «Avvist — Angre».
-- Knappene låses bare på det kortet man trykker på, ikke på hele listen.
+### 1. Jobbsignaler importeres ikke i det hele tatt
+- LinkedIn sin historikk over søkte og lagrede stillinger er ikke data vi skal føre videre. Systemet skal holde oversikt over søknader brukeren gjør *her*, ikke i LinkedIn.
+- Avstemmingen slutter å lage forslag fra denne kategorien, og importen slutter å behandle den som en kilde til forslag. Filene kan fortsatt ligge i eksporten uten å gi utslag.
+- De 299 eksisterende radene fjernes fra brukerens kø, slik at telleren viser de 6 reelle beslutningene.
 
-### 2. Komprimert gjennomgang i stedet for 300 kort
-- **Jobbsignaler skilles ut av beslutningskøen.** De er kontekst, ikke forslag. De vises som én sammenslått rad: «299 lagrede og søkte stillinger fra LinkedIn — vises som kontekst, endrer ingenting». Kan åpnes som en tabell (tittel, selskap, dato, lenke) og skjules med ett klikk for hele gruppen. Telleren øverst teller da 6 reelle beslutninger, ikke 305.
-- **Ny standardvisning: kompakt liste.** Én linje per forslag — type, kort tittel, «fra LinkedIn → det du har» på samme rad — med fire ikonknapper (godkjenn / behold / utsett / avvis). Full sammenligning åpnes ved å utvide raden. Detaljkortene beholdes for motstrid.
-- **Avkryssing og massehandling.** Velg flere (eller «velg alle i gruppen») og avvis/godkjenn/utsett i én operasjon, med én angremulighet.
-- **Gruppering med gruppevedtak.** Forslag samles per type (f.eks. «Kurs», «Nettverk», «Jobbsignaler») med «Avvis hele gruppen» / «Godkjenn hele gruppen» der det er forsvarlig. Motstrid kan aldri gruppegodkjennes.
-- **Fokusmodus (valgfritt).** «Gå gjennom én og én» viser ett forslag om gangen med tastatursnarveier (G = godkjenn, A = avvis, U = utsett) og fremdrift «3 av 6».
-- Sidevisning/lat innlasting slik at store grupper ikke rendres på én gang.
+### 2. Forslag som ikke endrer noe skal aldri vises
+- Alt som ender i «Dette forslaget endrer ingenting … du kan avvise det for å skjule det» er støy. Slike forslag opprettes ikke lenger, og eksisterende rader av denne typen tas ut av gjennomgangen.
+- Regelen blir generell: hvis et forslag ikke kan føre til en endring i karriereoversikten eller profilen, er det ikke et forslag og skal ikke havne i køen.
+- Der noe faktisk er identisk (f.eks. navn som allerede stemmer), avsluttes det automatisk uten at brukeren må klikke.
 
-### 3. Språk (norsk/engelsk)
-- Nytt valg i profilen: **innholdsspråk for profiltekst** — norsk (standard) eller engelsk.
-- Avstemmingen bruker valget: når LinkedIn-teksten er på et annet språk enn valgt innholdsspråk, merkes forslaget «Ulikt språk» i stedet for «Motstrid», og brukeren får tre tydelige valg:
-  - behold min norske tekst,
-  - bruk LinkedIn-teksten som den er,
-  - lagre LinkedIn-teksten som engelsk versjon av feltet (påvirker ikke den norske).
-- Første gang et språkavvik oppdages, vises en engangsavklaring øverst: «LinkedIn-profilen din er på engelsk, profilen her er på norsk. Hvilket språk skal gjelde?» Svaret lagres og gjenbrukes.
-- All brukervendt tekst i selve grensesnittet forblir norsk uansett valg.
+### 3. Klikk skal svare umiddelbart
+- Beslutningen oppdaterer kortet med én gang, uten å vente på ny henting av hele listen.
+- Behandlede kort forsvinner fra arbeidslisten og legges i en sammenleggbar seksjon «Behandlet (n)» med «Angre».
+- Kort bekreftelse: «Avvist — Angre».
+- Knappene låses bare på kortet man trykker på.
 
-### 4. «Sikkerhet» erstattes med forståelig tekst
-- Tallet fjernes fra kortene. I stedet vises grunnlaget for koblingen i klartekst, f.eks.:
+### 4. Komprimert gjennomgang
+- **Kompakt liste som standard:** én linje per forslag — type, kort tittel, «fra LinkedIn → det du har» — med ikonknapper (godkjenn / behold / utsett / avvis). Full sammenligning ved å utvide raden. Detaljkort beholdes for motstrid.
+- **Avkryssing og massehandling:** velg flere (eller «velg alle i gruppen») og avvis/godkjenn/utsett i én operasjon, med én angremulighet.
+- **Gruppering per type** med gruppevedtak der det er forsvarlig. Motstrid kan aldri gruppegodkjennes.
+- **Fokusmodus (valgfritt):** ett forslag om gangen med tastatursnarveier (G/A/U) og fremdrift «3 av 6».
+- Sidevisning slik at store grupper aldri rendres samlet.
+
+### 5. Språk: norsk er løsningens språk
+- Hele løsningen og alt profilinnhold holdes på norsk. Ingen nytt språkvalg i profilen.
+- Når LinkedIn-teksten er engelsk og profilteksten norsk, behandles det som en vanlig motstrid der norsk tekst er standardvalget, og det vises tydelig at kildeteksten er på engelsk.
+- Engelske søknader og CV-er håndteres som en egen ting senere: teksten oversettes og genereres på engelsk kun når brukeren eksplisitt ber om det ved generering. Det påvirker ikke hva som lagres i profilen.
+
+### 6. «Sikkerhet» erstattes med forståelig tekst
+- Tallet fjernes fra kortene. I stedet vises grunnlaget i klartekst:
   - «Sikker kobling — samme felt i profilen din»
   - «Trolig samme — navn og selskap stemmer»
   - «Usikker kobling — sjekk selv før du godkjenner»
-  - Kontekstrader viser ingen sikkerhetsangivelse i det hele tatt.
-- Prosenten beholdes bare som detalj bak «Hvorfor dette forslaget?» sammen med hvilken metode som ble brukt.
+- Prosenten beholdes bare som detalj bak «Hvorfor dette forslaget?».
 
 ## Teknisk gjennomføring
 
-- `src/routes/_authenticated/kildegjennomgang.tsx` deles opp: liste-/gruppekomponent, kompakt rad, detaljkort, kontekstgruppe, fokusmodus.
-- Beslutningsmutasjonen får optimistisk oppdatering av cachen (`onMutate`/`onError`-rollback) og målrettet invalidering, i stedet for å hente alle rader på nytt ved hvert klikk. Angre = ny beslutning via samme lagringspunkt (beslutningshistorikken er allerede versjonert i basen, så ingenting overskrives).
-- Massehandling kjøres som sekvensielle kall mot eksisterende beslutningsfunksjon med samlet fremdrift og én oppsummerende bekreftelse; ingen ny databasefunksjon er nødvendig for dette.
-- Kontekstforslag (kind = kun kontekst) filtreres ut av beslutningstelleren i grensesnittet og telles separat.
-- Språkvalget krever ett nytt felt på profilen (innholdsspråk) med migrasjon og tilhørende tilgangsregler, samt et valg i profilinnstillingene. Avstemmingen som lager profilforslag utvides med en enkel språkdeteksjon slik at ulikt språk kodes som eget avviksgrunnlag.
-- «Sikkerhet»-tallet mappes til tekst i frontend ut fra koblingsmetode og verdi; ingen dataendring nødvendig.
+- Avstemmingslaget som lager LinkedIn-forslag slutter å produsere jobbsøk-forslag og forslag uten mulig effekt; regelen håndheves ett sted, ikke i visningen.
+- Opprydding av eksisterende rader for berørte brukere gjøres som en datajobb (setter dem ut av kø, ingen historikk overskrives).
+- `src/routes/_authenticated/kildegjennomgang.tsx` deles opp: liste-/gruppekomponent, kompakt rad, detaljkort, fokusmodus.
+- Beslutningsmutasjonen får optimistisk cache-oppdatering med tilbakerulling ved feil og målrettet invalidering i stedet for full refetch. Angre = ny beslutning via samme lagringspunkt.
+- Massehandling kjøres som sekvensielle kall mot eksisterende beslutningsfunksjon med samlet fremdrift og én oppsummering; ingen ny databasefunksjon nødvendig.
+- «Sikkerhet»-tallet mappes til tekst i frontend; ingen dataendring.
+- Ingen skjemaendring for språk.
 
 ## Rekkefølge
 
-1. Umiddelbar respons på klikk + angre + behandlet-seksjon (løser «ingenting skjer»).
-2. Jobbsignaler ut av beslutningskøen + kompakt liste + massehandling (løser 300-problemet).
-3. «Sikkerhet» erstattes med klartekst.
-4. Språkvalg i profilen og språkbevisst behandling av profilfelt.
+1. Stopp jobbsignaler og virkningsløse forslag ved kilden, og rydd eksisterende kø.
+2. Umiddelbar respons på klikk + angre + behandlet-seksjon.
+3. Kompakt liste, massehandling, fokusmodus.
+4. «Sikkerhet» erstattes med klartekst.
