@@ -203,22 +203,22 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
   `SET search_path = ''` og fullt kvalifiserte objektnavn,
   `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` (kun `service_role`).
   Alt under skjer i **én transaksjon**, i denne rekkefølgen:
-  1. opprett tombstone for importen
+  1. opprett tombstone for **importen** (aldri for stagingrader); tombstone inneholder
+     ingen rå LinkedIn-tekst og ingen stagingpayload
   2. finn alle stagingrader som refererer til importen via
      `first_linkedin_import_id`/`last_linkedin_import_id`
   3. slett importens koblinger i `linkedin_import_stage_records`
-  4. slett stagingrader som ikke lenger har noen kobling fra noen import/forsøk
-  5. for **beholdte** stagingrader: reparer referansene før commit — sett
+  4. slett stagingrader som ikke lenger har noen aktiv importkobling — sammen med
+     deres 1:1-domenerader. Staging bevares aldri uten aktiv importkobling.
+  5. for **beholdte** (delte) stagingrader: reparer referansene før commit — sett
      `first_linkedin_import_id` til eldste og `last_linkedin_import_id` til nyeste
-     gjenværende import utledet fra `linkedin_import_stage_records`; finnes ingen
-     gyldig import, men raden skal bevares, knyttes den til importens tombstone via
-     `preserved_tombstone_id` (eksplisitt, dokumentert bevaringsregel)
+     gjenværende import utledet fra `linkedin_import_stage_records`
   6. slett filrader, formålsrader og fritekst
   7. marker Storage-objektet for sletting og sett `archive_available = false`
 
   FK-ene på `first/last_linkedin_import_id` bruker aldri `ON DELETE SET NULL`: enten
-  peker de på en gyldig gjenværende import, eller raden er tombstone-forankret via
-  `preserved_tombstone_id`, eller den er slettet. Serverhandlingen sletter
+  peker de på en gyldig gjenværende aktiv import, eller stagingraden er slettet.
+  Serverhandlingen sletter
   Storage-objektet etter commit; feiler Storage-sletting, blir objektet stående i
   slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis. Samme
   referansereparasjon gjelder når retention-sweepen purger en import.
