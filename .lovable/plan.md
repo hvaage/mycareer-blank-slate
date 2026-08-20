@@ -206,17 +206,31 @@ Ingen rå LinkedIn-tekst i logger; kun filnavn, parserversjon, tellere, feilkode
   transaksjonen er committet; feiler Storage-sletting, blir objektet stående i
   slettekø og fjernes av sweepen — databaserader gjenopprettes aldri halvveis.
 
+- **Kanonisk import ved sletting:** dersom andre importrader peker til importen som
+  slettes, må flyten enten (a) velge og validere en ny kanonisk import blant de
+  gjenværende importene for samme bruker og flytte alle `canonical_import_id`-
+  referanser atomisk i samme transaksjon, eller (b) avvise slettingen med
+  `canonical_import_in_use`. Self-FK-en garanterer at ingen import blir stående med
+  en ugyldig kanonisk referanse.
 - `public.linkedin_import_retention_sweep()` — idempotent, samme
-  `SECURITY DEFINER`/`search_path`/grant-regler; sletter ZIP ≥7 dager, staging
-  ≥90 dager etter `reconciliation_ready`, staging uten brukerhandling per kontraktens
-  inaktivitetsgrense, rydder slettekøen for Storage, og setter importer med utløpt
-  `heartbeat_at` til `failed` med `staging_timeout`. Rører aldri CV-importer eller
-  andre kilder. Testes mot syntetiske data; ikke planlagt i cron i denne fasen.
+  `SECURITY DEFINER`/`search_path`/grant-regler; sletter ZIP ≥7 dager (og setter
+  `archive_available = false`), staging ≥90 dager etter `reconciliation_ready`,
+  staging uten brukerhandling per kontraktens inaktivitetsgrense, rydder slettekøen
+  for Storage, og setter importer med utløpt `heartbeat_at` til `failed` med
+  `staging_timeout`. Rører aldri CV-importer eller andre kilder. Testes mot
+  syntetiske data; ikke planlagt i cron i denne fasen.
+- **Reimport etter sletting:** tombstone beholdes som revisjonsspor, men blokkerer
+  ikke ny import. Den partielle unikheten på `(user_id, archive_sha256)` gjelder kun
+  aktive rader, så identisk ZIP kan lastes opp igjen og gir en ny, ren importrad uten
+  arvede stagingkoblinger.
 - Kontraktdokumentet `docs/linkedin-import-contract-v1.md` oppdateres i samme
   leveranse slik at §6.1/§6.2/§9.5 og §1.3 har **én** autoritativ livssyklus:
   ZIP 7 dager, staging 90 dager, samme statusklassifisering som over — og slik at
   datamodellavsnittet beskriver felles `linkedin_staging_records` med 1:1
-  domenetabeller, formålsstatus per fil, `attempt_id`-isolasjon og `archive_available`.
+  domenetabeller, tenant-samsvar via sammensatte FK-er, formål i identitetshashen,
+  formålsstatus per fil, `attempt_id`-isolasjon, self-FK for kanonisk import,
+  reimportregelen og `archive_available` uten default.
+
 
 
 ## 5. Tester
