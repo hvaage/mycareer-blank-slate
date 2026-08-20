@@ -25,6 +25,10 @@ export type StageOutcome = {
   stagedRecordCount: number;
   excludedReasonCounts: Record<string, number>;
   contentManifestHash: string;
+  /** Sant når alle kjente filer i arkivet er behandlet i denne kjøringen. */
+  done: boolean;
+  /** Neste filindeks å fortsette fra når tidsbudsjettet ble brukt opp. */
+  nextFileIndex: number;
   filePurposeOutcomes: Array<{
     archivePath: string;
     purpose: LinkedInPurpose;
@@ -37,6 +41,10 @@ export type StageOutcome = {
 /**
  * Validerer og stager ett arkiv for de valgte formålene.
  * Idempotent på (user_id, source_file, source_identity_hash).
+ *
+ * Kjøringen kan deles opp: `startFileIndex` fortsetter der forrige kjøring
+ * slapp, og `timeBudgetMs` stopper kontrollert mellom to filer slik at
+ * arbeideren rekker å melde fra før tidsavbrudd.
  */
 export async function validateAndStageArchive(params: {
   admin: AdminClient;
@@ -45,8 +53,17 @@ export async function validateAndStageArchive(params: {
   attemptId: string;
   archive: Uint8Array;
   selectedPurposes: LinkedInPurpose[];
+  startFileIndex?: number;
+  timeBudgetMs?: number;
+  onProgress?: (progress: {
+    fileIndex: number;
+    archivePath: string;
+    stagedRecordCount: number;
+  }) => Promise<boolean | void>;
 }): Promise<StageOutcome> {
   const { admin, userId, importId, attemptId, archive, selectedPurposes } = params;
+  const startFileIndex = params.startFileIndex ?? 0;
+  const deadline = params.timeBudgetMs ? Date.now() + params.timeBudgetMs : null;
   const selected = new Set(selectedPurposes);
 
   const pre = await runPreflight(archive);
@@ -55,6 +72,7 @@ export async function validateAndStageArchive(params: {
   }
 
   const { known, excludedReasonCounts, excludedFileCount, unknownPaths } = classifyEntries(pre.entries);
+
 
   // Innholdsmanifest: hash over (sti + filhash), uavhengig av ZIP-pakking.
   const perFileHash = new Map<string, string>();
