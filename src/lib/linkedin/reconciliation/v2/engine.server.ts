@@ -126,7 +126,7 @@ export async function runNetworkReconciliationV2(
     staging = page.rows;
     sourcePages = page.pages;
   } catch {
-    return { ok: false, error: "database_error" };
+    (console.error("DBFAIL", new Error().stack), { ok: false, error: "database_error" });
   }
 
   const sourceTotal = staging.length;
@@ -137,7 +137,7 @@ export async function runNetworkReconciliationV2(
     .select("id, display_name")
     .eq("user_id", input.userId)
     .eq("is_active", true);
-  if (contactError) return { ok: false, error: "database_error" };
+  if (contactError) (console.error("DBFAIL", new Error().stack), { ok: false, error: "database_error" });
 
   // Kanonisk eier av LinkedIn-profil-URL er network_contact_identities.
   const { data: identityRows, error: identityError } = await admin
@@ -145,7 +145,7 @@ export async function runNetworkReconciliationV2(
     .select("network_contact_id, identity_key")
     .eq("user_id", input.userId)
     .eq("identity_kind", "linkedin_profile_url");
-  if (identityError) return { ok: false, error: "database_error" };
+  if (identityError) (console.error("DBFAIL", new Error().stack), { ok: false, error: "database_error" });
 
   const keysByContact = new Map<string, string[]>();
   for (const row of identityRows ?? []) {
@@ -210,7 +210,7 @@ export async function runNetworkReconciliationV2(
     })
     .select("id")
     .single();
-  if (batchError || !batch) return { ok: false, error: "database_error" };
+  if (batchError || !batch) (console.error("DBFAIL", new Error().stack), { ok: false, error: "database_error" });
 
   const abort = async (error: string): Promise<NetworkReconcileResult> => {
     await admin
