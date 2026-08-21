@@ -37,12 +37,25 @@ export function httpUrl(value: string | null): string | null {
   }
 }
 
+export type NetworkObjectKind =
+  | "person_contact"
+  | "invitation"
+  | "company_observation"
+  | "network_event"
+  | "network_preference_signal"
+  | "other";
+
 export type MappedRecord = {
   domainFields: Record<string, unknown>;
   /** Felter som inngår i identitetshashen. */
   identityFields: Record<string, string | null>;
   sourceEventAt: string | null;
+  /** Objektklasse for nettverkskilder. Udefinert for andre domener. */
+  objectKind?: NetworkObjectKind;
+  /** Sant når kilden har en stabil identitet (personkilder: normalisert URL). */
+  hasStableIdentity?: boolean;
 };
+
 
 export function mapRow(recordKind: string, row: Row): MappedRecord | null {
   switch (recordKind) {
@@ -113,22 +126,60 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
     }
     case "connection":
     case "invitation":
-    case "company_follow":
-    case "event":
-    case "hashtag_follow":
-    case "member_follow":
-    case "saved_item": {
+    case "member_follow": {
+      // Personkilder. Kun normalisert LinkedIn-URL er stabil personidentitet.
+      // Navn uten URL gir en mulig person uten stabil identitet.
+      // Selskap, stilling eller kombinasjonen av dem er ALDRI personidentitet.
       const f = {
         full_name:
           [pick(row, "First Name"), pick(row, "Last Name")].filter(Boolean).join(" ") ||
-          pick(row, "From", "To", "Organization", "Name", "HashTag", "Event Name"),
+          pick(row, "From", "To", "Name"),
         company: pick(row, "Company", "Organization"),
         position: pick(row, "Position", "Title"),
         connected_on: parseLinkedInDate(pick(row, "Connected On", "Sent At", "Date"))?.value ?? null,
         profile_url: pick(row, "URL", "Link", "profileUrl"),
       };
-      return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
+      const urlKey = normalizeLinkedInProfileUrl(f.profile_url);
+      return {
+        domainFields: f,
+        // Identiteten er URL-en når den finnes; ellers navnet alene.
+        identityFields: urlKey
+          ? { profile_url: urlKey, full_name: null }
+          : { profile_url: null, full_name: f.full_name },
+        sourceEventAt: null,
+        objectKind: recordKind === "invitation" ? "invitation" : "person_contact",
+        hasStableIdentity: Boolean(urlKey),
+      };
     }
+    case "company_follow":
+    case "event":
+    case "hashtag_follow":
+    case "saved_item": {
+      // Ikke-personobjekter. Kan aldri bli kontakter.
+      const f = {
+        full_name: pick(row, "Organization", "Company", "Name", "HashTag", "Event Name"),
+        company: pick(row, "Company", "Organization"),
+        position: null,
+        connected_on: parseLinkedInDate(pick(row, "Date", "Connected On"))?.value ?? null,
+        profile_url: pick(row, "URL", "Link"),
+      };
+      const objectKind =
+        recordKind === "company_follow"
+          ? "company_observation"
+          : recordKind === "event"
+            ? "network_event"
+            : recordKind === "hashtag_follow"
+              ? "network_preference_signal"
+              : "other";
+      return {
+        domainFields: f,
+        identityFields: { full_name: f.full_name, profile_url: f.profile_url },
+        sourceEventAt: null,
+        objectKind,
+        hasStableIdentity: Boolean(f.full_name || f.profile_url),
+      };
+    }
+
     case "application":
     case "saved_job":
     case "online_job_posting":
