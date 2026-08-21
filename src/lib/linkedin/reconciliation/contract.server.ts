@@ -13,7 +13,7 @@ export const RECONCILIATION_NORMALIZATION_VERSION = "linkedin_identity_v1";
  * trådmodellen ikke gjenbrukes i det uendelige. Bumpes kun når motorens
  * utfall faktisk endres.
  */
-export const RECONCILIATION_ENGINE_REVISION = "threads_v1";
+export const RECONCILIATION_ENGINE_REVISION = "threads_v1_full_source";
 
 export const RECONCILIATION_DOMAINS = [
   "profile",
