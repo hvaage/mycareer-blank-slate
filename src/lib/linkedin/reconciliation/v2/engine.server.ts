@@ -44,7 +44,10 @@ export type NetworkReconcileResult = {
     new_contact_count: number;
     excluded_count: number;
   };
+  /** Tellinger per objektklasse og kategori. Aldri blandet i én teller. */
+  objectKindCounts?: Record<string, Record<string, number>>;
 };
+
 
 /** PostgREST-sidestørrelse for kildeuttrekk. Under standardtaket på 1000. */
 const PAGE_SIZE = 500;
