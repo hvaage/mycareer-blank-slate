@@ -212,7 +212,7 @@ export async function runNetworkReconciliationV2(
   }
 
   const { data: batch, error: batchError } = await admin
-
+    .from("linkedin_network_reconciliation_batches")
     .insert({
       user_id: input.userId,
       linkedin_import_id: input.importId,
