@@ -14,10 +14,13 @@ import {
   RECONCILIATION_VERSION,
   exactIdentityMatch,
   normalizeLinkedInProfileUrl,
+  objectKindForRecordKind,
   type MatchableContact,
   type NetworkBatchItem,
   type NetworkBatchItemCategory,
+  type NetworkObjectKind,
 } from "./contract.server";
+
 
 // Avstemmingstabellene for nettverk v2 finnes i den genererte typefila, men
 // motoren bruker en løs klienttype (som v1) for å unngå tett kobling til
@@ -41,7 +44,10 @@ export type NetworkReconcileResult = {
     new_contact_count: number;
     excluded_count: number;
   };
+  /** Tellinger per objektklasse og kategori. Aldri blandet i én teller. */
+  objectKindCounts?: Record<string, Record<string, number>>;
 };
+
 
 /** PostgREST-sidestørrelse for kildeuttrekk. Under standardtaket på 1000. */
 const PAGE_SIZE = 500;
@@ -79,9 +85,11 @@ function chunk<T>(items: T[], size = LOOKUP_CHUNK): T[][] {
 type NetworkStagingRow = {
   id: string;
   staging_domain: string;
+  record_kind: string;
   source_classification: string;
   source_identity_hash: string;
 };
+
 
 type NetworkFieldsRow = {
   staging_record_id: string;
@@ -106,7 +114,7 @@ export async function runNetworkReconciliationV2(
     const page = await fetchAllPages<NetworkStagingRow>((from, to) =>
       admin
         .from("linkedin_staging_records")
-        .select("id, staging_domain, source_classification, source_identity_hash")
+        .select("id, staging_domain, record_kind, source_classification, source_identity_hash")
         .eq("last_linkedin_import_id", input.importId)
         .eq("user_id", input.userId)
         .eq("staging_domain", "network")
@@ -263,11 +271,24 @@ export async function runNetworkReconciliationV2(
     batchId: batch.id,
     status: "ready",
     counts,
+    objectKindCounts: countByObjectKind(items),
     sourceTotal,
     processedTotal: items.length,
     sourcePages,
   };
 }
+
+/** Tellinger per objektklasse og kategori. */
+function countByObjectKind(items: NetworkBatchItem[]): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const item of items) {
+    const kind: NetworkObjectKind = item.objectKind;
+    out[kind] ??= {};
+    out[kind]![item.category] = (out[kind]![item.category] ?? 0) + 1;
+  }
+  return out;
+}
+
 
 function countByCategory(items: NetworkBatchItem[]) {
   const init: Record<NetworkBatchItemCategory, number> = {
@@ -313,15 +334,18 @@ async function buildBatchItems(
 
   const items: NetworkBatchItem[] = [];
   for (const src of staging) {
+    const objectKind = objectKindForRecordKind(src.record_kind);
+
     if (src.source_classification === "excluded_by_product_contract_v1_1") {
       items.push({
+        objectKind,
         stagingRecordId: src.id,
         sourceIdentityHash: src.source_identity_hash,
         sourceHash: src.source_identity_hash,
         observedAt: null,
         category: "excluded",
         proposedAction: "skip",
-        reasonCodes: ["excluded_by_product_contract_v1_1"],
+        reasonCodes: ["excluded_by_product_contract_v1_1", `object_kind:${objectKind}`],
       });
       continue;
     }
@@ -343,11 +367,24 @@ async function buildBatchItems(
     });
 
     const base = {
+      objectKind,
       stagingRecordId: src.id,
       sourceIdentityHash: src.source_identity_hash,
       sourceHash,
       observedAt: fields?.connected_on ?? null,
     };
+
+    // Ikke-personobjekter kan aldri bli kontakter. De holdes utenfor
+    // kontaktkategoriene og telles per objektklasse.
+    if (objectKind !== "person_contact") {
+      items.push({
+        ...base,
+        category: "excluded",
+        proposedAction: "skip",
+        reasonCodes: ["not_a_person_contact", `object_kind:${objectKind}`],
+      });
+      continue;
+    }
 
     const exact = exactIdentityMatch({ profileUrl }, contacts);
     if (exact) {
@@ -362,7 +399,7 @@ async function buildBatchItems(
           category: "observed_profile_change",
           proposedAction: "review_manually",
           targetContactId: exact.id,
-          reasonCodes: ["profile_name_changed"],
+          reasonCodes: ["profile_name_changed", `object_kind:${objectKind}`],
         });
         continue;
       }
@@ -371,17 +408,23 @@ async function buildBatchItems(
         category: "exact_identity_match",
         proposedAction: "merge_into_contact",
         targetContactId: exact.id,
-        reasonCodes: ["url_match"],
+        reasonCodes: ["url_match", `object_kind:${objectKind}`],
       });
       continue;
     }
 
-    if (!urlKey && !nameKey) {
+    // Navn uten normalisert LinkedIn-URL gir aldri stabil personidentitet og
+    // kan aldri auto-sammenslås.
+    if (!urlKey) {
       items.push({
         ...base,
         category: "without_stable_identity",
-        proposedAction: "skip",
-        reasonCodes: ["no_profile_url", "no_name"],
+        proposedAction: "review_manually",
+        reasonCodes: [
+          "possible_person_without_stable_identity",
+          "no_profile_url",
+          `object_kind:${objectKind}`,
+        ],
       });
       continue;
     }
@@ -398,7 +441,7 @@ async function buildBatchItems(
         category: "possible_duplicate",
         proposedAction: "review_manually",
         targetContactId: duplicates[0].contact.id,
-        reasonCodes: ["name_similarity"],
+        reasonCodes: ["name_similarity", `object_kind:${objectKind}`],
       });
       continue;
     }
@@ -407,8 +450,9 @@ async function buildBatchItems(
       ...base,
       category: "new_contact",
       proposedAction: "create_contact",
-      reasonCodes: ["missing_in_product"],
+      reasonCodes: ["missing_in_product", `object_kind:${objectKind}`],
     });
+
   }
   return items;
 }
