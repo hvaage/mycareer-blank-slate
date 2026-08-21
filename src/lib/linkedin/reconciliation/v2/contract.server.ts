@@ -69,29 +69,57 @@ export type NetworkBatch = {
   createdAt: string;
 };
 
-/** Minimalt kontaktgrunnlag for deterministisk matching. */
+/**
+ * Minimalt kontaktgrunnlag for deterministisk matching.
+ * `identityKeys` kommer fra `network_contact_identities`, som er eneste
+ * kanoniske eier av LinkedIn-profil-URL. Kontakttabellen dupliserer den ikke.
+ */
 export type MatchableContact = {
   id: string;
   displayName: string | null;
-  linkedinProfileUrl: string | null;
+  identityKeys: string[];
 };
 
 /**
- * Nøyaktig identitetsmatch: normalisert profil-URL er lik, eller (hvis ingen
- * URL finnes) normalisert e-post er lik. Returnerer den første treffende
- * kontakten, eller null hvis ingen stabil identitet matcher.
+ * Deterministisk normalisering av en LinkedIn-profil-URL:
+ * små bokstaver, uten protokoll, «www.», query, fragment og etterfølgende «/».
+ * Ugyldige eller tomme verdier gir tom streng.
+ */
+export function normalizeLinkedInProfileUrl(value: string | null | undefined): string {
+  const raw = (value ?? "").normalize("NFKC").trim();
+  if (!raw) return "";
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  let host: string;
+  let path: string;
+  try {
+    const u = new URL(withScheme);
+    host = u.hostname.toLowerCase().replace(/^www\./, "");
+    path = u.pathname;
+  } catch {
+    return "";
+  }
+  if (!host.endsWith("linkedin.com")) return "";
+  const cleanPath = decodeURIComponent(path)
+    .toLowerCase()
+    .replace(/\/+$/, "")
+    .replace(/^\/+/, "/");
+  if (!cleanPath || cleanPath === "/") return "";
+  return `${host}${cleanPath}`;
+}
+
+/**
+ * Nøyaktig identitetsmatch mot kanoniske identiteter: normalisert profil-URL
+ * er lik en registrert `linkedin_profile_url`-identitet. Navn brukes aldri her.
  */
 export function exactIdentityMatch(
-  source: { profileUrl?: string | null; email?: string | null },
+  source: { profileUrl?: string | null },
   contacts: MatchableContact[],
 ): MatchableContact | null {
-  const urlKey = normKey(source.profileUrl);
-  if (urlKey) {
-    const match = contacts.find((c) => normKey(c.linkedinProfileUrl) === urlKey);
-    if (match) return match;
-  }
-  return null;
+  const urlKey = normalizeLinkedInProfileUrl(source.profileUrl);
+  if (!urlKey) return null;
+  return contacts.find((c) => c.identityKeys.includes(urlKey)) ?? null;
 }
+
 
 /**
  * Kandidater for mulig duplikat basert på token-likhet i navn (> 0.5),
