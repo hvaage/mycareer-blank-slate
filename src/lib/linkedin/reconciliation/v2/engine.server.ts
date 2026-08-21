@@ -374,17 +374,23 @@ async function buildBatchItems(
       observedAt: fields?.connected_on ?? null,
     };
 
-    // Ikke-personobjekter kan aldri bli kontakter. De holdes utenfor
-    // kontaktkategoriene og telles per objektklasse.
+    // Ikke-personobjekter kan aldri bli kontakter. De beholdes i staging og
+    // merkes «ikke kontakt-handlingsbare», med en fremtidig bruksintensjon.
     if (objectKind !== "person_contact") {
       items.push({
         ...base,
         category: "excluded",
         proposedAction: "skip",
-        reasonCodes: ["not_a_person_contact", `object_kind:${objectKind}`],
+        reasonCodes: [
+          "not_contact_actionable",
+          "not_a_person_contact",
+          `object_kind:${objectKind}`,
+          `retained_for:${retentionIntent(objectKind)}`,
+        ],
       });
       continue;
     }
+
 
     const exact = exactIdentityMatch({ profileUrl }, contacts);
     if (exact) {
