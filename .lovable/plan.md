@@ -53,14 +53,14 @@ Desktop: fast sidehøyde innenfor viewport, stabilt panelgrid, intern scrolling 
 Kun selskapsrelasjonen, siden Selskaper bygges nå:
 
 - `user_company_relationships`: nye kolonner `status` (`following`, `target`, `active_dialogue`, `applied`, `former_employer`, `paused`) og `priority` (`low`, `normal`, `high`), begge nullable med validering. Eksisterende rader endres ikke, og verdier utledes aldri fra LinkedIn-import.
-- RLS beholdes med `user_id = auth.uid()`, ingen `anon`-tilgang, `authenticated` og `service_role` får eksplisitte GRANT-er.
+- RLS beholdes med `user_id = auth.uid()`, ingen `anon`-tilgang. `authenticated` har kun leserett på egne rader; all skriving skjer gjennom kanoniske serverhandlinger/RPC-er med `security definer` og eierkontroll. `service_role` brukes kun serverside og er aldri tilgjengelig i klienten.
 
 `next_steps`-utvidelsen (`activity_type`, `status`, `result_note`) hører til Aktiviteter og gjøres i 5B.
 
 ## Teknisk
 
 - Lesing skjer gjennom bruker-scopede server-DTO-er per flate (`network.contacts`, `network.companies`, `network.search`, `network.import-status`), aldri direkte mot staging-tabeller.
-- Skriving går via kanoniske serverruter/RPC-er. Ingen service-role-nøkkel i klientkode.
+- All skriving, inkludert selskapsstatus og prioritet, går via kanoniske serverruter/RPC-er. Ingen direkte klientskriving og ingen service-role-nøkkel i klientbunten.
 - Produktobjekter: `network_contacts`, `network_contact_identities`, `network_contact_company_relations`, `companies`, `user_company_relationships`, `user_opportunities`, `next_steps`, `documents`. Søknadsbundne `contacts` blandes ikke inn.
 - Alle DTO-felter bærer datatilstand (`present`, `missing_in_source`, `not_imported`, `not_analyzed`, `stale`) og kildeklasse etter kontraktens punkt 0.3.
 - Nettverksregisteret er i dag tomt fordi ingen LinkedIn-data er promotert, så alle flatene må ha reelle tomtilstander som primærtilstand — ingen demodata.
