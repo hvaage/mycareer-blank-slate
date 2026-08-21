@@ -266,16 +266,25 @@ export function networkBatchQuery(userId: string | undefined) {
       if (error) throw error;
       if (!batch) return null;
 
-      const { data: items, error: itemsError } = await supabase
-        .from("linkedin_network_reconciliation_batch_items")
-        .select("id, category, status, reason_codes")
-        .eq("batch_id", batch.id)
-        .limit(5000);
-      if (itemsError) throw itemsError;
+      // PostgREST returnerer maks 1000 rader per kall — les batchen sidevis
+      // slik at tellingene per objektklasse blir fullstendige.
+      const items: Array<{ id: string; category: string; status: string; reason_codes: string[] }> = [];
+      const pageSize = 1000;
+      for (let offset = 0; offset < 20000; offset += pageSize) {
+        const { data: page, error: itemsError } = await supabase
+          .from("linkedin_network_reconciliation_batch_items")
+          .select("id, category, status, reason_codes")
+          .eq("batch_id", batch.id)
+          .order("id", { ascending: true })
+          .range(offset, offset + pageSize - 1);
+        if (itemsError) throw itemsError;
+        items.push(...((page ?? []) as never));
+        if (!page || page.length < pageSize) break;
+      }
 
       const objectKindCounts: Record<string, number> = {};
       const pendingPersonItemIds: string[] = [];
-      for (const item of items ?? []) {
+      for (const item of items) {
         const kindCode = (item.reason_codes ?? []).find((c: string) => c.startsWith("object_kind:"));
         const kind = kindCode ? kindCode.slice("object_kind:".length) : "ukjent";
         objectKindCounts[kind] = (objectKindCounts[kind] ?? 0) + 1;
