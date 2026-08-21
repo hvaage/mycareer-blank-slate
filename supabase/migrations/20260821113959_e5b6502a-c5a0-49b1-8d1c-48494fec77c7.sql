@@ -1,0 +1,1 @@
+REVOKE ALL ON public.linkedin_reconciliation_threads FROM anon;
