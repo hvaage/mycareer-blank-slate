@@ -5253,6 +5253,7 @@ export type Database = {
           supersedes_proposal_id: string | null
           target_snapshot_hash: string | null
           target_snapshot_json: Json | null
+          thread_id: string | null
           updated_at: string
           user_id: string
         }
@@ -5281,6 +5282,7 @@ export type Database = {
           supersedes_proposal_id?: string | null
           target_snapshot_hash?: string | null
           target_snapshot_json?: Json | null
+          thread_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -5309,6 +5311,7 @@ export type Database = {
           supersedes_proposal_id?: string | null
           target_snapshot_hash?: string | null
           target_snapshot_json?: Json | null
+          thread_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -5333,6 +5336,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_reconciliation_proposals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linkedin_reconciliation_proposals_thread_fk"
+            columns: ["thread_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_reconciliation_threads"
+            referencedColumns: ["id", "user_id"]
           },
         ]
       }
@@ -5419,6 +5429,53 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "linkedin_imports"
             referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
+      linkedin_reconciliation_threads: {
+        Row: {
+          created_at: string
+          current_proposal_id: string | null
+          id: string
+          last_source_snapshot_hash: string | null
+          last_status: string | null
+          proposal_domain: string
+          reopen_count: number
+          thread_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_proposal_id?: string | null
+          id?: string
+          last_source_snapshot_hash?: string | null
+          last_status?: string | null
+          proposal_domain: string
+          reopen_count?: number
+          thread_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_proposal_id?: string | null
+          id?: string
+          last_source_snapshot_hash?: string | null
+          last_status?: string | null
+          proposal_domain?: string
+          reopen_count?: number
+          thread_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_reconciliation_threads_current_proposal_id_fkey"
+            columns: ["current_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_reconciliation_proposals"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5986,7 +6043,7 @@ export type Database = {
           headline: string | null
           id: string
           is_active: boolean
-          linkedin_profile_url: string | null
+          last_observed_at: string | null
           source_import_id: string | null
           source_ref: string | null
           source_system: string
@@ -6001,7 +6058,7 @@ export type Database = {
           headline?: string | null
           id?: string
           is_active?: boolean
-          linkedin_profile_url?: string | null
+          last_observed_at?: string | null
           source_import_id?: string | null
           source_ref?: string | null
           source_system?: string
@@ -6016,7 +6073,7 @@ export type Database = {
           headline?: string | null
           id?: string
           is_active?: boolean
-          linkedin_profile_url?: string | null
+          last_observed_at?: string | null
           source_import_id?: string | null
           source_ref?: string | null
           source_system?: string
@@ -6035,7 +6092,7 @@ export type Database = {
       }
       next_steps: {
         Row: {
-          application_id: string
+          application_id: string | null
           archived_at: string | null
           company_id: string | null
           completed: boolean
@@ -6053,7 +6110,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          application_id: string
+          application_id?: string | null
           archived_at?: string | null
           company_id?: string | null
           completed?: boolean
@@ -6071,7 +6128,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          application_id?: string
+          application_id?: string | null
           archived_at?: string | null
           company_id?: string | null
           completed?: boolean
@@ -6090,18 +6147,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "next_steps_application_id_fkey"
-            columns: ["application_id"]
+            foreignKeyName: "next_steps_application_user_fk"
+            columns: ["application_id", "user_id"]
             isOneToOne: false
             referencedRelation: "applications"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
           {
-            foreignKeyName: "next_steps_application_id_fkey"
-            columns: ["application_id"]
+            foreignKeyName: "next_steps_application_user_fk"
+            columns: ["application_id", "user_id"]
             isOneToOne: false
             referencedRelation: "applications_with_urgency"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
           {
             foreignKeyName: "next_steps_company_id_fkey"
@@ -6118,18 +6175,18 @@ export type Database = {
             referencedColumns: ["company_id"]
           },
           {
-            foreignKeyName: "next_steps_contact_id_fkey"
-            columns: ["contact_id"]
+            foreignKeyName: "next_steps_contact_user_fk"
+            columns: ["contact_id", "user_id"]
             isOneToOne: false
             referencedRelation: "network_contacts"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
           {
-            foreignKeyName: "next_steps_opportunity_id_fkey"
-            columns: ["opportunity_id"]
+            foreignKeyName: "next_steps_opportunity_user_fk"
+            columns: ["opportunity_id", "user_id"]
             isOneToOne: false
             referencedRelation: "user_opportunities"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
           {
             foreignKeyName: "next_steps_source_import_id_fkey"
