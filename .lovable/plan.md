@@ -1,90 +1,70 @@
-# Leveranse B — LinkedIn-datakvalitet, reimport og versjonert avstemming
+# Fase 5A — Nettverk og muligheter: grunnflate og nettverksregister
 
-Backend og datamodell. Ingen Fase 5-flater, ingen automatisk promotering, ingen reell LinkedIn-akseptansetest.
+Leveransen dekker modulnavigasjon, globalt søk, importstatus, Selskaper og Kontakter. Oversikt, Muligheter og Aktiviteter bygges ikke i denne runden. Stopp for gjennomgang før 5B.
 
-## Preflight — hva som faktisk står i databasen nå
+## Navigasjon og modulskall
 
-Talt opp før planen ble skrevet:
+- Ny gruppe **Nettverk og muligheter** i sidemenyen under **Min karriere**, plassert før **Marked**.
+- Rutetre under `/nettverk`:
 
-- Staginglag: 3 632 kontakter, 234 endorsements gitt av deg, 60 mottatt, 24 anbefalinger gitt, 34 mottatt, 95 kompetanser, 12 stillinger, 5 sertifiseringer, 1 utdanning, 1 språk, 2 frivillig.
-- Produktlaget er tomt: 0 nettverkskontakter, 0 kontaktidentiteter, 0 anbefalinger, 0 promoteringer, 0 aktiviteter. Ingen produktdata står i fare.
-- Forslag: 305 totalt — 300 ubehandlede «jobbsignaler», 4 avviste profilforslag, 1 til avklaring.
+```text
+/nettverk/oversikt      (5B — plassholder med tydelig «bygges i neste leveranse»)
+/nettverk/selskaper     liste
+/nettverk/selskaper/$id detalj
+/nettverk/kontakter     liste
+/nettverk/kontakter/$id detalj
+/nettverk/muligheter    (5B — plassholder)
+/nettverk/aktiviteter   (5B — plassholder)
+```
 
-Fire reelle avvik bekreftet i koden:
+- Fast sekundærnavigasjon i modulens topplinje: Oversikt | Selskaper | Kontakter | Muligheter | Aktiviteter. Flater som ikke er bygget markeres som kommende, ikke som tomme data.
+- Detaljsider har kun «← Tilbake» som bruker faktisk historikk (`router.history.back()` med fallback til registerlisten). Filtre og søk ligger i URL-søkeparametere slik at tilbake gjenoppretter kontekst.
 
-1. Endorsements lagres i samme tabell som anbefalinger, med anbefalingsfelt. Ingen aggregering per kompetanse.
-2. Kurs bruker «sist sett»-datoen som fullført-dato, og faller tilbake på beskrivelsestekst som kurs-URL.
-3. `career_recommendations` mangler retning, importkilde og forfatteridentitets-hash, så mottatt og gitt kan ikke skilles.
-4. `network_contacts` mangler «sist observert», og `next_steps` mangler eier, aktivitetstype og koblinger.
+## Globalt søk
 
-Historikk røres ikke: de 4 avviste og 1 avklaringsforslaget beholdes uendret.
+Tenant-scopet søkefelt i modulens topplinje. Slår opp i `network_contacts`, `companies` (kun selskaper brukeren har relasjon til eller mulighet knyttet til) og `user_opportunities`. Resultater grupperes etter objektklasse og lenker til detaljside. Ingen oppslag mot staging eller andre brukeres rader.
 
-## Det som bygges
+## Selskaper
 
-### 0. Jobbsignaler ut av det aktive importlaget
-Jobbrelaterte LinkedIn-data er utelukket av produktkontrakt v1.1 og skal ikke ligge igjen som innhold noe sted.
+**Liste:** kompakt register med selskap, bransje/sted når kjent, brukerens status og prioritet, antall egne kontakter, åpne muligheter, neste aktivitet, siste reelle aktivitet. Tomtilstand forklarer at selskaper kommer fra importerte kontakter, jobbmuligheter eller eksplisitt lagt til selskapsrelasjon.
 
-- De 300 forslagene settes `superseded` med årsakskode `excluded_by_product_contract_v1_1`.
-- Alt innhold som stammer fra jobbsignaler tømmes: kildeøyeblikksbilde, foreslått innhold og sammenligningsdata. Igjen står kun et minimalt revisjonsspor: id, import, domene/type, status, hash, tidspunkt og årsak.
-- Tilhørende aktive staging-koblinger fjernes, og jobbsignal-staging slettes når siste aktive kobling er borte.
-- Nye importer klassifiserer disse filene som ekskludert allerede før staging, så ingen jobbrelaterte data kan nå avstemming, forslag eller produktdata.
-- Dette er en kontrollert, reell dataendring i forslagslaget, kjørt med før/etter-telling. De fire avviste og det ene avklaringsforslaget endres ikke.
-- Egen test beviser både den historiske oppryddingen og blokkeringen ved ny import.
+**Detaljside** som fast panelgrid: Selskapsprofil (register), Arbeidsgiverinnsikt (åtte dimensjoner når analyse finnes, ellers «ikke analysert»), Match med Min profil (preferanse og kompetanse som to separate måltall med grunnlag og tidspunkt), Dine kontakter i selskapet (minst to rader synlig, navn lenker til kontaktdetalj), Aktive muligheter, Aktiviteter og neste steg, Dokumenter og søknader. Alle tall og rader er klikkbare til riktig detaljflate.
 
-### 1. LinkedIn-endorsements som eget tredjepartssignal
-Nytt staginglag skilt fra anbefalinger, med retning (mottatt for din kompetanse / gitt av deg / ukjent) og full proveniens. Kun mottatte kan gi forslag. Gitte og ukjente kan aldri bli produktdata; ukjent retning gir avvik.
+## Kontakter
 
-Produktlaget lagrer kun et aggregat: antall LinkedIn-støttesignaler per kompetanse, én aktiv rad per bruker og kompetanse. Navn på personer som har gitt støtte lagres aldri i produktdata, logger eller DTO-er. Antallet er aldri en score, et ferdighetsnivå eller en attestering, og kobles bare til en kompetanse du allerede har valgt.
+**Liste:** navn, tittel, selskap, relasjon, neste aktivitet, sist kontaktet. Telefon, e-post og LinkedIn-lenke vises kun når verdien faktisk finnes i produktlaget.
 
-### 2. Anbefalinger med retning
-`career_recommendations` utvides additivt med retning (obligatorisk, kun «mottatt» tillatt i produkt), kildesystem, kildeklasse, import-id, kildehash, anbefalingsdato og forfatteridentitets-hash. Forfatteridentiteten hashes med en nøklet hash (HMAC) og en serverhemmelighet — aldri en ren hash av navn eller profil-URL — slik at verdien verken kan gjenkjennes eller korreleres på tvers av brukere. Duplikater fanges på bruker + forfatteridentitet + teksthash + kildesystem. Gitte anbefalinger blir liggende i staging. Kobling til en nettverkskontakt krever eksplisitt brukerbekreftelse — aldri navnelikhet.
+**Detaljside:** navn/tittel/selskap øverst, selskapsnavn lenker til selskapssiden. Paneler: kontaktprofil og kanaler, relasjon/introduksjon/referanse, relevante muligheter, aktiviteter og tidslinje, notater, mottatte anbefalinger kun ved eksplisitt brukerkobling. LinkedIn-endorsements vises ikke her.
 
-### 3. Nettverk, reimport og selskaper
-- «Sist observert» på kontakt; profil-URL eies fortsatt kun av identitetstabellen.
-- Ny tabell for kontakt–selskap-observasjoner: observert selskapstekst, eventuell eksplisitt selskapskobling, kildeklasse, observasjonstidspunkt og din egen retting. Ingen automatisk fuzzy-kobling mot registeret.
-- Ny bruker-scopet tabell for din relasjon til et selskap: notater, status, prioritet, unik per bruker og selskap.
-- Reimport oppdaterer kun staging og overskriver aldri promoterte eller manuelt redigerte felt.
+## LinkedIn-import i UI
 
-### 3b. Varig nettverksbatch
-Nettverksavstemming lagres som en frossen, reviderbar batch — ikke en beregning som gjøres på nytt hver gang.
+Importstatus og batchoppsummering vises i Kildeimport/Kildegjennomgang med tellinger delt på personkontakter, selskapsobservasjoner, nettverksarrangementer, preferansesignaler og invitasjoner uten avklart identitet. Ingen av disse fremstår som lagt til i registeret. Fra oppsummeringen går det en tydelig inngang til den kontrollerte promoteringsgjennomgangen. Ingen automatisk promotering. LinkedIn-cron forblir inaktiv.
 
-- Batchen eier bruker, import, kjøring, inndatasignatur, avstemmingsversjon, status, tidspunkter og rene tellere: nye, eksakte identitetsmatcher, mulige dubletter, uten stabil identitet, observert profilendring og ekskluderte. Ingen kontaktdata i aggregatfeltene.
-- Radene under batchen peker til staging- eller kontaktidentitet og bærer kategori, foreslått handling, kildehash, eventuell målidentitet, status og årsakskoder. Målidentiteten er valgfri og alltid bruker-scopet.
-- Samme inndata gjenbruker samme batch (idempotent) for både første import og reimport.
-- Batchen skriver aldri kontakter direkte. Navnelikhet gir «mulig dublett»; eksakt LinkedIn-identitet gir «eksakt treff» eller «observert profilendring».
-- En senere massegodkjenning konsumerer nøyaktig denne frosne batchen, aldri en ny ad hoc-beregning.
-- Dataminimering som i Fase 3: når en import slettes eller staging utløper, nullstilles kildereferansene på batchraden. Igjen står kun batch-id, kategori, handling, status, hash, tidspunkt og årsakskode — aldri navn, profil-URL, selskapstekst eller andre kontaktdata via batchraden.
-- RLS og bruker-scopede, sammensatte fremmednøkler på både batch og rader. Fase 5 kan vise batchen; her bygges kun modell og DTO.
+## Arbeidsflate
 
+Desktop: fast sidehøyde innenfor viewport, stabilt panelgrid, intern scrolling per panel, sticky paneloverskrift, kollaps til én linje, ingen kort-i-kort, ingen dekorative gradienter. Mobil: én kolonne, vanlig sidescroll, ingen horisontal overflyt, paneler åpnes enkeltvis. Eksisterende designsystem, typografi og komponenter gjenbrukes uendret.
 
-### 4. Kurs, sertifisering, språk og læring
-Kursmapping rettes: faktisk tittel, tilbyder, fullført-dato med presisjon, og URL kun fra en ekte URL-kolonne. «Sist sett» kan aldri bli fullført-dato. Manglende dato blir «mangler i kilde», uparsbar dato blir «ugyldig kildeverdi» — aldri en oppdiktet dato. Kurs og sertifisering holdes adskilt; credential-id, utsteder og utløpsdato bevares når kilden har dem. Språk, utdanning og frivillig arbeid kontrolleres for riktig type og periodepresisjon.
+## Migrasjon i 5A
 
-### 5. Ny avstemmingsversjon
-`linkedin_reconciliation_v2`: rent deterministiske regler uten KI, for stillinger, utdanning, kompetanser, sertifiseringer, kurs, språk og frivillig arbeid. Én kildepost får én klassifisering. Parallelle roller hos samme arbeidsgiver holdes separate. Tittel, selskap og periode presses aldri inn som resultat eller kompetanse. Mulig dublett slås aldri sammen automatisk. Nye forslag får forklarbar matchmetode, årsakskoder, kildeidentitet og versjon, og peker på sin forgjenger når det finnes en. Kjøringen er idempotent per bruker, import, formål, inndatasignatur og versjon.
+Kun selskapsrelasjonen, siden Selskaper bygges nå:
 
-### 6. Aktivitetsfundament
-`next_steps` migreres i rekkefølge: nye nullbare felt (eier, aktivitetstype, kontakt, selskap, mulighet), backfill av eier, verifisering av null tomme eiere, søknad blir valgfri, deretter bruker-scopede sammensatte fremmednøkler slik at en aktivitet aldri kan peke på en annen brukers kontakt, mulighet eller søknad. RLS aktiveres. Ingen aktivitets-UI eller «utført»-handling bygges nå.
+- `user_company_relationships`: nye kolonner `status` (`following`, `target`, `active_dialogue`, `applied`, `former_employer`, `paused`) og `priority` (`low`, `normal`, `high`), begge nullable med validering. Eksisterende rader endres ikke, og verdier utledes aldri fra LinkedIn-import.
+- RLS beholdes med `user_id = auth.uid()`, ingen `anon`-tilgang, `authenticated` og `service_role` får eksplisitte GRANT-er.
 
-## Sikkerhet og logging
+`next_steps`-utvidelsen (`activity_type`, `status`, `result_note`) hører til Aktiviteter og gjøres i 5B.
 
-Alle nye tabeller: RLS på, ingen tilgang for uinnloggede, kun lesing av egne rader for innloggede, ingen direkte skriving fra nettleseren, all skriving via serverruter. Logger inneholder kun identer, faser, tellere og feilkoder — aldri rå CSV, anbefalingstekst, endorser-identitet, kontaktdata, profil-URL eller hemmeligheter.
+## Teknisk
 
-## Syntetisk testmatrise (kjøres, rulles tilbake)
+- Lesing skjer gjennom bruker-scopede server-DTO-er per flate (`network.contacts`, `network.companies`, `network.search`, `network.import-status`), aldri direkte mot staging-tabeller.
+- Skriving går via kanoniske serverruter/RPC-er. Ingen service-role-nøkkel i klientkode.
+- Produktobjekter: `network_contacts`, `network_contact_identities`, `network_contact_company_relations`, `companies`, `user_company_relationships`, `user_opportunities`, `next_steps`, `documents`. Søknadsbundne `contacts` blandes ikke inn.
+- Alle DTO-felter bærer datatilstand (`present`, `missing_in_source`, `not_imported`, `not_analyzed`, `stale`) og kildeklasse etter kontraktens punkt 0.3.
+- Nettverksregisteret er i dag tomt fordi ingen LinkedIn-data er promotert, så alle flatene må ha reelle tomtilstander som primærtilstand — ingen demodata.
 
-Alle 27 punktene fra bestillingen, inkludert: mottatt vs. gitt endorsement, at endorser-identitet aldri når produktmodellen, retning på anbefalinger, dublettsperre, eksakt identitetsmatch vs. navnelikhet, reimport som ikke overskriver manuelle rettinger, ingen fuzzy selskapkobling, kursdato- og URL-reglene, kurs vs. sertifisering, parallelle roller, at ny versjon ikke rører behandlet historikk, idempotens, aktivitetsmigrering med null tomme eiere, kryssbruker-sperre, RLS-isolasjon, og før/etter-telling som viser at ingen produktdata endres.
+## Verifisering før stopp
 
-I tillegg to nye tester: at jobbsignalene er ryddet historisk og blokkert ved ny import, og at nettverksbatchen er idempotent, aldri skriver kontakter, og gir riktig kategori for navnelikhet, eksakt identitet og observert profilendring. Retention-testen verifiserer eksplisitt at en batchrad etter kildesletting ikke inneholder navn, profil-URL, selskapstekst eller levende stagingreferanse — kun batch-id, kategori, handling, status, hash, tidspunkt og årsakskode.
+Rutetilgjengelighet, tomtilstander, tenant-scopet søk, dype lenker og tilbake-navigasjon, RLS-kontroll på tvers av brukere, skjermbilder desktop 1440 px og mobil 390 px, samt bekreftelse på at ingen LinkedIn-data ble promotert og at klientbunten ikke inneholder hemmeligheter.
 
-## Leveranse
+## Fase 5B (etter godkjenning av 5A)
 
-Preflight- og avviksrapport, migrasjoner med datamodelloversikt, oppdatert feltmapping med faktiske LinkedIn-headere, reglene for den nye avstemmingsversjonen, backend-DTO for nettverksbatch og reimportendringer, RLS- og rettighetsrapport, testresultater, før/etter-tall, oppdatert `docs/linkedin-import-contract-v1.md`, og bekreftelse på at ingen reell LinkedIn-ZIP er brukt.
-
-Stopper etter Leveranse B.
-
-## Teknisk sammendrag
-
-- Nye tabeller: `linkedin_endorsement_staging`, `linkedin_endorsement_signals`, `network_contact_company_relations`, `user_company_relationships`, `linkedin_network_reconciliation_batches`, `linkedin_network_reconciliation_batch_items`.
-- Utvidelser: `career_recommendations` (retning, proveniens, forfatterhash), `network_contacts.last_observed_at`, `next_steps` (eier, type, koblinger, sammensatte FK-er, RLS).
-- Kode: `contract.ts` (eget endorsement-domene), `domain-mapping.server.ts` (kurs- og endorsement-mapping), ny `reconciliation/v2/` med deterministiske regler per domene, batch-DTO for nettverk.
-- Versjonering: `RECONCILIATION_VERSION = "linkedin_reconciliation_v2"`; berørte `pending_review`-forslag settes `superseded` med årsakskode, behandlede forslag urørt.
+Aktiviteter med utvidet `next_steps`-modell og samlet «Legg til aktivitet», Muligheter som board og detaljside med annonsekontakt, dokumenter, tidslinje og separate matchmåltall, Oversikt med klikkbare KPI-er, samt capability-kontrakt for KI-aktivitetsforslag (`available | not_configured | unavailable`) som holdes skjult i UI til tjenesten er aktiv.
