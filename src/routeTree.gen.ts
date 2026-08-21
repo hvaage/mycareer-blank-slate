@@ -31,6 +31,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ArbeidsgivereOrgnrRouteImport } from './routes/arbeidsgivere.$orgnr'
 import { Route as AuthenticatedSoknadsdokumenterRouteImport } from './routes/_authenticated/soknadsdokumenter'
 import { Route as AuthenticatedPreferencesRouteImport } from './routes/_authenticated/preferences'
+import { Route as AuthenticatedNettverkRouteImport } from './routes/_authenticated/nettverk'
 import { Route as AuthenticatedMyApplicationsRouteImport } from './routes/_authenticated/my-applications'
 import { Route as AuthenticatedMarkedRouteImport } from './routes/_authenticated/marked'
 import { Route as AuthenticatedKilderRouteImport } from './routes/_authenticated/kilder'
@@ -46,6 +47,7 @@ import { Route as RekruttererundersokelseResultaterIndexRouteImport } from './ro
 import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated/onboarding/index'
 import { Route as AuthenticatedOfferAnalysisIndexRouteImport } from './routes/_authenticated/offer-analysis/index'
 import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authenticated/next-steps/index'
+import { Route as AuthenticatedNettverkIndexRouteImport } from './routes/_authenticated/nettverk.index'
 import { Route as AuthenticatedMinProfilIndexRouteImport } from './routes/_authenticated/min-profil/index'
 import { Route as AuthenticatedInterviewPrepIndexRouteImport } from './routes/_authenticated/interview-prep/index'
 import { Route as AuthenticatedInnstillingerIndexRouteImport } from './routes/_authenticated/innstillinger.index'
@@ -98,6 +100,8 @@ import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminIngestionRouteImport } from './routes/_authenticated/admin.ingestion'
 import { Route as AuthenticatedAdminCvTestRouteImport } from './routes/_authenticated/admin.cv-test'
 import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authenticated/admin.changelog'
+import { Route as AuthenticatedNettverkSelskaperIndexRouteImport } from './routes/_authenticated/nettverk.selskaper.index'
+import { Route as AuthenticatedNettverkKontakterIndexRouteImport } from './routes/_authenticated/nettverk.kontakter.index'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -109,6 +113,8 @@ import { Route as ApiPublicLinkedinWorkerRouteImport } from './routes/api/public
 import { Route as ApiPublicCvAtomizationWorkerRouteImport } from './routes/api/public/cv/atomization-worker'
 import { Route as ApiCvGenerationsJobIdRouteImport } from './routes/api/cv/generations.$jobId'
 import { Route as ApiCvAtomizationJobsJobIdRouteImport } from './routes/api/cv/atomization-jobs.$jobId'
+import { Route as AuthenticatedNettverkSelskaperIdRouteImport } from './routes/_authenticated/nettverk.selskaper.$id'
+import { Route as AuthenticatedNettverkKontakterIdRouteImport } from './routes/_authenticated/nettverk.kontakter.$id'
 
 const UnsubscribeRoute = UnsubscribeRouteImport.update({
   id: '/unsubscribe',
@@ -223,6 +229,11 @@ const AuthenticatedPreferencesRoute =
     path: '/preferences',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedNettverkRoute = AuthenticatedNettverkRouteImport.update({
+  id: '/nettverk',
+  path: '/nettverk',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedMyApplicationsRoute =
   AuthenticatedMyApplicationsRouteImport.update({
     id: '/my-applications',
@@ -306,6 +317,12 @@ const AuthenticatedNextStepsIndexRoute =
     id: '/next-steps/',
     path: '/next-steps/',
     getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedNettverkIndexRoute =
+  AuthenticatedNettverkIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedNettverkRoute,
   } as any)
 const AuthenticatedMinProfilIndexRoute =
   AuthenticatedMinProfilIndexRouteImport.update({
@@ -608,6 +625,18 @@ const AuthenticatedAdminChangelogRoute =
     path: '/admin/changelog',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedNettverkSelskaperIndexRoute =
+  AuthenticatedNettverkSelskaperIndexRouteImport.update({
+    id: '/selskaper/',
+    path: '/selskaper/',
+    getParentRoute: () => AuthenticatedNettverkRoute,
+  } as any)
+const AuthenticatedNettverkKontakterIndexRoute =
+  AuthenticatedNettverkKontakterIndexRouteImport.update({
+    id: '/kontakter/',
+    path: '/kontakter/',
+    getParentRoute: () => AuthenticatedNettverkRoute,
+  } as any)
 const LovableEmailTransactionalSendRoute =
   LovableEmailTransactionalSendRouteImport.update({
     id: '/lovable/email/transactional/send',
@@ -671,6 +700,18 @@ const ApiCvAtomizationJobsJobIdRoute =
     path: '/$jobId',
     getParentRoute: () => ApiCvAtomizationJobsRoute,
   } as any)
+const AuthenticatedNettverkSelskaperIdRoute =
+  AuthenticatedNettverkSelskaperIdRouteImport.update({
+    id: '/selskaper/$id',
+    path: '/selskaper/$id',
+    getParentRoute: () => AuthenticatedNettverkRoute,
+  } as any)
+const AuthenticatedNettverkKontakterIdRoute =
+  AuthenticatedNettverkKontakterIdRouteImport.update({
+    id: '/kontakter/$id',
+    path: '/kontakter/$id',
+    getParentRoute: () => AuthenticatedNettverkRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -693,6 +734,7 @@ export interface FileRoutesByFullPath {
   '/kilder': typeof AuthenticatedKilderRoute
   '/marked': typeof AuthenticatedMarkedRoute
   '/my-applications': typeof AuthenticatedMyApplicationsRoute
+  '/nettverk': typeof AuthenticatedNettverkRouteWithChildren
   '/preferences': typeof AuthenticatedPreferencesRoute
   '/soknadsdokumenter': typeof AuthenticatedSoknadsdokumenterRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
@@ -756,11 +798,14 @@ export interface FileRoutesByFullPath {
   '/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/min-profil/': typeof AuthenticatedMinProfilIndexRoute
+  '/nettverk/': typeof AuthenticatedNettverkIndexRoute
   '/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
+  '/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
+  '/nettverk/selskaper/$id': typeof AuthenticatedNettverkSelskaperIdRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
@@ -772,6 +817,8 @@ export interface FileRoutesByFullPath {
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
+  '/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
+  '/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -854,11 +901,14 @@ export interface FileRoutesByTo {
   '/innstillinger': typeof AuthenticatedInnstillingerIndexRoute
   '/interview-prep': typeof AuthenticatedInterviewPrepIndexRoute
   '/min-profil': typeof AuthenticatedMinProfilIndexRoute
+  '/nettverk': typeof AuthenticatedNettverkIndexRoute
   '/next-steps': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
   '/rekruttererundersokelse/resultater': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
+  '/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
+  '/nettverk/selskaper/$id': typeof AuthenticatedNettverkSelskaperIdRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
@@ -870,6 +920,8 @@ export interface FileRoutesByTo {
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
+  '/nettverk/kontakter': typeof AuthenticatedNettverkKontakterIndexRoute
+  '/nettverk/selskaper': typeof AuthenticatedNettverkSelskaperIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -894,6 +946,7 @@ export interface FileRoutesById {
   '/_authenticated/kilder': typeof AuthenticatedKilderRoute
   '/_authenticated/marked': typeof AuthenticatedMarkedRoute
   '/_authenticated/my-applications': typeof AuthenticatedMyApplicationsRoute
+  '/_authenticated/nettverk': typeof AuthenticatedNettverkRouteWithChildren
   '/_authenticated/preferences': typeof AuthenticatedPreferencesRoute
   '/_authenticated/soknadsdokumenter': typeof AuthenticatedSoknadsdokumenterRoute
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
@@ -957,11 +1010,14 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/': typeof AuthenticatedInnstillingerIndexRoute
   '/_authenticated/interview-prep/': typeof AuthenticatedInterviewPrepIndexRoute
   '/_authenticated/min-profil/': typeof AuthenticatedMinProfilIndexRoute
+  '/_authenticated/nettverk/': typeof AuthenticatedNettverkIndexRoute
   '/_authenticated/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/_authenticated/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
+  '/_authenticated/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
+  '/_authenticated/nettverk/selskaper/$id': typeof AuthenticatedNettverkSelskaperIdRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
@@ -973,6 +1029,8 @@ export interface FileRoutesById {
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
+  '/_authenticated/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
+  '/_authenticated/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -997,6 +1055,7 @@ export interface FileRouteTypes {
     | '/kilder'
     | '/marked'
     | '/my-applications'
+    | '/nettverk'
     | '/preferences'
     | '/soknadsdokumenter'
     | '/arbeidsgivere/$orgnr'
@@ -1060,11 +1119,14 @@ export interface FileRouteTypes {
     | '/innstillinger/'
     | '/interview-prep/'
     | '/min-profil/'
+    | '/nettverk/'
     | '/next-steps/'
     | '/offer-analysis/'
     | '/onboarding/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
+    | '/nettverk/kontakter/$id'
+    | '/nettverk/selskaper/$id'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
@@ -1076,6 +1138,8 @@ export interface FileRouteTypes {
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
+    | '/nettverk/kontakter/'
+    | '/nettverk/selskaper/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1158,11 +1222,14 @@ export interface FileRouteTypes {
     | '/innstillinger'
     | '/interview-prep'
     | '/min-profil'
+    | '/nettverk'
     | '/next-steps'
     | '/offer-analysis'
     | '/onboarding'
     | '/rekruttererundersokelse/resultater'
     | '/selskapsanalyse/analysedatabase'
+    | '/nettverk/kontakter/$id'
+    | '/nettverk/selskaper/$id'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
@@ -1174,6 +1241,8 @@ export interface FileRouteTypes {
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
+    | '/nettverk/kontakter'
+    | '/nettverk/selskaper'
   id:
     | '__root__'
     | '/'
@@ -1197,6 +1266,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kilder'
     | '/_authenticated/marked'
     | '/_authenticated/my-applications'
+    | '/_authenticated/nettverk'
     | '/_authenticated/preferences'
     | '/_authenticated/soknadsdokumenter'
     | '/arbeidsgivere/$orgnr'
@@ -1260,11 +1330,14 @@ export interface FileRouteTypes {
     | '/_authenticated/innstillinger/'
     | '/_authenticated/interview-prep/'
     | '/_authenticated/min-profil/'
+    | '/_authenticated/nettverk/'
     | '/_authenticated/next-steps/'
     | '/_authenticated/offer-analysis/'
     | '/_authenticated/onboarding/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
+    | '/_authenticated/nettverk/kontakter/$id'
+    | '/_authenticated/nettverk/selskaper/$id'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
@@ -1276,6 +1349,8 @@ export interface FileRouteTypes {
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
+    | '/_authenticated/nettverk/kontakter/'
+    | '/_authenticated/nettverk/selskaper/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1469,6 +1544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPreferencesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/nettverk': {
+      id: '/_authenticated/nettverk'
+      path: '/nettverk'
+      fullPath: '/nettverk'
+      preLoaderRoute: typeof AuthenticatedNettverkRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/my-applications': {
       id: '/_authenticated/my-applications'
       path: '/my-applications'
@@ -1573,6 +1655,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/next-steps/'
       preLoaderRoute: typeof AuthenticatedNextStepsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/nettverk/': {
+      id: '/_authenticated/nettverk/'
+      path: '/'
+      fullPath: '/nettverk/'
+      preLoaderRoute: typeof AuthenticatedNettverkIndexRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
     }
     '/_authenticated/min-profil/': {
       id: '/_authenticated/min-profil/'
@@ -1938,6 +2027,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminChangelogRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/nettverk/selskaper/': {
+      id: '/_authenticated/nettverk/selskaper/'
+      path: '/selskaper'
+      fullPath: '/nettverk/selskaper/'
+      preLoaderRoute: typeof AuthenticatedNettverkSelskaperIndexRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
+    }
+    '/_authenticated/nettverk/kontakter/': {
+      id: '/_authenticated/nettverk/kontakter/'
+      path: '/kontakter'
+      fullPath: '/nettverk/kontakter/'
+      preLoaderRoute: typeof AuthenticatedNettverkKontakterIndexRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
+    }
     '/lovable/email/transactional/send': {
       id: '/lovable/email/transactional/send'
       path: '/lovable/email/transactional/send'
@@ -2015,8 +2118,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCvAtomizationJobsJobIdRouteImport
       parentRoute: typeof ApiCvAtomizationJobsRoute
     }
+    '/_authenticated/nettverk/selskaper/$id': {
+      id: '/_authenticated/nettverk/selskaper/$id'
+      path: '/selskaper/$id'
+      fullPath: '/nettverk/selskaper/$id'
+      preLoaderRoute: typeof AuthenticatedNettverkSelskaperIdRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
+    }
+    '/_authenticated/nettverk/kontakter/$id': {
+      id: '/_authenticated/nettverk/kontakter/$id'
+      path: '/kontakter/$id'
+      fullPath: '/nettverk/kontakter/$id'
+      preLoaderRoute: typeof AuthenticatedNettverkKontakterIdRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
+    }
   }
 }
+
+interface AuthenticatedNettverkRouteChildren {
+  AuthenticatedNettverkIndexRoute: typeof AuthenticatedNettverkIndexRoute
+  AuthenticatedNettverkKontakterIdRoute: typeof AuthenticatedNettverkKontakterIdRoute
+  AuthenticatedNettverkSelskaperIdRoute: typeof AuthenticatedNettverkSelskaperIdRoute
+  AuthenticatedNettverkKontakterIndexRoute: typeof AuthenticatedNettverkKontakterIndexRoute
+  AuthenticatedNettverkSelskaperIndexRoute: typeof AuthenticatedNettverkSelskaperIndexRoute
+}
+
+const AuthenticatedNettverkRouteChildren: AuthenticatedNettverkRouteChildren = {
+  AuthenticatedNettverkIndexRoute: AuthenticatedNettverkIndexRoute,
+  AuthenticatedNettverkKontakterIdRoute: AuthenticatedNettverkKontakterIdRoute,
+  AuthenticatedNettverkSelskaperIdRoute: AuthenticatedNettverkSelskaperIdRoute,
+  AuthenticatedNettverkKontakterIndexRoute:
+    AuthenticatedNettverkKontakterIndexRoute,
+  AuthenticatedNettverkSelskaperIndexRoute:
+    AuthenticatedNettverkSelskaperIndexRoute,
+}
+
+const AuthenticatedNettverkRouteWithChildren =
+  AuthenticatedNettverkRoute._addFileChildren(
+    AuthenticatedNettverkRouteChildren,
+  )
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAboutMeRoute: typeof AuthenticatedAboutMeRoute
@@ -2029,6 +2169,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedKilderRoute: typeof AuthenticatedKilderRoute
   AuthenticatedMarkedRoute: typeof AuthenticatedMarkedRoute
   AuthenticatedMyApplicationsRoute: typeof AuthenticatedMyApplicationsRoute
+  AuthenticatedNettverkRoute: typeof AuthenticatedNettverkRouteWithChildren
   AuthenticatedPreferencesRoute: typeof AuthenticatedPreferencesRoute
   AuthenticatedSoknadsdokumenterRoute: typeof AuthenticatedSoknadsdokumenterRoute
   AuthenticatedAdminChangelogRoute: typeof AuthenticatedAdminChangelogRoute
@@ -2088,6 +2229,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedKilderRoute: AuthenticatedKilderRoute,
   AuthenticatedMarkedRoute: AuthenticatedMarkedRoute,
   AuthenticatedMyApplicationsRoute: AuthenticatedMyApplicationsRoute,
+  AuthenticatedNettverkRoute: AuthenticatedNettverkRouteWithChildren,
   AuthenticatedPreferencesRoute: AuthenticatedPreferencesRoute,
   AuthenticatedSoknadsdokumenterRoute: AuthenticatedSoknadsdokumenterRoute,
   AuthenticatedAdminChangelogRoute: AuthenticatedAdminChangelogRoute,

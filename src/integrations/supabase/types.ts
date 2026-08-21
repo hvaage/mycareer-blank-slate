@@ -7516,9 +7516,11 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          priority: string | null
           relationship_kind: string
           source_import_id: string | null
           source_system: string | null
+          status: string | null
           updated_at: string
           user_id: string
         }
@@ -7528,9 +7530,11 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          priority?: string | null
           relationship_kind: string
           source_import_id?: string | null
           source_system?: string | null
+          status?: string | null
           updated_at?: string
           user_id: string
         }
@@ -7540,9 +7544,11 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          priority?: string | null
           relationship_kind?: string
           source_import_id?: string | null
           source_system?: string | null
+          status?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -9286,6 +9292,20 @@ export type Database = {
         }[]
       }
       nav_target_repair_tick: { Args: never; Returns: Json }
+      network_promote_batch_person_contacts: {
+        Args: { p_batch_id: string; p_item_ids: string[]; p_user_id: string }
+        Returns: Json
+      }
+      network_set_company_relationship: {
+        Args: {
+          p_company_id: string
+          p_company_name?: string
+          p_priority?: string
+          p_status?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       normalize_lead_key: {
         Args: {
           p_company: string
