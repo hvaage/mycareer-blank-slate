@@ -13,6 +13,7 @@ import { hashSnapshot, normKey, tokenSimilarity } from "../contract.server";
 import {
   RECONCILIATION_VERSION,
   exactIdentityMatch,
+  normalizeLinkedInProfileUrl,
   type MatchableContact,
   type NetworkBatchItem,
   type NetworkBatchItemCategory,
