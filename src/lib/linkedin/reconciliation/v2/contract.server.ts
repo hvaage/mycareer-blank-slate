@@ -123,7 +123,7 @@ export function exactIdentityMatch(
 
 /**
  * Kandidater for mulig duplikat basert på token-likhet i navn (> 0.5),
- * sortert med høyest likhet først.
+ * sortert med høyest likhet først. Navn alene gir aldri eksakt identitet.
  */
 export function possibleDuplicateByName(
   name: string,
@@ -137,3 +137,4 @@ export function possibleDuplicateByName(
     .sort((a, b) => b.score - a.score)
     .map((r) => r.contact);
 }
+
