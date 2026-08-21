@@ -10,6 +10,39 @@ import { normKey, tokenSimilarity } from "../contract.server";
 
 export const RECONCILIATION_VERSION = "linkedin_reconciliation_v2";
 
+/**
+ * Objektklasser i nettverksimporten. Kun `person_contact` kan bli en kontakt.
+ * Selskapsfølging, arrangementer og emneknagger er aldri personer.
+ */
+export const NETWORK_OBJECT_KINDS = [
+  "person_contact",
+  "invitation",
+  "company_observation",
+  "network_event",
+  "network_preference_signal",
+  "other",
+] as const;
+export type NetworkObjectKind = (typeof NETWORK_OBJECT_KINDS)[number];
+
+export function objectKindForRecordKind(recordKind: string): NetworkObjectKind {
+  switch (recordKind) {
+    case "connection":
+    case "member_follow":
+      return "person_contact";
+    case "invitation":
+      return "invitation";
+    case "company_follow":
+      return "company_observation";
+    case "event":
+      return "network_event";
+    case "hashtag_follow":
+      return "network_preference_signal";
+    default:
+      return "other";
+  }
+}
+
+
 export const NETWORK_BATCH_ITEM_CATEGORIES = [
   "exact_identity_match",
   "possible_duplicate",
