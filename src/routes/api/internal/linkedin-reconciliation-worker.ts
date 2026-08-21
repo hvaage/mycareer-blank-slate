@@ -99,6 +99,9 @@ export const Route = createFileRoute("/api/internal/linkedin-reconciliation-work
             batch_id: networkV2.batchId ?? null,
             status: networkV2.status ?? null,
             counts: networkV2.counts ?? null,
+            source_total: networkV2.sourceTotal ?? null,
+            processed_total: networkV2.processedTotal ?? null,
+            source_pages: networkV2.sourcePages ?? null,
             error: networkV2.error ?? null,
           },
         });
