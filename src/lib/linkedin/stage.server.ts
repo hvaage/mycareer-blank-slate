@@ -305,10 +305,21 @@ async function stageFile(params: {
       bump("unmapped_record_kind");
       continue;
     }
+    // Personkilder uten både navn og profil-URL er ikke kontaktkilder.
+    // De registreres kun som aggregert filavvik, aldri som stagingrad.
+    if (
+      (mapped.objectKind === "person_contact" || mapped.objectKind === "invitation") &&
+      !mapped.identityFields["profile_url"] &&
+      !mapped.identityFields["full_name"]
+    ) {
+      bump("missing_contact_name_and_profile_url");
+      continue;
+    }
     if (Object.values(mapped.identityFields).every((v) => v == null)) {
       bump("no_identity_fields");
       continue;
     }
+
 
     const rowHash = await sha256Hex(JSON.stringify(row.values));
     const identityHash = await computeSourceIdentityHash({

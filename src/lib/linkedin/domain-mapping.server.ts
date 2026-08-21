@@ -3,6 +3,8 @@
 
 import type { LinkedInStagingDomain } from "./contract";
 import { normalizeText, parseLinkedInDate } from "./normalize.server";
+import { normalizeLinkedInProfileUrl } from "./reconciliation/v2/contract.server";
+
 
 export const DOMAIN_TABLES: Record<LinkedInStagingDomain, string> = {
   profile: "linkedin_profile_staging",
