@@ -26,7 +26,11 @@ Tenant-scopet søkefelt i modulens topplinje. Slår opp i `network_contacts` og 
 
 **Liste:** kompakt register med selskap, bransje/sted når kjent, brukerens status og prioritet, antall egne kontakter, åpne muligheter, neste aktivitet, siste reelle aktivitet. Tomtilstand forklarer at selskaper kommer fra importerte kontakter, jobbmuligheter eller eksplisitt lagt til selskapsrelasjon.
 
-**Detaljside** som fast panelgrid: Selskapsprofil (register), Arbeidsgiverinnsikt (åtte dimensjoner når analyse finnes, ellers «ikke analysert»), Match med Min profil (preferanse og kompetanse som to separate måltall med grunnlag og tidspunkt), Dine kontakter i selskapet (minst to rader synlig, navn lenker til kontaktdetalj), Aktive muligheter, Aktiviteter og neste steg, Dokumenter og søknader. Alle tall og rader er klikkbare til riktig detaljflate.
+**Detaljside** som fast panelgrid: Selskapsprofil (register), Arbeidsgiverinnsikt (åtte dimensjoner når analyse finnes, ellers «ikke analysert»), Match med Min profil (preferanse og kompetanse som to separate måltall med grunnlag og tidspunkt), Dine kontakter i selskapet (minst to rader synlig, navn lenker til kontaktdetalj), samt lesende paneler for muligheter, aktiviteter og dokumenter når data finnes.
+
+**Din relasjon:** enkel, bruker-scopet kontroll for `status` og `priority` på `user_company_relationships`. Verdiene settes kun ved eksplisitt brukerhandling og fylles aldri fra LinkedIn-import. Endringen skrives gjennom kanonisk serverhandling.
+
+I 5A lenkes det kun mellom selskap og kontakt. Muligheter, aktiviteter og dokumenter vises lesende uten lenker til ubygde ruter; arbeidsflytlenkene kommer i 5B.
 
 ## Kontakter
 
