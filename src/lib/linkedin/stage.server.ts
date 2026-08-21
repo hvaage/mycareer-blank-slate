@@ -161,6 +161,7 @@ export async function validateAndStageArchive(params: {
       fileHash, uncompressedBytes: entry.uncompressedBytes, status: "validated",
       parserVersion, rowCount: parsed.rowCount, validRowCount: parsed.stagedCount,
       invalidRowCount: parsed.rowCount - parsed.stagedCount,
+      skippedRowReasons: parsed.skipReasons,
     });
     await upsertFilePurpose(admin, fileId, userId, purpose, "staged", parsed.stagedCount, null);
     filePurposeOutcomes.push({
@@ -209,7 +210,10 @@ async function stageFile(params: {
   entry: PreflightEntry;
   spec: { domain?: string; recordKind?: string; purpose?: LinkedInPurpose; locatorType?: string };
   fileHash: string;
-}): Promise<{ ok: true; rowCount: number; stagedCount: number } | { ok: false; errorCode: string }> {
+}): Promise<
+  | { ok: true; rowCount: number; stagedCount: number; skipReasons: Record<string, number> }
+  | { ok: false; errorCode: string }
+> {
   const { admin, userId, importId, attemptId, entry, spec, fileHash } = params;
   const domain = spec.domain!;
   const recordKind = spec.recordKind!;
@@ -230,11 +234,17 @@ async function stageFile(params: {
       contentHash: fileHash, rowNumber: null, rowHash: null, identityHash,
       domainFields: { entry_kind: "article", title, content_url: null, published_at: null, media_kind: "html" },
     });
-    return { ok: true, rowCount: 1, stagedCount: ok ? 1 : 0 };
+    return { ok: true, rowCount: 1, stagedCount: ok ? 1 : 0, skipReasons: ok ? {} : { write_deduplicated: 1 } };
   }
 
   const parsed = parseCsvFile(entry.archivePath, entry.bytes);
   if (!parsed.ok) return { ok: false, errorCode: parsed.code };
+
+  // Hver rad som ikke stages får en eksplisitt årsakskode.
+  const skipReasons: Record<string, number> = {};
+  const bump = (code: string) => {
+    skipReasons[code] = (skipReasons[code] ?? 0) + 1;
+  };
 
   const isEndorsement = domain === "recommendation" && recordKind.startsWith("endorsement_");
 
@@ -246,11 +256,20 @@ async function stageFile(params: {
       endorserIdentityHash: string | null; observedAt: string | null;
     }> = [];
     for (const row of parsed.rows) {
-      if (row.values.every((v) => v.trim() === "")) continue;
+      if (row.values.every((v) => v.trim() === "")) {
+        bump("empty_row");
+        continue;
+      }
       const obj = rowToObject(parsed.header, row.values);
       const mapped = mapRow(recordKind, obj);
-      if (!mapped) continue;
-      if (Object.values(mapped.identityFields).every((v) => v == null)) continue;
+      if (!mapped) {
+        bump("unmapped_record_kind");
+        continue;
+      }
+      if (Object.values(mapped.identityFields).every((v) => v == null)) {
+        bump("no_identity_fields");
+        continue;
+      }
 
       const rowHash = await sha256Hex(JSON.stringify(row.values));
       const f = mapped.domainFields as Record<string, unknown>;
@@ -265,7 +284,10 @@ async function stageFile(params: {
     }
     try {
       const stagedCount = await writeEndorsementStagingRecords(admin, endorsementRows);
-      return { ok: true, rowCount: parsed.rows.length, stagedCount };
+      if (endorsementRows.length > stagedCount) {
+        skipReasons["source_duplicate_identity"] = endorsementRows.length - stagedCount;
+      }
+      return { ok: true, rowCount: parsed.rows.length, stagedCount, skipReasons };
     } catch (error) {
       return { ok: false, errorCode: error instanceof StagingError ? error.code : "staging_write_failed" };
     }
@@ -273,11 +295,20 @@ async function stageFile(params: {
 
   const pending: StagingInput[] = [];
   for (const row of parsed.rows) {
-    if (row.values.every((v) => v.trim() === "")) continue;
+    if (row.values.every((v) => v.trim() === "")) {
+      bump("empty_row");
+      continue;
+    }
     const obj = rowToObject(parsed.header, row.values);
     const mapped = mapRow(recordKind, obj);
-    if (!mapped) continue;
-    if (Object.values(mapped.identityFields).every((v) => v == null)) continue;
+    if (!mapped) {
+      bump("unmapped_record_kind");
+      continue;
+    }
+    if (Object.values(mapped.identityFields).every((v) => v == null)) {
+      bump("no_identity_fields");
+      continue;
+    }
 
     const rowHash = await sha256Hex(JSON.stringify(row.values));
     const identityHash = await computeSourceIdentityHash({
@@ -294,7 +325,10 @@ async function stageFile(params: {
 
   try {
     const stagedCount = await writeStagingRecords(admin, pending);
-    return { ok: true, rowCount: parsed.rows.length, stagedCount };
+    if (pending.length > stagedCount) {
+      skipReasons["source_duplicate_identity"] = pending.length - stagedCount;
+    }
+    return { ok: true, rowCount: parsed.rows.length, stagedCount, skipReasons };
   } catch (error) {
     return { ok: false, errorCode: error instanceof StagingError ? error.code : "staging_write_failed" };
   }
@@ -498,6 +532,7 @@ async function upsertFile(
     importId: string; userId: string; archivePath: string; fileClass: "A" | "B";
     fileHash: string; uncompressedBytes: number; status: string; parserVersion: string;
     errorCode?: string; rowCount?: number; validRowCount?: number; invalidRowCount?: number;
+    skippedRowReasons?: Record<string, number>;
   },
 ): Promise<string> {
   const { data } = await admin
@@ -516,6 +551,7 @@ async function upsertFile(
         row_count: f.rowCount ?? null,
         valid_row_count: f.validRowCount ?? null,
         invalid_row_count: f.invalidRowCount ?? null,
+        skipped_row_reasons: f.skippedRowReasons ?? null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "linkedin_import_id,archive_path" },

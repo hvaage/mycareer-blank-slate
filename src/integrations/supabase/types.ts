@@ -4291,6 +4291,7 @@ export type Database = {
           linkedin_import_id: string
           parser_version: string | null
           row_count: number | null
+          skipped_row_reasons: Json | null
           status: string
           uncompressed_bytes: number | null
           updated_at: string
@@ -4309,6 +4310,7 @@ export type Database = {
           linkedin_import_id: string
           parser_version?: string | null
           row_count?: number | null
+          skipped_row_reasons?: Json | null
           status?: string
           uncompressed_bytes?: number | null
           updated_at?: string
@@ -4327,6 +4329,7 @@ export type Database = {
           linkedin_import_id?: string
           parser_version?: string | null
           row_count?: number | null
+          skipped_row_reasons?: Json | null
           status?: string
           uncompressed_bytes?: number | null
           updated_at?: string
