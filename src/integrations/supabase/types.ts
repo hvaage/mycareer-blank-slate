@@ -4747,18 +4747,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "linkedin_network_reconciliation_batch_it_staging_record_id_fkey"
-            columns: ["staging_record_id"]
+            foreignKeyName: "linkedin_network_batch_items_staging_record_fkey"
+            columns: ["staging_record_id", "user_id"]
             isOneToOne: false
             referencedRelation: "linkedin_staging_records"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
           {
-            foreignKeyName: "linkedin_network_reconciliation_batch_it_target_contact_id_fkey"
-            columns: ["target_contact_id"]
+            foreignKeyName: "linkedin_network_batch_items_target_contact_fkey"
+            columns: ["target_contact_id", "user_id"]
             isOneToOne: false
             referencedRelation: "network_contacts"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
           {
             foreignKeyName: "linkedin_network_reconciliation_batch_items_batch_id_fkey"
