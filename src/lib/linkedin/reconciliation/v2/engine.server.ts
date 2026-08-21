@@ -15,6 +15,8 @@ import {
   exactIdentityMatch,
   normalizeLinkedInProfileUrl,
   objectKindForRecordKind,
+  retentionIntent,
+
   type MatchableContact,
   type NetworkBatchItem,
   type NetworkBatchItemCategory,
