@@ -1,0 +1,1 @@
+alter table public.linkedin_import_files add column if not exists skipped_row_reasons jsonb;
