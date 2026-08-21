@@ -198,8 +198,21 @@ export async function runNetworkReconciliationV2(
     };
   }
 
+  // En tidligere batch med samme signatur som ikke er ready/consumed
+  // (preparing/superseded) blokkerer unik-indeksen. Den ryddes bort først.
+  if (existingBatch) {
+    await admin
+      .from("linkedin_network_reconciliation_batch_items")
+      .delete()
+      .eq("batch_id", existingBatch.id);
+    await admin
+      .from("linkedin_network_reconciliation_batches")
+      .delete()
+      .eq("id", existingBatch.id);
+  }
+
   const { data: batch, error: batchError } = await admin
-    .from("linkedin_network_reconciliation_batches")
+
     .insert({
       user_id: input.userId,
       linkedin_import_id: input.importId,
