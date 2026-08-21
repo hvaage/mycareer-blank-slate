@@ -111,7 +111,7 @@ export async function runNetworkReconciliationV2(
     const page = await fetchAllPages<NetworkStagingRow>((from, to) =>
       admin
         .from("linkedin_staging_records")
-        .select("id, staging_domain, source_classification, source_identity_hash")
+        .select("id, staging_domain, record_kind, source_classification, source_identity_hash")
         .eq("last_linkedin_import_id", input.importId)
         .eq("user_id", input.userId)
         .eq("staging_domain", "network")
