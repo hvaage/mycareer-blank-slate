@@ -236,14 +236,23 @@ async function reconcilePurpose(
     };
   }
 
-  const { data: stagingRows } = await admin
-    .from("linkedin_staging_records")
-    .select(
-      "id, staging_domain, record_kind, purpose, source_file, source_row_number, source_classification, source_identity_hash",
-    )
-    .in("id", recordIds);
-
-  const staging = (stagingRows ?? []) as StagingRow[];
+  const staging: StagingRow[] = [];
+  for (const part of chunkIds(recordIds)) {
+    const { data, error } = await admin
+      .from("linkedin_staging_records")
+      .select(
+        "id, staging_domain, record_kind, purpose, source_file, source_row_number, source_classification, source_identity_hash",
+      )
+      .in("id", part);
+    if (error) {
+      return { purpose, runId: null, status: "failed", proposals: 0, skipReason: "database_error" };
+    }
+    staging.push(...((data ?? []) as StagingRow[]));
+  }
+  if (staging.length !== recordIds.length) {
+    // Avkortet hydrering skal aldri bli en tilsynelatende gyldig kjøring.
+    return { purpose, runId: null, status: "failed", proposals: 0, skipReason: "engine_error" };
+  }
   const signature = await computeInputSignature({
     userId: input.userId,
     importId: input.importId,
