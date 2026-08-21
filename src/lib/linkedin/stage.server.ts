@@ -301,6 +301,14 @@ async function stageFile(params: {
 }
 
 
+/** Databasefeil i stagingskrivingen skal aldri gi stille datatap. */
+export class StagingError extends Error {
+  constructor(public code: string, detail?: string) {
+    super(detail ? `${code}: ${detail}` : code);
+    this.name = "StagingError";
+  }
+}
+
 /**
  * Endorsements holdes utenfor anbefalings-domenetabellen (produktkontrakt v1.1):
  * skrives til linkedin_endorsement_staging, idempotent per (user_id, linkedin_import_id, source_row_hash).
@@ -317,7 +325,7 @@ async function writeEndorsementStagingRecords(
   if (rows.length === 0) return 0;
   let staged = 0;
   for (const part of chunked(rows)) {
-    const { data, error } = await admin
+    const { error } = await admin
       .from("linkedin_endorsement_staging")
       .upsert(
         part.map((r) => ({
@@ -335,10 +343,9 @@ async function writeEndorsementStagingRecords(
           updated_at: new Date().toISOString(),
         })),
         { onConflict: "user_id,linkedin_import_id,source_row_hash" },
-      )
-      .select("id");
-    if (error) continue;
-    staged += data?.length ?? part.length;
+      );
+    if (error) throw new StagingError("endorsement_staging_write_failed", error.message);
+    staged += part.length;
   }
   return staged;
 }
@@ -350,7 +357,10 @@ type StagingInput = {
   identityHash: string; domainFields: Record<string, unknown>; classification?: string;
 };
 
-const CHUNK = 400;
+/** Skrivebatch. Holdes lav nok til at ingen forespørsel avvises på størrelse. */
+const CHUNK = 200;
+/** Oppslag via `in()` bruker 64-tegns hasher eller UUID-er: hold URL-en kort. */
+const LOOKUP_CHUNK = 100;
 
 function chunked<T>(items: T[], size = CHUNK): T[][] {
   const out: T[][] = [];
@@ -363,9 +373,12 @@ async function writeStagingRecord(admin: AdminClient, r: StagingInput): Promise<
 }
 
 /**
- * Batchet staging: samme idempotens som før (user_id + source_file + identity_hash),
- * men med få databasekall per fil i stedet for fire per rad. Store eksportfiler
- * (f.eks. Connections.csv med tusenvis av rader) rakk ellers ikke å bli ferdige.
+ * Batchet staging, idempotent på (user_id, source_file, source_identity_hash).
+ *
+ * Tapsfri kontrakt:
+ *  - alle oppslag chunkes slik at `in()`-URL-en aldri sprenger grensen,
+ *  - enhver databasefeil kastes som StagingError (filen markeres `failed`),
+ *  - ingen rad forkastes stille fordi en batch feilet.
  */
 async function writeStagingRecords(admin: AdminClient, records: StagingInput[]): Promise<number> {
   if (records.length === 0) return 0;
@@ -376,38 +389,39 @@ async function writeStagingRecords(admin: AdminClient, records: StagingInput[]):
   const unique = [...byHash.values()];
   const { userId, sourceFile, importId, attemptId, domain, purpose } = unique[0]!;
 
-  // 1) Finn allerede stagede rader.
-  const existing = new Map<string, string>();
-  for (const part of chunked(unique.map((r) => r.identityHash))) {
-    const { data } = await admin
-      .from("linkedin_staging_records")
-      .select("id, source_identity_hash")
-      .eq("user_id", userId)
-      .eq("source_file", sourceFile)
-      .in("source_identity_hash", part);
-    for (const row of data ?? []) existing.set(row.source_identity_hash as string, row.id as string);
-  }
+  const idByHash = new Map<string, string>();
+
+  const resolveIds = async (hashes: string[]) => {
+    for (const part of chunked(hashes, LOOKUP_CHUNK)) {
+      const { data, error } = await admin
+        .from("linkedin_staging_records")
+        .select("id, source_identity_hash")
+        .eq("user_id", userId)
+        .eq("source_file", sourceFile)
+        .in("source_identity_hash", part);
+      if (error) throw new StagingError("staging_lookup_failed", error.message);
+      for (const row of data ?? []) idByHash.set(row.source_identity_hash as string, row.id as string);
+    }
+  };
+
+  // 1) Allerede stagede rader.
+  await resolveIds(unique.map((r) => r.identityHash));
 
   // 2) Oppdater last_seen for de som finnes fra før.
-  const existingIds = [...existing.values()];
-  for (const part of chunked(existingIds)) {
-    await admin
+  for (const part of chunked([...idByHash.values()], LOOKUP_CHUNK)) {
+    const { error } = await admin
       .from("linkedin_staging_records")
       .update({ last_linkedin_import_id: importId, last_seen_at: new Date().toISOString() })
       .in("id", part);
+    if (error) throw new StagingError("staging_last_seen_failed", error.message);
   }
 
-  // 3) Sett inn nye rader og tilhørende domenerader.
-  const fresh = unique.filter((r) => !existing.has(r.identityHash));
-  const linkRows: Array<{ stagingId: string; identityHash: string }> = [...existing.entries()].map(
-    ([identityHash, stagingId]) => ({ stagingId, identityHash }),
-  );
-  let staged = existingIds.length;
-
+  // 3) Sett inn nye rader. Konflikt ignoreres, id-ene hentes etterpå.
+  const fresh = unique.filter((r) => !idByHash.has(r.identityHash));
   for (const part of chunked(fresh)) {
     const { data, error } = await admin
       .from("linkedin_staging_records")
-      .insert(
+      .upsert(
         part.map((r) => ({
           user_id: r.userId,
           staging_domain: r.domain,
@@ -425,52 +439,57 @@ async function writeStagingRecords(admin: AdminClient, records: StagingInput[]):
           first_linkedin_import_id: r.importId,
           last_linkedin_import_id: r.importId,
         })),
+        { onConflict: "user_id,source_file,source_identity_hash", ignoreDuplicates: true },
       )
       .select("id, source_identity_hash");
-    if (error || !data) continue;
-
-    const idByHash = new Map<string, string>();
-    for (const row of data) idByHash.set(row.source_identity_hash as string, row.id as string);
-
-    const table = DOMAIN_TABLES[domain as keyof typeof DOMAIN_TABLES];
-    const domainRows = part
-      .map((r) => {
-        const id = idByHash.get(r.identityHash);
-        return id ? { staging_record_id: id, user_id: r.userId, ...r.domainFields } : null;
-      })
-      .filter(Boolean) as Array<Record<string, unknown>>;
-
-    const { error: domainError } = await admin.from(table).insert(domainRows);
-    if (domainError) {
-      await admin
-        .from("linkedin_staging_records")
-        .delete()
-        .in("id", [...idByHash.values()]);
-      continue;
-    }
-
-    for (const [hash, id] of idByHash.entries()) linkRows.push({ stagingId: id, identityHash: hash });
-    staged += domainRows.length;
+    if (error) throw new StagingError("staging_insert_failed", error.message);
+    for (const row of data ?? []) idByHash.set(row.source_identity_hash as string, row.id as string);
   }
 
-  // 4) Koble stagingrader til dette importforsøket.
-  for (const part of chunked(linkRows)) {
-    await admin.from("linkedin_import_stage_records").upsert(
-      part.map((l) => ({
+  // 3b) Hent id for rader som ble ignorert som duplikat i upserten.
+  const unresolved = unique.filter((r) => !idByHash.has(r.identityHash)).map((r) => r.identityHash);
+  if (unresolved.length > 0) await resolveIds(unresolved);
+  if (unique.some((r) => !idByHash.has(r.identityHash))) {
+    throw new StagingError("staging_row_missing_after_insert");
+  }
+
+  // 4) Domenerader: sett inn kun for stagingrader som mangler dem.
+  const table = DOMAIN_TABLES[domain as keyof typeof DOMAIN_TABLES];
+  const allIds = unique.map((r) => idByHash.get(r.identityHash)!);
+  const haveDomainRow = new Set<string>();
+  for (const part of chunked(allIds, LOOKUP_CHUNK)) {
+    const { data, error } = await admin.from(table).select("staging_record_id").in("staging_record_id", part);
+    if (error) throw new StagingError("staging_domain_lookup_failed", error.message);
+    for (const row of data ?? []) haveDomainRow.add(row.staging_record_id as string);
+  }
+  const domainRows = unique
+    .filter((r) => !haveDomainRow.has(idByHash.get(r.identityHash)!))
+    .map((r) => ({ staging_record_id: idByHash.get(r.identityHash)!, user_id: r.userId, ...r.domainFields }));
+  for (const part of chunked(domainRows)) {
+    const { error } = await admin.from(table).insert(part);
+    if (error) throw new StagingError("staging_domain_insert_failed", error.message);
+  }
+
+  // 5) Koble stagingrader til dette importforsøket.
+  for (const part of chunked(unique)) {
+    const { error } = await admin.from("linkedin_import_stage_records").upsert(
+      part.map((r) => ({
         linkedin_import_id: importId,
         attempt_id: attemptId,
         user_id: userId,
-        staging_record_id: l.stagingId,
+        staging_record_id: idByHash.get(r.identityHash)!,
         staging_domain: domain,
         purpose,
-        source_identity_hash: l.identityHash,
+        source_identity_hash: r.identityHash,
       })),
       { onConflict: "linkedin_import_id,attempt_id,staging_record_id" },
     );
+    if (error) throw new StagingError("staging_link_failed", error.message);
   }
 
-  return staged;
+  return unique.length;
 }
+
 
 
 async function upsertFile(
