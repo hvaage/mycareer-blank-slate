@@ -86,16 +86,23 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
     case "volunteer": {
       const started = parseLinkedInDate(pick(row, "Started On", "Start Date"));
       const finished = parseLinkedInDate(pick(row, "Finished On", "End Date"));
+      const isCertification = recordKind === "certification";
       const f = {
-        entry_kind: recordKind === "certification" ? "certification" : recordKind,
+        entry_kind: isCertification ? "certification" : recordKind,
         organization_name: pick(row, "Company Name", "School Name", "Authority", "Company / Organization"),
         title: pick(row, "Title", "Degree Name", "Name", "Role", "Language"),
         location: pick(row, "Location"),
         description: pick(row, "Description", "Notes", "Proficiency", "Cause"),
         started_on: started?.value ?? null,
+        // For sertifiseringer er «Finished On» utløpsdato når den finnes.
         finished_on: finished?.value ?? null,
         date_precision: started?.precision ?? finished?.precision ?? null,
+        credential_id: isCertification ? pick(row, "License Number", "Credential ID") : null,
+        credential_url: isCertification
+          ? httpUrl(pick(row, "Url", "URL", "Credential URL"))
+          : null,
       };
+
       return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
     }
     case "recommendation_received":
@@ -206,14 +213,44 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
       return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
     }
     case "course": {
-      const lastWatchedOn = parseLinkedInDate(pick(row, "Content Last Watched Date"))?.value ?? null;
-      const completedOn =
-        parseLinkedInDate(pick(row, "Content Completed At (if completed)"))?.value ??
-        parseLinkedInDate(pick(row, "Completed Date"))?.value ??
-        null;
+      // Rå kildeverdier, kun for statusutledning – aldri lagret rått.
+      const rawCompleted = absentAsNull(
+        pick(row, "Content Completed At (if completed)", "Completed Date", "Completed On"),
+      );
+      const rawLastWatched = absentAsNull(
+        pick(
+          row,
+          "Content Last Watched Date (if viewed)",
+          "Content Last Watched Date",
+          "Last Watched Date",
+        ),
+      );
+      // «Content Description» er aldri URL-kilde.
+      const rawUrl = pick(row, "Content URL", "Content Url", "URL", "Url", "Link");
+
+      const completedOn = parseLearningDate(rawCompleted);
+      const lastWatchedOn = parseLearningDate(rawLastWatched);
+
       // Fullført = en faktisk PARSEBAR fullførtdato. «Last Watched» er aldri
       // fullføring, og en ugyldig dato gir ikke fullført status.
       const isCompleted = completedOn != null;
+      const codes: string[] = [];
+      if (rawCompleted && !completedOn) codes.push("invalid_completion_date");
+      if (rawLastWatched && !lastWatchedOn) codes.push("invalid_last_watched_date");
+      if (rawUrl && !httpUrl(rawUrl)) codes.push("non_http_url_ignored");
+      if (!rawCompleted && !rawLastWatched) codes.push("no_date_in_source");
+
+
+      const completionStatus = isCompleted
+        ? "completed"
+        : rawCompleted
+          ? "invalid_date"
+          : lastWatchedOn
+            ? "in_progress"
+            : rawLastWatched
+              ? "invalid_date"
+              : "missing_date";
+
       const f = {
         content_type: "course",
         course_title: pick(row, "Content Title", "Title"),
@@ -221,13 +258,24 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
         completed_on: completedOn,
         last_watched_on: lastWatchedOn,
         is_completed: isCompleted,
+        completion_status: completionStatus,
+        data_quality_codes: codes,
         // Kun ekte URL-kolonner, og kun når verdien er en gyldig http(s)-URL.
         // «Content Description» brukes aldri som URL-fallback.
-        content_url: httpUrl(pick(row, "Content URL", "Content Url", "URL", "Url", "Link")),
+        content_url: httpUrl(rawUrl),
         progress_label: isCompleted ? "Fullført" : null,
       };
-      return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
+      return {
+        domainFields: f,
+        identityFields: {
+          course_title: f.course_title,
+          provider: f.provider,
+          content_url: f.content_url,
+        },
+        sourceEventAt: null,
+      };
     }
+
 
     case "rich_media":
     case "article": {
@@ -249,4 +297,24 @@ function stringFields(f: Record<string, unknown>): Record<string, string | null>
   const out: Record<string, string | null> = {};
   for (const [k, v] of Object.entries(f)) out[k] = typeof v === "string" ? v : null;
   return out;
+}
+
+/** «N/A», «-» og tomt betyr fravær av verdi, ikke ugyldig verdi. */
+export function absentAsNull(value: string | null): string | null {
+  if (!value) return null;
+  const v = value.trim();
+  if (!v || /^(n\/?a|na|-|—|none|null)$/i.test(v)) return null;
+  return v;
+}
+
+/**
+ * Learning-datoer kan være «2022-04-05 14:10 UTC» i tillegg til de vanlige
+ * LinkedIn-formatene. Returnerer ISO-dato (YYYY-MM-DD) eller null.
+ */
+export function parseLearningDate(value: string | null): string | null {
+  const v = absentAsNull(value);
+  if (!v) return null;
+  const ts = /^(\d{4})-(\d{2})-(\d{2})[ T]\d{2}:\d{2}/.exec(v);
+  if (ts) return `${ts[1]}-${ts[2]}-${ts[3]}`;
+  return parseLinkedInDate(v)?.value ?? null;
 }

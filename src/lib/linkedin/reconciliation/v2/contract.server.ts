@@ -173,3 +173,22 @@ export function possibleDuplicateByName(
     .map((r) => r.contact);
 }
 
+
+/**
+ * Hva et ikke-kontaktobjekt beholdes for. Ingen av disse oppretter
+ * produktobjekter automatisk; de er kun senere forslagsgrunnlag.
+ */
+export function retentionIntent(kind: NetworkObjectKind): string {
+  switch (kind) {
+    case "company_observation":
+      return "user_company_relationship_suggestion";
+    case "network_event":
+      return "network_activity_signal";
+    case "network_preference_signal":
+      return "preference_signal";
+    case "invitation":
+      return "pending_identity_resolution";
+    default:
+      return "none";
+  }
+}

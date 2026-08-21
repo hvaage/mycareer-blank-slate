@@ -3900,6 +3900,8 @@ export type Database = {
       }
       linkedin_career_staging: {
         Row: {
+          credential_id: string | null
+          credential_url: string | null
           date_precision: string | null
           description: string | null
           entry_kind: string
@@ -3913,6 +3915,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          credential_id?: string | null
+          credential_url?: string | null
           date_precision?: string | null
           description?: string | null
           entry_kind: string
@@ -3926,6 +3930,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          credential_id?: string | null
+          credential_url?: string | null
           date_precision?: string | null
           description?: string | null
           entry_kind?: string
@@ -4647,8 +4653,13 @@ export type Database = {
       linkedin_learning_staging: {
         Row: {
           completed_on: string | null
+          completion_status: string
+          content_type: string
           content_url: string | null
           course_title: string | null
+          data_quality_codes: string[]
+          is_completed: boolean
+          last_watched_on: string | null
           progress_label: string | null
           provider: string | null
           staging_domain: string
@@ -4657,8 +4668,13 @@ export type Database = {
         }
         Insert: {
           completed_on?: string | null
+          completion_status?: string
+          content_type?: string
           content_url?: string | null
           course_title?: string | null
+          data_quality_codes?: string[]
+          is_completed?: boolean
+          last_watched_on?: string | null
           progress_label?: string | null
           provider?: string | null
           staging_domain?: string
@@ -4667,8 +4683,13 @@ export type Database = {
         }
         Update: {
           completed_on?: string | null
+          completion_status?: string
+          content_type?: string
           content_url?: string | null
           course_title?: string | null
+          data_quality_codes?: string[]
+          is_completed?: boolean
+          last_watched_on?: string | null
           progress_label?: string | null
           provider?: string | null
           staging_domain?: string

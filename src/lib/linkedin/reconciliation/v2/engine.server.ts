@@ -15,6 +15,8 @@ import {
   exactIdentityMatch,
   normalizeLinkedInProfileUrl,
   objectKindForRecordKind,
+  retentionIntent,
+
   type MatchableContact,
   type NetworkBatchItem,
   type NetworkBatchItemCategory,
@@ -196,6 +198,19 @@ export async function runNetworkReconciliationV2(
     };
   }
 
+  // En tidligere batch med samme signatur som ikke er ready/consumed
+  // (preparing/superseded) blokkerer unik-indeksen. Den ryddes bort først.
+  if (existingBatch) {
+    await admin
+      .from("linkedin_network_reconciliation_batch_items")
+      .delete()
+      .eq("batch_id", existingBatch.id);
+    await admin
+      .from("linkedin_network_reconciliation_batches")
+      .delete()
+      .eq("id", existingBatch.id);
+  }
+
   const { data: batch, error: batchError } = await admin
     .from("linkedin_network_reconciliation_batches")
     .insert({
@@ -374,17 +389,23 @@ async function buildBatchItems(
       observedAt: fields?.connected_on ?? null,
     };
 
-    // Ikke-personobjekter kan aldri bli kontakter. De holdes utenfor
-    // kontaktkategoriene og telles per objektklasse.
+    // Ikke-personobjekter kan aldri bli kontakter. De beholdes i staging og
+    // merkes «ikke kontakt-handlingsbare», med en fremtidig bruksintensjon.
     if (objectKind !== "person_contact") {
       items.push({
         ...base,
         category: "excluded",
         proposedAction: "skip",
-        reasonCodes: ["not_a_person_contact", `object_kind:${objectKind}`],
+        reasonCodes: [
+          "not_contact_actionable",
+          "not_a_person_contact",
+          `object_kind:${objectKind}`,
+          `retained_for:${retentionIntent(objectKind)}`,
+        ],
       });
       continue;
     }
+
 
     const exact = exactIdentityMatch({ profileUrl }, contacts);
     if (exact) {
