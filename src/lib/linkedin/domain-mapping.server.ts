@@ -206,14 +206,33 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
       return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
     }
     case "course": {
-      const lastWatchedOn = parseLinkedInDate(pick(row, "Content Last Watched Date"))?.value ?? null;
-      const completedOn =
-        parseLinkedInDate(pick(row, "Content Completed At (if completed)"))?.value ??
-        parseLinkedInDate(pick(row, "Completed Date"))?.value ??
-        null;
+      // Rå kildeverdier, kun for statusutledning – aldri lagret rått.
+      const rawCompleted =
+        pick(row, "Content Completed At (if completed)") ?? pick(row, "Completed Date");
+      const rawLastWatched = pick(row, "Content Last Watched Date");
+      const rawUrl = pick(row, "Content URL", "Content Url", "URL", "Url", "Link");
+
+      const completedOn = parseLinkedInDate(rawCompleted)?.value ?? null;
+      const lastWatchedOn = parseLinkedInDate(rawLastWatched)?.value ?? null;
+
       // Fullført = en faktisk PARSEBAR fullførtdato. «Last Watched» er aldri
       // fullføring, og en ugyldig dato gir ikke fullført status.
       const isCompleted = completedOn != null;
+      const codes: string[] = [];
+      if (rawCompleted && !completedOn) codes.push("invalid_completion_date");
+      if (rawLastWatched && !lastWatchedOn) codes.push("invalid_last_watched_date");
+      if (rawUrl && !httpUrl(rawUrl)) codes.push("non_http_url_ignored");
+
+      const completionStatus = isCompleted
+        ? "completed"
+        : rawCompleted
+          ? "invalid_date"
+          : lastWatchedOn
+            ? "in_progress"
+            : rawLastWatched
+              ? "invalid_date"
+              : "missing_date";
+
       const f = {
         content_type: "course",
         course_title: pick(row, "Content Title", "Title"),
@@ -221,13 +240,24 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
         completed_on: completedOn,
         last_watched_on: lastWatchedOn,
         is_completed: isCompleted,
+        completion_status: completionStatus,
+        data_quality_codes: codes,
         // Kun ekte URL-kolonner, og kun når verdien er en gyldig http(s)-URL.
         // «Content Description» brukes aldri som URL-fallback.
-        content_url: httpUrl(pick(row, "Content URL", "Content Url", "URL", "Url", "Link")),
+        content_url: httpUrl(rawUrl),
         progress_label: isCompleted ? "Fullført" : null,
       };
-      return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
+      return {
+        domainFields: f,
+        identityFields: {
+          course_title: f.course_title,
+          provider: f.provider,
+          content_url: f.content_url,
+        },
+        sourceEventAt: null,
+      };
     }
+
 
     case "rich_media":
     case "article": {
