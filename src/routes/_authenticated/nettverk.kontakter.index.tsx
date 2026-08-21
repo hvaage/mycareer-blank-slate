@@ -8,6 +8,17 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
 import { useAuthUserId } from "@/components/network/use-network-user";
 import { buildContacts, networkBatchQuery, networkGraphQuery } from "@/lib/queries/network";
@@ -134,21 +145,41 @@ function ContactsPage() {
               Kun personkontakter kan legges til som kontakter. Selskapsobservasjoner,
               arrangementer, preferansesignaler og invitasjoner beholdes som signaler.
             </div>
-            <Button
-              size="sm"
-              className="w-full gap-2"
-              disabled={
-                promoteMutation.isPending || (batchData.pendingPersonItemIds?.length ?? 0) === 0
-              }
-              onClick={() => promoteMutation.mutate()}
-            >
-              {promoteMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Users className="h-4 w-4" />
-              )}
-              Legg til {batchData.pendingPersonItemIds?.length ?? 0} personkontakter
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="sm"
+                  className="w-full gap-2"
+                  disabled={
+                    promoteMutation.isPending ||
+                    (batchData.pendingPersonItemIds?.length ?? 0) === 0
+                  }
+                >
+                  {promoteMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Users className="h-4 w-4" />
+                  )}
+                  Legg til {batchData.pendingPersonItemIds?.length ?? 0} personkontakter
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Legg til personkontakter?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {batchData.pendingPersonItemIds?.length ?? 0} personkontakter fra denne
+                    nettverksbatchen legges til i kontaktregisteret ditt. Ingen andre
+                    nettverkssignaler berøres, og ingenting skjer før du bekrefter.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => promoteMutation.mutate()}>
+                    Bekreft og legg til
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         )}
       </NetworkPanel>
