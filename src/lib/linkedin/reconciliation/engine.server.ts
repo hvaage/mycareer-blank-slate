@@ -56,7 +56,12 @@ export async function runReconciliation(
   admin: Admin,
   input: { userId: string; importId: string },
 ): Promise<ReconcileResult> {
-  const authorHmacSecret = process.env["LINKEDIN_AUTHOR_HMAC_SECRET"] ?? "";
+  // Serveronly hemmelighet. Ingen fallback: mangler den, stopper avstemmingen
+  // heller enn å produsere en svakere eller usaltet forfatteridentitet.
+  const authorHmacSecret = process.env["LINKEDIN_AUTHOR_HMAC_SECRET"];
+  if (!authorHmacSecret) {
+    return { ok: false, runs: [], error: "missing_author_hmac_secret" };
+  }
 
   const { data: purposeRows, error: purposeError } = await admin
     .from("linkedin_import_purposes")
