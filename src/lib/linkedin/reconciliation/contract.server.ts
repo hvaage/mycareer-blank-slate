@@ -8,6 +8,12 @@ import { sha256Hex } from "../preflight.server";
 
 export const RECONCILIATION_VERSION = "linkedin_reconciliation_v1";
 export const RECONCILIATION_NORMALIZATION_VERSION = "linkedin_identity_v1";
+/**
+ * Motorrevisjon: inngår i inputsignaturen slik at kjøringer laget før
+ * trådmodellen ikke gjenbrukes i det uendelige. Bumpes kun når motorens
+ * utfall faktisk endres.
+ */
+export const RECONCILIATION_ENGINE_REVISION = "threads_v1_full_source";
 
 export const RECONCILIATION_DOMAINS = [
   "profile",
@@ -204,6 +210,7 @@ export async function computeInputSignature(input: {
     JSON.stringify({
       v: RECONCILIATION_VERSION,
       n: RECONCILIATION_NORMALIZATION_VERSION,
+      e: RECONCILIATION_ENGINE_REVISION,
       user_id: input.userId,
       import_id: input.importId,
       purpose: input.purpose,

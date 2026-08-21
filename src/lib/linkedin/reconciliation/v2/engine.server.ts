@@ -30,6 +30,9 @@ export type NetworkReconcileResult = {
   batchId?: string;
   status?: string;
   error?: string;
+  sourceTotal?: number;
+  processedTotal?: number;
+  sourcePages?: number;
   counts?: {
     exact_identity_match_count: number;
     possible_duplicate_count: number;
@@ -39,6 +42,39 @@ export type NetworkReconcileResult = {
     excluded_count: number;
   };
 };
+
+/** PostgREST-sidestørrelse for kildeuttrekk. Under standardtaket på 1000. */
+const PAGE_SIZE = 500;
+/** Maksimalt antall identifikatorer per `in()`-oppslag (URL-lengde). */
+const LOOKUP_CHUNK = 200;
+
+class EngineError extends Error {}
+
+/**
+ * Henter ALLE rader med deterministisk paginering og stabil sortering.
+ * Kaster ved databasefeil — en avkortet side blir aldri stille akseptert.
+ */
+async function fetchAllPages<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<{ rows: T[]; pages: number }> {
+  const rows: T[] = [];
+  let pages = 0;
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+    if (error) throw new EngineError("database_error");
+    pages += 1;
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+  }
+  return { rows, pages };
+}
+
+function chunk<T>(items: T[], size = LOOKUP_CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
 
 type NetworkStagingRow = {
   id: string;
@@ -61,16 +97,29 @@ export async function runNetworkReconciliationV2(
   admin: Admin,
   input: { userId: string; importId: string },
 ): Promise<NetworkReconcileResult> {
-  const { data: stagingRows, error: stagingError } = await admin
-    .from("linkedin_staging_records")
-    .select("id, staging_domain, source_classification, source_identity_hash")
-    .eq("last_linkedin_import_id", input.importId)
-    .eq("user_id", input.userId)
-    .eq("staging_domain", "network")
-    .neq("source_classification", "excluded_by_product_contract_v1_1");
-  if (stagingError) return { ok: false, error: "database_error" };
+  // Fullstendig, deterministisk kildeuttrekk: alle sider, stabil sortering.
+  // Ekskluderte rader hentes med, slik at kategorisummen alltid dekker hele
+  // kildegrunnlaget i stedet for et filtrert utsnitt.
+  let staging: NetworkStagingRow[];
+  let sourcePages: number;
+  try {
+    const page = await fetchAllPages<NetworkStagingRow>((from, to) =>
+      admin
+        .from("linkedin_staging_records")
+        .select("id, staging_domain, source_classification, source_identity_hash")
+        .eq("last_linkedin_import_id", input.importId)
+        .eq("user_id", input.userId)
+        .eq("staging_domain", "network")
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
+    staging = page.rows;
+    sourcePages = page.pages;
+  } catch {
+    return { ok: false, error: "database_error" };
+  }
 
-  const staging = (stagingRows ?? []) as NetworkStagingRow[];
+  const sourceTotal = staging.length;
   const recordIds = staging.map((s) => s.id);
 
   const { data: contactRows, error: contactError } = await admin
@@ -153,34 +202,44 @@ export async function runNetworkReconciliationV2(
     .single();
   if (batchError || !batch) return { ok: false, error: "database_error" };
 
-  let items: NetworkBatchItem[] = [];
-  try {
-    items = await buildBatchItems(admin, staging, recordIds, contacts);
-  } catch {
+  const abort = async (error: string): Promise<NetworkReconcileResult> => {
     await admin
       .from("linkedin_network_reconciliation_batches")
       .update({ status: "superseded" })
       .eq("id", batch.id);
-    return { ok: false, error: "engine_error" };
+    return { ok: false, error, sourceTotal, sourcePages };
+  };
+
+  let items: NetworkBatchItem[] = [];
+  try {
+    items = await buildBatchItems(admin, staging, recordIds, contacts);
+  } catch {
+    return abort("engine_error");
   }
 
-  const byId = new Map(staging.map((s) => [s.id, s]));
-  for (const item of items) {
-    await admin.from("linkedin_network_reconciliation_batch_items").insert({
-      user_id: input.userId,
-      batch_id: batch.id,
-      staging_record_id: item.stagingRecordId ?? null,
-      source_identity_hash: item.sourceIdentityHash,
-      category: item.category,
-      proposed_action: item.proposedAction,
-      target_contact_id: item.targetContactId ?? null,
-      status: "pending",
-      reason_codes: item.reasonCodes,
-      source_hash: item.sourceHash,
-      observed_at: item.observedAt ?? null,
-    });
+  // Ufullstendig behandling skal aldri bli en tilsynelatende gyldig batch.
+  if (items.length !== sourceTotal) return abort("engine_error");
+
+  for (const part of chunk(items)) {
+    const { error: itemError } = await admin
+      .from("linkedin_network_reconciliation_batch_items")
+      .insert(
+        part.map((item) => ({
+          user_id: input.userId,
+          batch_id: batch.id,
+          staging_record_id: item.stagingRecordId ?? null,
+          source_identity_hash: item.sourceIdentityHash,
+          category: item.category,
+          proposed_action: item.proposedAction,
+          target_contact_id: item.targetContactId ?? null,
+          status: "pending",
+          reason_codes: item.reasonCodes,
+          source_hash: item.sourceHash,
+          observed_at: item.observedAt ?? null,
+        })),
+      );
+    if (itemError) return abort("database_error");
   }
-  void byId; // brukt kun for evt. fremtidig referanse-oppslag
 
   const counts = countByCategory(items);
 
@@ -199,7 +258,15 @@ export async function runNetworkReconciliationV2(
     })
     .eq("id", batch.id);
 
-  return { ok: true, batchId: batch.id, status: "ready", counts };
+  return {
+    ok: true,
+    batchId: batch.id,
+    status: "ready",
+    counts,
+    sourceTotal,
+    processedTotal: items.length,
+    sourcePages,
+  };
 }
 
 function countByCategory(items: NetworkBatchItem[]) {
@@ -230,18 +297,38 @@ async function buildBatchItems(
 ): Promise<NetworkBatchItem[]> {
   if (recordIds.length === 0) return [];
 
-  const { data: fieldRows } = await admin
-    .from("linkedin_network_staging")
-    .select("staging_record_id, full_name, company, position, connected_on, profile_url")
-    .in("staging_record_id", recordIds);
-
-  const fieldsByRecord = new Map(
-    (fieldRows ?? []).map((row: NetworkFieldsRow) => [row.staging_record_id, row]),
-  );
+  // Feltoppslag i chunks på maks 200 ID-er. Databasefeil avslutter kjøringen;
+  // en rad blir aldri stille degradert til «uten stabil identitet».
+  const fieldsByRecord = new Map<string, NetworkFieldsRow>();
+  for (const part of chunk(recordIds)) {
+    const { data, error } = await admin
+      .from("linkedin_network_staging")
+      .select("staging_record_id, full_name, company, position, connected_on, profile_url")
+      .in("staging_record_id", part);
+    if (error) throw new EngineError("field_lookup_failed");
+    for (const row of (data ?? []) as NetworkFieldsRow[]) {
+      fieldsByRecord.set(row.staging_record_id, row);
+    }
+  }
 
   const items: NetworkBatchItem[] = [];
   for (const src of staging) {
+    if (src.source_classification === "excluded_by_product_contract_v1_1") {
+      items.push({
+        stagingRecordId: src.id,
+        sourceIdentityHash: src.source_identity_hash,
+        sourceHash: src.source_identity_hash,
+        observedAt: null,
+        category: "excluded",
+        proposedAction: "skip",
+        reasonCodes: ["excluded_by_product_contract_v1_1"],
+      });
+      continue;
+    }
+
     const fields = fieldsByRecord.get(src.id) ?? null;
+    // Manglende hydrering er en motorfeil, ikke «uten stabil identitet».
+    if (!fields) throw new EngineError("missing_domain_fields");
     const name = fields?.full_name ?? null;
     const profileUrl = fields?.profile_url ?? null;
     const nameKey = normKey(name);

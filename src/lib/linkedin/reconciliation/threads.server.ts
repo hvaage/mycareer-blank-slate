@@ -63,7 +63,56 @@ export async function planForThread(
       })
       .select("id")
       .single();
-    return { action: "insert", threadId: created?.id ?? null };
+    const threadId = created?.id ?? null;
+
+    // Adopsjon: forslag laget FØR trådmodellen har ingen tråd. Uten dette ville
+    // en ny kjøring lage et uavhengig duplikat ved siden av det gamle. Vi
+    // knytter det nyeste eksisterende forslaget til linjen og lar den vanlige
+    // logikken avgjøre om kilden faktisk er endret.
+    if (threadId) {
+      const { data: legacy } = await admin
+        .from("linkedin_reconciliation_proposals")
+        .select("id, status, source_snapshot_hash, created_at")
+        .eq("user_id", args.userId)
+        .eq("proposal_domain", args.domain)
+        .eq("dedupe_key", args.threadKey)
+        .is("thread_id", null)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const prev = (legacy ?? [])[0];
+      if (prev) {
+        await admin
+          .from("linkedin_reconciliation_proposals")
+          .update({ thread_id: threadId })
+          .eq("id", prev.id)
+          .eq("user_id", args.userId);
+        await admin
+          .from("linkedin_reconciliation_threads")
+          .update({
+            current_proposal_id: prev.id,
+            last_source_snapshot_hash: prev.source_snapshot_hash,
+            last_status: prev.status,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", threadId);
+
+        if (prev.source_snapshot_hash === args.sourceHash) {
+          return { action: "idempotent", threadId };
+        }
+        const decided =
+          prev.status != null && (DECIDED_STATUSES as readonly string[]).includes(prev.status);
+        return {
+          action: "supersede",
+          threadId,
+          previousProposalId: prev.id,
+          previousStatus: prev.status ?? null,
+          previousSourceHash: prev.source_snapshot_hash ?? null,
+          decided,
+        };
+      }
+    }
+
+    return { action: "insert", threadId };
   }
 
   const row = thread as ThreadRow;

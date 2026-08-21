@@ -438,7 +438,7 @@ Regler:
 
 - Valgene lagres på importen (hvilke formål, av hvem, når, kontraktversjon).
 - Data som tilhører et formål brukeren ikke har valgt, stages ikke og blir aldri
-  forslag. Filen registreres som `skipped_no_consent` i filinventaret.
+  forslag. Filen registreres som `skipped_no_selected_purpose` i filinventaret.
 - Valg kan trekkes tilbake senere; da slettes tilhørende staging etter reglene i §6.3.
 - Fravær av valg er ikke samtykke. Standard er av.
 
