@@ -1,0 +1,1 @@
+REVOKE ALL ON public.next_steps FROM anon;
