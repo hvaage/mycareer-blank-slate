@@ -516,7 +516,7 @@ async function buildDrafts(
   if (purpose === "learning") {
     const { data } = await admin
       .from("linkedin_learning_staging")
-      .select("staging_record_id, course_title, provider, completed_on, progress_label")
+      .select("staging_record_id, course_title, provider, completed_on, content_url, progress_label")
       .in("staging_record_id", ids);
     return (data ?? [])
       .map((row) => {
