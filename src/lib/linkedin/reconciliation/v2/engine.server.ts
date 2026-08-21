@@ -271,11 +271,24 @@ export async function runNetworkReconciliationV2(
     batchId: batch.id,
     status: "ready",
     counts,
+    objectKindCounts: countByObjectKind(items),
     sourceTotal,
     processedTotal: items.length,
     sourcePages,
   };
 }
+
+/** Tellinger per objektklasse og kategori. */
+function countByObjectKind(items: NetworkBatchItem[]): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const item of items) {
+    const kind: NetworkObjectKind = item.objectKind;
+    out[kind] ??= {};
+    out[kind]![item.category] = (out[kind]![item.category] ?? 0) + 1;
+  }
+  return out;
+}
+
 
 function countByCategory(items: NetworkBatchItem[]) {
   const init: Record<NetworkBatchItemCategory, number> = {
