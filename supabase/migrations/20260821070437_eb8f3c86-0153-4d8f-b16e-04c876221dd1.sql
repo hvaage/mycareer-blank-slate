@@ -1,0 +1,1 @@
+ALTER TYPE public.linkedin_network_batch_item_category ADD VALUE IF NOT EXISTS 'new_contact';

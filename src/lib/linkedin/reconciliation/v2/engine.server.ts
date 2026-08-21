@@ -63,7 +63,7 @@ export async function runNetworkReconciliationV2(
   const { data: stagingRows, error: stagingError } = await admin
     .from("linkedin_staging_records")
     .select("id, staging_domain, source_classification, source_identity_hash")
-    .eq("linkedin_import_id", input.importId)
+    .eq("last_linkedin_import_id", input.importId)
     .eq("user_id", input.userId)
     .eq("staging_domain", "network")
     .neq("source_classification", "excluded_by_product_contract_v1_1");
