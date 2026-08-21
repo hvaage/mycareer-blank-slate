@@ -263,8 +263,12 @@ async function stageFile(params: {
         observedAt: (f.observed_at as string | null) ?? null,
       });
     }
-    const stagedCount = await writeEndorsementStagingRecords(admin, endorsementRows);
-    return { ok: true, rowCount: parsed.rows.length, stagedCount };
+    try {
+      const stagedCount = await writeEndorsementStagingRecords(admin, endorsementRows);
+      return { ok: true, rowCount: parsed.rows.length, stagedCount };
+    } catch (error) {
+      return { ok: false, errorCode: error instanceof StagingError ? error.code : "staging_write_failed" };
+    }
   }
 
   const pending: StagingInput[] = [];
@@ -288,9 +292,14 @@ async function stageFile(params: {
     });
   }
 
-  const stagedCount = await writeStagingRecords(admin, pending);
-  return { ok: true, rowCount: parsed.rows.length, stagedCount };
+  try {
+    const stagedCount = await writeStagingRecords(admin, pending);
+    return { ok: true, rowCount: parsed.rows.length, stagedCount };
+  } catch (error) {
+    return { ok: false, errorCode: error instanceof StagingError ? error.code : "staging_write_failed" };
+  }
 }
+
 
 /**
  * Endorsements holdes utenfor anbefalings-domenetabellen (produktkontrakt v1.1):
