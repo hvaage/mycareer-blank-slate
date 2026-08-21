@@ -129,9 +129,9 @@ export async function validateAndStageArchive(params: {
       });
       validFileCount += 1;
       if (purpose) {
-        await upsertFilePurpose(admin, fileId, userId, purpose, "skipped_no_consent", 0, null);
+        await upsertFilePurpose(admin, fileId, userId, purpose, "skipped_no_selected_purpose", 0, null);
         filePurposeOutcomes.push({
-          archivePath: entry.archivePath, purpose, status: "skipped_no_consent", stagedRecordCount: 0,
+          archivePath: entry.archivePath, purpose, status: "skipped_no_selected_purpose", stagedRecordCount: 0,
         });
       }
       nextFileIndex = fileIndex + 1;
