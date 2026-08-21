@@ -329,9 +329,38 @@ async function persistDrafts(
     drafts: ProposalDraft[];
   },
 ) {
+  const { planForThread, supersedePendingProposal, touchThread } = await import("./threads.server");
+
   for (const draft of args.drafts) {
     const sourceHash = await hashSnapshot(draft.sourceSnapshot);
     const targetHash = draft.targetSnapshot ? await hashSnapshot(draft.targetSnapshot) : null;
+
+    // Stabil linje per (bruker, domene, dedupe-nøkkel) på tvers av importer.
+    const plan = await planForThread(admin, {
+      userId: args.userId,
+      domain: draft.domain,
+      threadKey: draft.dedupeKey,
+      sourceHash,
+    });
+
+    // Uendret kilde: ingen ny kø-støy.
+    if (plan.action === "idempotent") continue;
+
+    const decided = plan.action === "supersede" && plan.decided;
+    const kind = decided ? "possible_update" : draft.kind;
+    const reasonCodes = [...draft.reasonCodes];
+    if (plan.action === "supersede") {
+      reasonCodes.push(decided ? "source_changed_after_decision" : "source_changed");
+    }
+    const comparison =
+      plan.action === "supersede"
+        ? {
+            ...draft.comparison,
+            previous_status: plan.previousStatus,
+            previous_source_snapshot_hash: plan.previousSourceHash,
+            replaces_proposal_id: plan.previousProposalId,
+          }
+        : draft.comparison;
 
     const { data: proposal, error } = await admin
       .from("linkedin_reconciliation_proposals")
@@ -341,7 +370,7 @@ async function persistDrafts(
         linkedin_import_id: args.importId,
         purpose: args.purpose,
         proposal_domain: draft.domain,
-        proposal_kind: draft.kind,
+        proposal_kind: kind,
         confidence: draft.confidence,
         match_method: draft.matchMethod,
         dedupe_key: draft.dedupeKey,
@@ -351,14 +380,38 @@ async function persistDrafts(
         target_snapshot_json: draft.targetSnapshot,
         target_snapshot_hash: targetHash,
         proposed_payload_json: draft.proposedPayload,
-        comparison_json: draft.comparison,
-        reason_codes: draft.reasonCodes,
-        review_message: draft.reviewMessage,
+        comparison_json: comparison,
+        reason_codes: reasonCodes,
+        review_message:
+          decided && plan.previousStatus
+            ? `Kilden i LinkedIn er endret etter at du tok stilling til denne saken. ${draft.reviewMessage}`
+            : draft.reviewMessage,
         reconciliation_version: RECONCILIATION_VERSION,
+        thread_id: plan.threadId,
+        supersedes_proposal_id: plan.action === "supersede" ? plan.previousProposalId : null,
       })
       .select("id")
       .single();
     if (error || !proposal) continue;
+
+    // Ventende forslag kan erstattes; beslutningshistorikk bevares alltid.
+    if (plan.action === "supersede" && plan.previousProposalId && !decided) {
+      await supersedePendingProposal(admin, {
+        userId: args.userId,
+        proposalId: plan.previousProposalId,
+      });
+    }
+
+    if (plan.threadId) {
+      await touchThread(admin, {
+        threadId: plan.threadId,
+        userId: args.userId,
+        proposalId: proposal.id,
+        sourceHash,
+        status: "pending_review",
+        reopened: plan.action === "supersede",
+      });
+    }
 
     if (draft.sources.length > 0) {
       await admin.from("linkedin_reconciliation_proposal_sources").insert(
@@ -373,6 +426,7 @@ async function persistDrafts(
     }
   }
 }
+
 
 // ---------------------------------------------------------------
 // Domeneregler
