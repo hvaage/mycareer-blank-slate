@@ -86,16 +86,23 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
     case "volunteer": {
       const started = parseLinkedInDate(pick(row, "Started On", "Start Date"));
       const finished = parseLinkedInDate(pick(row, "Finished On", "End Date"));
+      const isCertification = recordKind === "certification";
       const f = {
-        entry_kind: recordKind === "certification" ? "certification" : recordKind,
+        entry_kind: isCertification ? "certification" : recordKind,
         organization_name: pick(row, "Company Name", "School Name", "Authority", "Company / Organization"),
         title: pick(row, "Title", "Degree Name", "Name", "Role", "Language"),
         location: pick(row, "Location"),
         description: pick(row, "Description", "Notes", "Proficiency", "Cause"),
         started_on: started?.value ?? null,
+        // For sertifiseringer er «Finished On» utløpsdato når den finnes.
         finished_on: finished?.value ?? null,
         date_precision: started?.precision ?? finished?.precision ?? null,
+        credential_id: isCertification ? pick(row, "License Number", "Credential ID") : null,
+        credential_url: isCertification
+          ? httpUrl(pick(row, "Url", "URL", "Credential URL"))
+          : null,
       };
+
       return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
     }
     case "recommendation_received":
