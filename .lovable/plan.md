@@ -36,11 +36,13 @@ I 5A lenkes det kun mellom selskap og kontakt. Muligheter, aktiviteter og dokume
 
 **Liste:** navn, tittel, selskap, relasjon, neste aktivitet, sist kontaktet. Telefon, e-post og LinkedIn-lenke vises kun når verdien faktisk finnes i produktlaget.
 
-**Detaljside:** navn/tittel/selskap øverst, selskapsnavn lenker til selskapssiden. Paneler: kontaktprofil og kanaler, relasjon/introduksjon/referanse, relevante muligheter, aktiviteter og tidslinje, notater, mottatte anbefalinger kun ved eksplisitt brukerkobling. LinkedIn-endorsements vises ikke her.
+**Detaljside:** navn/tittel/selskap øverst, selskapsnavn lenker til selskapssiden. Paneler: kontaktprofil og kanaler, relasjon/introduksjon/referanse, samt lesende paneler for relevante muligheter, aktiviteter/tidslinje og notater. Ingen lenker til ubygde ruter i 5A. Mottatte anbefalinger vises kun ved eksplisitt brukerkobling. LinkedIn-endorsements vises ikke her.
 
-## LinkedIn-import i UI
+## LinkedIn-import og promoteringsinngang i UI
 
-Importstatus og batchoppsummering vises i Kildeimport/Kildegjennomgang med tellinger delt på personkontakter, selskapsobservasjoner, nettverksarrangementer, preferansesignaler og invitasjoner uten avklart identitet. Ingen av disse fremstår som lagt til i registeret. Fra oppsummeringen går det en tydelig inngang til den kontrollerte promoteringsgjennomgangen. Ingen automatisk promotering. LinkedIn-cron forblir inaktiv.
+Importstatus og batchoppsummering vises i Kildeimport/Kildegjennomgang med tellinger delt på personkontakter, selskapsobservasjoner, nettverksarrangementer, preferansesignaler og invitasjoner uten avklart identitet. Ingen av disse fremstår som lagt til i registeret.
+
+Promoteringsinngangen opererer kun på én frossen batch med status `ready`, gjennom eksisterende kontrollert serverflyt. Kun `person_contact` kan foreslås som kontakt og inngå i en eksplisitt massehandling. Selskapsobservasjoner, arrangementer, hashtag-signaler og invitasjoner vises separat og får aldri samme massehandling. Ingen automatisk promotering. LinkedIn-cron forblir inaktiv.
 
 ## Arbeidsflate
 
