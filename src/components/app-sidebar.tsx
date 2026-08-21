@@ -73,6 +73,7 @@ const primaryGroups: GroupNode[] = [
       { label: "Legg til kilder", to: "/kilder" },
       { label: "Gjennomgå forslag", to: "/forslag" },
       { label: "Min dokumentasjon", to: "/documentation" },
+      { label: "Nettverk og muligheter", to: "/nettverk/kontakter" },
     ],
     matchPrefixes: [
       "/about-me",
@@ -84,6 +85,7 @@ const primaryGroups: GroupNode[] = [
       "/forslag",
       "/documentation",
       "/documents",
+      "/nettverk",
     ],
 
 
