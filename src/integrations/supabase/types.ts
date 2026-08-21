@@ -3900,6 +3900,8 @@ export type Database = {
       }
       linkedin_career_staging: {
         Row: {
+          credential_id: string | null
+          credential_url: string | null
           date_precision: string | null
           description: string | null
           entry_kind: string
@@ -3913,6 +3915,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          credential_id?: string | null
+          credential_url?: string | null
           date_precision?: string | null
           description?: string | null
           entry_kind: string
@@ -3926,6 +3930,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          credential_id?: string | null
+          credential_url?: string | null
           date_precision?: string | null
           description?: string | null
           entry_kind?: string
