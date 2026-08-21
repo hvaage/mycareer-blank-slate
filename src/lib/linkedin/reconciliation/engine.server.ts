@@ -208,14 +208,24 @@ async function reconcilePurpose(
   target: TargetSnapshot,
   authorHmacSecret: string,
 ): Promise<ReconcileResult["runs"][number]> {
-  const { data: linkRows } = await admin
-    .from("linkedin_import_stage_records")
-    .select("staging_record_id")
-    .eq("linkedin_import_id", input.importId)
-    .eq("user_id", input.userId)
-    .eq("purpose", purpose);
-
-  const recordIds = (linkRows ?? []).map((r) => r.staging_record_id);
+  // Fullstendig, paginert kildeuttrekk. Uten paginering stoppet uttrekket på
+  // PostgREST-taket, og et for stort `in()`-oppslag feilet stille — begge deler
+  // ga en tilsynelatende gyldig kjøring på et avkortet grunnlag.
+  let recordIds: string[];
+  try {
+    recordIds = await fetchAllIds((from, to) =>
+      admin
+        .from("linkedin_import_stage_records")
+        .select("staging_record_id")
+        .eq("linkedin_import_id", input.importId)
+        .eq("user_id", input.userId)
+        .eq("purpose", purpose)
+        .order("staging_record_id", { ascending: true })
+        .range(from, to),
+    );
+  } catch {
+    return { purpose, runId: null, status: "failed", proposals: 0, skipReason: "database_error" };
+  }
   if (recordIds.length === 0) {
     return {
       purpose,
