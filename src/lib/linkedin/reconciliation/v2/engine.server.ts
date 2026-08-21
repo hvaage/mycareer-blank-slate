@@ -14,10 +14,13 @@ import {
   RECONCILIATION_VERSION,
   exactIdentityMatch,
   normalizeLinkedInProfileUrl,
+  objectKindForRecordKind,
   type MatchableContact,
   type NetworkBatchItem,
   type NetworkBatchItemCategory,
+  type NetworkObjectKind,
 } from "./contract.server";
+
 
 // Avstemmingstabellene for nettverk v2 finnes i den genererte typefila, men
 // motoren bruker en løs klienttype (som v1) for å unngå tett kobling til
@@ -79,9 +82,11 @@ function chunk<T>(items: T[], size = LOOKUP_CHUNK): T[][] {
 type NetworkStagingRow = {
   id: string;
   staging_domain: string;
+  record_kind: string;
   source_classification: string;
   source_identity_hash: string;
 };
+
 
 type NetworkFieldsRow = {
   staging_record_id: string;
