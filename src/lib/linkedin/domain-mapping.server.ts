@@ -207,13 +207,22 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
     }
     case "course": {
       // Rå kildeverdier, kun for statusutledning – aldri lagret rått.
-      const rawCompleted =
-        pick(row, "Content Completed At (if completed)") ?? pick(row, "Completed Date");
-      const rawLastWatched = pick(row, "Content Last Watched Date");
+      const rawCompleted = absentAsNull(
+        pick(row, "Content Completed At (if completed)", "Completed Date", "Completed On"),
+      );
+      const rawLastWatched = absentAsNull(
+        pick(
+          row,
+          "Content Last Watched Date (if viewed)",
+          "Content Last Watched Date",
+          "Last Watched Date",
+        ),
+      );
+      // «Content Description» er aldri URL-kilde.
       const rawUrl = pick(row, "Content URL", "Content Url", "URL", "Url", "Link");
 
-      const completedOn = parseLinkedInDate(rawCompleted)?.value ?? null;
-      const lastWatchedOn = parseLinkedInDate(rawLastWatched)?.value ?? null;
+      const completedOn = parseLearningDate(rawCompleted);
+      const lastWatchedOn = parseLearningDate(rawLastWatched);
 
       // Fullført = en faktisk PARSEBAR fullførtdato. «Last Watched» er aldri
       // fullføring, og en ugyldig dato gir ikke fullført status.
@@ -222,6 +231,8 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
       if (rawCompleted && !completedOn) codes.push("invalid_completion_date");
       if (rawLastWatched && !lastWatchedOn) codes.push("invalid_last_watched_date");
       if (rawUrl && !httpUrl(rawUrl)) codes.push("non_http_url_ignored");
+      if (!rawCompleted && !rawLastWatched) codes.push("no_date_in_source");
+
 
       const completionStatus = isCompleted
         ? "completed"
