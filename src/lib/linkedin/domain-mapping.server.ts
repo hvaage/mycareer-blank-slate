@@ -26,6 +26,17 @@ const pick = (row: Row, ...keys: string[]) => {
   return null;
 };
 
+/** Returnerer verdien kun når den er en gyldig absolutt http/https-URL. */
+export function httpUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export type MappedRecord = {
   domainFields: Record<string, unknown>;
   /** Felter som inngår i identitetshashen. */
