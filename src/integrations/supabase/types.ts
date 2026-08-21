@@ -9503,6 +9503,7 @@ export type Database = {
         | "without_stable_identity"
         | "observed_profile_change"
         | "excluded"
+        | "new_contact"
       linkedin_network_batch_item_status:
         | "pending"
         | "approved"
@@ -9731,6 +9732,7 @@ export const Constants = {
         "without_stable_identity",
         "observed_profile_change",
         "excluded",
+        "new_contact",
       ],
       linkedin_network_batch_item_status: [
         "pending",
