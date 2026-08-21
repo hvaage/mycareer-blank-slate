@@ -201,6 +201,34 @@ async function loadTargetSnapshot(admin: Admin, userId: string): Promise<TargetS
 // Kjøring per formål
 // ---------------------------------------------------------------
 
+/** PostgREST-sidestørrelse (under standardtaket) og maks ID-er per `in()`. */
+const PAGE_SIZE = 500;
+const LOOKUP_CHUNK = 200;
+
+function chunkIds<T>(items: T[], size = LOOKUP_CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/** Henter alle sider med stabil sortering. Kaster ved databasefeil. */
+async function fetchAllIds(
+  page: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: Array<{ staging_record_id: string }> | null; error: unknown }>,
+): Promise<string[]> {
+  const ids: string[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error("database_error");
+    const rows = data ?? [];
+    ids.push(...rows.map((r) => r.staging_record_id));
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return ids;
+}
+
 async function reconcilePurpose(
   admin: Admin,
   input: { userId: string; importId: string },
