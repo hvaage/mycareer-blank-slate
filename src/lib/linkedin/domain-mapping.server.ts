@@ -291,3 +291,23 @@ function stringFields(f: Record<string, unknown>): Record<string, string | null>
   for (const [k, v] of Object.entries(f)) out[k] = typeof v === "string" ? v : null;
   return out;
 }
+
+/** «N/A», «-» og tomt betyr fravær av verdi, ikke ugyldig verdi. */
+export function absentAsNull(value: string | null): string | null {
+  if (!value) return null;
+  const v = value.trim();
+  if (!v || /^(n\/?a|na|-|—|none|null)$/i.test(v)) return null;
+  return v;
+}
+
+/**
+ * Learning-datoer kan være «2022-04-05 14:10 UTC» i tillegg til de vanlige
+ * LinkedIn-formatene. Returnerer ISO-dato (YYYY-MM-DD) eller null.
+ */
+export function parseLearningDate(value: string | null): string | null {
+  const v = absentAsNull(value);
+  if (!v) return null;
+  const ts = /^(\d{4})-(\d{2})-(\d{2})[ T]\d{2}:\d{2}/.exec(v);
+  if (ts) return `${ts[1]}-${ts[2]}-${ts[3]}`;
+  return parseLinkedInDate(v)?.value ?? null;
+}
