@@ -923,6 +923,7 @@ function learningDraft(
     course_title: string | null;
     provider: string | null;
     completed_on: string | null;
+    content_url?: string | null;
     progress_label: string | null;
   },
   src: StagingRow,
@@ -933,6 +934,9 @@ function learningDraft(
   const key = normKey(label);
   const match = target.qualifications.find((q) => normKey(q.label) === key);
   const completed = Boolean(monthKey(row.completed_on));
+  // Kontrakt v1.1: fullført LinkedIn Learning-kurs er ALLTID `course`,
+  // aldri `certification`. Sertifiseringer kommer fra karrieredomenet med
+  // egen utsteder, credential-id og eventuell utløpsdato.
   return {
     domain: "learning",
     kind: match ? "keep_existing" : completed ? "create" : "not_actionable_in_phase_3",
@@ -944,10 +948,21 @@ function learningDraft(
       course: label,
       provider: snapshotText(row.provider),
       completed_on: monthKey(row.completed_on),
+      content_url: snapshotText(row.content_url ?? null),
       progress: snapshotText(row.progress_label),
     },
     targetSnapshot: match ? { atom_id: match.id, label: match.label } : null,
-    proposedPayload: match || !completed ? null : { atom_type: "certification", label },
+    proposedPayload:
+      match || !completed
+        ? null
+        : {
+            atom_type: "course",
+            title: label,
+            label,
+            provider: snapshotText(row.provider),
+            completed_on: monthKey(row.completed_on),
+            content_url: snapshotText(row.content_url ?? null),
+          },
     comparison: { matched: Boolean(match), completed },
     reasonCodes: match ? ["identical"] : completed ? ["missing_in_product"] : ["not_completed"],
     reviewMessage: match
@@ -958,3 +973,4 @@ function learningDraft(
     sources: [{ stagingRecordId: src.id, role: "primary", reference: ref(src) }],
   };
 }
+
