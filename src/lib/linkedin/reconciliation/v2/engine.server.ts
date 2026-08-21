@@ -245,7 +245,7 @@ async function buildBatchItems(
     const name = fields?.full_name ?? null;
     const profileUrl = fields?.profile_url ?? null;
     const nameKey = normKey(name);
-    const urlKey = normKey(profileUrl);
+    const urlKey = normalizeLinkedInProfileUrl(profileUrl);
 
     const sourceHash = await hashSnapshot({
       name: nameKey || null,
