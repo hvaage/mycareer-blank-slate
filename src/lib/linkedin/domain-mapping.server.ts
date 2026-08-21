@@ -147,8 +147,9 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
         parseLinkedInDate(pick(row, "Content Completed At (if completed)"))?.value ??
         parseLinkedInDate(pick(row, "Completed Date"))?.value ??
         null;
-      const isCompleted =
-        pick(row, "Content Completed At (if completed)") != null || pick(row, "Completed Date") != null;
+      // Fullført = en faktisk PARSEBAR fullførtdato. «Last Watched» er aldri
+      // fullføring, og en ugyldig dato gir ikke fullført status.
+      const isCompleted = completedOn != null;
       const f = {
         content_type: "course",
         course_title: pick(row, "Content Title", "Title"),
@@ -156,11 +157,14 @@ export function mapRow(recordKind: string, row: Row): MappedRecord | null {
         completed_on: completedOn,
         last_watched_on: lastWatchedOn,
         is_completed: isCompleted,
-        content_url: pick(row, "Content Description", "Content URL", "URL"),
+        // Kun ekte URL-kolonner, og kun når verdien er en gyldig http(s)-URL.
+        // «Content Description» brukes aldri som URL-fallback.
+        content_url: httpUrl(pick(row, "Content URL", "Content Url", "URL", "Url", "Link")),
         progress_label: isCompleted ? "Fullført" : null,
       };
       return { domainFields: f, identityFields: stringFields(f), sourceEventAt: null };
     }
+
     case "rich_media":
     case "article": {
       const f = {
