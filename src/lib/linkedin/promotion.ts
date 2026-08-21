@@ -15,7 +15,7 @@
 //    Ikke-retrybare valideringsfeil setter forslaget til promotion_failed,
 //    og brukeren reåpner det via linkedin_promotion_reopen (beslutningslaget).
 // ============================================================
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 export const PROMOTION_RESOLUTIONS = ["create_new", "link_to_existing", "use_linkedin_value"] as const;
 export type PromotionResolution = (typeof PROMOTION_RESOLUTIONS)[number];

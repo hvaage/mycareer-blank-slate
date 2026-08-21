@@ -331,7 +331,7 @@ export function ExperienceOverview() {
   const results = byClass("resultat");
   const skills = byClass("kompetanse");
   const exposure = byClass("eksponering");
-  const qualifications = byClass("kvalifikasjon");
+  const qualificationsAll = byClass("kvalifikasjon");
   const tools = byClass("instrument");
 
   const childrenOf = (roleId: string) => (rows: CareerAtomRow[]) =>
@@ -362,6 +362,17 @@ export function ExperienceOverview() {
 
   // Standard: åpne kort ved færre enn fem roller, kollapset over det.
   const { data: credentials } = useCredentialAtoms();
+
+  // Atomer som allerede vises i en egen art-seksjon (Språk, Førerkort, ...)
+  // skal ikke gjentas i den generelle Kvalifikasjoner-listen.
+  const credentialAtomIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const rows of Object.values(credentials ?? {})) {
+      for (const row of rows as { id: string }[]) ids.add(row.id);
+    }
+    return ids;
+  }, [credentials]);
+  const qualifications = qualificationsAll.filter((q) => !credentialAtomIds.has(q.id));
 
   const { isOpen, toggle, setAll } = usePersistedCollapse(
     "karriere.erfaring.roller",
