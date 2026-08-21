@@ -73,6 +73,8 @@ export const NETWORK_BATCH_STATUSES = ["preparing", "ready", "consumed", "supers
 export type NetworkBatchStatus = (typeof NETWORK_BATCH_STATUSES)[number];
 
 export type NetworkBatchItem = {
+  objectKind: NetworkObjectKind;
+
   stagingRecordId?: string;
   sourceIdentityHash: string;
   category: NetworkBatchItemCategory;
