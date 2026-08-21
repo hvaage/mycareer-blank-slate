@@ -5,24 +5,22 @@ Leveransen dekker modulnavigasjon, globalt søk, importstatus, Selskaper og Kont
 ## Navigasjon og modulskall
 
 - Ny gruppe **Nettverk og muligheter** i sidemenyen under **Min karriere**, plassert før **Marked**.
-- Rutetre under `/nettverk`:
+- Rutetre under `/nettverk` i 5A:
 
 ```text
-/nettverk/oversikt      (5B — plassholder med tydelig «bygges i neste leveranse»)
 /nettverk/selskaper     liste
 /nettverk/selskaper/$id detalj
 /nettverk/kontakter     liste
 /nettverk/kontakter/$id detalj
-/nettverk/muligheter    (5B — plassholder)
-/nettverk/aktiviteter   (5B — plassholder)
 ```
 
-- Fast sekundærnavigasjon i modulens topplinje: Oversikt | Selskaper | Kontakter | Muligheter | Aktiviteter. Flater som ikke er bygget markeres som kommende, ikke som tomme data.
+- Sekundærnavigasjonen viser i 5A kun **Selskaper | Kontakter**. Det opprettes ingen plassholderruter eller -faner for Oversikt, Muligheter eller Aktiviteter; hele femflatenavigasjonen introduseres samlet i 5B.
 - Detaljsider har kun «← Tilbake» som bruker faktisk historikk (`router.history.back()` med fallback til registerlisten). Filtre og søk ligger i URL-søkeparametere slik at tilbake gjenoppretter kontekst.
 
 ## Globalt søk
 
-Tenant-scopet søkefelt i modulens topplinje. Slår opp i `network_contacts`, `companies` (kun selskaper brukeren har relasjon til eller mulighet knyttet til) og `user_opportunities`. Resultater grupperes etter objektklasse og lenker til detaljside. Ingen oppslag mot staging eller andre brukeres rader.
+Tenant-scopet søkefelt i modulens topplinje. Slår opp i `network_contacts` og i selskaper brukeren er knyttet til — gjennom `user_company_relationships`, `user_opportunities` og `network_contacts` / `network_contact_company_relations`. Resultater grupperes etter objektklasse og lenker til kontakt- og selskapsdetalj. Ingen oppslag mot staging eller andre brukeres rader.
+
 
 ## Selskaper
 
