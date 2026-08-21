@@ -74,16 +74,34 @@ export async function runNetworkReconciliationV2(
 
   const { data: contactRows, error: contactError } = await admin
     .from("network_contacts")
-    .select("id, display_name, linkedin_profile_url")
+    .select("id, display_name")
     .eq("user_id", input.userId)
     .eq("is_active", true);
   if (contactError) return { ok: false, error: "database_error" };
 
+  // Kanonisk eier av LinkedIn-profil-URL er network_contact_identities.
+  const { data: identityRows, error: identityError } = await admin
+    .from("network_contact_identities")
+    .select("network_contact_id, identity_key")
+    .eq("user_id", input.userId)
+    .eq("identity_kind", "linkedin_profile_url");
+  if (identityError) return { ok: false, error: "database_error" };
+
+  const keysByContact = new Map<string, string[]>();
+  for (const row of identityRows ?? []) {
+    const key = normalizeLinkedInProfileUrl(row.identity_key);
+    if (!key) continue;
+    const list = keysByContact.get(row.network_contact_id) ?? [];
+    list.push(key);
+    keysByContact.set(row.network_contact_id, list);
+  }
+
   const contacts: MatchableContact[] = (contactRows ?? []).map((c) => ({
     id: c.id,
     displayName: c.display_name ?? null,
-    linkedinProfileUrl: c.linkedin_profile_url ?? null,
+    identityKeys: keysByContact.get(c.id) ?? [],
   }));
+
 
   const inputSignature = await sha256Hex(
     JSON.stringify({
