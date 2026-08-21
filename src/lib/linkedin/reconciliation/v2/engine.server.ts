@@ -318,15 +318,18 @@ async function buildBatchItems(
 
   const items: NetworkBatchItem[] = [];
   for (const src of staging) {
+    const objectKind = objectKindForRecordKind(src.record_kind);
+
     if (src.source_classification === "excluded_by_product_contract_v1_1") {
       items.push({
+        objectKind,
         stagingRecordId: src.id,
         sourceIdentityHash: src.source_identity_hash,
         sourceHash: src.source_identity_hash,
         observedAt: null,
         category: "excluded",
         proposedAction: "skip",
-        reasonCodes: ["excluded_by_product_contract_v1_1"],
+        reasonCodes: ["excluded_by_product_contract_v1_1", `object_kind:${objectKind}`],
       });
       continue;
     }
@@ -348,11 +351,24 @@ async function buildBatchItems(
     });
 
     const base = {
+      objectKind,
       stagingRecordId: src.id,
       sourceIdentityHash: src.source_identity_hash,
       sourceHash,
       observedAt: fields?.connected_on ?? null,
     };
+
+    // Ikke-personobjekter kan aldri bli kontakter. De holdes utenfor
+    // kontaktkategoriene og telles per objektklasse.
+    if (objectKind !== "person_contact") {
+      items.push({
+        ...base,
+        category: "excluded",
+        proposedAction: "skip",
+        reasonCodes: ["not_a_person_contact", `object_kind:${objectKind}`],
+      });
+      continue;
+    }
 
     const exact = exactIdentityMatch({ profileUrl }, contacts);
     if (exact) {
@@ -367,7 +383,7 @@ async function buildBatchItems(
           category: "observed_profile_change",
           proposedAction: "review_manually",
           targetContactId: exact.id,
-          reasonCodes: ["profile_name_changed"],
+          reasonCodes: ["profile_name_changed", `object_kind:${objectKind}`],
         });
         continue;
       }
@@ -376,17 +392,23 @@ async function buildBatchItems(
         category: "exact_identity_match",
         proposedAction: "merge_into_contact",
         targetContactId: exact.id,
-        reasonCodes: ["url_match"],
+        reasonCodes: ["url_match", `object_kind:${objectKind}`],
       });
       continue;
     }
 
-    if (!urlKey && !nameKey) {
+    // Navn uten normalisert LinkedIn-URL gir aldri stabil personidentitet og
+    // kan aldri auto-sammenslås.
+    if (!urlKey) {
       items.push({
         ...base,
         category: "without_stable_identity",
-        proposedAction: "skip",
-        reasonCodes: ["no_profile_url", "no_name"],
+        proposedAction: "review_manually",
+        reasonCodes: [
+          "possible_person_without_stable_identity",
+          "no_profile_url",
+          `object_kind:${objectKind}`,
+        ],
       });
       continue;
     }
@@ -403,7 +425,7 @@ async function buildBatchItems(
         category: "possible_duplicate",
         proposedAction: "review_manually",
         targetContactId: duplicates[0].contact.id,
-        reasonCodes: ["name_similarity"],
+        reasonCodes: ["name_similarity", `object_kind:${objectKind}`],
       });
       continue;
     }
@@ -412,8 +434,9 @@ async function buildBatchItems(
       ...base,
       category: "new_contact",
       proposedAction: "create_contact",
-      reasonCodes: ["missing_in_product"],
+      reasonCodes: ["missing_in_product", `object_kind:${objectKind}`],
     });
+
   }
   return items;
 }
