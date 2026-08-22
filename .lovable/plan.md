@@ -24,8 +24,9 @@ Nye ruter:
 Statuskort (alle lenker til filtrert liste):
 - Trenger oppfølging → åpne/forfalte aktiviteter.
 - Aktive muligheter → ikke-avsluttede `user_opportunities`.
-- Varme kontakter → vises kun dersom deterministisk grunnlag finnes: kontakt med aktivitet (`next_steps.completed_at`) siste 90 dager. Uten grunnlag skjules kortet i stedet for å gjette.
-- Intervjuer denne måneden → `interviews.scheduled_at` innen inneværende måned.
+- Varme kontakter → smal definisjon: kontakt med fullført aktivitet siste 90 dager der aktiviteten er knyttet til kontakten og `activity_type` er `moete`, `samtale` eller `e_post`. Fullført søknadsoppgave gjør ikke en kontakt varm. Uten grunnlag skjules kortet.
+- Intervjuer denne måneden → verifisert: `interviews` er bruker-scopet med RLS på `auth.uid()` og har `scheduled_at`, så kortet bygges på den tabellen, supplert med `next_steps` der `activity_type = 'intervju'` og `status <> 'avlyst'`.
+
 
 Innhold: neste aktiviteter (dato først, tekst på samme linje), prioriterte selskaper kun der `status`/`priority` er lagret på `user_company_relationships`, siste aktivitet kun innenfor nylig periode (90 dager), hurtighandlinger `Logg aktivitet`, `Ny mulighet`, `Åpne aktiviteter`. `Få aktivitetsforslag` vises deaktivert med `Kommer snart` — ingen kall, ingen lagring.
 
