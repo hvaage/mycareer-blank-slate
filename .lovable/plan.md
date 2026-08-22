@@ -24,9 +24,11 @@ Kartlegging: applikasjonen har allerede en lovlig kobling til arbeidsgiver- og r
 
 Slik vises det:
 
-- Kompakt panel «Registerdata og nøkkeltall» på selskapsdetaljen når selskapet har organisasjonsnummer: nyeste regnskapsår, driftsinntekter, driftsresultat, årsresultat, sum eiendeler, egenkapital og gjeld — kun feltene som faktisk finnes, alltid med kilde og hentetidspunkt.
+- Kompakt panel «Registerdata og nøkkeltall» på selskapsdetaljen når selskapet har organisasjonsnummer: driftsinntekter, driftsresultat, årsresultat, sum eiendeler, egenkapital og gjeld — kun feltene som faktisk finnes.
+- Nøkkeltallene vises alltid sammen med regnskapsår og valuta, og med regnskapstype/periode når den finnes, i tillegg til kilde og hentetidspunkt. Beløp uten valuta eller årstall presenteres ikke som sammenlignbare nøkkeltall.
+- Manglende enkeltfelt utelates uten å etterlate nullverdier.
 - Eksisterende nøkkeltall-visning fra arbeidsgiverflaten gjenbrukes, ikke reimplementeres.
-- Mangler organisasjonsnummer eller regnskapsdata: panelet viser «Regnskapstall er ikke tilgjengelig ennå» med kort forklaring. Aldri nullverdier, og aldri KI-score som erstatning for nøkkeltall.
+- Mangler organisasjonsnummer eller regnskapsgrunnlag helt: panelet viser «Regnskapstall er ikke tilgjengelig ennå» med kort forklaring. Aldri nullverdier, og aldri KI-score som erstatning for nøkkeltall.
 - Selskaper som bare er kjent via navn fra kontakter får uendret adferd: ingen registerdata, ingen status eller prioritet.
 
 ## C. Massegjennomgang i kildegjennomgangen
