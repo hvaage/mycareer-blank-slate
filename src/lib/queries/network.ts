@@ -219,22 +219,56 @@ export function buildCompanies(graph: NetworkGraph): NetworkCompanyItem[] {
 }
 
 export function buildContacts(graph: NetworkGraph): NetworkContactItem[] {
-  const relByContact = new Map<string, (typeof graph.relations)[number]>();
+  // Aktiv (brukerregistrert) relasjon vinner; ellers siste LinkedIn-observasjon.
+  const activeRel = new Map<string, (typeof graph.relations)[number]>();
+  const observedRel = new Map<string, (typeof graph.relations)[number]>();
   for (const rel of graph.relations) {
-    if (!relByContact.has(rel.network_contact_id)) relByContact.set(rel.network_contact_id, rel);
+    if (rel.is_active) {
+      activeRel.set(rel.network_contact_id, rel);
+    } else if (!observedRel.has(rel.network_contact_id)) {
+      observedRel.set(rel.network_contact_id, rel);
+    }
+  }
+
+  const identityByContact = new Map<string, { url: string; observedAt: string | null }>();
+  for (const ident of graph.identities ?? []) {
+    if (!ident.identity_key) continue;
+    const current = identityByContact.get(ident.network_contact_id);
+    if (!current || (ident.last_observed_at ?? "") > (current.observedAt ?? "")) {
+      identityByContact.set(ident.network_contact_id, {
+        url: ident.identity_key,
+        observedAt: ident.last_observed_at ?? null,
+      });
+    }
   }
 
   return graph.contacts.map((c) => {
-    const rel = relByContact.get(c.id);
+    const active = activeRel.get(c.id) ?? null;
+    const observed = observedRel.get(c.id) ?? null;
+    const identity = identityByContact.get(c.id) ?? null;
     const steps = graph.steps.filter((s) => s.contact_id === c.id);
     const next = steps.find((s) => !s.completed) ?? null;
     const done = steps.filter((s) => s.completed_at).map((s) => s.completed_at).sort();
+
+    const linkedinCompany = observed?.company_name_observed ?? c.company ?? null;
+    const manualCompany = active?.company_name_observed ?? null;
+    const manualName = c.manual_display_name ?? null;
+    const manualHeadline = c.manual_headline ?? null;
+
     return {
       id: c.id,
-      display_name: c.display_name,
-      headline: c.headline ?? null,
-      company: c.company ?? rel?.company_name_observed ?? null,
-      companyId: rel?.company_id ?? null,
+      display_name: manualName ?? c.display_name,
+      headline: manualHeadline ?? c.headline ?? null,
+      company: manualCompany ?? linkedinCompany,
+      companyId: active?.company_id ?? observed?.company_id ?? null,
+      nameSource: manualName ? "user_input" : "linkedin_observed",
+      headlineSource: manualHeadline ? "user_input" : "linkedin_observed",
+      companySource: manualCompany ? "user_input" : "linkedin_observed",
+      linkedinDisplayName: c.display_name ?? null,
+      linkedinHeadline: c.headline ?? null,
+      linkedinCompany,
+      linkedinProfileUrl: identity?.url ?? null,
+      linkedinObservedAt: identity?.observedAt ?? c.last_observed_at ?? null,
       connected_on: c.connected_on ?? null,
       source_system: c.source_system ?? null,
       last_observed_at: c.last_observed_at ?? null,
@@ -243,6 +277,7 @@ export function buildContacts(graph: NetworkGraph): NetworkContactItem[] {
     };
   });
 }
+
 
 export type NetworkSearchResults = {
   contacts: NetworkContactItem[];
