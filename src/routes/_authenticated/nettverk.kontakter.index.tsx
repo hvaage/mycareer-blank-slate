@@ -196,7 +196,7 @@ function ContactsPage() {
                     variant="outline"
                     className="h-7 w-7"
                     disabled={currentPage >= pageCount - 1}
-                    onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}
+                    onClick={() => setPage(Math.min(pageCount - 1, currentPage + 1))}
                     aria-label="Neste kontaktside"
                   >
                     <ChevronRight className="h-4 w-4" aria-hidden />
