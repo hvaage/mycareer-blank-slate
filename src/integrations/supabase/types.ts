@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      _sec5a_results: {
+        Row: {
+          detail: string | null
+          result: string | null
+          seq: number | null
+          step: string | null
+        }
+        Insert: {
+          detail?: string | null
+          result?: string | null
+          seq?: number | null
+          step?: string | null
+        }
+        Update: {
+          detail?: string | null
+          result?: string | null
+          seq?: number | null
+          step?: string | null
+        }
+        Relationships: []
+      }
       application_process_ratings: {
         Row: {
           application_id: string
