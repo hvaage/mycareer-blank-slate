@@ -14,21 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _tmp_5b_verification: {
-        Row: {
-          detail: string | null
-          step: string | null
-        }
-        Insert: {
-          detail?: string | null
-          step?: string | null
-        }
-        Update: {
-          detail?: string | null
-          step?: string | null
-        }
-        Relationships: []
-      }
       application_process_ratings: {
         Row: {
           application_id: string
