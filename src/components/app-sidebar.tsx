@@ -94,7 +94,6 @@ const primaryGroups: GroupNode[] = [
     label: "Nettverksarbeid",
     title: "Nettverksarbeid",
     icon: Network,
-    to: "/nettverk/oversikt",
     items: [
       { label: "Oversikt", to: "/nettverk/oversikt" },
       { label: "Selskaper", to: "/nettverk/selskaper" },
