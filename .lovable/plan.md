@@ -1,71 +1,60 @@
-# Retting av NAV job feed smoke test
+# Fase 5A — Aktiver nettverksregisteret med kontrollert kontaktimport
 
-## Hva som skjedde
+## Bekreftet utgangspunkt (verifisert nå)
 
-Loggen viser årsakskjeden tydelig:
+Aktiv batch `253f0538…`, status `ready`, ukonsumert:
 
-1. `Could not fetch NAV public token: ... Read timed out. (read timeout=30)`
-2. `Token source: none` / `Authorization header will be sent: False`
-3. `GET /api/v1/feed` → `401` med feil-JSON (`title/status/type/details`)
-4. Skriptet leter etter `items` i den JSON-en, finner den ikke, og feiler med
-   «feed response did not contain an 'items' list»
+| Objektklasse | Antall | Kategori |
+|---|---|---|
+| person_contact | 3 881 | new_contact |
+| company_observation | 298 | excluded |
+| network_event | 89 | excluded |
+| network_preference_signal | 34 | excluded |
+| invitation | 46 | excluded |
 
-Selve `items`-feilen er altså en følgefeil. Rotproblemet er at testen henter
-tokenet dynamisk fra NAV ved hver kjøring (`NAV_FEED_USE_PUBLIC_TOKEN: 1`), og
-det kallet tidsavbrøt.
+`without_stable_identity` = 0. Produkttabellen `network_contacts` er tom for brukeren.
 
-Kontroll utført nå mot NAV:
+De kanoniske RPC-ene (`network_promote_batch_person_contacts`, `network_set_company_relationship`) finnes, er `service_role`-begrenset og kalles allerede via serverfunksjoner i `src/lib/network.functions.ts`. Ingen nye skriveveier lages.
 
-- Verten svarer raskt (0,2–0,3 s), så nedetid er ikke en varig tilstand — dette
-  var en forbigående treghet i NAV sitt token-endepunkt.
-- `GET /api/v1/feed` uten token gir fortsatt `401` (forventet).
-- Ingen av de åpne token-URL-ene svarer med et token via enkel GET
-  (`/api/v1/token`, `/api/v1/apiToken` → 404). Automatisk «public token»-henting
-  er derfor en skjør avhengighet CI ikke bør stå på.
+## Det som bygges
 
-Merk: koden som feiler ligger i repoet `hvaage/norwegian-career-intelligence`
-(`scripts/test_nav_feed.py` + GitHub Actions-workflowen), ikke i dette
-Lovable-prosjektet. Planen beskriver endringene som skal gjøres der.
+### 1. Tomtilstand på Kontakter
+Når brukeren ikke har promoterte kontakter, viser Kontakter-flaten et importkort:
+«Importer nettverket ditt fra LinkedIn», antall funnet personkontakter (3 881), forklaringen om at kontakter først opprettes ved bekreftelse og at LinkedIn ikke overskriver manuelle rettinger, lenke til Kildegjennomgang, og knappen «Gå gjennom og importer kontakter». Ingen andre objektklasser telles som kontakter.
 
-## Korreksjon
+### 2. Egen importgjennomgangsrute
+Ny rute `/nettverk/kontakter/import` (fast flate, ikke modal) med:
+- oppsummering: 3 881 nye kontakter, 0 uten stabil identitet, kilde `Connections.csv`, importtidspunkt
+- «Dette opprettes»: kontakt, kanonisk LinkedIn-identitet, observert selskaps-/rolletilknytning når den finnes
+- «Dette opprettes ikke»: aktiviteter, muligheter, selskapsprioritet, navnebasert sammenslåing, e-post/telefon
+- egen ikke-handlingsbar seksjon «Andre signaler beholdt som kildeinformasjon» med de fire tellingene og forklaring
+- ingen rå rader, hasher eller interne feilkoder
 
-1. **Token fra secret som primærkilde.** Workflowen setter `NAV_FEED_TOKEN` fra
-   `secrets.NAV_FEED_TOKEN`. Skriptet bruker det hvis satt, og forsøker kun
-   public-token som fallback. `NAV_FEED_USE_PUBLIC_TOKEN` settes til `0` når
-   secret finnes.
-2. **Robust nettverkslag.** Token-henting og feed-kall får `connect timeout 10 /
-   read timeout 60`, 3 forsøk med eksponentiell backoff (2s, 4s, 8s) på
-   timeout/5xx/429. Ingen retry på 401/403.
-3. **Skill infrastruktur fra datafeil.** Nye exit-koder:
-   - `0` = OK
-   - `1` = ekte datafeil (200 OK, men feil form / mangler `items`)
-   - `78` = infrastruktur/auth (timeout, 401, 403, 5xx) → workflowsteget merkes
-     som `neutral`/varsel i stedet for rød «All jobs have failed».
-4. **Presis feilmelding.** Når status ikke er 200, skal skriptet rapportere
-   HTTP-status og NAV sitt `title`-felt, og ikke påstå at feeden mangler
-   `items`. `items`-sjekken kjører kun på 200-svar.
-5. **Ingen råbody-lagring ved auth-feil.** `data/raw/sample_feed.json`
-   overskrives ikke med en 401-envelope, slik at siste gyldige eksempel består.
-6. **Verifisering.** Kjør workflowen manuelt (`workflow_dispatch`) etter at
-   secret er lagt inn: forventet resultat er 200 og en `items`-liste med
-   innslag; kjør deretter én gang med tomt token for å bekrefte at det gir
-   exit 78 og tydelig auth-melding, ikke «missing items».
+### 3. Eksplisitt bekreftelse
+Knapp «Importer 3 881 kontakter» → bekreftelsesdialog med den avtalte teksten (stabil identitet = profil-URL, navnelikhet slår aldri sammen, manuelle endringer overskrives ikke). Kun «Bekreft og importer» kaller serverfunksjonen. Ingen loader, polling, prefetch eller effekt kan utløse promotering — kallet skjer bare i klikkhandleren.
 
-## Det jeg trenger fra deg
+### 4. Fremdrift og resultat
+Knappen låses mens kallet pågår; ventetilstand vises. Ved suksess: antall opprettet, antall gjenbrukt (idempotent hoppet over), antall som krever manuell vurdering, og lenke til kontaktregisteret. Ved feil: sanitert melding + «Prøv igjen». Gjentatt kjøring presenteres som «allerede importert», ikke som ny import.
 
-`NAV_FEED_TOKEN` må legges inn som GitHub Actions-secret i
-`hvaage/norwegian-career-intelligence` (Settings → Secrets → Actions). Tokenet
-bestilles fra NAV sin feed-dokumentasjon.
+### 5. Kontaktliste og detaljside
+Liste: navn, sist observert rolle, sist observert selskap, LinkedIn-profil-lenke, sist observert i LinkedIn, brukerens relasjon/status når den finnes, neste aktivitet når den finnes.
+Detalj: navn og selskap som lenkbar navigasjon, LinkedIn-observasjon merket som kildeinformasjon med tidspunkt, manuell verdi alltid aktiv verdi, avvik vises sekundært som «Sist observert i LinkedIn: …». Historikkbevisst «Tilbake» (finnes allerede som `BackLink`).
+
+### 6. Selskaper
+Selskaper som kun stammer fra en kontakts observerte tilknytning merkes «relatert via kontakt» og får ingen status/prioritet automatisk. Status og prioritet endres bare via eksisterende `network_set_company_relationship`. `Company Follows` brukes ikke.
 
 ## Teknisk
 
-Endringer i det andre repoet:
+- Ny rute: `src/routes/_authenticated/nettverk.kontakter.import.tsx`. Importknappen flyttes fra sidepanelet i `nettverk.kontakter.index.tsx` til denne ruten; sidepanelet blir ren status.
+- Leselaget utvides i `src/lib/queries/network.ts`: batchspørringen returnerer importtidspunkt og kildefilnavn; kontaktgrafen henter i tillegg `network_contact_identities` (kun `identity_value_preview`/`last_observed_at`, aldri hash) for profil-lenke og «sist observert».
+- Databasetillegg (én migrasjon): `network_contacts` mangler i dag felt for manuell overstyring, så «manuelt vinner over LinkedIn» kan ikke oppfylles. Legges til: `manual_display_name`, `manual_headline`, `manual_company` (alle nullbare) med GRANT til `authenticated` og uendret RLS. `network_promote_batch_person_contacts` oppdateres til aldri å røre disse feltene ved reimport; visningen bruker manuell verdi når den finnes og viser LinkedIn-verdien sekundært.
+- Ingen endring i grants på RPC-ene. Klienten sender aldri `user_id`.
 
-- `scripts/test_nav_feed.py`: ny `http_get_with_retry()`-hjelper, tokenoppslag
-  omskrevet til secret-først, statusbasert exit-kode, betinget råbody-lagring.
-- `.github/workflows/<nav-smoke>.yml`: `NAV_FEED_TOKEN: ${{ secrets.NAV_FEED_TOKEN }}`,
-  `NAV_FEED_USE_PUBLIC_TOKEN: 0`, `continue-on-error` håndtering av exit 78 og
-  `workflow_dispatch`-trigger.
+## Verifikasjon som kjøres og rapporteres
 
-Siden repoet ikke er koblet til dette prosjektet, leverer jeg ferdig patch-tekst
-du limer inn (eller kjører via Codex/Claude i det repoet).
+1. Batchtellinger på nytt rett før levering (de fem klassene over).
+2. Browser-test: tomtilstand, importgjennomgang uten promotering, avbrutt dialog gir null produktdata, kryssbrukerpromotering blokkeres, dobbeltklikk er idempotent, desktop 1440px og mobil 390px uten horisontal scroll.
+3. Syntetisk/transaksjonsrullet promoteringstest: atomisk opprettelse av kontakt + identitet + relasjon, feil midt i batch gir null delvis data, reimport overskriver ikke manuelt redigert verdi.
+4. Før/etter-tellinger for den reelle brukeren, med bekreftelse på at batch `253f0538…` fortsatt er `ready` og ukonsumert.
+
+Ingen reell LinkedIn-kontakt promoteres under bygg eller test.
