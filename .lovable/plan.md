@@ -52,10 +52,15 @@ Detalj: stilling først, deretter selskap; lenke til original annonse når `card
 - `next_steps.activity_type` (tekst-enum: `oppfolging`, `moete`, `samtale`, `e_post`, `soknad`, `intervju`, `annet`; default `annet`).
 - `next_steps.status` (`planlagt`, `pagaar`, `utfort`, `avlyst`; default `planlagt`).
 - `next_steps.result_note` (tekst, nullbar).
-- Backfill: `completed = true` → `status = 'utfort'`, øvrige `planlagt`. `completed`/`completed_at` beholdes og holdes i synk med `status` via trigger.
+- `next_steps.activity_scope` (`context`, `personal`; default `context`) slik at frittstående aktiviteter bare kan oppstå eksplisitt.
+- Backfill: `completed = true` → `status = 'utfort'`, øvrige `planlagt`.
+- Toveis, atomisk trigger som holder `status`, `completed` og `completed_at` i synk: `status = 'utfort'` setter `completed = true` og fyller `completed_at` hvis den mangler; `completed = true` setter `status = 'utfort'`; tilbake til `planlagt`/`pagaar` setter `completed = false` og nullstiller `completed_at`; `avlyst` regnes verken som åpen eller utført (`completed = false`, `completed_at` nullstilt) og filtreres ut av åpne lister.
 - `user_id` NOT NULL sikres; `application_id` forblir valgfri; kontakt-/mulighets-/søknadskoblinger bruker sammensatte user-scopede FK-er slik at kryssbrukerkobling avvises i databasen.
 - Indekser på `(user_id, status, due_date)`, `(user_id, contact_id)`, `(user_id, opportunity_id)`, `(user_id, company_id)`.
-- RLS beholdes; nye RPC-er `network_upsert_activity` og `network_complete_activity` (SECURITY DEFINER, EXECUTE kun `service_role`), kalt fra nye serverfunksjoner i `src/lib/network.functions.ts`. Klienten sender aldri `user_id`.
+- RLS beholdes; nye RPC-er `network_upsert_activity` og `network_complete_activity` (SECURITY DEFINER, EXECUTE kun `service_role`), kalt fra nye serverfunksjoner i `src/lib/network.functions.ts`. Klienten sender aldri `user_id`. `network_upsert_activity` krever minst én konkret kontekst (kontakt, selskap, mulighet eller søknad) når `activity_scope = 'context'`, og avviser ellers.
+
+### Eksisterende skriveveier
+Kartlagt før nye RPC-er: klientskriving finnes i `src/routes/_authenticated/next-steps/index.tsx` (toggle `completed`) og `src/routes/_authenticated/applications/$id.tsx` (insert + toggle `completed`). Begge legges om til de kanoniske serverhandlingene, slik at gammel klientskriving og nye RPC-er ikke lever med ulik validering. Triggeren over sikrer at eventuell gjenværende direkte skriving likevel gir konsistent status.
 
 ### Funksjon
 Filtre: åpen/utført, prioritet, type, forfalt/kommende, selskap, kontakt, mulighet. Aktivitet kan opprettes fra Oversikt, selskap, kontakt og mulighet; få frist; åpnes for logging; markeres utført fra detalj eller sirkelen i listen; lagrer utførelsesdato og `result_note`.
