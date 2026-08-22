@@ -57,11 +57,12 @@ Eksplisitt brukerhandling («Søknad» / start CV- eller søknadsbrevarbeid) opp
 ## Teknisk gjennomføring
 
 **Migrasjon (additiv):**
-- Fremmednøkkel `documents.opportunity_id → user_opportunities(id)` (`on delete set null`) + sammensatt indeks `(user_id, opportunity_id)`. Ingen backfill av eksisterende dokumenter.
-- RPC `network_link_document_opportunity(p_user_id, p_document_id, p_opportunity_id)`: validerer at både dokument og mulighet eies av samme bruker, ellers `error_code`. Tilsvarende avkobling.
-- RPC `network_link_posting_contact(...)`: oppretter eller kobler annonsekontakt til `network_contacts` med kilde `job_posting`, kun på eksplisitt id fra klienten.
+- Bruker-scopet kobling dokument→mulighet: unik nøkkel på `user_opportunities (id, user_id)` når den mangler, deretter sammensatt fremmednøkkel `documents (opportunity_id, user_id) → user_opportunities (id, user_id)` med `ON DELETE SET NULL` på `opportunity_id`. Databasen er dermed siste sperre mot kobling til en annen brukers mulighet. `documents.user_id` endres aldri av koblingsoperasjonen. Sammensatt indeks `(user_id, opportunity_id)`. Ingen backfill.
+- RPC `network_link_document_opportunity(p_user_id, p_document_id, p_opportunity_id)`: validerer eierskap på begge sider før skriving (FK-en er siste sperre, ikke eneste). Tilsvarende avkobling.
+- RPC `network_link_posting_contact(p_user_id, p_opportunity_id, p_contact_index, p_existing_contact_id)`: serveren slår selv opp den lagrede annonsekilden for muligheten og leser navn, rolle, e-post og telefon derfra. Klienten sender kun mulighets-id, stabil kontaktreferanse (indeks/kilde-spenn) og eventuelt id-en til en eksisterende kontakt brukeren har valgt. Navn, e-post, telefon, LinkedIn-URL og `user_id` fra klienten aksepteres aldri som kildeverdier. Ved opprettelse lagres kontaktinfo med `source_class = job_posting`, kilde-ID og observert tidspunkt; manuelle kontaktverdier forblir aktiv verdi og overskrives aldri av senere annonseobservasjon. Navnelikhet kan vises som mulig eksisterende kontakt, men kobling krever brukerens valg.
 - RPC `network_start_application_from_posting(...)`: idempotent oppsett/oppdatering av `user_opportunity` på `identity_fingerprint`, returnerer eksisterende id ved gjentatt kall.
 - Alle RPC-er er SECURITY DEFINER uten execute for `anon`/`authenticated`, kalt fra serverhandlinger i `src/lib/network.functions.ts` som alltid tar `user_id` fra sesjonen.
+
 
 **Leselag** (`src/lib/queries/network.ts`): utvidelser for annonsekontakt fra `source_postings.raw_payload.contactList`, koblede dokumenter, arbeidsgiverinnsikt per selskap, og en felles `buildTimeline(graph, scope)`.
 
