@@ -94,7 +94,7 @@ async function loadNetworkGraph(userId: string) {
       supabase
         .from("network_contacts")
         .select(
-          "id, display_name, headline, company, connected_on, source_system, last_observed_at, is_active, manual_display_name, manual_headline, manual_updated_at",
+          "id, display_name, headline, company, connected_on, source_system, last_observed_at, is_active, manual_display_name, manual_headline, manual_updated_at, manual_email, manual_phone, manual_notes, manual_relation_status",
         )
         .eq("user_id", userId)
         .eq("is_active", true)
