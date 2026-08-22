@@ -40,9 +40,18 @@ function ContactsPage() {
   const term = search.q ?? "";
   const page = (search.side ?? 1) - 1;
   const setTerm = (value: string) =>
-    navigate({ search: { q: value.trim() ? value : undefined, side: undefined }, replace: true });
+    navigate({
+      to: "/nettverk/kontakter",
+      search: { q: value.trim() ? value : undefined, side: undefined },
+      replace: true,
+    });
   const setPage = (value: number) =>
-    navigate({ search: (prev) => ({ ...prev, side: value > 0 ? value + 1 : undefined }), replace: true });
+    navigate({
+      to: "/nettverk/kontakter",
+      search: (prev) => ({ ...prev, side: value > 0 ? value + 1 : undefined }),
+      replace: true,
+    });
+
   const { data: batchData } = useQuery(networkBatchQuery(userId));
 
   const contacts = useMemo(() => (graph ? buildContacts(graph) : []), [graph]);
