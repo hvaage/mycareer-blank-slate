@@ -1,11 +1,18 @@
 // @ts-nocheck
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ExternalLink } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
 import { BackLink } from "@/components/network/network-shell";
 import { useAuthUserId } from "@/components/network/use-network-user";
 import { buildContacts, companyKeyFor, networkGraphQuery } from "@/lib/queries/network";
+import { setContactCompanyRelation, updateContactManualFields } from "@/lib/network.functions";
 
 export const Route = createFileRoute("/_authenticated/nettverk/kontakter/$id")({
   component: ContactDetail,
