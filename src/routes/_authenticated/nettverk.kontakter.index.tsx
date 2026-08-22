@@ -1,8 +1,8 @@
 // @ts-nocheck
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,9 +23,12 @@ const OBJECT_KIND_LABEL: Record<string, string> = {
   ukjent: "Uklassifisert",
 };
 
+const CONTACTS_PER_PAGE = 100;
+
 function ContactsPage() {
   const userId = useAuthUserId();
   const [term, setTerm] = useState("");
+  const [page, setPage] = useState(0);
   const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
   const { data: batchData } = useQuery(networkBatchQuery(userId));
 
@@ -41,13 +44,25 @@ function ContactsPage() {
     );
   }, [contacts, term]);
 
+  useEffect(() => {
+    setPage(0);
+  }, [term]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / CONTACTS_PER_PAGE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageStart = currentPage * CONTACTS_PER_PAGE;
+  const visibleContacts = filtered.slice(pageStart, pageStart + CONTACTS_PER_PAGE);
+  const title = term.trim()
+    ? `Kontakter (${filtered.length.toLocaleString("nb-NO")} av ${contacts.length.toLocaleString("nb-NO")})`
+    : `Kontakter (${contacts.length.toLocaleString("nb-NO")})`;
+
   const importablePersons =
     batchData?.state === "importable" ? (batchData.pendingPersonItemIds?.length ?? 0) : 0;
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3 md:overflow-hidden">
       <NetworkPanel
-        title={`Kontakter (${filtered.length})`}
+        title={title}
         className="md:col-span-2"
         actions={
           contacts.length > 0 ? (
@@ -102,8 +117,9 @@ function ContactsPage() {
         ) : filtered.length === 0 ? (
           <PanelEmpty>Ingen kontakter treffer filteret.</PanelEmpty>
         ) : (
+          <div className="flex min-h-0 flex-col">
           <ul className="divide-y divide-border">
-            {filtered.map((c) => (
+            {visibleContacts.map((c) => (
               <li key={c.id} className="py-2">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <Link
@@ -144,6 +160,42 @@ function ContactsPage() {
               </li>
             ))}
           </ul>
+            {filtered.length > CONTACTS_PER_PAGE ? (
+              <div className="sticky bottom-0 mt-2 flex items-center justify-between gap-2 border-t border-border bg-card pt-2 text-xs text-muted-foreground">
+                <span>
+                  Viser {pageStart + 1}–{Math.min(pageStart + CONTACTS_PER_PAGE, filtered.length)} av {" "}
+                  {filtered.length.toLocaleString("nb-NO")}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    disabled={currentPage === 0}
+                    onClick={() => setPage((value) => Math.max(0, value - 1))}
+                    aria-label="Forrige kontaktside"
+                  >
+                    <ChevronLeft className="h-4 w-4" aria-hidden />
+                  </Button>
+                  <span className="min-w-12 text-center tabular-nums">
+                    {currentPage + 1} / {pageCount}
+                  </span>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    disabled={currentPage >= pageCount - 1}
+                    onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}
+                    aria-label="Neste kontaktside"
+                  >
+                    <ChevronRight className="h-4 w-4" aria-hidden />
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         )}
       </NetworkPanel>
 

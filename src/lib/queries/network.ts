@@ -28,6 +28,27 @@ export function nameFromCompanyKey(key: CompanyKey): string | null {
 }
 
 const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
+const NETWORK_QUERY_PAGE_SIZE = 500;
+
+/**
+ * PostgREST caps a single response at the project max-rows setting (currently
+ * 1,000). The network register must therefore page every graph collection
+ * instead of silently treating the first response as the complete register.
+ */
+async function fetchAllPages<T>(
+  fetchPage: (from: number, to: number) => Promise<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+
+  for (let from = 0; ; from += NETWORK_QUERY_PAGE_SIZE) {
+    const { data, error } = await fetchPage(from, from + NETWORK_QUERY_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < NETWORK_QUERY_PAGE_SIZE) return rows;
+  }
+}
 
 export type NetworkCompanyItem = {
   key: CompanyKey;
@@ -68,56 +89,74 @@ export type NetworkContactItem = {
 
 async function loadNetworkGraph(userId: string) {
   const [contacts, relations, identities, userCompanies, opportunities, steps] = await Promise.all([
-    supabase
-      .from("network_contacts")
-      .select(
-        "id, display_name, headline, company, connected_on, source_system, last_observed_at, is_active, manual_display_name, manual_headline, manual_updated_at",
-      )
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .order("display_name"),
-    supabase
-      .from("network_contact_company_relations")
-      .select(
-        "id, network_contact_id, company_id, company_name_observed, company_name_canonical, relation_kind, relation_status, source_class, is_active, valid_from, valid_to, observed_at",
-      )
-      .eq("user_id", userId),
+    fetchAllPages((from, to) =>
+      supabase
+        .from("network_contacts")
+        .select(
+          "id, display_name, headline, company, connected_on, source_system, last_observed_at, is_active, manual_display_name, manual_headline, manual_updated_at",
+        )
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .order("display_name")
+        .order("id")
+        .range(from, to),
+    ),
+    fetchAllPages((from, to) =>
+      supabase
+        .from("network_contact_company_relations")
+        .select(
+          "id, network_contact_id, company_id, company_name_observed, company_name_canonical, relation_kind, relation_status, source_class, is_active, valid_from, valid_to, observed_at",
+        )
+        .eq("user_id", userId)
+        .order("id")
+        .range(from, to),
+    ),
     // Kun kanonisk LinkedIn-profil-URL. Hasher og interne previews leses aldri.
-    supabase
-      .from("network_contact_identities")
-      .select("network_contact_id, identity_key, last_observed_at")
-      .eq("user_id", userId)
-      .eq("identity_kind", "linkedin_profile_url"),
-    supabase
-      .from("user_company_relationships")
-      .select("id, company_id, company_name_user, relationship_kind, status, priority, notes, updated_at, companies(id, name, industry, country, organisasjonsnummer)")
-      .eq("user_id", userId),
-    supabase
-      .from("user_opportunities")
-      .select("id, card_title, card_company, card_location, status, updated_at, created_at")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(500),
-    supabase
-      .from("next_steps")
-      .select("id, title, due_date, priority, completed, completed_at, company_id, contact_id, opportunity_id, created_at")
-      .eq("user_id", userId)
-      .is("archived_at", null)
-      .order("due_date", { ascending: true, nullsFirst: false })
-      .limit(1000),
+    fetchAllPages((from, to) =>
+      supabase
+        .from("network_contact_identities")
+        .select("network_contact_id, identity_key, last_observed_at")
+        .eq("user_id", userId)
+        .eq("identity_kind", "linkedin_profile_url")
+        .order("network_contact_id")
+        .range(from, to),
+    ),
+    fetchAllPages((from, to) =>
+      supabase
+        .from("user_company_relationships")
+        .select("id, company_id, company_name_user, relationship_kind, status, priority, notes, updated_at, companies(id, name, industry, country, organisasjonsnummer)")
+        .eq("user_id", userId)
+        .order("id")
+        .range(from, to),
+    ),
+    fetchAllPages((from, to) =>
+      supabase
+        .from("user_opportunities")
+        .select("id, card_title, card_company, card_location, status, updated_at, created_at")
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    ),
+    fetchAllPages((from, to) =>
+      supabase
+        .from("next_steps")
+        .select("id, title, due_date, priority, completed, completed_at, company_id, contact_id, opportunity_id, created_at")
+        .eq("user_id", userId)
+        .is("archived_at", null)
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .order("id")
+        .range(from, to),
+    ),
   ]);
 
-  for (const res of [contacts, relations, identities, userCompanies, opportunities, steps]) {
-    if (res.error) throw res.error;
-  }
-
   return {
-    contacts: contacts.data ?? [],
-    relations: relations.data ?? [],
-    identities: identities.data ?? [],
-    userCompanies: userCompanies.data ?? [],
-    opportunities: opportunities.data ?? [],
-    steps: steps.data ?? [],
+    contacts,
+    relations,
+    identities,
+    userCompanies,
+    opportunities,
+    steps,
   };
 }
 
