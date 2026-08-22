@@ -286,24 +286,49 @@ function KildegjennomgangPage() {
                 </TabsTrigger>
               ))}
             </TabsList>
-            {domains.map(([domain]) => (
-              <TabsContent key={domain} value={domain} className="space-y-3 pt-4">
-                {proposals
-                  .filter((p) => p.proposal_domain === domain)
-                  .map((proposal) => (
-                    <ProposalCard
-                      key={proposal.id}
-                      proposal={proposal}
-                      busy={decide.isPending || promote.isPending}
-                      onDecide={(decision, reasonCode) =>
-                        decide.mutate({ proposalId: proposal.id, decision, reasonCode })
-                      }
-                      onStartPromotion={(action) => setPendingPromotion({ proposal, action })}
-                      onReopen={() => reopen.mutate(proposal.id)}
+            {domains.map(([domain]) => {
+              const inDomain = proposals.filter((p) => p.proposal_domain === domain);
+              const bulkIds = new Set(bulkActionable(inDomain).map((p) => p.id));
+              return (
+                <TabsContent key={domain} value={domain} className="space-y-3 pt-4">
+                  {bulkIds.size > 0 && (
+                    <BulkReviewList
+                      actionable={bulkActionable(inDomain).map(toBulkItem)}
+                      alreadyRegistered={inDomain
+                        .filter((p) => p.status === "promoted" || p.proposal_kind === "keep_existing")
+                        .map(toBulkItem)}
+                      conflicts={inDomain
+                        .filter(
+                          (p) =>
+                            p.proposal_kind === "conflict" || p.proposal_kind === "possible_duplicate",
+                        )
+                        .map(toBulkItem)}
+                      dismissed={inDomain.filter((p) => p.status === "dismissed").map(toBulkItem)}
+                      failed={inDomain.filter((p) => p.status === "promotion_failed").map(toBulkItem)}
+                      busy={bulkRun.isPending}
+                      progress={bulkProgress}
+                      outcome={bulkOutcome}
+                      onSubmit={(ids) => bulkRun.mutate(ids)}
                     />
-                  ))}
-              </TabsContent>
-            ))}
+                  )}
+                  {inDomain
+                    .filter((p) => !bulkIds.has(p.id))
+                    .map((proposal) => (
+                      <ProposalCard
+                        key={proposal.id}
+                        proposal={proposal}
+                        busy={decide.isPending || promote.isPending || bulkRun.isPending}
+                        onDecide={(decision, reasonCode) =>
+                          decide.mutate({ proposalId: proposal.id, decision, reasonCode })
+                        }
+                        onStartPromotion={(action) => setPendingPromotion({ proposal, action })}
+                        onReopen={() => reopen.mutate(proposal.id)}
+                      />
+                    ))}
+                </TabsContent>
+              );
+            })}
+
           </Tabs>
         </>
       )}
