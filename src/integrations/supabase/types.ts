@@ -9607,6 +9607,10 @@ export type Database = {
         }[]
       }
       nav_target_repair_tick: { Args: never; Returns: Json }
+      network_claim_suggestion_run: {
+        Args: { p_lease_owner: string; p_lease_seconds?: number }
+        Returns: Json
+      }
       network_company_name_is_junk: {
         Args: { p_name: string }
         Returns: boolean
@@ -9622,6 +9626,47 @@ export type Database = {
           p_result_note: string
           p_status: string
           p_user_id: string
+        }
+        Returns: Json
+      }
+      network_decide_activity_suggestion: {
+        Args: {
+          p_activity_id?: string
+          p_decision: string
+          p_suggestion_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      network_enqueue_suggestion_run: {
+        Args: {
+          p_model_profile: string
+          p_prompt_version: string
+          p_regenerate: boolean
+          p_scope: string
+          p_scope_object_id: string
+          p_signature_base: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      network_finish_suggestion_run: {
+        Args: {
+          p_error_code?: string
+          p_items?: Json
+          p_lease_owner: string
+          p_model_name?: string
+          p_model_run_id?: string
+          p_run_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      network_heartbeat_suggestion_run: {
+        Args: {
+          p_lease_owner: string
+          p_lease_seconds?: number
+          p_run_id: string
         }
         Returns: Json
       }
@@ -9664,6 +9709,7 @@ export type Database = {
         Args: { p_batch_id: string; p_item_ids: string[]; p_user_id: string }
         Returns: Json
       }
+      network_reap_stale_suggestion_runs: { Args: never; Returns: Json }
       network_sanitize_company_name: {
         Args: { p_name: string }
         Returns: string
@@ -9693,6 +9739,14 @@ export type Database = {
       network_start_application_from_posting: {
         Args: { p_canonical_opportunity_id: string; p_user_id: string }
         Returns: Json
+      }
+      network_suggestion_scope_key: {
+        Args: { p_scope: string; p_scope_object_id: string }
+        Returns: string
+      }
+      network_suggestion_scope_owned: {
+        Args: { p_scope: string; p_scope_object_id: string; p_user_id: string }
+        Returns: boolean
       }
       network_unhide_company: {
         Args: { p_company_key: string; p_user_id: string }
