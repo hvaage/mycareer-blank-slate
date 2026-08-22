@@ -42,12 +42,18 @@ function deadlineQuery(userId: string | undefined, canonicalId: string | null | 
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const { supabase } = await import("@/lib/supabase");
+      // Annonsegrunnlaget kobles til muligheten via koblingstabellen; `source_postings`
+      // har ingen egen kolonne for kanonisk mulighet.
       const { data, error } = await supabase
-        .from("source_postings")
-        .select("raw_payload")
+        .from("opportunity_source_links")
+        .select("source_postings(raw_payload)")
         .eq("canonical_opportunity_id", canonicalId!)
         .limit(5);
       if (error) throw error;
+      for (const link of data ?? []) {
+        const row = (link as { source_postings?: { raw_payload?: unknown } | null }).source_postings;
+        if (!row) continue;
+
       for (const row of data ?? []) {
         const p = (row.raw_payload ?? {}) as Record<string, unknown>;
         for (const key of ["application_deadline", "søknadsfrist", "soknadsfrist", "deadline", "applicationDue"]) {
