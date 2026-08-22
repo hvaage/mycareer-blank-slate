@@ -9,8 +9,11 @@ import { useAuthUserId } from "@/components/network/use-network-user";
 import { networkGraphQuery, searchNetwork } from "@/lib/queries/network";
 
 const TABS = [
+  { label: "Oversikt", to: "/nettverk/oversikt" },
   { label: "Selskaper", to: "/nettverk/selskaper" },
   { label: "Kontakter", to: "/nettverk/kontakter" },
+  { label: "Muligheter", to: "/nettverk/muligheter" },
+  { label: "Aktiviteter", to: "/nettverk/aktiviteter" },
 ] as const;
 
 export function NetworkShell({ children }: { children: ReactNode }) {
