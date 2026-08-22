@@ -86,6 +86,12 @@ export type NetworkContactItem = {
   last_observed_at: string | null;
   nextActivity: { id: string; title: string; due_date: string | null } | null;
   lastContactAt: string | null;
+  /** Brukerens egne kontaktpunkter og notater — aldri importert fra LinkedIn. */
+  manualEmail: string | null;
+  manualPhone: string | null;
+  manualNotes: string | null;
+  manualRelationStatus: "ukjent" | "varm" | "aktiv" | "referanse" | "ikke_aktuell" | null;
+  manualUpdatedAt: string | null;
 };
 
 async function loadNetworkGraph(userId: string) {
