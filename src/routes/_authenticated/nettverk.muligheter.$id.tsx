@@ -123,7 +123,7 @@ function OpportunityDetail() {
             <span>{opp.card_company ?? "Ukjent selskap"}</span>
           )}
         </h2>
-        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <Badge variant="outline">{opp.status ?? "uten status"}</Badge>
           {deadline ? <span>Søknadsfrist: {deadline}</span> : null}
           <span>
@@ -131,7 +131,8 @@ function OpportunityDetail() {
             {next ? `${next.due_date ?? "uten dato"} — ${next.title}` : "Ingen planlagt"}
           </span>
           {opp.card_location ? <span>{opp.card_location}</span> : null}
-        </p>
+        </div>
+
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-3 md:overflow-hidden">
