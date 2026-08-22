@@ -9740,6 +9740,10 @@ export type Database = {
         Args: { p_canonical_opportunity_id: string; p_user_id: string }
         Returns: Json
       }
+      network_store_worker_secret: {
+        Args: { p_secret: string }
+        Returns: undefined
+      }
       network_suggestion_scope_key: {
         Args: { p_scope: string; p_scope_object_id: string }
         Returns: string
