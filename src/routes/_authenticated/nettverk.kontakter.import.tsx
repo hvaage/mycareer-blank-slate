@@ -5,7 +5,7 @@
 // Ingenting promoteres automatisk: den kanoniske serverhandlingen kalles
 // kun fra klikkhandleren bak en eksplisitt bekreftelsesdialog.
 // ============================================================
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
