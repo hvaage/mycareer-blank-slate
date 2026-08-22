@@ -24,9 +24,11 @@ Kartlegging: applikasjonen har allerede en lovlig kobling til arbeidsgiver- og r
 
 Slik vises det:
 
-- Kompakt panel «Registerdata og nøkkeltall» på selskapsdetaljen når selskapet har organisasjonsnummer: nyeste regnskapsår, driftsinntekter, driftsresultat, årsresultat, sum eiendeler, egenkapital og gjeld — kun feltene som faktisk finnes, alltid med kilde og hentetidspunkt.
+- Kompakt panel «Registerdata og nøkkeltall» på selskapsdetaljen når selskapet har organisasjonsnummer: driftsinntekter, driftsresultat, årsresultat, sum eiendeler, egenkapital og gjeld — kun feltene som faktisk finnes.
+- Nøkkeltallene vises alltid sammen med regnskapsår og valuta, og med regnskapstype/periode når den finnes, i tillegg til kilde og hentetidspunkt. Beløp uten valuta eller årstall presenteres ikke som sammenlignbare nøkkeltall.
+- Manglende enkeltfelt utelates uten å etterlate nullverdier.
 - Eksisterende nøkkeltall-visning fra arbeidsgiverflaten gjenbrukes, ikke reimplementeres.
-- Mangler organisasjonsnummer eller regnskapsdata: panelet viser «Regnskapstall er ikke tilgjengelig ennå» med kort forklaring. Aldri nullverdier, og aldri KI-score som erstatning for nøkkeltall.
+- Mangler organisasjonsnummer eller regnskapsgrunnlag helt: panelet viser «Regnskapstall er ikke tilgjengelig ennå» med kort forklaring. Aldri nullverdier, og aldri KI-score som erstatning for nøkkeltall.
 - Selskaper som bare er kjent via navn fra kontakter får uendret adferd: ingen registerdata, ingen status eller prioritet.
 
 ## C. Massegjennomgang i kildegjennomgangen
@@ -35,10 +37,12 @@ I dag ligger 115 forslag til gjennomgang for brukeren, hvorav 94 er kompetanser.
 
 Layout og valg:
 
-- Handlingsbare nye kompetanser og kvalifikasjoner vises som kompakte kort i rutenett: én kolonne på mobil, tre kolonner på vanlig desktop, fire på bred desktop.
+- Handlingsbare nye kompetanser og kvalifikasjoner vises som tette avhukingsrader i en arbeidsliste, ikke som kortvegg. Hver rad har avhuking, navn og eventuelt en liten typeindikator. Detaljer åpnes først ved klikk på raden.
+- Navnene fordeles i kolonner: én kolonne på mobil, tre på vanlig desktop, fire på bred desktop.
 - Alle handlingsbare nye forslag er avhuket ved start.
 - Allerede registrerte, motstridende, avviste og teknisk feilede forslag ligger i egne seksjoner og er ikke forhåndsvalgt.
 - Filtrering og søk endrer kun hva som vises. Avhukinger beholdes for forslag som filtreres bort, og gjenopprettes når filteret fjernes.
+- «Godkjenn og overfør» krever en eksplisitt bekreftelsesdialog som viser antall valgte per type før noe overføres.
 - Massehandlinger: godkjenn og overfør, behold det jeg har, avvis, utsett. Hvert forslag kjøres for seg, slik at én feil verken fjerner eller endrer valget på de andre.
 - Etter kjøring vises eksakt resultat: antall overført, allerede registrert, avvist, utsatt og feilet, med sanitert forklaring på det som feilet og mulighet til å åpne på nytt.
 - Enkeltdialogen beholdes for forslag som krever et reelt valg (motstrid, oppdatering av felt som allerede er utfylt).
