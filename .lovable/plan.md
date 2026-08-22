@@ -1,70 +1,73 @@
-# Fase 5A — Aktiver nettverksregisteret med kontrollert kontaktimport
+# Fase 5B — Nettverksarbeid som egen hovedmodul
 
-## Bekreftet utgangspunkt (verifisert nå)
+Bygger videre på 5A. Produktkontrakt v1.1 er normativ. Ingen automatisk LinkedIn-promotering, ingen mock-data, ingen KI-tjeneste i denne leveransen.
 
-Aktiv batch `253f0538…`, status `ready`, ukonsumert:
+## 1. Hovedmeny og ruter
 
-| Objektklasse | Antall | Kategori |
-|---|---|---|
-| person_contact | 3 881 | new_contact |
-| company_observation | 298 | excluded |
-| network_event | 89 | excluded |
-| network_preference_signal | 34 | excluded |
-| invitation | 46 | excluded |
+`src/components/app-sidebar.tsx`:
+- Fjern `Nettverk og muligheter` fra undermenyen til `Min karriere`, og fjern `/nettverk` fra dens match-prefikser.
+- Ny toppnivågruppe `Nettverksarbeid` (ikon `Network`) plassert etter `Min karriere` og før `Marked`, match-prefiks `/nettverk`, med fem sekundærpunkter i rekkefølgen Oversikt, Selskaper, Kontakter, Muligheter, Aktiviteter. Hovedpunktet peker på `/nettverk/oversikt`.
+- `/nettverk` redirecter til `/nettverk/oversikt` (endres i `nettverk.index.tsx`).
+- Titler/metadata i `nettverk.tsx` og `NetworkShell` endres til «Nettverksarbeid». Eksisterende dypelenker (`/nettverk/kontakter/$id`, `/nettverk/selskaper/$id`) er uendret.
 
-`without_stable_identity` = 0. Produkttabellen `network_contacts` er tom for brukeren.
+Nye ruter:
+- `nettverk.oversikt.tsx`
+- `nettverk.muligheter.index.tsx`, `nettverk.muligheter.$id.tsx`
+- `nettverk.aktiviteter.index.tsx` (med inline-detalj/kompakt redigering; ingen modal-detalj)
 
-De kanoniske RPC-ene (`network_promote_batch_person_contacts`, `network_set_company_relationship`) finnes, er `service_role`-begrenset og kalles allerede via serverfunksjoner i `src/lib/network.functions.ts`. Ingen nye skriveveier lages.
+## 2. Felles layout
 
-## Det som bygges
+`NetworkShell` utvides til fem faner. Globalt søk beholdes og utvides til å lenke til mulighetsdetalj. Alle lister/tellinger bruker det eksisterende paginerte leselaget (`fetchAllPages`) — ingen 1 000-rads grense. Desktop: fast høyde under toppnav, interne scrollflater, kollapsbare paneler (`NetworkPanel` får kollapsstøtte via eksisterende `use-persisted-collapse`). Mobil: én kolonne, ingen horisontal scroll. Detaljsider er egne ruter med kun `← Tilbake` (eksisterende `BackLink`).
 
-### 1. Tomtilstand på Kontakter
-Når brukeren ikke har promoterte kontakter, viser Kontakter-flaten et importkort:
-«Importer nettverket ditt fra LinkedIn», antall funnet personkontakter (3 881), forklaringen om at kontakter først opprettes ved bekreftelse og at LinkedIn ikke overskriver manuelle rettinger, lenke til Kildegjennomgang, og knappen «Gå gjennom og importer kontakter». Ingen andre objektklasser telles som kontakter.
+## 3. Oversikt
 
-### 2. Egen importgjennomgangsrute
-Ny rute `/nettverk/kontakter/import` (fast flate, ikke modal) med:
-- oppsummering: 3 881 nye kontakter, 0 uten stabil identitet, kilde `Connections.csv`, importtidspunkt
-- «Dette opprettes»: kontakt, kanonisk LinkedIn-identitet, observert selskaps-/rolletilknytning når den finnes
-- «Dette opprettes ikke»: aktiviteter, muligheter, selskapsprioritet, navnebasert sammenslåing, e-post/telefon
-- egen ikke-handlingsbar seksjon «Andre signaler beholdt som kildeinformasjon» med de fire tellingene og forklaring
-- ingen rå rader, hasher eller interne feilkoder
+Statuskort (alle lenker til filtrert liste):
+- Trenger oppfølging → åpne/forfalte aktiviteter.
+- Aktive muligheter → ikke-avsluttede `user_opportunities`.
+- Varme kontakter → vises kun dersom deterministisk grunnlag finnes: kontakt med aktivitet (`next_steps.completed_at`) siste 90 dager. Uten grunnlag skjules kortet i stedet for å gjette.
+- Intervjuer denne måneden → `interviews.scheduled_at` innen inneværende måned.
 
-### 3. Eksplisitt bekreftelse
-Knapp «Importer 3 881 kontakter» → bekreftelsesdialog med den avtalte teksten (stabil identitet = profil-URL, navnelikhet slår aldri sammen, manuelle endringer overskrives ikke). Kun «Bekreft og importer» kaller serverfunksjonen. Ingen loader, polling, prefetch eller effekt kan utløse promotering — kallet skjer bare i klikkhandleren.
+Innhold: neste aktiviteter (dato først, tekst på samme linje), prioriterte selskaper kun der `status`/`priority` er lagret på `user_company_relationships`, siste aktivitet kun innenfor nylig periode (90 dager), hurtighandlinger `Logg aktivitet`, `Ny mulighet`, `Åpne aktiviteter`. `Få aktivitetsforslag` vises deaktivert med `Kommer snart` — ingen kall, ingen lagring.
 
-### 4. Fremdrift og resultat
-Knappen låses mens kallet pågår; ventetilstand vises. Ved suksess: antall opprettet, antall gjenbrukt (idempotent hoppet over), antall som krever manuell vurdering, og lenke til kontaktregisteret. Ved feil: sanitert melding + «Prøv igjen». Gjentatt kjøring presenteres som «allerede importert», ikke som ny import.
+## 4. Selskaper
 
-### 5. Kontaktliste og detaljside
-Liste: navn, sist observert rolle, aktiv selskapstilknytning, LinkedIn-profil-lenke, sist observert i LinkedIn, brukerens relasjon/status når den finnes, neste aktivitet når den finnes.
-Detalj: navn og selskap som lenkbar navigasjon, LinkedIn-observasjon merket som kildeinformasjon med tidspunkt, brukerens verdi alltid aktiv verdi, avvik vises sekundært som «Sist observert i LinkedIn: …». Historikkbevisst «Tilbake» (finnes allerede som `BackLink`).
+Utvides på eksisterende flate: bransje/sted når kjent, antall kontakter, åpne muligheter, status/prioritet kun når satt, merket `Relatert via kontakt` når selskapet kun er observert via kontakt. `Company Follows` forblir signal og oppretter ingenting.
 
-### 6. Selskaper
-Selskaper som kun stammer fra en kontakts observerte tilknytning merkes «relatert via kontakt» og får ingen status/prioritet automatisk. Status og prioritet endres bare via eksisterende `network_set_company_relationship`. `Company Follows` brukes ikke.
+Detalj: registerprofil og arbeidsgiveranalyse når data finnes (ellers eksplisitt datamangelstilstand med kilde/tidspunkt-regler fra kontrakten), dine kontakter, aktive muligheter, åpne aktiviteter og neste aktivitet med dato + handling, lenker til kontakt/mulighet/aktivitet. Paneler med fast overskrift, kollaps og intern scroll.
 
-### 7. Batchtilstander på importgjennomgangsruten
-Ruten håndterer fire tilstander eksplisitt: `ready` og ukonsumert → kontrollert importflyt; konsumert → «Kontaktene er allerede importert»; superseded/stale → «Denne importen er erstattet» med lenke til nyeste gyldige batch; ingen gyldig batch → «Importer en ny LinkedIn-eksport». Knappen «Importer … kontakter» rendres kun i første tilstand.
+## 5. Kontakter
 
-## Teknisk
+Beholder 5A-import og precedence (manuell verdi aktiv, LinkedIn-observasjon sekundært med tidspunkt). Legger til lenkbare relasjoner: navn → kontakt, selskap → selskap, kontaktens aktiviteter og muligheter som lenker. Ingen e-post/telefon fra LinkedIn, ingen endorsement-personer, ingen automatisk kobling av mottatte anbefalinger.
 
-- Ny rute: `src/routes/_authenticated/nettverk.kontakter.import.tsx`. Importknappen flyttes fra sidepanelet i `nettverk.kontakter.index.tsx` til denne ruten; sidepanelet blir ren status.
-- Databasetillegg (én migrasjon):
-  - `network_contacts` får `manual_display_name` og `manual_headline` (nullbare). Ingen direkte UPDATE-grant til `authenticated`; kun `service_role` skriver.
-  - `network_contact_company_relations` får `source_class` (`linkedin_observed` | `user_input`), valgfri periode (`valid_from`, `valid_to`), `relation_status` og `is_active`. LinkedIn-observert tilknytning beholdes som separat historikkrad.
-  - Ny SECURITY DEFINER-RPC `network_update_contact_manual_fields(p_user_id, p_contact_id, p_display_name, p_headline)`: verifiserer eierskap, oppdaterer kun tillatte felt, setter aktiv verdi med `source_class = user_input`, bevarer LinkedIn-observasjon og tidspunkt separat, logger ikke rå kontaktdata. EXECUTE kun til `service_role`.
-  - Ny SECURITY DEFINER-RPC for manuell/korrigert selskapstilknytning som skriver en `user_input`-rad i `network_contact_company_relations` og markerer aktiv relasjon når flere finnes. EXECUTE kun til `service_role`.
-  - `network_promote_batch_person_contacts` oppdateres til aldri å røre manuelle felt eller `user_input`-relasjoner ved reimport.
-- Nye serverhandlinger i `src/lib/network.functions.ts` kaller de to RPC-ene; `user_id` utledes fra `requireSupabaseAuth`-konteksten og aksepteres aldri fra request-body.
-- Kontakt-DTO i `src/lib/queries/network.ts` får `linkedinProfileUrl` (full normalisert URL eller null) og `linkedinObservedAt` (tidspunkt eller null), lest kun fra `network_contact_identities` der `identity_kind = 'linkedin_profile_url'`. Hasher, interne identitetsverdier og tekniske previews returneres aldri. Batchspørringen utvides med tilstand (ready/konsumert/superseded), importtidspunkt og kildefilnavn.
-- Ingen endring i grants på de eksisterende RPC-ene. Klienten sender aldri `user_id`.
+## 6. Muligheter
 
+Liste over reelle `user_opportunities`: stilling, selskap, status, neste aktivitet og matchdata når beregnet. Merk: tabellen har ingen egen søknadsfrist-kolonne, så «frist» vises som neste aktivitets `due_date` når den finnes; ingen fiktiv frist.
 
-## Verifikasjon som kjøres og rapporteres
+Detalj: stilling først, deretter selskap; lenke til original annonse når `card_display_url`/`card_raw_url` finnes; preferanse- og kompetansematch separat, med `match_score_version`/`match_scored_model` og `screening_evaluated_at` som sekundær informasjon; annonsekontakt (`job_posting`) vises høyt kun når personen faktisk finnes i annonsegrunnlaget, og opprettes som kontakt kun via eksplisitt brukerhandling (aldri navnesammenslåing); «Dine kontakter i selskapet» kun reelle relasjoner med god tomtilstand; «Dokumenter brukt» kun ved faktisk relasjon til muligheten.
 
-1. Batchtellinger på nytt rett før levering (de fem klassene over).
-2. Browser-test: tomtilstand, importgjennomgang uten promotering, avbrutt dialog gir null produktdata, kryssbrukerpromotering blokkeres, dobbeltklikk er idempotent, desktop 1440px og mobil 390px uten horisontal scroll.
-3. Syntetisk/transaksjonsrullet promoteringstest: atomisk opprettelse av kontakt + identitet + relasjon, feil midt i batch gir null delvis data, reimport overskriver ikke manuelt redigert verdi.
-4. Før/etter-tellinger for den reelle brukeren, med bekreftelse på at batch `253f0538…` fortsatt er `ready` og ukonsumert.
+## 7. Aktiviteter
 
-Ingen reell LinkedIn-kontakt promoteres under bygg eller test.
+### Migrasjon (additiv)
+- `next_steps.activity_type` (tekst-enum: `oppfolging`, `moete`, `samtale`, `e_post`, `soknad`, `intervju`, `annet`; default `annet`).
+- `next_steps.status` (`planlagt`, `pagaar`, `utfort`, `avlyst`; default `planlagt`).
+- `next_steps.result_note` (tekst, nullbar).
+- Backfill: `completed = true` → `status = 'utfort'`, øvrige `planlagt`. `completed`/`completed_at` beholdes og holdes i synk med `status` via trigger.
+- `user_id` NOT NULL sikres; `application_id` forblir valgfri; kontakt-/mulighets-/søknadskoblinger bruker sammensatte user-scopede FK-er slik at kryssbrukerkobling avvises i databasen.
+- Indekser på `(user_id, status, due_date)`, `(user_id, contact_id)`, `(user_id, opportunity_id)`, `(user_id, company_id)`.
+- RLS beholdes; nye RPC-er `network_upsert_activity` og `network_complete_activity` (SECURITY DEFINER, EXECUTE kun `service_role`), kalt fra nye serverfunksjoner i `src/lib/network.functions.ts`. Klienten sender aldri `user_id`.
+
+### Funksjon
+Filtre: åpen/utført, prioritet, type, forfalt/kommende, selskap, kontakt, mulighet. Aktivitet kan opprettes fra Oversikt, selskap, kontakt og mulighet; få frist; åpnes for logging; markeres utført fra detalj eller sirkelen i listen; lagrer utførelsesdato og `result_note`.
+
+## 8. Sikkerhet
+
+Ingen automatisk promotering eller overskriving av manuelle verdier. All skriving via kanoniske serverhandlinger. `source_class` brukes konsekvent (`user_input`, `linkedin_observation`, `job_posting`, `derived_evaluation`, `ai_suggestion`). LinkedIn-data merkes aldri `documented`/`verified`/`user_attested`.
+
+## 9. Verifikasjon før levering
+
+- Meny: `Nettverksarbeid` mellom `Min karriere` og `Marked`, fem punkter i rekkefølge, `/nettverk` → Oversikt.
+- Funksjon: alle fem flater åpnes; søk lenker til korrekt kontakt-, selskaps- og mulighetsdetalj; aktivitet opprettes, fullføres og viser dato/resultat; syntetisk test bekrefter at kryssbrukerkobling blokkeres i databasen.
+- UI: skjermbilder på 1440 px og 390 px, ingen horisontal overflow eller overlapp, faste paneloverskrifter, intern scroll, kollaps fungerer.
+- Integritet: før/etter-telling for `network_contacts`, identiteter, selskapsrelasjoner, muligheter, aktiviteter og LinkedIn-promoteringshendelser, med bekreftelse på at ingenting er promotert automatisk.
+
+Leveransen stopper etter 5B med rapport. KI-tjeneste, e-postintegrasjon og ny LinkedIn-import/cron er utenfor scope.
