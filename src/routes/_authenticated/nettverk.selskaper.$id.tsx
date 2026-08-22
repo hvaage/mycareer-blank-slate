@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
+import { SuggestionPanel } from "@/components/network/suggestion-panel";
 import { Timeline } from "@/components/network/timeline";
 import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
 import { Plus } from "lucide-react";
@@ -292,6 +293,10 @@ function CompanyDetail() {
         <NetworkPanel title={`Tidslinje (${timeline.length})`}>
           <Timeline events={timeline} />
         </NetworkPanel>
+
+        <SuggestionPanel scope="company" scopeObjectId={id} context={{ companyId: id }} />
+
+
 
       </div>
     </div>

@@ -5921,6 +5921,186 @@ export type Database = {
         }
         Relationships: []
       }
+      network_activity_suggestion_runs: {
+        Row: {
+          attempt_count: number
+          correlation_id: string
+          created_at: string
+          error_code: string | null
+          finished_at: string | null
+          generation_epoch: number
+          heartbeat_at: string | null
+          id: string
+          input_signature: string
+          lease_expires_at: string | null
+          lease_owner: string | null
+          model_name: string | null
+          model_profile: string
+          model_run_id: string | null
+          next_attempt_at: string
+          prompt_version: string
+          scope: string
+          scope_key: string
+          scope_object_id: string | null
+          started_at: string | null
+          status: string
+          suggestion_count: number
+          user_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          correlation_id?: string
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          generation_epoch?: number
+          heartbeat_at?: string | null
+          id?: string
+          input_signature: string
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          model_name?: string | null
+          model_profile: string
+          model_run_id?: string | null
+          next_attempt_at?: string
+          prompt_version: string
+          scope: string
+          scope_key: string
+          scope_object_id?: string | null
+          started_at?: string | null
+          status?: string
+          suggestion_count?: number
+          user_id: string
+        }
+        Update: {
+          attempt_count?: number
+          correlation_id?: string
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          generation_epoch?: number
+          heartbeat_at?: string | null
+          id?: string
+          input_signature?: string
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          model_name?: string | null
+          model_profile?: string
+          model_run_id?: string | null
+          next_attempt_at?: string
+          prompt_version?: string
+          scope?: string
+          scope_key?: string
+          scope_object_id?: string | null
+          started_at?: string | null
+          status?: string
+          suggestion_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      network_activity_suggestion_scope_state: {
+        Row: {
+          created_at: string
+          generation_epoch: number
+          id: string
+          scope: string
+          scope_key: string
+          scope_object_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generation_epoch?: number
+          id?: string
+          scope: string
+          scope_key: string
+          scope_object_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generation_epoch?: number
+          id?: string
+          scope?: string
+          scope_key?: string
+          scope_object_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      network_activity_suggestions: {
+        Row: {
+          activity_type: string
+          context: Json
+          created_activity_id: string | null
+          created_at: string
+          decided_at: string | null
+          evidence: Json
+          id: string
+          priority: string
+          rationale: string
+          run_id: string
+          source_class: string
+          status: string
+          suggested_timing: Json
+          title: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          context?: Json
+          created_activity_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          evidence?: Json
+          id?: string
+          priority: string
+          rationale: string
+          run_id: string
+          source_class?: string
+          status?: string
+          suggested_timing?: Json
+          title: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          context?: Json
+          created_activity_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          evidence?: Json
+          id?: string
+          priority?: string
+          rationale?: string
+          run_id?: string
+          source_class?: string
+          status?: string
+          suggested_timing?: Json
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nas_created_activity_fk"
+            columns: ["created_activity_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "next_steps"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "network_activity_suggestions_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "network_activity_suggestion_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       network_contact_company_relations: {
         Row: {
           company_id: string | null
@@ -9427,6 +9607,10 @@ export type Database = {
         }[]
       }
       nav_target_repair_tick: { Args: never; Returns: Json }
+      network_claim_suggestion_run: {
+        Args: { p_lease_owner: string; p_lease_seconds?: number }
+        Returns: Json
+      }
       network_company_name_is_junk: {
         Args: { p_name: string }
         Returns: boolean
@@ -9442,6 +9626,47 @@ export type Database = {
           p_result_note: string
           p_status: string
           p_user_id: string
+        }
+        Returns: Json
+      }
+      network_decide_activity_suggestion: {
+        Args: {
+          p_activity_id?: string
+          p_decision: string
+          p_suggestion_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      network_enqueue_suggestion_run: {
+        Args: {
+          p_model_profile: string
+          p_prompt_version: string
+          p_regenerate: boolean
+          p_scope: string
+          p_scope_object_id: string
+          p_signature_base: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      network_finish_suggestion_run: {
+        Args: {
+          p_error_code?: string
+          p_items?: Json
+          p_lease_owner: string
+          p_model_name?: string
+          p_model_run_id?: string
+          p_run_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      network_heartbeat_suggestion_run: {
+        Args: {
+          p_lease_owner: string
+          p_lease_seconds?: number
+          p_run_id: string
         }
         Returns: Json
       }
@@ -9484,6 +9709,7 @@ export type Database = {
         Args: { p_batch_id: string; p_item_ids: string[]; p_user_id: string }
         Returns: Json
       }
+      network_reap_stale_suggestion_runs: { Args: never; Returns: Json }
       network_sanitize_company_name: {
         Args: { p_name: string }
         Returns: string
@@ -9513,6 +9739,14 @@ export type Database = {
       network_start_application_from_posting: {
         Args: { p_canonical_opportunity_id: string; p_user_id: string }
         Returns: Json
+      }
+      network_suggestion_scope_key: {
+        Args: { p_scope: string; p_scope_object_id: string }
+        Returns: string
+      }
+      network_suggestion_scope_owned: {
+        Args: { p_scope: string; p_scope_object_id: string; p_user_id: string }
+        Returns: boolean
       }
       network_unhide_company: {
         Args: { p_company_key: string; p_user_id: string }

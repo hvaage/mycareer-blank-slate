@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
+import { SuggestionPanel } from "@/components/network/suggestion-panel";
 import { Timeline } from "@/components/network/timeline";
 import { ExternalUrlLink } from "@/components/external-url-link";
 import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
@@ -197,6 +198,10 @@ function ContactDetail() {
         <NetworkPanel title={`Tidslinje (${timeline.length})`}>
           <Timeline events={timeline} />
         </NetworkPanel>
+
+        <SuggestionPanel scope="contact" scopeObjectId={id} context={{ contactId: id }} />
+
+
 
         <NetworkPanel title="Tredjepartsinformasjon">
           <PanelEmpty>
