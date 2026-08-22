@@ -125,7 +125,7 @@ function ContactDetail() {
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 md:grid-cols-3 md:auto-rows-[minmax(240px,1fr)] md:overflow-y-auto">
 
-        <NetworkPanel title="Kontaktprofil og kontaktkanaler" className="order-1 md:order-none">
+        <NetworkPanel title="Kontaktprofil og kontaktkanaler">
           <dl className="space-y-1">
             <Row label="Navn" value={contact.display_name} source={contact.nameSource} />
             <Row label="Tittel" value={contact.headline} source={contact.headlineSource} />
@@ -177,9 +177,9 @@ function ContactDetail() {
           </p>
         </NetworkPanel>
 
-        <ManualFieldsPanel contact={contact} />
-
         <ContactPointsPanel contact={contact} observed={observedPoints} />
+
+        <ManualFieldsPanel contact={contact} />
 
 
         <NetworkPanel title={`Muligheter (${opportunities.length})`}>
@@ -307,7 +307,7 @@ function ManualFieldsPanel({ contact }) {
   });
 
   return (
-    <NetworkPanel title="Dine egne opplysninger" className="order-3 md:order-none">
+    <NetworkPanel title="Dine egne opplysninger">
       <div className="space-y-2">
         <Field id="manual-name" label="Navn" value={name} onChange={setName} placeholder={contact.linkedinDisplayName ?? ""} />
         <Field
@@ -421,7 +421,7 @@ function ContactPointsPanel({ contact, observed }) {
   });
 
   return (
-    <NetworkPanel title="Kontaktpunkter" className="order-2 md:order-none">
+    <NetworkPanel title="Kontaktpunkter">
       <dl className="space-y-0.5">
         <Row label="E-post" value={contact.manualEmail} source={contact.manualEmail ? "user_input" : undefined} />
         <Row label="Telefon" value={contact.manualPhone} source={contact.manualPhone ? "user_input" : undefined} />
