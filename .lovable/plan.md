@@ -35,7 +35,8 @@ I dag ligger 115 forslag til gjennomgang for brukeren, hvorav 94 er kompetanser.
 
 Layout og valg:
 
-- Handlingsbare nye kompetanser og kvalifikasjoner vises som kompakte kort i rutenett: én kolonne på mobil, tre kolonner på vanlig desktop, fire på bred desktop.
+- Handlingsbare nye kompetanser og kvalifikasjoner vises som tette avhukingsrader i en arbeidsliste, ikke som kortvegg. Hver rad har avhuking, navn og eventuelt en liten typeindikator. Detaljer åpnes først ved klikk på raden.
+- Navnene fordeles i kolonner: én kolonne på mobil, tre på vanlig desktop, fire på bred desktop.
 - Alle handlingsbare nye forslag er avhuket ved start.
 - Allerede registrerte, motstridende, avviste og teknisk feilede forslag ligger i egne seksjoner og er ikke forhåndsvalgt.
 - Filtrering og søk endrer kun hva som vises. Avhukinger beholdes for forslag som filtreres bort, og gjenopprettes når filteret fjernes.
