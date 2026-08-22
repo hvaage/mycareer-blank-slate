@@ -231,6 +231,7 @@ function PostingContactPanel({ opportunityId, graph }) {
 
   const { data, isLoading } = useQuery({
     queryKey: ["posting-contacts", opportunityId],
+    enabled: Boolean(opportunityId),
     staleTime: 5 * 60_000,
     queryFn: () => listFn({ data: { opportunityId } }),
   });

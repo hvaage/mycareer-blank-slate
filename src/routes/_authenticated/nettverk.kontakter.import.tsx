@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
 import { BackLink } from "@/components/network/network-shell";
-import { useAuthUserId } from "@/components/network/use-network-user";
+import { useNetworkAuth } from "@/components/network/use-network-user";
+import { NetworkErrorState } from "@/components/network/network-error";
 import { networkBatchQuery } from "@/lib/queries/network";
 import { promoteNetworkBatchContacts } from "@/lib/network.functions";
 
@@ -51,9 +52,12 @@ function formatDate(value: string | null | undefined) {
 }
 
 function ContactImportReview() {
-  const userId = useAuthUserId();
+  const { userId, isAuthPending } = useNetworkAuth();
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery(networkBatchQuery(userId));
+  const batchQuery = useQuery(networkBatchQuery(userId));
+  const data = batchQuery.data;
+  const isLoading = isAuthPending || (Boolean(userId) && batchQuery.isPending);
+  const isError = batchQuery.isError;
   const promote = useServerFn(promoteNetworkBatchContacts);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [result, setResult] = useState<
