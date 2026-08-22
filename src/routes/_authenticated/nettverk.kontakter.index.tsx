@@ -35,8 +35,14 @@ const CONTACTS_PER_PAGE = 100;
 
 function ContactsPage() {
   const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
-  const [term, setTerm] = useState("");
-  const [page, setPage] = useState(0);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const term = search.q ?? "";
+  const page = (search.side ?? 1) - 1;
+  const setTerm = (value: string) =>
+    navigate({ search: { q: value.trim() ? value : undefined, side: undefined }, replace: true });
+  const setPage = (value: number) =>
+    navigate({ search: (prev) => ({ ...prev, side: value > 0 ? value + 1 : undefined }), replace: true });
   const { data: batchData } = useQuery(networkBatchQuery(userId));
 
   const contacts = useMemo(() => (graph ? buildContacts(graph) : []), [graph]);
@@ -51,14 +57,11 @@ function ContactsPage() {
     );
   }, [contacts, term]);
 
-  useEffect(() => {
-    setPage(0);
-  }, [term]);
-
   const pageCount = Math.max(1, Math.ceil(filtered.length / CONTACTS_PER_PAGE));
   const currentPage = Math.min(page, pageCount - 1);
   const pageStart = currentPage * CONTACTS_PER_PAGE;
   const visibleContacts = filtered.slice(pageStart, pageStart + CONTACTS_PER_PAGE);
+
   const title = term.trim()
     ? `Kontakter (${filtered.length.toLocaleString("nb-NO")} av ${contacts.length.toLocaleString("nb-NO")})`
     : `Kontakter (${contacts.length.toLocaleString("nb-NO")})`;
