@@ -215,6 +215,10 @@ function OpportunityDetail() {
           <Timeline events={timeline} />
         </NetworkPanel>
 
+        <SuggestionPanel scope="opportunity" scopeObjectId={id} context={{ opportunityId: id }} />
+
+
+
         <NetworkPanel title="Arbeidsgiverinnsikt">
           <PanelEmpty>
             Ikke analysert ennå. Arbeidsgiveranalyse vises her når en reell analyse finnes for
