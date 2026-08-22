@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
 import { Timeline } from "@/components/network/timeline";
+import { ExternalUrlLink } from "@/components/external-url-link";
 import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
 import { BackLink } from "@/components/network/network-shell";
 import { useAuthUserId } from "@/components/network/use-network-user";

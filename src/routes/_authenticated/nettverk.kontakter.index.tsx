@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
 import { useAuthUserId } from "@/components/network/use-network-user";
 import { buildContacts, networkBatchQuery, networkGraphQuery } from "@/lib/queries/network";
+import { ExternalUrlLink } from "@/components/external-url-link";
 
 export const Route = createFileRoute("/_authenticated/nettverk/kontakter/")({
   component: ContactsPage,
