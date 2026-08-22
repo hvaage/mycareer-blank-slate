@@ -371,7 +371,10 @@ Deno.serve(async (req) => {
       logged: false,
       message: "Careerjet-henting er midlertidig pauset under identity-resolverutrullingen.",
     }),
-    { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    // 200 med eksplisitt disabled-flagg: en pauset funksjon er en kjent,
+    // håndtert tilstand — ikke en driftsfeil. 503 ble logget som runtime-feil
+    // i klienten selv om brukerflaten håndterte svaret riktig.
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 
 
