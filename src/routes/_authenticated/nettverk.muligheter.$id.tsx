@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { ExternalLink, Plus } from "lucide-react";
+import { ExternalUrlLink, isExternalUrl } from "@/components/external-url-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -142,14 +143,12 @@ function OpportunityDetail() {
                 }
               />
               {opp.card_display_url ? (
-                <a
+                <ExternalUrlLink
                   href={opp.card_display_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
+                  className="text-xs text-muted-foreground no-underline hover:underline"
                 >
-                  Åpne annonse <ExternalLink className="h-3 w-3" aria-hidden />
-                </a>
+                  Åpne annonse
+                </ExternalUrlLink>
               ) : null}
             </>
           }

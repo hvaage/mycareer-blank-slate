@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { getAdminLeads } from "@/lib/admin.functions";
+import { ExternalUrlLink } from "@/components/external-url-link";
 
 export const Route = createFileRoute("/_authenticated/admin/leads")({
   head: () => ({
@@ -172,17 +173,16 @@ function AdminLeadsPage() {
                     <Td>{l.role || "—"}</Td>
                     <Td className="max-w-[200px] truncate text-xs">
                       {l.linkedin_url ? (
-                        <a
+                        <ExternalUrlLink
                           href={l.linkedin_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary hover:underline"
+                          className="text-primary no-underline hover:underline"
+                          showIcon={false}
                         >
                           {l.linkedin_url.replace(
                             /^https?:\/\/(www\.)?linkedin\.com\/in\//,
                             ""
                           )}
-                        </a>
+                        </ExternalUrlLink>
                       ) : (
                         "—"
                       )}

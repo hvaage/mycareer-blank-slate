@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
 import { Timeline } from "@/components/network/timeline";
+import { ExternalUrlLink } from "@/components/external-url-link";
 import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
 import { BackLink } from "@/components/network/network-shell";
 import { useAuthUserId } from "@/components/network/use-network-user";
@@ -119,14 +120,9 @@ function ContactDetail() {
               />
             </dl>
             {contact.linkedinProfileUrl ? (
-              <a
-                href={contact.linkedinProfileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 inline-flex items-center gap-1 text-xs underline underline-offset-2"
-              >
-                Åpne LinkedIn-profil <ExternalLink className="h-3 w-3" aria-hidden />
-              </a>
+              <ExternalUrlLink href={contact.linkedinProfileUrl} className="mt-1 text-xs">
+                Åpne LinkedIn-profil
+              </ExternalUrlLink>
             ) : null}
           </div>
 

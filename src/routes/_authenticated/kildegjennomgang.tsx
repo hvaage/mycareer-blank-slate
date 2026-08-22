@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Info, Check, X, Clock, PencilLine, ShieldAlert, ArrowRight, RotateCcw } from "lucide-react";
+import { ExternalUrlLink, isExternalUrl } from "@/components/external-url-link";
 import {
   PROMOTION_BUTTON_LABELS,
   promoteProposal,
@@ -563,7 +564,13 @@ function SnapshotBlock({
           {entries.map(([key, value]) => (
             <div key={key} className="flex gap-2 text-sm">
               <dt className="min-w-24 shrink-0 text-muted-foreground">{key}</dt>
-              <dd className="break-words">{String(value)}</dd>
+              <dd className="break-words">
+                {isExternalUrl(value) ? (
+                  <ExternalUrlLink href={String(value).trim()}>{String(value)}</ExternalUrlLink>
+                ) : (
+                  String(value)
+                )}
+              </dd>
             </div>
           ))}
         </dl>
