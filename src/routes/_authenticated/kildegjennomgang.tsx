@@ -28,6 +28,12 @@ import {
 import { Info, Check, X, Clock, PencilLine, ShieldAlert, ArrowRight, RotateCcw } from "lucide-react";
 import { ExternalUrlLink, isExternalUrl } from "@/components/external-url-link";
 import {
+  BulkReviewList,
+  type BulkItem,
+  type BulkOutcome,
+} from "@/components/kildegjennomgang/bulk-review";
+import {
+  ALREADY_REGISTERED_CODE,
   PROMOTION_BUTTON_LABELS,
   promoteProposal,
   promotionActionForDomain,
@@ -35,6 +41,50 @@ import {
   type PromotionAction,
   type PromotionResolution,
 } from "@/lib/linkedin/promotion";
+
+/** Kvalifikasjonsforslag som kan behandles i bulk: nye, ikke besluttede. */
+function bulkActionable(items: Proposal[]): Proposal[] {
+  return items.filter(
+    (p) =>
+      p.proposal_kind === "create" &&
+      (p.status === "pending_review" || p.status === "approved_for_promotion") &&
+      Boolean(proposalAtomType(p)),
+  );
+}
+
+function proposalAtomType(proposal: Proposal): string | null {
+  const payload = (proposal.proposed_payload_json ?? {}) as Record<string, unknown>;
+  const value = payload["atom_type"] ?? payload["qualification_kind"];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function proposalLabel(proposal: Proposal): string {
+  const payload = (proposal.proposed_payload_json ?? {}) as Record<string, unknown>;
+  const source = (proposal.source_snapshot_json ?? {}) as Record<string, unknown>;
+  for (const value of [
+    payload["label"],
+    payload["title"],
+    payload["name"],
+    source["label"],
+    source["title"],
+    source["name"],
+  ]) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return proposal.review_message ?? "Forslag fra LinkedIn";
+}
+
+function toBulkItem(proposal: Proposal): BulkItem {
+  return {
+    id: proposal.id,
+    label: proposalLabel(proposal),
+    atomType: proposalAtomType(proposal),
+    status: proposal.status,
+    proposalKind: proposal.proposal_kind,
+    details: proposal.source_snapshot_json,
+  };
+}
+
 
 type Proposal = {
   id: string;
