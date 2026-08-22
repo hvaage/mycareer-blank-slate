@@ -97,6 +97,14 @@ function ContactImportReview() {
       setErrorText("Importen kunne ikke fullføres. Ingen kontakter ble opprettet."),
   });
 
+  if (isError)
+    return (
+      <NetworkErrorState
+        onRetry={() => batchQuery.refetch()}
+        title="Kunne ikke hente importstatus"
+      />
+    );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 md:overflow-hidden">
       <div>
