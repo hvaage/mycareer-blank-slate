@@ -3,15 +3,25 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
+import { Timeline } from "@/components/network/timeline";
+import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
 import { BackLink } from "@/components/network/network-shell";
 import { useAuthUserId } from "@/components/network/use-network-user";
-import { buildContacts, companyKeyFor, networkGraphQuery } from "@/lib/queries/network";
+import {
+  ACTIVITY_STATUS_LABEL,
+  ACTIVITY_TYPE_LABEL,
+  buildActivities,
+  buildContacts,
+  companyKeyFor,
+  networkGraphQuery,
+} from "@/lib/queries/network";
+import { buildTimeline } from "@/lib/queries/network-timeline";
 import { setContactCompanyRelation, updateContactManualFields } from "@/lib/network.functions";
 
 export const Route = createFileRoute("/_authenticated/nettverk/kontakter/$id")({
@@ -27,17 +37,29 @@ function ContactDetail() {
     () => (graph ? buildContacts(graph).find((c) => c.id === id) ?? null : null),
     [graph, id],
   );
-  const steps = useMemo(
-    () => (graph ? graph.steps.filter((s) => s.contact_id === id) : []),
+  const activities = useMemo(
+    () => (graph ? buildActivities(graph).filter((a) => a.contactId === id) : []),
     [graph, id],
   );
+  const timeline = useMemo(
+    () => (graph ? buildTimeline(graph, { type: "contact", id }) : []),
+    [graph, id],
+  );
+  /**
+   * Muligheter der kontakten faktisk er koblet: enten som registrert annonsekontakt,
+   * eller via en aktivitet brukeren selv har knyttet til både kontakt og mulighet.
+   */
   const opportunities = useMemo(() => {
-    if (!graph || !contact?.company) return [];
-    const target = contact.company.trim().toLowerCase();
-    return graph.opportunities.filter(
-      (o) => (o.card_company ?? "").trim().toLowerCase() === target,
-    );
-  }, [graph, contact]);
+    if (!graph) return [];
+    const ids = new Set<string>();
+    for (const pc of graph.postingContacts ?? []) {
+      if (pc.network_contact_id === id && pc.opportunity_id) ids.add(pc.opportunity_id);
+    }
+    for (const a of activities) {
+      if (a.opportunityId) ids.add(a.opportunityId);
+    }
+    return graph.opportunities.filter((o) => ids.has(o.id));
+  }, [graph, id, activities]);
 
   if (isLoading) return <p className="p-2 text-sm text-muted-foreground">Laster kontakt…</p>;
   if (!contact) return <p className="p-2 text-sm text-muted-foreground">Fant ikke kontakten.</p>;
@@ -64,7 +86,7 @@ function ContactDetail() {
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-2 md:overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-3 md:overflow-hidden">
         <NetworkPanel title="Kontaktprofil og kontaktkanaler">
           <dl className="space-y-1">
             <Row label="Navn" value={contact.display_name} source={contact.nameSource} />
@@ -116,14 +138,20 @@ function ContactDetail() {
         <ManualFieldsPanel contact={contact} />
 
 
-        <NetworkPanel title={`Relevante muligheter (${opportunities.length})`}>
+        <NetworkPanel title={`Muligheter (${opportunities.length})`}>
           {opportunities.length === 0 ? (
-            <PanelEmpty>Ingen muligheter knyttet til denne kontaktens selskap.</PanelEmpty>
+            <PanelEmpty>Kontakten er ikke koblet til noen mulighet ennå.</PanelEmpty>
           ) : (
             <ul className="divide-y divide-border">
               {opportunities.map((o) => (
                 <li key={o.id} className="py-1">
-                  <span className="font-medium">{o.card_title ?? "Uten tittel"}</span>
+                  <Link
+                    to="/nettverk/muligheter/$id"
+                    params={{ id: o.id }}
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    {o.card_title ?? "Uten tittel"}
+                  </Link>
                   <span className="text-muted-foreground"> · {o.card_company}</span>
                 </li>
               ))}
@@ -131,21 +159,53 @@ function ContactDetail() {
           )}
         </NetworkPanel>
 
-        <NetworkPanel title={`Aktiviteter og tidslinje (${steps.length})`}>
-          {steps.length === 0 ? (
+        <NetworkPanel
+          title={`Aktiviteter (${activities.length})`}
+          actions={
+            <ActivityDialog
+              context={{ contactId: contact.id, companyId: contact.companyId ?? null }}
+              contextLabel={contact.display_name}
+              trigger={
+                <Button size="sm" variant="outline">
+                  <Plus className="mr-1 h-4 w-4" /> Logg aktivitet
+                </Button>
+              }
+            />
+          }
+        >
+          {activities.length === 0 ? (
             <PanelEmpty>Ingen aktiviteter registrert på kontakten.</PanelEmpty>
           ) : (
             <ul className="divide-y divide-border">
-              {steps.map((s) => (
-                <li key={s.id} className="flex gap-2 py-1">
-                  <span className="tabular-nums text-muted-foreground">
-                    {s.due_date ? new Date(s.due_date).toLocaleDateString("nb-NO") : "—"}
+              {activities.map((a) => (
+                <li key={a.id} className="flex items-center gap-2 py-1">
+                  <span className="w-24 shrink-0 tabular-nums text-xs text-muted-foreground">
+                    {a.due_date ?? "Uten dato"}
                   </span>
-                  <span>{s.title}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {a.title}
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {ACTIVITY_TYPE_LABEL[a.activity_type] ?? a.activity_type} ·{" "}
+                      {ACTIVITY_STATUS_LABEL[a.status] ?? a.status}
+                    </span>
+                  </span>
+                  <ActivityStatusButton activityId={a.id} status={a.status} />
                 </li>
               ))}
             </ul>
           )}
+        </NetworkPanel>
+
+        <NetworkPanel title={`Tidslinje (${timeline.length})`}>
+          <Timeline events={timeline} />
+        </NetworkPanel>
+
+        <NetworkPanel title="Tredjepartsinformasjon">
+          <PanelEmpty>
+            Mottatte LinkedIn-anbefalinger vises her kun når du selv har koblet dem til denne
+            kontakten. Slik informasjon er tredjepartsinformasjon, ikke dokumentert CV-evidens.
+          </PanelEmpty>
         </NetworkPanel>
       </div>
     </div>
