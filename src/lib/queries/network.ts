@@ -132,7 +132,7 @@ async function loadNetworkGraph(userId: string) {
     fetchAllPages((from, to) =>
       supabase
         .from("user_opportunities")
-        .select("id, card_title, card_company, card_location, status, updated_at, created_at")
+        .select("id, canonical_opportunity_id, card_title, card_company, card_location, card_display_url, card_raw_url, card_published_at, card_source, status, screening_status, relevance_score, match_score_version, match_scored_model, screening_evaluated_at, ai_match_highlights, ai_concerns, updated_at, created_at")
         .eq("user_id", userId)
         .order("updated_at", { ascending: false })
         .order("id", { ascending: false })
