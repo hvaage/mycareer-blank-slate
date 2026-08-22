@@ -13,8 +13,14 @@ import { buildContacts, networkBatchQuery, networkGraphQuery } from "@/lib/queri
 import { ExternalUrlLink } from "@/components/external-url-link";
 
 export const Route = createFileRoute("/_authenticated/nettverk/kontakter/")({
+  // Filter og side ligger i URL-en slik at «Tilbake» fra en kontakt beholder konteksten.
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : undefined,
+    side: Number.isFinite(Number(search.side)) && Number(search.side) > 0 ? Number(search.side) : undefined,
+  }),
   component: ContactsPage,
 });
+
 
 const OBJECT_KIND_LABEL: Record<string, string> = {
   person_contact: "Personkontakter",
