@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
-import { useAuthUserId } from "@/components/network/use-network-user";
+import { useNetworkGraph } from "@/components/network/use-network-user";
+import { NetworkErrorState } from "@/components/network/network-error";
 import { buildContacts, networkBatchQuery, networkGraphQuery } from "@/lib/queries/network";
 import { ExternalUrlLink } from "@/components/external-url-link";
 
@@ -27,10 +28,9 @@ const OBJECT_KIND_LABEL: Record<string, string> = {
 const CONTACTS_PER_PAGE = 100;
 
 function ContactsPage() {
-  const userId = useAuthUserId();
+  const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
   const [term, setTerm] = useState("");
   const [page, setPage] = useState(0);
-  const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
   const { data: batchData } = useQuery(networkBatchQuery(userId));
 
   const contacts = useMemo(() => (graph ? buildContacts(graph) : []), [graph]);
@@ -60,6 +60,7 @@ function ContactsPage() {
   const importablePersons =
     batchData?.state === "importable" ? (batchData.pendingPersonItemIds?.length ?? 0) : 0;
 
+  if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3 md:overflow-hidden">
       <NetworkPanel

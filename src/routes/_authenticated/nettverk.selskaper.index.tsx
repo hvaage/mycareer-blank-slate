@@ -20,7 +20,8 @@ import { hideCompany } from "@/lib/network.functions";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
-import { useAuthUserId } from "@/components/network/use-network-user";
+import { useNetworkGraph } from "@/components/network/use-network-user";
+import { NetworkErrorState } from "@/components/network/network-error";
 import { buildCompanies, networkGraphQuery } from "@/lib/queries/network";
 
 export const Route = createFileRoute("/_authenticated/nettverk/selskaper/")({
@@ -43,7 +44,7 @@ export const PRIORITY_LABEL: Record<string, string> = {
 };
 
 function CompaniesPage() {
-  const userId = useAuthUserId();
+  const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
   const [term, setTerm] = useState("");
   const [pendingDelete, setPendingDelete] = useState<{ key: string; companyId: string | null; name: string } | null>(null);
   const queryClient = useQueryClient();
@@ -62,13 +63,13 @@ function CompaniesPage() {
     onError: () => toast.error("Kunne ikke fjerne selskapet."),
     onSettled: () => setPendingDelete(null),
   });
-  const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
   const companies = useMemo(() => (graph ? buildCompanies(graph) : []), [graph]);
   const filtered = useMemo(() => {
     const q = term.trim().toLowerCase();
     return q ? companies.filter((c) => c.name.toLowerCase().includes(q)) : companies;
   }, [companies, term]);
 
+  if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col md:overflow-hidden">
       <NetworkPanel
