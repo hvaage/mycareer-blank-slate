@@ -182,7 +182,7 @@ function ContactsPage() {
                     variant="outline"
                     className="h-7 w-7"
                     disabled={currentPage === 0}
-                    onClick={() => setPage((value) => Math.max(0, value - 1))}
+                    onClick={() => setPage(Math.max(0, currentPage - 1))}
                     aria-label="Forrige kontaktside"
                   >
                     <ChevronLeft className="h-4 w-4" aria-hidden />
