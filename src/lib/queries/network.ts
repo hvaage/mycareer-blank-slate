@@ -202,7 +202,21 @@ async function loadNetworkGraph(userId: string) {
         .order("id")
         .range(from, to),
     ),
+    // Kun mottatte anbefalinger er relevante for kontaktdetaljen.
+    fetchAllPages((from, to) =>
+      supabase
+        .from("career_recommendations")
+        .select(
+          "id, author_name, author_title, author_company, relationship_text, recommendation_text, recommended_on, source_system, direction, network_contact_id, is_active, archived_at",
+        )
+        .eq("user_id", userId)
+        .eq("direction", "received")
+        .order("recommended_on", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(from, to),
+    ),
   ]);
+
 
   return {
     contacts,
