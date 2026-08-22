@@ -92,3 +92,76 @@ export const promoteNetworkBatchContacts = createServerFn({ method: "POST" })
       skippedCount: payload.skipped_count ?? 0,
     };
   });
+
+const manualFieldsSchema = z.object({
+  contactId: z.string().uuid(),
+  displayName: z.string().max(300).nullable().optional(),
+  headline: z.string().max(500).nullable().optional(),
+});
+
+/**
+ * Manuelle kontaktfelt. Brukeridentitet tas kun fra verifisert serversesjon;
+ * tomt felt tilbakestiller visningen til siste LinkedIn-observasjon.
+ * Rå kontaktdata logges aldri.
+ */
+export const updateContactManualFields = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => manualFieldsSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_update_contact_manual_fields" as never,
+      {
+        p_user_id: context.userId,
+        p_contact_id: data.contactId,
+        p_display_name: data.displayName ?? null,
+        p_headline: data.headline ?? null,
+      } as never,
+    );
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed" };
+    }
+    return { ok: true, errorCode: null };
+  });
+
+const contactRelationSchema = z.object({
+  contactId: z.string().uuid(),
+  companyName: z.string().max(300).nullable().optional(),
+  relationKind: z
+    .enum(["current_employer", "past_employer", "affiliation", "unknown"])
+    .nullable()
+    .optional(),
+  relationStatus: z.string().max(120).nullable().optional(),
+  validFrom: z.string().date().nullable().optional(),
+  validTo: z.string().date().nullable().optional(),
+});
+
+/**
+ * Manuell eller korrigert selskapstilknytning. LinkedIn-observert tilknytning
+ * beholdes som egen historikkrad; kun én relasjon per kontakt er aktiv.
+ */
+export const setContactCompanyRelation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => contactRelationSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_set_contact_company_relation" as never,
+      {
+        p_user_id: context.userId,
+        p_contact_id: data.contactId,
+        p_company_name: data.companyName ?? null,
+        p_relation_kind: data.relationKind ?? "unknown",
+        p_relation_status: data.relationStatus ?? null,
+        p_valid_from: data.validFrom ?? null,
+        p_valid_to: data.validTo ?? null,
+      } as never,
+    );
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed" };
+    }
+    return { ok: true, errorCode: null };
+  });
+

@@ -50,6 +50,15 @@ export type NetworkContactItem = {
   headline: string | null;
   company: string | null;
   companyId: string | null;
+  /** Kilde for aktiv verdi: brukerens egen registrering eller LinkedIn-observasjon. */
+  nameSource: "user_input" | "linkedin_observed";
+  headlineSource: "user_input" | "linkedin_observed";
+  companySource: "user_input" | "linkedin_observed";
+  linkedinDisplayName: string | null;
+  linkedinHeadline: string | null;
+  linkedinCompany: string | null;
+  linkedinProfileUrl: string | null;
+  linkedinObservedAt: string | null;
   connected_on: string | null;
   source_system: string | null;
   last_observed_at: string | null;
@@ -58,17 +67,27 @@ export type NetworkContactItem = {
 };
 
 async function loadNetworkGraph(userId: string) {
-  const [contacts, relations, userCompanies, opportunities, steps] = await Promise.all([
+  const [contacts, relations, identities, userCompanies, opportunities, steps] = await Promise.all([
     supabase
       .from("network_contacts")
-      .select("id, display_name, headline, company, connected_on, source_system, last_observed_at, is_active")
+      .select(
+        "id, display_name, headline, company, connected_on, source_system, last_observed_at, is_active, manual_display_name, manual_headline, manual_updated_at",
+      )
       .eq("user_id", userId)
       .eq("is_active", true)
       .order("display_name"),
     supabase
       .from("network_contact_company_relations")
-      .select("id, network_contact_id, company_id, company_name_observed, company_name_canonical, relation_kind, observed_at")
+      .select(
+        "id, network_contact_id, company_id, company_name_observed, company_name_canonical, relation_kind, relation_status, source_class, is_active, valid_from, valid_to, observed_at",
+      )
       .eq("user_id", userId),
+    // Kun kanonisk LinkedIn-profil-URL. Hasher og interne previews leses aldri.
+    supabase
+      .from("network_contact_identities")
+      .select("network_contact_id, identity_key, last_observed_at")
+      .eq("user_id", userId)
+      .eq("identity_kind", "linkedin_profile_url"),
     supabase
       .from("user_company_relationships")
       .select("id, company_id, company_name_user, relationship_kind, status, priority, notes, updated_at, companies(id, name, industry, country, organisasjonsnummer)")
@@ -88,18 +107,20 @@ async function loadNetworkGraph(userId: string) {
       .limit(1000),
   ]);
 
-  for (const res of [contacts, relations, userCompanies, opportunities, steps]) {
+  for (const res of [contacts, relations, identities, userCompanies, opportunities, steps]) {
     if (res.error) throw res.error;
   }
 
   return {
     contacts: contacts.data ?? [],
     relations: relations.data ?? [],
+    identities: identities.data ?? [],
     userCompanies: userCompanies.data ?? [],
     opportunities: opportunities.data ?? [],
     steps: steps.data ?? [],
   };
 }
+
 
 export type NetworkGraph = Awaited<ReturnType<typeof loadNetworkGraph>>;
 
@@ -198,22 +219,56 @@ export function buildCompanies(graph: NetworkGraph): NetworkCompanyItem[] {
 }
 
 export function buildContacts(graph: NetworkGraph): NetworkContactItem[] {
-  const relByContact = new Map<string, (typeof graph.relations)[number]>();
+  // Aktiv (brukerregistrert) relasjon vinner; ellers siste LinkedIn-observasjon.
+  const activeRel = new Map<string, (typeof graph.relations)[number]>();
+  const observedRel = new Map<string, (typeof graph.relations)[number]>();
   for (const rel of graph.relations) {
-    if (!relByContact.has(rel.network_contact_id)) relByContact.set(rel.network_contact_id, rel);
+    if (rel.is_active) {
+      activeRel.set(rel.network_contact_id, rel);
+    } else if (!observedRel.has(rel.network_contact_id)) {
+      observedRel.set(rel.network_contact_id, rel);
+    }
+  }
+
+  const identityByContact = new Map<string, { url: string; observedAt: string | null }>();
+  for (const ident of graph.identities ?? []) {
+    if (!ident.identity_key) continue;
+    const current = identityByContact.get(ident.network_contact_id);
+    if (!current || (ident.last_observed_at ?? "") > (current.observedAt ?? "")) {
+      identityByContact.set(ident.network_contact_id, {
+        url: ident.identity_key,
+        observedAt: ident.last_observed_at ?? null,
+      });
+    }
   }
 
   return graph.contacts.map((c) => {
-    const rel = relByContact.get(c.id);
+    const active = activeRel.get(c.id) ?? null;
+    const observed = observedRel.get(c.id) ?? null;
+    const identity = identityByContact.get(c.id) ?? null;
     const steps = graph.steps.filter((s) => s.contact_id === c.id);
     const next = steps.find((s) => !s.completed) ?? null;
     const done = steps.filter((s) => s.completed_at).map((s) => s.completed_at).sort();
+
+    const linkedinCompany = observed?.company_name_observed ?? c.company ?? null;
+    const manualCompany = active?.company_name_observed ?? null;
+    const manualName = c.manual_display_name ?? null;
+    const manualHeadline = c.manual_headline ?? null;
+
     return {
       id: c.id,
-      display_name: c.display_name,
-      headline: c.headline ?? null,
-      company: c.company ?? rel?.company_name_observed ?? null,
-      companyId: rel?.company_id ?? null,
+      display_name: manualName ?? c.display_name,
+      headline: manualHeadline ?? c.headline ?? null,
+      company: manualCompany ?? linkedinCompany,
+      companyId: active?.company_id ?? observed?.company_id ?? null,
+      nameSource: manualName ? "user_input" : "linkedin_observed",
+      headlineSource: manualHeadline ? "user_input" : "linkedin_observed",
+      companySource: manualCompany ? "user_input" : "linkedin_observed",
+      linkedinDisplayName: c.display_name ?? null,
+      linkedinHeadline: c.headline ?? null,
+      linkedinCompany,
+      linkedinProfileUrl: identity?.url ?? null,
+      linkedinObservedAt: identity?.observedAt ?? c.last_observed_at ?? null,
       connected_on: c.connected_on ?? null,
       source_system: c.source_system ?? null,
       last_observed_at: c.last_observed_at ?? null,
@@ -222,6 +277,7 @@ export function buildContacts(graph: NetworkGraph): NetworkContactItem[] {
     };
   });
 }
+
 
 export type NetworkSearchResults = {
   contacts: NetworkContactItem[];
@@ -246,6 +302,12 @@ export function searchNetwork(graph: NetworkGraph, term: string): NetworkSearchR
   };
 }
 
+export type NetworkBatchState =
+  | "importable"
+  | "consumed"
+  | "superseded"
+  | "none";
+
 /** Nettverksbatch fra LinkedIn-import. Kun lesing — aldri register. */
 export function networkBatchQuery(userId: string | undefined) {
   return queryOptions({
@@ -253,18 +315,51 @@ export function networkBatchQuery(userId: string | undefined) {
     enabled: !!userId,
     staleTime: 30_000,
     queryFn: async () => {
-      const { data: batch, error } = await supabase
+      const select =
+        "id, status, total_count, new_contact_count, exact_identity_match_count, possible_duplicate_count, without_stable_identity_count, observed_profile_change_count, excluded_count, prepared_at, created_at, consumed_at, superseded_at, linkedin_import_id";
+
+      // Nyeste gyldige (ready, ukonsumert) batch er importvinduet.
+      const { data: readyBatch, error: readyError } = await supabase
         .from("linkedin_network_reconciliation_batches")
-        .select(
-          "id, status, total_count, new_contact_count, exact_identity_match_count, possible_duplicate_count, without_stable_identity_count, observed_profile_change_count, excluded_count, prepared_at, created_at",
-        )
+        .select(select)
         .eq("user_id", userId!)
         .eq("status", "ready")
+        .is("consumed_at", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error) throw error;
-      if (!batch) return null;
+      if (readyError) throw readyError;
+
+      // Uten importvindu: vis tilstanden til siste batch uansett status.
+      const { data: lastBatch, error: lastError } = readyBatch
+        ? { data: null, error: null }
+        : await supabase
+            .from("linkedin_network_reconciliation_batches")
+            .select(select)
+            .eq("user_id", userId!)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+      if (lastError) throw lastError;
+
+      const batch = readyBatch ?? lastBatch ?? null;
+      if (!batch) {
+        return {
+          state: "none" as NetworkBatchState,
+          batch: null,
+          objectKindCounts: {} as Record<string, number>,
+          pendingPersonItemIds: [] as string[],
+          latestReadyBatchId: null as string | null,
+        };
+      }
+
+      const state: NetworkBatchState = readyBatch
+        ? "importable"
+        : batch.consumed_at || batch.status === "consumed"
+          ? "consumed"
+          : batch.superseded_at || batch.status === "superseded"
+            ? "superseded"
+            : "none";
 
       // PostgREST returnerer maks 1000 rader per kall — les batchen sidevis
       // slik at tellingene per objektklasse blir fullstendige.
@@ -293,7 +388,15 @@ export function networkBatchQuery(userId: string | undefined) {
         }
       }
 
-      return { batch, objectKindCounts, pendingPersonItemIds };
+      return {
+        state,
+        batch,
+        objectKindCounts,
+        // Kun en importerbar batch kan gi handlingsbare elementer.
+        pendingPersonItemIds: state === "importable" ? pendingPersonItemIds : [],
+        latestReadyBatchId: readyBatch?.id ?? null,
+      };
     },
+
   });
 }

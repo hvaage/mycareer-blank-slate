@@ -5928,13 +5928,18 @@ export type Database = {
           company_name_observed: string | null
           created_at: string
           id: string
+          is_active: boolean
           network_contact_id: string
           observed_at: string | null
           relation_kind: string
+          relation_status: string | null
+          source_class: string
           source_import_id: string | null
           source_system: string
           updated_at: string
           user_id: string
+          valid_from: string | null
+          valid_to: string | null
         }
         Insert: {
           company_id?: string | null
@@ -5942,13 +5947,18 @@ export type Database = {
           company_name_observed?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           network_contact_id: string
           observed_at?: string | null
           relation_kind: string
+          relation_status?: string | null
+          source_class?: string
           source_import_id?: string | null
           source_system: string
           updated_at?: string
           user_id: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Update: {
           company_id?: string | null
@@ -5956,13 +5966,18 @@ export type Database = {
           company_name_observed?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           network_contact_id?: string
           observed_at?: string | null
           relation_kind?: string
+          relation_status?: string | null
+          source_class?: string
           source_import_id?: string | null
           source_system?: string
           updated_at?: string
           user_id?: string
+          valid_from?: string | null
+          valid_to?: string | null
         }
         Relationships: [
           {
@@ -6068,6 +6083,9 @@ export type Database = {
           id: string
           is_active: boolean
           last_observed_at: string | null
+          manual_display_name: string | null
+          manual_headline: string | null
+          manual_updated_at: string | null
           source_import_id: string | null
           source_ref: string | null
           source_system: string
@@ -6083,6 +6101,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_observed_at?: string | null
+          manual_display_name?: string | null
+          manual_headline?: string | null
+          manual_updated_at?: string | null
           source_import_id?: string | null
           source_ref?: string | null
           source_system?: string
@@ -6098,6 +6119,9 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_observed_at?: string | null
+          manual_display_name?: string | null
+          manual_headline?: string | null
+          manual_updated_at?: string | null
           source_import_id?: string | null
           source_ref?: string | null
           source_system?: string
@@ -9302,6 +9326,27 @@ export type Database = {
           p_company_name?: string
           p_priority?: string
           p_status?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      network_set_contact_company_relation: {
+        Args: {
+          p_company_name: string
+          p_contact_id: string
+          p_relation_kind?: string
+          p_relation_status?: string
+          p_user_id: string
+          p_valid_from?: string
+          p_valid_to?: string
+        }
+        Returns: Json
+      }
+      network_update_contact_manual_fields: {
+        Args: {
+          p_contact_id: string
+          p_display_name: string
+          p_headline: string
           p_user_id: string
         }
         Returns: Json

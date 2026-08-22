@@ -1,11 +1,18 @@
 // @ts-nocheck
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ExternalLink } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
 import { BackLink } from "@/components/network/network-shell";
 import { useAuthUserId } from "@/components/network/use-network-user";
 import { buildContacts, companyKeyFor, networkGraphQuery } from "@/lib/queries/network";
+import { setContactCompanyRelation, updateContactManualFields } from "@/lib/network.functions";
 
 export const Route = createFileRoute("/_authenticated/nettverk/kontakter/$id")({
   component: ContactDetail,
@@ -60,9 +67,9 @@ function ContactDetail() {
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-2 md:overflow-hidden">
         <NetworkPanel title="Kontaktprofil og kontaktkanaler">
           <dl className="space-y-1">
-            <Row label="Navn" value={contact.display_name} />
-            <Row label="Tittel" value={contact.headline} />
-            <Row label="Selskap" value={contact.company} />
+            <Row label="Navn" value={contact.display_name} source={contact.nameSource} />
+            <Row label="Tittel" value={contact.headline} source={contact.headlineSource} />
+            <Row label="Selskap" value={contact.company} source={contact.companySource} />
             <Row
               label="Koblet"
               value={
@@ -73,17 +80,41 @@ function ContactDetail() {
             />
             <Row label="Kilde" value={contact.source_system === "linkedin_import" ? "LinkedIn-import" : contact.source_system} />
           </dl>
+
+          <div className="mt-3 rounded-md border border-border p-2">
+            <p className="text-xs font-medium">Observert i LinkedIn</p>
+            <dl className="mt-1 space-y-1 text-xs text-muted-foreground">
+              <Row label="Navn" value={contact.linkedinDisplayName} />
+              <Row label="Tittel" value={contact.linkedinHeadline} />
+              <Row label="Selskap" value={contact.linkedinCompany} />
+              <Row
+                label="Sist observert"
+                value={
+                  contact.linkedinObservedAt
+                    ? new Date(contact.linkedinObservedAt).toLocaleDateString("nb-NO")
+                    : null
+                }
+              />
+            </dl>
+            {contact.linkedinProfileUrl ? (
+              <a
+                href={contact.linkedinProfileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex items-center gap-1 text-xs underline underline-offset-2"
+              >
+                Åpne LinkedIn-profil <ExternalLink className="h-3 w-3" aria-hidden />
+              </a>
+            ) : null}
+          </div>
+
           <p className="mt-2 text-xs text-muted-foreground">
-            E-post, telefon og profillenke vises kun når du selv har lagt dem inn i produktet.
+            E-post og telefon vises kun når du selv har lagt dem inn i produktet.
           </p>
         </NetworkPanel>
 
-        <NetworkPanel title="Relasjon og notater">
-          <PanelEmpty>
-            Relasjonsstyrke, introduksjonsevne, referansemarkering og notater registreres i neste
-            leveranse.
-          </PanelEmpty>
-        </NetworkPanel>
+        <ManualFieldsPanel contact={contact} />
+
 
         <NetworkPanel title={`Relevante muligheter (${opportunities.length})`}>
           {opportunities.length === 0 ? (
@@ -121,11 +152,122 @@ function ContactDetail() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string | null | undefined }) {
+/**
+ * Manuelle verdier vinner alltid over LinkedIn-observasjoner. Tomt felt
+ * tilbakestiller til observert verdi. All skriving går via kanonisk serverhandling.
+ */
+function ManualFieldsPanel({ contact }) {
+  const queryClient = useQueryClient();
+  const saveFields = useServerFn(updateContactManualFields);
+  const saveRelation = useServerFn(setContactCompanyRelation);
+  const [name, setName] = useState(contact.nameSource === "user_input" ? contact.display_name : "");
+  const [headline, setHeadline] = useState(
+    contact.headlineSource === "user_input" ? (contact.headline ?? "") : "",
+  );
+  const [company, setCompany] = useState(
+    contact.companySource === "user_input" ? (contact.company ?? "") : "",
+  );
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStatus(null);
+  }, [contact.id]);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const fields = await saveFields({
+        data: {
+          contactId: contact.id,
+          displayName: name.trim() || null,
+          headline: headline.trim() || null,
+        },
+      });
+      if (!fields?.ok) throw new Error(fields?.errorCode ?? "write_failed");
+      const relation = await saveRelation({
+        data: {
+          contactId: contact.id,
+          companyName: company.trim() || null,
+          relationKind: "unknown",
+        },
+      });
+      if (!relation?.ok) throw new Error(relation?.errorCode ?? "write_failed");
+    },
+    onSuccess: () => {
+      setStatus("Lagret. Dine verdier vises nå framfor LinkedIn-dataene.");
+      queryClient.invalidateQueries({ queryKey: ["network"] });
+    },
+    onError: () => setStatus("Kunne ikke lagre. Ingen endringer ble gjort."),
+  });
+
   return (
-    <div className="flex gap-2">
-      <dt className="w-32 shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words">{value || "Ikke registrert"}</dd>
+    <NetworkPanel title="Dine egne opplysninger">
+      <div className="space-y-2">
+        <Field id="manual-name" label="Navn" value={name} onChange={setName} placeholder={contact.linkedinDisplayName ?? ""} />
+        <Field
+          id="manual-headline"
+          label="Tittel"
+          value={headline}
+          onChange={setHeadline}
+          placeholder={contact.linkedinHeadline ?? ""}
+        />
+        <Field
+          id="manual-company"
+          label="Selskap"
+          value={company}
+          onChange={setCompany}
+          placeholder={contact.linkedinCompany ?? ""}
+        />
+        <p className="text-xs text-muted-foreground">
+          Tomt felt bruker den observerte LinkedIn-verdien. En ny LinkedIn-import overskriver ikke
+          det du har lagt inn her.
+        </p>
+        <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+          {mutation.isPending ? "Lagrer…" : "Lagre"}
+        </Button>
+        {status ? <p className="text-xs text-muted-foreground">{status}</p> : null}
+      </div>
+    </NetworkPanel>
+  );
+}
+
+function Field({ id, label, value, onChange, placeholder }) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id} className="text-xs">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8"
+      />
     </div>
   );
 }
+
+function Row({
+  label,
+  value,
+  source,
+}: {
+  label: string;
+  value: string | null | undefined;
+  source?: "user_input" | "linkedin_observed";
+}) {
+  return (
+    <div className="flex gap-2">
+      <dt className="w-32 shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words">
+        {value || "Ikke registrert"}
+        {value && source ? (
+          <Badge variant="outline" className="ml-2 text-[10px]">
+            {source === "user_input" ? "Din registrering" : "LinkedIn"}
+          </Badge>
+        ) : null}
+      </dd>
+    </div>
+  );
+}
+
