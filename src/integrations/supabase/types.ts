@@ -5921,6 +5921,186 @@ export type Database = {
         }
         Relationships: []
       }
+      network_activity_suggestion_runs: {
+        Row: {
+          attempt_count: number
+          correlation_id: string
+          created_at: string
+          error_code: string | null
+          finished_at: string | null
+          generation_epoch: number
+          heartbeat_at: string | null
+          id: string
+          input_signature: string
+          lease_expires_at: string | null
+          lease_owner: string | null
+          model_name: string | null
+          model_profile: string
+          model_run_id: string | null
+          next_attempt_at: string
+          prompt_version: string
+          scope: string
+          scope_key: string
+          scope_object_id: string | null
+          started_at: string | null
+          status: string
+          suggestion_count: number
+          user_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          correlation_id?: string
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          generation_epoch?: number
+          heartbeat_at?: string | null
+          id?: string
+          input_signature: string
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          model_name?: string | null
+          model_profile: string
+          model_run_id?: string | null
+          next_attempt_at?: string
+          prompt_version: string
+          scope: string
+          scope_key: string
+          scope_object_id?: string | null
+          started_at?: string | null
+          status?: string
+          suggestion_count?: number
+          user_id: string
+        }
+        Update: {
+          attempt_count?: number
+          correlation_id?: string
+          created_at?: string
+          error_code?: string | null
+          finished_at?: string | null
+          generation_epoch?: number
+          heartbeat_at?: string | null
+          id?: string
+          input_signature?: string
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          model_name?: string | null
+          model_profile?: string
+          model_run_id?: string | null
+          next_attempt_at?: string
+          prompt_version?: string
+          scope?: string
+          scope_key?: string
+          scope_object_id?: string | null
+          started_at?: string | null
+          status?: string
+          suggestion_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      network_activity_suggestion_scope_state: {
+        Row: {
+          created_at: string
+          generation_epoch: number
+          id: string
+          scope: string
+          scope_key: string
+          scope_object_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generation_epoch?: number
+          id?: string
+          scope: string
+          scope_key: string
+          scope_object_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generation_epoch?: number
+          id?: string
+          scope?: string
+          scope_key?: string
+          scope_object_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      network_activity_suggestions: {
+        Row: {
+          activity_type: string
+          context: Json
+          created_activity_id: string | null
+          created_at: string
+          decided_at: string | null
+          evidence: Json
+          id: string
+          priority: string
+          rationale: string
+          run_id: string
+          source_class: string
+          status: string
+          suggested_timing: Json
+          title: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          context?: Json
+          created_activity_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          evidence?: Json
+          id?: string
+          priority: string
+          rationale: string
+          run_id: string
+          source_class?: string
+          status?: string
+          suggested_timing?: Json
+          title: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          context?: Json
+          created_activity_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          evidence?: Json
+          id?: string
+          priority?: string
+          rationale?: string
+          run_id?: string
+          source_class?: string
+          status?: string
+          suggested_timing?: Json
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nas_created_activity_fk"
+            columns: ["created_activity_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "next_steps"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "network_activity_suggestions_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "network_activity_suggestion_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       network_contact_company_relations: {
         Row: {
           company_id: string | null
