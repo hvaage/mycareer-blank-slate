@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { toast } from "sonner";
+import { completeActivity, upsertActivity } from "@/lib/network.functions";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { allNextStepsQuery } from "@/lib/queries/sub-resources";
@@ -21,9 +23,17 @@ function NextStepsPage() {
   const { data, isLoading } = useQuery(allNextStepsQuery());
   const { data: genApps, isLoading: loadingGen } = useQuery(applicationsGeneratedNotSentQuery());
 
+  // Kanonisk skrivevei: statusendring går alltid via serverhandlingen.
   const toggle = async (s: any) => {
-    await supabase.from("next_steps").update({ completed: !s.completed }).eq("id", s.id);
+    const res = await completeActivity({
+      data: { activityId: s.id, status: s.completed ? "planlagt" : "utfort" },
+    });
+    if (!res.ok) {
+      toast.error("Kunne ikke oppdatere aktiviteten.");
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["next_steps"] });
+    qc.invalidateQueries({ queryKey: ["network-graph"] });
     qc.invalidateQueries({ queryKey: ["applications", "søknad_generert_light"] });
   };
 
