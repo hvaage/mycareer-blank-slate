@@ -32,7 +32,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-rule bg-[var(--km-paper)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--km-paper)]/80">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:h-16 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 pl-16 sm:h-16 sm:px-6 sm:pl-20">
         <Link to="/" aria-label="karrierenmin.no" className="flex items-center">
           <Logo className="block h-8 w-auto sm:h-9" />
         </Link>
