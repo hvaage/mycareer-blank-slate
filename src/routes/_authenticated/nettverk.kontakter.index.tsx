@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, ExternalLink, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
