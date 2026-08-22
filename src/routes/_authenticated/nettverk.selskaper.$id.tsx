@@ -197,11 +197,10 @@ function CompanyDetail() {
           )}
         </NetworkPanel>
 
-        <NetworkPanel title="Arbeidsgiverinnsikt">
-          <PanelEmpty>
-            Ikke analysert ennå. Her vises kun reelle analyseresultater for selskapet.
-          </PanelEmpty>
-        </NetworkPanel>
+        <CompanyInsightPanel orgnr={company.orgnr ?? null} />
+
+        <CompanyRegisterPanel orgnr={company.orgnr ?? null} />
+
 
         <NetworkPanel title={`Dine kontakter i selskapet (${contacts.length})`}>
           {contacts.length === 0 ? (
