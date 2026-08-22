@@ -181,7 +181,7 @@ async function loadNetworkGraph(userId: string) {
     ),
   ]);
 
-  const [documents, postingContacts] = await Promise.all([
+  const [documents, postingContacts, recommendations] = await Promise.all([
     fetchAllPages((from, to) =>
       supabase
         .from("documents")
@@ -230,6 +230,7 @@ async function loadNetworkGraph(userId: string) {
     applications,
     documents,
     postingContacts,
+    recommendations,
   };
 }
 
