@@ -118,6 +118,7 @@ function CompanyDetail() {
     onError: (e: any) => toast.error(e?.message ?? "Kunne ikke lagre."),
   });
 
+  if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   if (isLoading) return <p className="p-2 text-sm text-muted-foreground">Laster selskap…</p>;
   if (!company) return <p className="p-2 text-sm text-muted-foreground">Fant ikke selskapet.</p>;
 

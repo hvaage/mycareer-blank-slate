@@ -60,6 +60,7 @@ function ContactsPage() {
   const importablePersons =
     batchData?.state === "importable" ? (batchData.pendingPersonItemIds?.length ?? 0) : 0;
 
+  if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3 md:overflow-hidden">
       <NetworkPanel

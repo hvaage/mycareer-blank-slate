@@ -62,6 +62,7 @@ function ContactDetail() {
     return graph.opportunities.filter((o) => ids.has(o.id));
   }, [graph, id, activities]);
 
+  if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   if (isLoading) return <p className="p-2 text-sm text-muted-foreground">Laster kontakt…</p>;
   if (!contact) return <p className="p-2 text-sm text-muted-foreground">Fant ikke kontakten.</p>;
 

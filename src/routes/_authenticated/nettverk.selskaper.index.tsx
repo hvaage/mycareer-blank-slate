@@ -69,6 +69,7 @@ function CompaniesPage() {
     return q ? companies.filter((c) => c.name.toLowerCase().includes(q)) : companies;
   }, [companies, term]);
 
+  if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col md:overflow-hidden">
       <NetworkPanel

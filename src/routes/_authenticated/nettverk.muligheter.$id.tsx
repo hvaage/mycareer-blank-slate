@@ -91,6 +91,7 @@ function OpportunityDetail() {
 
   const { data: deadline } = useQuery(deadlineQuery(userId, opp?.canonical_opportunity_id));
 
+  if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   if (isLoading) return <PanelEmpty>Laster mulighet…</PanelEmpty>;
   if (!opp) return <PanelEmpty>Fant ikke muligheten.</PanelEmpty>;
 

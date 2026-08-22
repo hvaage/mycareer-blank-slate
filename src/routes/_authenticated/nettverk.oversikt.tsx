@@ -28,6 +28,7 @@ function OverviewPage() {
   const warm = useMemo(() => (graph ? warmContacts(graph) : []), [graph]);
   const interviews = useMemo(() => (graph ? interviewsThisMonth(graph) : []), [graph]);
 
+  if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   return (
     <div className="flex min-h-0 flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

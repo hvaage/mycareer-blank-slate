@@ -29,6 +29,7 @@ function OpportunitiesPage() {
     [all, tilstand],
   );
 
+  if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   return (
     <div className="flex min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
