@@ -181,6 +181,29 @@ async function loadNetworkGraph(userId: string) {
     ),
   ]);
 
+  const [documents, postingContacts] = await Promise.all([
+    fetchAllPages((from, to) =>
+      supabase
+        .from("documents")
+        .select("id, title, document_type, opportunity_id, application_id, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(from, to),
+    ),
+    fetchAllPages((from, to) =>
+      supabase
+        .from("network_posting_contacts")
+        .select(
+          "id, opportunity_id, network_contact_id, source_contact_ref, contact_name, contact_role, contact_email, contact_phone, source_class, observed_at",
+        )
+        .eq("user_id", userId)
+        .order("observed_at", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(from, to),
+    ),
+  ]);
+
   return {
     contacts,
     relations,
@@ -191,8 +214,11 @@ async function loadNetworkGraph(userId: string) {
     steps,
     interviews,
     applications,
+    documents,
+    postingContacts,
   };
 }
+
 
 
 export type NetworkGraph = Awaited<ReturnType<typeof loadNetworkGraph>>;

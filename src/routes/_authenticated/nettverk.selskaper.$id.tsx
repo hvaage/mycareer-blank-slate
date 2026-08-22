@@ -13,14 +13,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
+import { Timeline } from "@/components/network/timeline";
+import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
+import { Plus } from "lucide-react";
 import { BackLink } from "@/components/network/network-shell";
 import { useAuthUserId } from "@/components/network/use-network-user";
 import {
+  ACTIVITY_STATUS_LABEL,
+  ACTIVITY_TYPE_LABEL,
+  buildActivities,
   buildCompanies,
   buildContacts,
   isCompanyIdKey,
   networkGraphQuery,
 } from "@/lib/queries/network";
+import { buildTimeline } from "@/lib/queries/network-timeline";
 import { setCompanyRelationship } from "@/lib/network.functions";
 import { PRIORITY_LABEL, STATUS_LABEL } from "./nettverk.selskaper.index";
 
@@ -64,10 +71,22 @@ function CompanyDetail() {
       (o) => (o.card_company ?? "").trim().toLowerCase() === target,
     );
   }, [graph, company]);
-  const steps = useMemo(() => {
-    if (!graph || !company?.companyId) return [];
-    return graph.steps.filter((s) => s.company_id === company.companyId);
+  const activities = useMemo(() => {
+    if (!graph || !company) return [];
+    return buildActivities(graph).filter(
+      (a) => a.companyKey === company.key || (!!a.companyName && a.companyName === company.name),
+    );
   }, [graph, company]);
+  const nextActivity = activities
+    .filter((a) => a.isOpen)
+    .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"))[0];
+  const timeline = useMemo(
+    () =>
+      graph && company
+        ? buildTimeline(graph, { type: "company", key: company.key, name: company.name })
+        : [],
+    [graph, company],
+  );
 
   const [status, setStatus] = useState<string>(NONE);
   const [priority, setPriority] = useState<string>(NONE);
@@ -107,13 +126,27 @@ function CompanyDetail() {
       <div>
         <BackLink fallbackTo="/nettverk/selskaper" />
         <h2 className="text-lg font-semibold">{company.name}</h2>
-        <p className="text-sm text-muted-foreground">
-          {[company.industry, company.location].filter(Boolean).join(" · ") ||
-            "Bransje og sted ikke registrert"}
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span>
+            {[company.industry, company.location].filter(Boolean).join(" · ") ||
+              "Bransje og sted ikke registrert"}
+          </span>
+          {company.status ? <span>Status: {STATUS_LABEL[company.status] ?? company.status}</span> : null}
+          {company.priority ? (
+            <span>Prioritet: {PRIORITY_LABEL[company.priority] ?? company.priority}</span>
+          ) : null}
+          <span>Dine kontakter i selskapet: {contacts.length}</span>
+          <span>Aktive muligheter: {company.openOpportunityCount}</span>
+          <span>
+            Neste aktivitet:{" "}
+            {nextActivity
+              ? `${nextActivity.due_date ?? "uten dato"} — ${nextActivity.title}`
+              : "Ingen planlagt"}
+          </span>
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3 md:grid-rows-2 md:overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3 md:grid-rows-3 md:overflow-hidden">
         <NetworkPanel title="Selskapsprofil">
           <dl className="space-y-1">
             <Row label="Navn" value={company.name} />
@@ -121,7 +154,12 @@ function CompanyDetail() {
             <Row label="Sted" value={company.location} />
             <Row label="Kilder" value={company.sources.join(", ")} />
           </dl>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Registerdata som organisasjonsform, ansatte og nøkkeltall vises først når de finnes i
+            grunnlaget ditt. Manglende felt vises som «Ikke registrert», aldri som null.
+          </p>
         </NetworkPanel>
+
 
         <NetworkPanel title="Ditt selskapsforhold">
           {!isCompanyIdKey(company.key) ? (
@@ -158,12 +196,14 @@ function CompanyDetail() {
         </NetworkPanel>
 
         <NetworkPanel title="Arbeidsgiverinnsikt">
-          <PanelEmpty>Ikke analysert for dette selskapet i denne flaten.</PanelEmpty>
+          <PanelEmpty>
+            Ikke analysert ennå. Her vises kun reelle analyseresultater for selskapet.
+          </PanelEmpty>
         </NetworkPanel>
 
         <NetworkPanel title={`Dine kontakter i selskapet (${contacts.length})`}>
           {contacts.length === 0 ? (
-            <PanelEmpty>Ingen kontakter knyttet til selskapet.</PanelEmpty>
+            <PanelEmpty>Du har ingen registrerte kontakter i dette selskapet ennå.</PanelEmpty>
           ) : (
             <ul className="divide-y divide-border">
               {contacts.map((c) => (
@@ -191,9 +231,18 @@ function CompanyDetail() {
             <ul className="divide-y divide-border">
               {opportunities.map((o) => (
                 <li key={o.id} className="py-1">
-                  <span className="font-medium">{o.card_title ?? "Uten tittel"}</span>
+                  <Link
+                    to="/nettverk/muligheter/$id"
+                    params={{ id: o.id }}
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    {o.card_title ?? "Uten tittel"}
+                  </Link>
                   {o.status ? (
                     <span className="text-muted-foreground"> · {o.status}</span>
+                  ) : null}
+                  {o.relevance_score != null ? (
+                    <span className="text-muted-foreground"> · match {o.relevance_score}</span>
                   ) : null}
                 </li>
               ))}
@@ -201,22 +250,48 @@ function CompanyDetail() {
           )}
         </NetworkPanel>
 
-        <NetworkPanel title={`Aktiviteter og neste steg (${steps.length})`}>
-          {steps.length === 0 ? (
+        <NetworkPanel
+          title={`Aktiviteter (${activities.length})`}
+          actions={
+            <ActivityDialog
+              context={{ companyId: isCompanyIdKey(company.key) ? company.key : null }}
+              contextLabel={company.name}
+              trigger={
+                <Button size="sm" variant="outline">
+                  <Plus className="mr-1 h-4 w-4" /> Logg aktivitet
+                </Button>
+              }
+            />
+          }
+        >
+          {activities.length === 0 ? (
             <PanelEmpty>Ingen aktiviteter registrert på selskapet.</PanelEmpty>
           ) : (
             <ul className="divide-y divide-border">
-              {steps.map((s) => (
-                <li key={s.id} className="flex gap-2 py-1">
-                  <span className="tabular-nums text-muted-foreground">
-                    {s.due_date ? new Date(s.due_date).toLocaleDateString("nb-NO") : "—"}
+              {activities.map((a) => (
+                <li key={a.id} className="flex items-center gap-2 py-1">
+                  <span className="w-24 shrink-0 tabular-nums text-xs text-muted-foreground">
+                    {a.due_date ?? "Uten dato"}
                   </span>
-                  <span>{s.title}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {a.title}
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {ACTIVITY_TYPE_LABEL[a.activity_type] ?? a.activity_type} ·{" "}
+                      {ACTIVITY_STATUS_LABEL[a.status] ?? a.status}
+                    </span>
+                  </span>
+                  <ActivityStatusButton activityId={a.id} status={a.status} />
                 </li>
               ))}
             </ul>
           )}
         </NetworkPanel>
+
+        <NetworkPanel title={`Tidslinje (${timeline.length})`}>
+          <Timeline events={timeline} />
+        </NetworkPanel>
+
       </div>
     </div>
   );

@@ -296,3 +296,120 @@ export const unhideCompany = createServerFn({ method: "POST" })
     }
     return { ok: true, errorCode: null };
   });
+
+// ============================================================
+// Fase 5C — dokument/mulighet, annonsekontakt og søknadsstart.
+// Bruker-id kommer alltid fra den verifiserte sesjonen, aldri fra klienten.
+// ============================================================
+
+const documentLinkSchema = z.object({
+  documentId: z.string().uuid(),
+  opportunityId: z.string().uuid().nullable(),
+});
+
+/** Kobler eller frikobler et dokument til en mulighet. Databasen er siste sperre. */
+export const linkDocumentToOpportunity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => documentLinkSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_link_document_opportunity" as never,
+      {
+        p_user_id: context.userId,
+        p_document_id: data.documentId,
+        p_opportunity_id: data.opportunityId,
+      } as never,
+    );
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed" };
+    }
+    return { ok: true, errorCode: null };
+  });
+
+const opportunityIdSchema = z.object({ opportunityId: z.string().uuid() });
+
+/**
+ * Kontaktpersoner slik de faktisk står i den lagrede annonsekilden.
+ * Klienten får en serverutledet, stabil referanse — aldri motsatt vei.
+ */
+export const listPostingContacts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => opportunityIdSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_posting_contacts_for_opportunity" as never,
+      { p_user_id: context.userId, p_opportunity_id: data.opportunityId } as never,
+    );
+    const payload = (result ?? null) as {
+      ok?: boolean;
+      error_code?: string;
+      contacts?: Array<Record<string, string | null>>;
+    } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "read_failed", contacts: [] };
+    }
+    return { ok: true, errorCode: null, contacts: payload.contacts ?? [] };
+  });
+
+const postingContactSchema = z.object({
+  opportunityId: z.string().uuid(),
+  sourceContactRef: z.string().min(8).max(200),
+  existingContactId: z.string().uuid().nullable().optional(),
+});
+
+/**
+ * Oppretter eller kobler annonsekontakt. Navn, rolle, e-post og telefon leses
+ * av databasen fra annonsekilden; klientens verdier brukes aldri som kilde.
+ */
+export const linkPostingContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => postingContactSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_link_posting_contact" as never,
+      {
+        p_user_id: context.userId,
+        p_opportunity_id: data.opportunityId,
+        p_source_contact_ref: data.sourceContactRef,
+        p_existing_contact_id: data.existingContactId ?? null,
+      } as never,
+    );
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string; contact_id?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed", contactId: null };
+    }
+    return { ok: true, errorCode: null, contactId: payload.contact_id ?? null };
+  });
+
+const startApplicationSchema = z.object({ canonicalOpportunityId: z.string().uuid() });
+
+/** Idempotent søknadsstart: samme annonse gir aldri to muligheter for samme bruker. */
+export const startApplicationFromPosting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => startApplicationSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_start_application_from_posting" as never,
+      { p_user_id: context.userId, p_canonical_opportunity_id: data.canonicalOpportunityId } as never,
+    );
+    const payload = (result ?? null) as {
+      ok?: boolean;
+      error_code?: string;
+      opportunity_id?: string;
+      created?: boolean;
+    } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed", opportunityId: null, created: false };
+    }
+    return {
+      ok: true,
+      errorCode: null,
+      opportunityId: payload.opportunity_id ?? null,
+      created: !!payload.created,
+    };
+  });

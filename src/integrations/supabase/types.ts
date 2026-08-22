@@ -2802,11 +2802,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "documents_opportunity_id_fkey"
-            columns: ["opportunity_id"]
+            foreignKeyName: "documents_opportunity_user_fkey"
+            columns: ["opportunity_id", "user_id"]
             isOneToOne: false
             referencedRelation: "user_opportunities"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
         ]
       }
@@ -6168,6 +6168,72 @@ export type Database = {
         }
         Relationships: []
       }
+      network_posting_contacts: {
+        Row: {
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contact_role: string | null
+          created_at: string
+          id: string
+          network_contact_id: string | null
+          observed_at: string
+          opportunity_id: string
+          source_class: string
+          source_contact_ref: string
+          source_posting_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          created_at?: string
+          id?: string
+          network_contact_id?: string | null
+          observed_at?: string
+          opportunity_id: string
+          source_class?: string
+          source_contact_ref: string
+          source_posting_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          created_at?: string
+          id?: string
+          network_contact_id?: string | null
+          observed_at?: string
+          opportunity_id?: string
+          source_class?: string
+          source_contact_ref?: string
+          source_posting_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_posting_contacts_contact_fkey"
+            columns: ["network_contact_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "network_contacts"
+            referencedColumns: ["id", "user_id"]
+          },
+          {
+            foreignKeyName: "network_posting_contacts_opportunity_fkey"
+            columns: ["opportunity_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "user_opportunities"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
       next_steps: {
         Row: {
           activity_scope: string
@@ -9389,6 +9455,31 @@ export type Database = {
         }
         Returns: Json
       }
+      network_link_document_opportunity: {
+        Args: {
+          p_document_id: string
+          p_opportunity_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      network_link_posting_contact: {
+        Args: {
+          p_existing_contact_id?: string
+          p_opportunity_id: string
+          p_source_contact_ref: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      network_posting_contact_ref: {
+        Args: { p_contact: Json; p_source_posting_id: string }
+        Returns: string
+      }
+      network_posting_contacts_for_opportunity: {
+        Args: { p_opportunity_id: string; p_user_id: string }
+        Returns: Json
+      }
       network_promote_batch_person_contacts: {
         Args: { p_batch_id: string; p_item_ids: string[]; p_user_id: string }
         Returns: Json
@@ -9417,6 +9508,10 @@ export type Database = {
           p_valid_from?: string
           p_valid_to?: string
         }
+        Returns: Json
+      }
+      network_start_application_from_posting: {
+        Args: { p_canonical_opportunity_id: string; p_user_id: string }
         Returns: Json
       }
       network_unhide_company: {

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { StartApplicationButton } from "@/components/network/start-application-button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -1128,6 +1129,8 @@ function LeadCard({
           <Button variant="ghost" size="sm" className="h-9" onClick={onDismiss}>
             <X className="h-4 w-4 mr-1" /> Avvis
           </Button>
+          <StartApplicationButton canonicalOpportunityId={lead.canonicalOpportunityId} />
+
           <Button variant="default" size="sm" className="h-9 ml-auto" onClick={onApply}>
             <Send className="h-4 w-4 mr-1" /> Søk
           </Button>
