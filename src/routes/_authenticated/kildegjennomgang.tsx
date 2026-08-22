@@ -267,6 +267,82 @@ function KildegjennomgangPage() {
     },
   });
 
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkOutcome, setBulkOutcome] = useState<BulkOutcome | null>(null);
+
+  // Massehandling kjøres forslag for forslag. Feil i ett forslag stopper aldri
+  // de andre, og ingenting skrives uten at forslaget først er godkjent.
+  const bulkRun = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const all = proposalsQuery.data ?? [];
+      const outcome: BulkOutcome = {
+        promoted: 0,
+        alreadyRegistered: 0,
+        dismissed: 0,
+        deferred: 0,
+        failed: 0,
+      };
+      setBulkOutcome(null);
+      setBulkProgress({ done: 0, total: ids.length });
+
+      for (const [index, id] of ids.entries()) {
+        const proposal = all.find((p) => p.id === id);
+        try {
+          if (!proposal) {
+            outcome.failed += 1;
+            continue;
+          }
+          const action = promotionActionForDomain(
+            proposal.proposal_domain,
+            proposal.proposal_kind,
+            proposalAtomType(proposal),
+          );
+          if (!action) {
+            outcome.failed += 1;
+            continue;
+          }
+          if (proposal.status !== "approved_for_promotion") {
+            const { data, error } = await supabase.rpc(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              "linkedin_reconciliation_decide" as any,
+              {
+                p_proposal_id: id,
+                p_decision: "approve_for_promotion",
+                p_reason_code: null,
+                p_note: null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+            );
+            if (error || !(data as unknown as { ok?: boolean } | null)?.ok) {
+              outcome.failed += 1;
+              continue;
+            }
+          }
+          const result = await promoteProposal({ proposalId: id, action, resolution: "create_new" });
+          if (result.ok) outcome.promoted += 1;
+          else if (result.errorCode === ALREADY_REGISTERED_CODE) outcome.alreadyRegistered += 1;
+          else outcome.failed += 1;
+        } catch {
+          outcome.failed += 1;
+        } finally {
+          setBulkProgress({ done: index + 1, total: ids.length });
+        }
+      }
+      return outcome;
+    },
+    onSuccess: (outcome) => {
+      setBulkOutcome(outcome);
+      setBulkProgress(null);
+      queryClient.invalidateQueries({ queryKey: ["linkedin-reconciliation-proposals"] });
+      toast.success(
+        `Overført ${outcome.promoted}. Allerede registrert ${outcome.alreadyRegistered}. Feilet ${outcome.failed}.`,
+      );
+    },
+    onError: () => {
+      setBulkProgress(null);
+      toast.error("Massehandlingen ble avbrutt. Ingenting mer ble overført.");
+    },
+  });
 
 
   const proposals = proposalsQuery.data ?? [];
