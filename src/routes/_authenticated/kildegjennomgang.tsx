@@ -26,8 +26,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Info, Check, X, Clock, PencilLine, ShieldAlert, ArrowRight, RotateCcw } from "lucide-react";
-import {
 import { ExternalUrlLink, isExternalUrl } from "@/components/external-url-link";
+import {
   PROMOTION_BUTTON_LABELS,
   promoteProposal,
   promotionActionForDomain,
