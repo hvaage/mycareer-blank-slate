@@ -1,12 +1,13 @@
 // @ts-nocheck
 import type { MouseEvent, ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 /**
- * Ekstern lenke som alltid åpnes i ny fane, aldri innebygd.
- * LinkedIn og flere andre tjenester nekter visning i innebygde rammer,
- * så navigasjon i gjeldende ramme forsøkes ikke.
+ * Ekstern lenke som alltid åpnes i en ny toppnivåfane, aldri innebygd.
+ * LinkedIn nekter visning i rammer (ERR_BLOCKED_BY_RESPONSE), så i
+ * forhåndsvisning/WebView må vi hindre at lenken lastes i gjeldende ramme.
  */
 export function ExternalUrlLink({
   href,
@@ -24,15 +25,36 @@ export function ExternalUrlLink({
   title?: string;
 }) {
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
-    // I innebygd kontekst (forhåndsvisning) kan target="_blank" bli ignorert.
-    // Åpne derfor eksplisitt i nytt vindu uten tilgang tilbake til appen.
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey) return;
-    const opened = window.open(href, "_blank", "noopener,noreferrer");
+
+    const inFrame = typeof window !== "undefined" && window.top !== window.self;
+    if (!inFrame) return; // vanlig fane: la nettleseren håndtere target="_blank"
+
+    // I innebygd kontekst kan target="_blank" havne i selve rammen.
+    // Blokker standardatferden og åpne eksplisitt et nytt toppnivåvindu.
+    event.preventDefault();
+    let opened: Window | null = null;
+    try {
+      opened = window.open(href, "_blank", "noopener,noreferrer");
+    } catch {
+      opened = null;
+    }
     if (opened) {
-      event.preventDefault();
       opened.opener = null;
+      return;
+    }
+    // Popup blokkert av rammen: kopier lenken i stedet for å laste den innebygd.
+    const copy = navigator?.clipboard?.writeText?.(href);
+    if (copy && typeof copy.then === "function") {
+      copy.then(
+        () => toast.success("Lenken er kopiert. Lim den inn i en ny fane."),
+        () => toast.error("Kunne ikke åpne lenken her. Åpne appen i egen fane."),
+      );
+    } else {
+      toast.error("Kunne ikke åpne lenken her. Åpne appen i egen fane.");
     }
   }
+
 
   return (
     <a
