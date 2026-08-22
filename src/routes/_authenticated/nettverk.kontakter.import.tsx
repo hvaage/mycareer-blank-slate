@@ -52,7 +52,6 @@ function formatDate(value: string | null | undefined) {
 
 function ContactImportReview() {
   const userId = useAuthUserId();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery(networkBatchQuery(userId));
   const promote = useServerFn(promoteNetworkBatchContacts);
