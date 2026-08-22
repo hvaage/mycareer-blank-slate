@@ -578,7 +578,12 @@ function ProposalCard({
   const decided = proposal.status !== "pending_review";
   const locked = ["stale_source", "stale_target", "superseded"].includes(proposal.status);
   const contextOnly = proposal.proposal_kind === "not_actionable_in_phase_3";
-  const promotionAction = promotionActionForDomain(proposal.proposal_domain, proposal.proposal_kind);
+  const promotionAction = promotionActionForDomain(
+    proposal.proposal_domain,
+    proposal.proposal_kind,
+    proposalAtomType(proposal),
+  );
+
   const approved = proposal.status === "approved_for_promotion";
   const promoted = proposal.status === "promoted";
   const failed = proposal.status === "promotion_failed";
