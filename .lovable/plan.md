@@ -42,7 +42,7 @@ Beholder 5A-import og precedence (manuell verdi aktiv, LinkedIn-observasjon seku
 
 ## 6. Muligheter
 
-Liste over reelle `user_opportunities`: stilling, selskap, status, neste aktivitet og matchdata når beregnet. Merk: tabellen har ingen egen søknadsfrist-kolonne, så «frist» vises som neste aktivitets `due_date` når den finnes; ingen fiktiv frist.
+Liste over reelle `user_opportunities`: stilling, selskap, status, neste aktivitet og matchdata når beregnet. `Søknadsfrist` vises kun når en faktisk frist finnes i annonsegrunnlaget; neste aktivitets dato brukes aldri som frist, den vises som `Neste aktivitet`.
 
 Detalj: stilling først, deretter selskap; lenke til original annonse når `card_display_url`/`card_raw_url` finnes; preferanse- og kompetansematch separat, med `match_score_version`/`match_scored_model` og `screening_evaluated_at` som sekundær informasjon; annonsekontakt (`job_posting`) vises høyt kun når personen faktisk finnes i annonsegrunnlaget, og opprettes som kontakt kun via eksplisitt brukerhandling (aldri navnesammenslåing); «Dine kontakter i selskapet» kun reelle relasjoner med god tomtilstand; «Dokumenter brukt» kun ved faktisk relasjon til muligheten.
 
