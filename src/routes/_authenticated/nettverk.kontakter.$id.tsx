@@ -101,11 +101,11 @@ function ContactDetail() {
   const companyKey = contact.company ? companyKeyFor(contact.companyId, contact.company) : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 md:overflow-hidden">
-      <div>
+    <div className="flex min-h-0 flex-1 flex-col gap-2 md:overflow-hidden">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <BackLink fallbackTo="/nettverk/kontakter" />
-        <h2 className="text-lg font-semibold">{contact.display_name}</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-base font-semibold leading-tight">{contact.display_name}</h2>
+        <p className="text-xs text-muted-foreground">
           {contact.headline ?? "Tittel ikke registrert"}
           {contact.company ? " · " : ""}
           {contact.company && companyKey ? (
@@ -117,10 +117,14 @@ function ContactDetail() {
               {contact.company}
             </Link>
           ) : null}
+          {contact.manualRelationStatus
+            ? ` · ${RELATION_STATUS_LABEL[contact.manualRelationStatus]}`
+            : ""}
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-4 md:overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 md:grid-cols-3 md:grid-rows-3 md:overflow-hidden">
+
         <NetworkPanel title="Kontaktprofil og kontaktkanaler">
           <dl className="space-y-1">
             <Row label="Navn" value={contact.display_name} source={contact.nameSource} />
