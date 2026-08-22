@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
+import { SuggestionPanel } from "@/components/network/suggestion-panel";
 import { BackLink } from "@/components/network/network-shell";
 import { Timeline } from "@/components/network/timeline";
 import { useNetworkGraph } from "@/components/network/use-network-user";

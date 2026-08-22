@@ -7,6 +7,7 @@ import { CalendarClock, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
+import { SuggestionPanel } from "@/components/network/suggestion-panel";
 import { useNetworkGraph } from "@/components/network/use-network-user";
 import { NetworkErrorState } from "@/components/network/network-error";
 import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
