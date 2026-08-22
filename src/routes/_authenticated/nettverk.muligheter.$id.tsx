@@ -53,14 +53,13 @@ function deadlineQuery(userId: string | undefined, canonicalId: string | null | 
       for (const link of data ?? []) {
         const row = (link as { source_postings?: { raw_payload?: unknown } | null }).source_postings;
         if (!row) continue;
-
-      for (const row of data ?? []) {
         const p = (row.raw_payload ?? {}) as Record<string, unknown>;
         for (const key of ["application_deadline", "søknadsfrist", "soknadsfrist", "deadline", "applicationDue"]) {
           const v = p[key];
           if (typeof v === "string" && v.trim()) return v.trim();
         }
       }
+
       return null;
     },
   };
