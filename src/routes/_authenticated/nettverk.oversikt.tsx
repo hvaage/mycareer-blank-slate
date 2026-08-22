@@ -154,7 +154,10 @@ function OverviewPage() {
           </ul>
         )}
       </NetworkPanel>
+
+      <SuggestionPanel scope="overview" />
     </div>
+
   );
 }
 
