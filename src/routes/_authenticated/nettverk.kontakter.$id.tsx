@@ -123,7 +123,7 @@ function ContactDetail() {
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 md:grid-cols-3 md:grid-rows-3 md:overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 md:grid-cols-3 md:auto-rows-[minmax(240px,1fr)] md:overflow-y-auto">
 
         <NetworkPanel title="Kontaktprofil og kontaktkanaler">
           <dl className="space-y-1">
