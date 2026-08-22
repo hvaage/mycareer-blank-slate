@@ -294,6 +294,10 @@ function CompanyDetail() {
           <Timeline events={timeline} />
         </NetworkPanel>
 
+        <SuggestionPanel scope="company" scopeObjectId={id} context={{ companyId: id }} />
+
+
+
       </div>
     </div>
   );
