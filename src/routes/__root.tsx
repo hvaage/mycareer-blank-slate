@@ -94,6 +94,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://mycareer-blank-slate.lovable.app/" },
+      { name: "theme-color", content: "#1a1f2b" },
+      { name: "apple-mobile-web-app-title", content: "Karrierenmin" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Karrierenmin — Ta kontroll over karrieren din" },
       {
@@ -108,6 +111,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", type: "image/png", sizes: "64x64", href: "/favicon.png" },
       { rel: "shortcut icon", href: "/favicon.ico" },
       { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

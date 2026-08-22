@@ -50,7 +50,7 @@ type GroupNode = {
   matchPrefixes?: string[];
 };
 
-const RAIL_WIDTH = 96;
+const RAIL_WIDTH = 124;
 const SUBPANEL_WIDTH = 220;
 
 const primaryGroups: GroupNode[] = [
@@ -663,7 +663,7 @@ function RailButton({
           )}
         >
           <Icon className="h-5 w-5" />
-          <span className="hyphens-auto break-words">{group.label}</span>
+          <span className="whitespace-nowrap">{group.label}</span>
         </button>
       </TooltipTrigger>
       <TooltipContent side="right">{group.title}</TooltipContent>

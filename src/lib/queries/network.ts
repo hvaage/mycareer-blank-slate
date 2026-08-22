@@ -8,6 +8,7 @@
 // ============================================================
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { isJunkCompanyName, sanitizeCompanyName } from "@/lib/network/company-name";
 
 export type CompanyKey = string;
 
@@ -152,7 +153,15 @@ async function loadNetworkGraph(userId: string) {
     ),
   ]);
 
-  const [interviews, applications] = await Promise.all([
+  const [hiddenCompanies, interviews, applications] = await Promise.all([
+    fetchAllPages((from, to) =>
+      supabase
+        .from("network_hidden_companies")
+        .select("company_key, company_id, company_name, reason, created_at")
+        .eq("user_id", userId)
+        .order("company_key")
+        .range(from, to),
+    ),
     fetchAllPages((from, to) =>
       supabase
         .from("interviews")
@@ -175,6 +184,7 @@ async function loadNetworkGraph(userId: string) {
   return {
     contacts,
     relations,
+    hiddenCompanies,
     identities,
     userCompanies,
     opportunities,
@@ -201,9 +211,20 @@ export function buildCompanies(graph: NetworkGraph): NetworkCompanyItem[] {
   const byKey = new Map<CompanyKey, NetworkCompanyItem>();
   const nameToKey = new Map<string, CompanyKey>();
 
-  const ensure = (companyId: string | null, name: string, source: string) => {
+  const hiddenKeys = new Set<string>((graph.hiddenCompanies ?? []).map((h) => h.company_key));
+  const hiddenNames = new Set<string>(
+    (graph.hiddenCompanies ?? []).map((h) => norm(h.company_name)).filter(Boolean),
+  );
+
+  const ensure = (companyId: string | null, rawName: string, source: string) => {
+    const name = sanitizeCompanyName(rawName);
     const clean = (name ?? "").trim();
     if (!clean && !companyId) return null;
+    // Ugjenkjennelige navn (symboler, hashtag-kampanjer, reklame) er ikke selskaper.
+    if (!companyId && isJunkCompanyName(clean)) return null;
+    if (hiddenNames.has(norm(clean))) return null;
+    if (companyId && hiddenKeys.has(companyId)) return null;
+    if (hiddenKeys.has(companyKeyFor(companyId, clean))) return null;
     const existingByName = nameToKey.get(norm(clean));
     const key = companyId ?? existingByName ?? companyKeyFor(null, clean);
     let item = byKey.get(key);

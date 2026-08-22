@@ -1,7 +1,22 @@
 // @ts-nocheck
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { hideCompany } from "@/lib/network.functions";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
@@ -30,6 +45,23 @@ export const PRIORITY_LABEL: Record<string, string> = {
 function CompaniesPage() {
   const userId = useAuthUserId();
   const [term, setTerm] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<{ key: string; companyId: string | null; name: string } | null>(null);
+  const queryClient = useQueryClient();
+  const hideCompanyFn = useServerFn(hideCompany);
+  const hideMutation = useMutation({
+    mutationFn: (input: { companyKey: string; companyId: string | null; companyName: string }) =>
+      hideCompanyFn({ data: input }),
+    onSuccess: (res) => {
+      if (!res?.ok) {
+        toast.error("Kunne ikke fjerne selskapet.");
+        return;
+      }
+      toast.success("Selskapet er fjernet fra registeret ditt.");
+      queryClient.invalidateQueries({ queryKey: ["network", "graph", userId] });
+    },
+    onError: () => toast.error("Kunne ikke fjerne selskapet."),
+    onSettled: () => setPendingDelete(null),
+  });
   const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
   const companies = useMemo(() => (graph ? buildCompanies(graph) : []), [graph]);
   const filtered = useMemo(() => {
@@ -70,6 +102,7 @@ function CompaniesPage() {
                   <th className="py-1 pr-2 text-right">Kontakter</th>
                   <th className="py-1 pr-2 text-right">Åpne muligheter</th>
                   <th className="py-1 pr-2">Neste aktivitet</th>
+                  <th className="py-1 pr-2 text-right">Fjern</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -104,6 +137,19 @@ function CompaniesPage() {
                     <td className="py-2 pr-2 text-muted-foreground">
                       {c.nextActivity ? c.nextActivity.title : "—"}
                     </td>
+                    <td className="py-2 pr-2 text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Fjern ${c.name} fra registeret`}
+                        onClick={() =>
+                          setPendingDelete({ key: c.key, companyId: c.companyId, name: c.name })
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -111,6 +157,34 @@ function CompaniesPage() {
           </div>
         )}
       </NetworkPanel>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => (open ? null : setPendingDelete(null))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Fjerne «{pendingDelete?.name}» fra registeret ditt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Selskapet skjules i din oversikt over selskaper. Kontakter, muligheter og
+              importert kildedata endres ikke, og du kan hente selskapet tilbake senere.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={hideMutation.isPending}>Avbryt</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={hideMutation.isPending}
+              onClick={() =>
+                pendingDelete &&
+                hideMutation.mutate({
+                  companyKey: pendingDelete.key,
+                  companyId: pendingDelete.companyId,
+                  companyName: pendingDelete.name,
+                })
+              }
+            >
+              Fjern selskapet
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
