@@ -23,17 +23,20 @@ For hver side kontrolleres:
 5. Lenker mellom selskap, kontakt, mulighet, aktivitet og dokument treffer riktig detaljside, og `← Tilbake` bevarer filteret fra listen.
 6. Tidslinjen viser dato først, og planlagt skilles visuelt fra utført.
 7. Ingen feil i konsollen og ingen 4xx/5xx i nettverkskallene under gjennomgangen.
+8. Alle eksterne LinkedIn-lenker rendres som vanlige `<a>`-elementer med `target="_blank"` og `rel="noopener noreferrer"`. Klikk verifiseres mot nettleserens nye fane/vindu, ikke ved navigasjon eller innbygging i preview/WebView. `ERR_BLOCKED_BY_RESPONSE` regnes som feil dersom LinkedIn forsøkes lastet i appens ramme; LinkedIns eventuelle blokkering av selve eksterne fanen skilles fra appens lenkeatferd.
 
 ## Utvalg av testrader
 
-Fra de 23 mulighetene velges tre som gir dekning:
+Testrader velges fra reelle, eksisterende data etter faktisk dekning:
 
-- én med annonsekontakt og frist,
-- én uten annonsekontakt og uten frist (tomtilstander),
-- én med aktiviteter og koblede dokumenter (tidslinje og dokumentpanel).
+- minst én mulighet med frist dersom den finnes,
+- minst én mulighet uten annonsekontakt, slik at tomtilstanden verifiseres,
+- minst én mulighet med aktivitet og/eller koblet dokument dersom den finnes,
+- ett selskap med kontakter dersom det finnes,
+- én kontakt med aktivitet dersom det finnes.
 
-Tilsvarende velges ett selskap med kontakter og én kontakt med aktivitet.
+Hvis en kombinasjon ikke finnes blant Henrik sine 23 muligheter, markeres den som `ikke testbar på reelle data` med konkret årsak. Den relevante tomtilstanden verifiseres i stedet. Ingen produktdata opprettes, endres eller kobles for testen.
 
 ## Leveranse
 
-Rapport med skjermbilder per side og bredde, punktvis pass/fail mot listen over, og en kort liste over eventuelle presentasjonsavvik. Avvik som er rene visningsfeil rettes i samme runde; alt som krever endring i datamodell eller skrivelag rapporteres i stedet for å bygges nå.
+Rapport med skjermbilder per side og bredde, valgte reelle testrader beskrevet uten personfølsomme identifikatorer, punktvis `pass` / `fail` / `ikke testbar på reelle data`, og en kort liste over eventuelle presentasjonsavvik. LinkedIn-kontrollen rapporterer både DOM-attributtene og om klikk åpnet en ny ekstern fane uten forsøk på iframe/WebView. Avvik som er rene visningsfeil rettes i samme runde; alt som krever endring i datamodell eller skrivelag rapporteres i stedet for å bygges nå.
