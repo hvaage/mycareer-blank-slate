@@ -199,6 +199,10 @@ function ContactDetail() {
           <Timeline events={timeline} />
         </NetworkPanel>
 
+        <SuggestionPanel scope="contact" scopeObjectId={id} context={{ contactId: id }} />
+
+
+
         <NetworkPanel title="Tredjepartsinformasjon">
           <PanelEmpty>
             Mottatte LinkedIn-anbefalinger vises her kun når du selv har koblet dem til denne
