@@ -1,28 +1,14 @@
 // @ts-nocheck
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Users } from "lucide-react";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { ExternalLink, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
 import { useAuthUserId } from "@/components/network/use-network-user";
 import { buildContacts, networkBatchQuery, networkGraphQuery } from "@/lib/queries/network";
-import { promoteNetworkBatchContacts } from "@/lib/network.functions";
 
 export const Route = createFileRoute("/_authenticated/nettverk/kontakter/")({
   component: ContactsPage,
@@ -39,11 +25,9 @@ const OBJECT_KIND_LABEL: Record<string, string> = {
 
 function ContactsPage() {
   const userId = useAuthUserId();
-  const queryClient = useQueryClient();
   const [term, setTerm] = useState("");
   const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
   const { data: batchData } = useQuery(networkBatchQuery(userId));
-  const promote = useServerFn(promoteNetworkBatchContacts);
 
   const contacts = useMemo(() => (graph ? buildContacts(graph) : []), [graph]);
   const filtered = useMemo(() => {
@@ -57,22 +41,8 @@ function ContactsPage() {
     );
   }, [contacts, term]);
 
-  const promoteMutation = useMutation({
-    mutationFn: async () => {
-      const ids = batchData?.pendingPersonItemIds ?? [];
-      if (!batchData?.batch?.id || ids.length === 0) throw new Error("Ingen personkontakter å legge til.");
-      return promote({ data: { batchId: batchData.batch.id, itemIds: ids } });
-    },
-    onSuccess: (result: any) => {
-      if (!result?.ok) {
-        toast.error(`Kunne ikke legge til kontakter (${result?.errorCode ?? "ukjent feil"}).`);
-        return;
-      }
-      toast.success(`${result.createdCount} kontakter lagt til i registeret.`);
-      queryClient.invalidateQueries({ queryKey: ["network"] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Kunne ikke legge til kontakter."),
-  });
+  const importablePersons =
+    batchData?.state === "importable" ? (batchData.pendingPersonItemIds?.length ?? 0) : 0;
 
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3 md:overflow-hidden">
@@ -80,36 +50,83 @@ function ContactsPage() {
         title={`Kontakter (${filtered.length})`}
         className="md:col-span-2"
         actions={
-          <Input
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            placeholder="Filtrer"
-            className="h-8 w-36 md:w-52"
-            aria-label="Filtrer kontakter"
-          />
+          contacts.length > 0 ? (
+            <Input
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              placeholder="Filtrer"
+              className="h-8 w-36 md:w-52"
+              aria-label="Filtrer kontakter"
+            />
+          ) : null
         }
       >
         {isLoading ? (
           <PanelEmpty>Laster kontakter…</PanelEmpty>
+        ) : contacts.length === 0 ? (
+          <div className="max-w-xl space-y-3 py-2">
+            <h3 className="text-base font-semibold">Importer nettverket ditt fra LinkedIn</h3>
+            {importablePersons > 0 ? (
+              <p className="text-sm">
+                Vi har funnet{" "}
+                <span className="font-medium tabular-nums">
+                  {importablePersons.toLocaleString("nb-NO")}
+                </span>{" "}
+                personkontakter i eksporten din.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Vi finner ingen gyldig LinkedIn-gjennomgang å importere fra ennå.
+              </p>
+            )}
+            <p className="text-sm text-muted-foreground">
+              Kontaktene opprettes først når du bekrefter importen. LinkedIn-data overskriver ikke
+              senere manuelle rettinger.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {importablePersons > 0 ? (
+                <Button asChild size="sm" className="gap-2">
+                  <Link to="/nettverk/kontakter/import">
+                    <Users className="h-4 w-4" aria-hidden />
+                    Gå gjennom og importer kontakter
+                  </Link>
+                </Button>
+              ) : null}
+              <Button asChild size="sm" variant="ghost">
+                <Link to="/kildegjennomgang" search={{ source: "linkedin" }}>
+                  Se kildegjennomgang
+                </Link>
+              </Button>
+            </div>
+          </div>
         ) : filtered.length === 0 ? (
-          <PanelEmpty>
-            Ingen kontakter ennå. Kontakter oppstår når du selv velger å legge til personer fra en
-            gjennomgått kildeimport, eller registrerer dem manuelt. Ingenting legges til automatisk.
-          </PanelEmpty>
+          <PanelEmpty>Ingen kontakter treffer filteret.</PanelEmpty>
         ) : (
           <ul className="divide-y divide-border">
             {filtered.map((c) => (
-              <li key={c.id}>
-                <Link
-                  to="/nettverk/kontakter/$id"
-                  params={{ id: c.id }}
-                  className="flex flex-wrap items-baseline gap-x-2 gap-y-1 py-2 hover:bg-accent/50"
-                >
-                  <span className="font-medium">{c.display_name}</span>
+              <li key={c.id} className="py-2">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <Link
+                    to="/nettverk/kontakter/$id"
+                    params={{ id: c.id }}
+                    className="font-medium hover:underline"
+                  >
+                    {c.display_name}
+                  </Link>
                   {c.headline ? (
                     <span className="text-muted-foreground">{c.headline}</span>
                   ) : null}
                   {c.company ? <Badge variant="secondary">{c.company}</Badge> : null}
+                  {c.linkedinProfileUrl ? (
+                    <a
+                      href={c.linkedinProfileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground underline underline-offset-2"
+                    >
+                      LinkedIn <ExternalLink className="h-3 w-3" aria-hidden />
+                    </a>
+                  ) : null}
                   <span className="ml-auto text-xs text-muted-foreground">
                     {c.nextActivity
                       ? `Neste: ${c.nextActivity.title}`
@@ -117,7 +134,13 @@ function ContactsPage() {
                         ? `Sist kontakt: ${new Date(c.lastContactAt).toLocaleDateString("nb-NO")}`
                         : "Ingen aktivitet"}
                   </span>
-                </Link>
+                </div>
+                {c.linkedinObservedAt ? (
+                  <p className="text-xs text-muted-foreground">
+                    Sist observert i LinkedIn:{" "}
+                    {new Date(c.linkedinObservedAt).toLocaleDateString("nb-NO")}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -125,13 +148,16 @@ function ContactsPage() {
       </NetworkPanel>
 
       <NetworkPanel title="Kildeimport: nettverksbatch">
-        {!batchData ? (
+        {!batchData || batchData.state === "none" ? (
           <PanelEmpty>Ingen klar nettverksbatch til gjennomgang.</PanelEmpty>
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Batch fra LinkedIn-import, status «klar». Ingenting er lagt til i registeret ditt før
-              du bekrefter.
+              {batchData.state === "importable"
+                ? "Batch fra LinkedIn-import, status «klar». Ingenting er lagt til i registeret ditt før du bekrefter."
+                : batchData.state === "consumed"
+                  ? "Kontaktene fra denne importen er allerede lagt til."
+                  : "Denne importen er erstattet av en nyere gjennomgang."}
             </p>
             <ul className="space-y-1">
               {Object.entries(batchData.objectKindCounts).map(([kind, count]) => (
@@ -145,41 +171,9 @@ function ContactsPage() {
               Kun personkontakter kan legges til som kontakter. Selskapsobservasjoner,
               arrangementer, preferansesignaler og invitasjoner beholdes som signaler.
             </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  size="sm"
-                  className="w-full gap-2"
-                  disabled={
-                    promoteMutation.isPending ||
-                    (batchData.pendingPersonItemIds?.length ?? 0) === 0
-                  }
-                >
-                  {promoteMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Users className="h-4 w-4" />
-                  )}
-                  Legg til {batchData.pendingPersonItemIds?.length ?? 0} personkontakter
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Legg til personkontakter?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {batchData.pendingPersonItemIds?.length ?? 0} personkontakter fra denne
-                    nettverksbatchen legges til i kontaktregisteret ditt. Ingen andre
-                    nettverkssignaler berøres, og ingenting skjer før du bekrefter.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Avbryt</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => promoteMutation.mutate()}>
-                    Bekreft og legg til
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <Button asChild size="sm" variant="outline" className="w-full">
+              <Link to="/nettverk/kontakter/import">Åpne importgjennomgang</Link>
+            </Button>
           </div>
         )}
       </NetworkPanel>
