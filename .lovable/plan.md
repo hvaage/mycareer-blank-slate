@@ -37,9 +37,17 @@ Serveren bygger en nummerert, lukket liste over tillatte kildeobjekter (`ref` �
 
 ## Teknisk gjennomføring
 
-### Database (additive migrasjoner)
+`public.network_activity_suggestion_scope_state` — eier regenereringstelleren:
+
+- `user_id`, `scope`, `scope_object_id` (nullable kun for `overview`, CHECK som håndhever dette)
+- `scope_key` (normalisert: `overview`, `company:<uuid>`, `contact:<uuid>`, `opportunity:<uuid>`) med unik nøkkel på `(user_id, scope_key)`
+- `generation_epoch integer NOT NULL DEFAULT 0`, `updated_at`
+- RLS: kun eier kan lese (`auth.uid() = user_id`); kun `service_role` skriver. GRANT `SELECT` til `authenticated`, `ALL` til `service_role`, ingen `anon`.
 
 `public.network_activity_suggestion_runs` — eier kjøringen:
+
+- `generation_epoch` lagres på kjøringen (verdien som inngikk i signaturen)
+
 
 - `id`, `user_id`, `scope` (`overview` | `company` | `contact` | `opportunity`), `scope_object_id`
 - `status`: `queued` | `running` | `succeeded` | `failed` | `cancelled`
