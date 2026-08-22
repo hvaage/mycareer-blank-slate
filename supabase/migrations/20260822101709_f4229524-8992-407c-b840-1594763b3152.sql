@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public._sec5a_results;
