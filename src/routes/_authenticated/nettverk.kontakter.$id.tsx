@@ -5,6 +5,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +33,20 @@ import {
   networkGraphQuery,
 } from "@/lib/queries/network";
 import { buildTimeline } from "@/lib/queries/network-timeline";
-import { setContactCompanyRelation, updateContactManualFields } from "@/lib/network.functions";
+import {
+  linkRecommendationToContact,
+  setContactCompanyRelation,
+  updateContactContactPoints,
+  updateContactManualFields,
+} from "@/lib/network.functions";
+
+const RELATION_STATUS_LABEL: Record<string, string> = {
+  ukjent: "Ukjent",
+  varm: "Varm",
+  aktiv: "Aktiv dialog",
+  referanse: "Referanse",
+  ikke_aktuell: "Ikke aktuell",
+};
 
 export const Route = createFileRoute("/_authenticated/nettverk/kontakter/$id")({
   component: ContactDetail,
@@ -63,6 +84,16 @@ function ContactDetail() {
     return graph.opportunities.filter((o) => ids.has(o.id));
   }, [graph, id, activities]);
 
+  /** Observerte kontaktpunkter fra annonser leses kun fra serverdata, aldri fra klientinput. */
+  const observedPoints = useMemo(
+    () =>
+      (graph?.postingContacts ?? []).filter(
+        (pc) => pc.network_contact_id === id && (pc.contact_email || pc.contact_phone),
+      ),
+    [graph, id],
+  );
+  const recommendations = useMemo(() => graph?.recommendations ?? [], [graph]);
+
   if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   if (isLoading) return <p className="p-2 text-sm text-muted-foreground">Laster kontakt…</p>;
   if (!contact) return <p className="p-2 text-sm text-muted-foreground">Fant ikke kontakten.</p>;
@@ -89,7 +120,7 @@ function ContactDetail() {
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-3 md:overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-4 md:overflow-hidden">
         <NetworkPanel title="Kontaktprofil og kontaktkanaler">
           <dl className="space-y-1">
             <Row label="Navn" value={contact.display_name} source={contact.nameSource} />
@@ -102,6 +133,15 @@ function ContactDetail() {
                   ? new Date(contact.connected_on).toLocaleDateString("nb-NO")
                   : null
               }
+            />
+            <Row
+              label="Din relasjon"
+              value={
+                contact.manualRelationStatus
+                  ? RELATION_STATUS_LABEL[contact.manualRelationStatus]
+                  : null
+              }
+              source={contact.manualRelationStatus ? "user_input" : undefined}
             />
             <Row label="Kilde" value={contact.source_system === "linkedin_import" ? "LinkedIn-import" : contact.source_system} />
           </dl>
@@ -134,6 +174,8 @@ function ContactDetail() {
         </NetworkPanel>
 
         <ManualFieldsPanel contact={contact} />
+
+        <ContactPointsPanel contact={contact} observed={observedPoints} />
 
 
         <NetworkPanel title={`Muligheter (${opportunities.length})`}>
@@ -203,12 +245,7 @@ function ContactDetail() {
 
 
 
-        <NetworkPanel title="Tredjepartsinformasjon">
-          <PanelEmpty>
-            Mottatte LinkedIn-anbefalinger vises her kun når du selv har koblet dem til denne
-            kontakten. Slik informasjon er tredjepartsinformasjon, ikke dokumentert CV-evidens.
-          </PanelEmpty>
-        </NetworkPanel>
+        <RecommendationsPanel contactId={contact.id} recommendations={recommendations} />
       </div>
     </div>
   );
@@ -229,6 +266,8 @@ function ManualFieldsPanel({ contact }) {
   const [company, setCompany] = useState(
     contact.companySource === "user_input" ? (contact.company ?? "") : "",
   );
+  const [notes, setNotes] = useState(contact.manualNotes ?? "");
+  const [relationStatus, setRelationStatus] = useState(contact.manualRelationStatus ?? "ukjent");
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -242,6 +281,8 @@ function ManualFieldsPanel({ contact }) {
           contactId: contact.id,
           displayName: name.trim() || null,
           headline: headline.trim() || null,
+          notes: notes.trim() || null,
+          relationStatus: relationStatus === "ukjent" ? null : relationStatus,
         },
       });
       if (!fields?.ok) throw new Error(fields?.errorCode ?? "write_failed");
@@ -279,6 +320,33 @@ function ManualFieldsPanel({ contact }) {
           onChange={setCompany}
           placeholder={contact.linkedinCompany ?? ""}
         />
+        <div className="space-y-1">
+          <Label className="text-xs">Din relasjon</Label>
+          <Select value={relationStatus} onValueChange={setRelationStatus}>
+            <SelectTrigger className="h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(RELATION_STATUS_LABEL).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="manual-notes" className="text-xs">
+            Notater
+          </Label>
+          <Textarea
+            id="manual-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder="Dine egne notater om relasjonen"
+          />
+        </div>
         <p className="text-xs text-muted-foreground">
           Tomt felt bruker den observerte LinkedIn-verdien. En ny LinkedIn-import overskriver ikke
           det du har lagt inn her.
@@ -306,6 +374,179 @@ function Field({ id, label, value, onChange, placeholder }) {
         className="h-8"
       />
     </div>
+  );
+}
+
+/**
+ * Kontaktpunkter er brukerens egne verdier. Observasjoner fra stillingsannonser
+ * vises som sekundær kilde med opphav, og kopieres aldri automatisk.
+ */
+function ContactPointsPanel({ contact, observed }) {
+  const queryClient = useQueryClient();
+  const save = useServerFn(updateContactContactPoints);
+  const [email, setEmail] = useState(contact.manualEmail ?? "");
+  const [phone, setPhone] = useState(contact.manualPhone ?? "");
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEmail(contact.manualEmail ?? "");
+    setPhone(contact.manualPhone ?? "");
+    setStatus(null);
+  }, [contact.id, contact.manualEmail, contact.manualPhone]);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const res = await save({
+        data: { contactId: contact.id, email: email.trim() || null, phone: phone.trim() || null },
+      });
+      if (!res?.ok) throw new Error(res?.errorCode ?? "write_failed");
+      return res;
+    },
+    onSuccess: () => {
+      setStatus("Lagret.");
+      queryClient.invalidateQueries({ queryKey: ["network"] });
+    },
+    onError: (err: Error) =>
+      setStatus(
+        err.message === "invalid_email"
+          ? "E-postadressen ser ikke gyldig ut. Ingen endring ble lagret."
+          : err.message === "invalid_phone"
+            ? "Telefonnummeret ser ikke gyldig ut. Ingen endring ble lagret."
+            : "Kunne ikke lagre. Ingen endringer ble gjort.",
+      ),
+  });
+
+  return (
+    <NetworkPanel title="Kontaktpunkter">
+      <div className="space-y-2">
+        <Field id="contact-email" label="E-post" value={email} onChange={setEmail} placeholder="" />
+        <Field id="contact-phone" label="Telefon" value={phone} onChange={setPhone} placeholder="" />
+        <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+          {mutation.isPending ? "Lagrer…" : "Lagre kontaktpunkter"}
+        </Button>
+        {status ? <p className="text-xs text-muted-foreground">{status}</p> : null}
+      </div>
+
+      <div className="mt-3 rounded-md border border-border p-2">
+        <p className="text-xs font-medium">Observert i stillingsannonser</p>
+        {observed.length === 0 ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ingen kontaktpunkter er observert i annonser. LinkedIn-import inneholder ikke e-post
+            eller telefon.
+          </p>
+        ) : (
+          <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+            {observed.map((o) => (
+              <li key={o.id}>
+                {o.contact_email ?? o.contact_phone}
+                {o.contact_role ? ` · ${o.contact_role}` : ""}
+                <Badge variant="outline" className="ml-2 text-[10px]">
+                  Annonsekilde
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </NetworkPanel>
+  );
+}
+
+/**
+ * Mottatte LinkedIn-anbefalinger er tredjepartsinformasjon. De kobles kun til en
+ * kontakt ved eksplisitt brukerhandling — aldri på navnelikhet.
+ */
+function RecommendationsPanel({ contactId, recommendations }) {
+  const queryClient = useQueryClient();
+  const link = useServerFn(linkRecommendationToContact);
+  const [selected, setSelected] = useState<string>("");
+  const [status, setStatus] = useState<string | null>(null);
+
+  const linked = recommendations.filter((r) => r.network_contact_id === contactId);
+  const available = recommendations.filter((r) => !r.network_contact_id);
+
+  const mutation = useMutation({
+    mutationFn: async (input: { recommendationId: string; contactId: string | null }) => {
+      const res = await link({ data: input });
+      if (!res?.ok) throw new Error(res?.errorCode ?? "write_failed");
+    },
+    onSuccess: () => {
+      setSelected("");
+      setStatus(null);
+      queryClient.invalidateQueries({ queryKey: ["network"] });
+    },
+    onError: () => setStatus("Kunne ikke oppdatere koblingen. Ingen endringer ble gjort."),
+  });
+
+  return (
+    <NetworkPanel title={`Anbefalinger (${linked.length})`}>
+      {linked.length === 0 ? (
+        <PanelEmpty>
+          Mottatte LinkedIn-anbefalinger vises her kun når du selv har koblet dem til denne
+          kontakten. Slik informasjon er tredjepartsinformasjon, ikke dokumentert CV-evidens.
+        </PanelEmpty>
+      ) : (
+        <ul className="divide-y divide-border">
+          {linked.map((r) => (
+            <li key={r.id} className="py-2">
+              <p className="text-sm font-medium">
+                {r.author_name ?? "Ukjent avsender"}
+                <Badge variant="outline" className="ml-2 text-[10px]">
+                  Tredjepart
+                </Badge>
+              </p>
+              {r.author_title || r.author_company ? (
+                <p className="text-xs text-muted-foreground">
+                  {[r.author_title, r.author_company].filter(Boolean).join(" · ")}
+                </p>
+              ) : null}
+              {r.recommendation_text ? (
+                <p className="mt-1 whitespace-pre-line text-xs text-muted-foreground">
+                  {r.recommendation_text}
+                </p>
+              ) : null}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-1 h-7 px-2 text-xs"
+                disabled={mutation.isPending}
+                onClick={() => mutation.mutate({ recommendationId: r.id, contactId: null })}
+              >
+                Fjern kobling
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {available.length > 0 ? (
+        <div className="mt-3 space-y-2 border-t border-border pt-2">
+          <Label className="text-xs">Koble en mottatt anbefaling til denne kontakten</Label>
+          <Select value={selected} onValueChange={setSelected}>
+            <SelectTrigger className="h-8">
+              <SelectValue placeholder="Velg anbefaling" />
+            </SelectTrigger>
+            <SelectContent>
+              {available.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.author_name ?? "Ukjent avsender"}
+                  {r.recommended_on ? ` · ${r.recommended_on}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!selected || mutation.isPending}
+            onClick={() => mutation.mutate({ recommendationId: selected, contactId })}
+          >
+            Koble til kontakten
+          </Button>
+          {status ? <p className="text-xs text-muted-foreground">{status}</p> : null}
+        </div>
+      ) : null}
+    </NetworkPanel>
   );
 }
 

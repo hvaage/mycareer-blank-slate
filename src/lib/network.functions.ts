@@ -93,29 +93,34 @@ export const promoteNetworkBatchContacts = createServerFn({ method: "POST" })
     };
   });
 
+const RELATION_STATUS = ["ukjent", "varm", "aktiv", "referanse", "ikke_aktuell"] as const;
+
 const manualFieldsSchema = z.object({
   contactId: z.string().uuid(),
   displayName: z.string().max(300).nullable().optional(),
   headline: z.string().max(500).nullable().optional(),
+  notes: z.string().max(4000).nullable().optional(),
+  relationStatus: z.enum(RELATION_STATUS).nullable().optional(),
 });
 
 /**
- * Manuelle kontaktfelt. Brukeridentitet tas kun fra verifisert serversesjon;
- * tomt felt tilbakestiller visningen til siste LinkedIn-observasjon.
- * Rå kontaktdata logges aldri.
+ * Manuelle kontaktfelt, notater og brukerens relasjon til personen.
+ * Kallet gjøres med brukerens verifiserte JWT (`context.supabase`), aldri med
+ * service_role; RPC-en henter selv identitet fra `auth.uid()`.
+ * Tomt felt tilbakestiller visningen til siste LinkedIn-observasjon.
  */
 export const updateContactManualFields = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => manualFieldsSchema.parse(input ?? {}))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: result, error } = await supabaseAdmin.rpc(
-      "network_update_contact_manual_fields" as never,
+    const { data: result, error } = await context.supabase.rpc(
+      "network_update_contact_manual_profile" as never,
       {
-        p_user_id: context.userId,
         p_contact_id: data.contactId,
         p_display_name: data.displayName ?? null,
         p_headline: data.headline ?? null,
+        p_notes: data.notes ?? null,
+        p_relation_status: data.relationStatus ?? null,
       } as never,
     );
     const payload = (result ?? null) as { ok?: boolean; error_code?: string } | null;
@@ -124,6 +129,65 @@ export const updateContactManualFields = createServerFn({ method: "POST" })
     }
     return { ok: true, errorCode: null };
   });
+
+const contactPointsSchema = z.object({
+  contactId: z.string().uuid(),
+  email: z.string().max(320).nullable().optional(),
+  phone: z.string().max(60).nullable().optional(),
+});
+
+/**
+ * Kontaktpunkter er kun brukerens egne, eksplisitte verdier.
+ * LinkedIn-import og annonseobservasjoner skriver aldri hit.
+ */
+export const updateContactContactPoints = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => contactPointsSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = await context.supabase.rpc(
+      "network_update_contact_contact_points" as never,
+      {
+        p_contact_id: data.contactId,
+        p_email: data.email ?? null,
+        p_phone: data.phone ?? null,
+      } as never,
+    );
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed" };
+    }
+    return { ok: true, errorCode: null };
+  });
+
+const recommendationLinkSchema = z.object({
+  recommendationId: z.string().uuid(),
+  contactId: z.string().uuid().nullable().optional(),
+});
+
+/**
+ * Kobler en mottatt LinkedIn-anbefaling til en kontakt — kun ved eksplisitt
+ * brukerhandling. Navnelikhet, selskap eller rolle er aldri grunnlag.
+ * `contactId = null` kobler fra og bevarer anbefalingen.
+ */
+export const linkRecommendationToContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => recommendationLinkSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { data: result, error } = data.contactId
+      ? await context.supabase.rpc("network_link_recommendation_contact" as never, {
+          p_recommendation_id: data.recommendationId,
+          p_contact_id: data.contactId,
+        } as never)
+      : await context.supabase.rpc("network_unlink_recommendation_contact" as never, {
+          p_recommendation_id: data.recommendationId,
+        } as never);
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed" };
+    }
+    return { ok: true, errorCode: null };
+  });
+
 
 const contactRelationSchema = z.object({
   contactId: z.string().uuid(),

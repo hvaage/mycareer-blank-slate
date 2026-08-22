@@ -808,6 +808,7 @@ export type Database = {
             | null
           id: string
           is_active: boolean
+          network_contact_id: string | null
           recommendation_text: string
           recommended_on: string | null
           relationship_text: string | null
@@ -833,6 +834,7 @@ export type Database = {
             | null
           id?: string
           is_active?: boolean
+          network_contact_id?: string | null
           recommendation_text: string
           recommended_on?: string | null
           relationship_text?: string | null
@@ -858,6 +860,7 @@ export type Database = {
             | null
           id?: string
           is_active?: boolean
+          network_contact_id?: string | null
           recommendation_text?: string
           recommended_on?: string | null
           relationship_text?: string | null
@@ -870,7 +873,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "career_recommendations_network_contact_fk"
+            columns: ["network_contact_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "network_contacts"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
       }
       career_skill_source_signals: {
         Row: {
@@ -6264,7 +6275,11 @@ export type Database = {
           is_active: boolean
           last_observed_at: string | null
           manual_display_name: string | null
+          manual_email: string | null
           manual_headline: string | null
+          manual_notes: string | null
+          manual_phone: string | null
+          manual_relation_status: string | null
           manual_updated_at: string | null
           source_import_id: string | null
           source_ref: string | null
@@ -6282,7 +6297,11 @@ export type Database = {
           is_active?: boolean
           last_observed_at?: string | null
           manual_display_name?: string | null
+          manual_email?: string | null
           manual_headline?: string | null
+          manual_notes?: string | null
+          manual_phone?: string | null
+          manual_relation_status?: string | null
           manual_updated_at?: string | null
           source_import_id?: string | null
           source_ref?: string | null
@@ -6300,7 +6319,11 @@ export type Database = {
           is_active?: boolean
           last_observed_at?: string | null
           manual_display_name?: string | null
+          manual_email?: string | null
           manual_headline?: string | null
+          manual_notes?: string | null
+          manual_phone?: string | null
+          manual_relation_status?: string | null
           manual_updated_at?: string | null
           source_import_id?: string | null
           source_ref?: string | null
@@ -9697,6 +9720,10 @@ export type Database = {
         }
         Returns: Json
       }
+      network_link_recommendation_contact: {
+        Args: { p_contact_id: string; p_recommendation_id: string }
+        Returns: Json
+      }
       network_posting_contact_ref: {
         Args: { p_contact: Json; p_source_posting_id: string }
         Returns: string
@@ -9756,12 +9783,30 @@ export type Database = {
         Args: { p_company_key: string; p_user_id: string }
         Returns: Json
       }
+      network_unlink_recommendation_contact: {
+        Args: { p_recommendation_id: string }
+        Returns: Json
+      }
+      network_update_contact_contact_points: {
+        Args: { p_contact_id: string; p_email: string; p_phone: string }
+        Returns: Json
+      }
       network_update_contact_manual_fields: {
         Args: {
           p_contact_id: string
           p_display_name: string
           p_headline: string
           p_user_id: string
+        }
+        Returns: Json
+      }
+      network_update_contact_manual_profile: {
+        Args: {
+          p_contact_id: string
+          p_display_name: string
+          p_headline: string
+          p_notes: string
+          p_relation_status: string
         }
         Returns: Json
       }

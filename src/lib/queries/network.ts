@@ -86,6 +86,12 @@ export type NetworkContactItem = {
   last_observed_at: string | null;
   nextActivity: { id: string; title: string; due_date: string | null } | null;
   lastContactAt: string | null;
+  /** Brukerens egne kontaktpunkter og notater — aldri importert fra LinkedIn. */
+  manualEmail: string | null;
+  manualPhone: string | null;
+  manualNotes: string | null;
+  manualRelationStatus: "ukjent" | "varm" | "aktiv" | "referanse" | "ikke_aktuell" | null;
+  manualUpdatedAt: string | null;
 };
 
 async function loadNetworkGraph(userId: string) {
@@ -94,7 +100,7 @@ async function loadNetworkGraph(userId: string) {
       supabase
         .from("network_contacts")
         .select(
-          "id, display_name, headline, company, connected_on, source_system, last_observed_at, is_active, manual_display_name, manual_headline, manual_updated_at",
+          "id, display_name, headline, company, connected_on, source_system, last_observed_at, is_active, manual_display_name, manual_headline, manual_updated_at, manual_email, manual_phone, manual_notes, manual_relation_status",
         )
         .eq("user_id", userId)
         .eq("is_active", true)
@@ -181,7 +187,7 @@ async function loadNetworkGraph(userId: string) {
     ),
   ]);
 
-  const [documents, postingContacts] = await Promise.all([
+  const [documents, postingContacts, recommendations] = await Promise.all([
     fetchAllPages((from, to) =>
       supabase
         .from("documents")
@@ -202,7 +208,21 @@ async function loadNetworkGraph(userId: string) {
         .order("id")
         .range(from, to),
     ),
+    // Kun mottatte anbefalinger er relevante for kontaktdetaljen.
+    fetchAllPages((from, to) =>
+      supabase
+        .from("career_recommendations")
+        .select(
+          "id, author_name, author_title, author_company, relationship_text, recommendation_text, recommended_on, source_system, direction, network_contact_id, is_active, archived_at",
+        )
+        .eq("user_id", userId)
+        .eq("direction", "received")
+        .order("recommended_on", { ascending: false, nullsFirst: false })
+        .order("id")
+        .range(from, to),
+    ),
   ]);
+
 
   return {
     contacts,
@@ -216,6 +236,7 @@ async function loadNetworkGraph(userId: string) {
     applications,
     documents,
     postingContacts,
+    recommendations,
   };
 }
 
@@ -384,6 +405,11 @@ export function buildContacts(graph: NetworkGraph): NetworkContactItem[] {
       last_observed_at: c.last_observed_at ?? null,
       nextActivity: next ? { id: next.id, title: next.title, due_date: next.due_date ?? null } : null,
       lastContactAt: done.length ? done[done.length - 1] : null,
+      manualEmail: c.manual_email ?? null,
+      manualPhone: c.manual_phone ?? null,
+      manualNotes: c.manual_notes ?? null,
+      manualRelationStatus: (c.manual_relation_status ?? null) as NetworkContactItem["manualRelationStatus"],
+      manualUpdatedAt: c.manual_updated_at ?? null,
     };
   });
 }
