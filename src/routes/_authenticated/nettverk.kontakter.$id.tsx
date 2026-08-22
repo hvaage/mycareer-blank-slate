@@ -152,11 +152,122 @@ function ContactDetail() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string | null | undefined }) {
+/**
+ * Manuelle verdier vinner alltid over LinkedIn-observasjoner. Tomt felt
+ * tilbakestiller til observert verdi. All skriving går via kanonisk serverhandling.
+ */
+function ManualFieldsPanel({ contact }) {
+  const queryClient = useQueryClient();
+  const saveFields = useServerFn(updateContactManualFields);
+  const saveRelation = useServerFn(setContactCompanyRelation);
+  const [name, setName] = useState(contact.nameSource === "user_input" ? contact.display_name : "");
+  const [headline, setHeadline] = useState(
+    contact.headlineSource === "user_input" ? (contact.headline ?? "") : "",
+  );
+  const [company, setCompany] = useState(
+    contact.companySource === "user_input" ? (contact.company ?? "") : "",
+  );
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStatus(null);
+  }, [contact.id]);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const fields = await saveFields({
+        data: {
+          contactId: contact.id,
+          displayName: name.trim() || null,
+          headline: headline.trim() || null,
+        },
+      });
+      if (!fields?.ok) throw new Error(fields?.errorCode ?? "write_failed");
+      const relation = await saveRelation({
+        data: {
+          contactId: contact.id,
+          companyName: company.trim() || null,
+          relationKind: "unknown",
+        },
+      });
+      if (!relation?.ok) throw new Error(relation?.errorCode ?? "write_failed");
+    },
+    onSuccess: () => {
+      setStatus("Lagret. Dine verdier vises nå framfor LinkedIn-dataene.");
+      queryClient.invalidateQueries({ queryKey: ["network"] });
+    },
+    onError: () => setStatus("Kunne ikke lagre. Ingen endringer ble gjort."),
+  });
+
   return (
-    <div className="flex gap-2">
-      <dt className="w-32 shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words">{value || "Ikke registrert"}</dd>
+    <NetworkPanel title="Dine egne opplysninger">
+      <div className="space-y-2">
+        <Field id="manual-name" label="Navn" value={name} onChange={setName} placeholder={contact.linkedinDisplayName ?? ""} />
+        <Field
+          id="manual-headline"
+          label="Tittel"
+          value={headline}
+          onChange={setHeadline}
+          placeholder={contact.linkedinHeadline ?? ""}
+        />
+        <Field
+          id="manual-company"
+          label="Selskap"
+          value={company}
+          onChange={setCompany}
+          placeholder={contact.linkedinCompany ?? ""}
+        />
+        <p className="text-xs text-muted-foreground">
+          Tomt felt bruker den observerte LinkedIn-verdien. En ny LinkedIn-import overskriver ikke
+          det du har lagt inn her.
+        </p>
+        <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+          {mutation.isPending ? "Lagrer…" : "Lagre"}
+        </Button>
+        {status ? <p className="text-xs text-muted-foreground">{status}</p> : null}
+      </div>
+    </NetworkPanel>
+  );
+}
+
+function Field({ id, label, value, onChange, placeholder }) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id} className="text-xs">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8"
+      />
     </div>
   );
 }
+
+function Row({
+  label,
+  value,
+  source,
+}: {
+  label: string;
+  value: string | null | undefined;
+  source?: "user_input" | "linkedin_observed";
+}) {
+  return (
+    <div className="flex gap-2">
+      <dt className="w-32 shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words">
+        {value || "Ikke registrert"}
+        {value && source ? (
+          <Badge variant="outline" className="ml-2 text-[10px]">
+            {source === "user_input" ? "Din registrering" : "LinkedIn"}
+          </Badge>
+        ) : null}
+      </dd>
+    </div>
+  );
+}
+
