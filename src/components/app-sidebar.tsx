@@ -30,7 +30,6 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth-context";
 import { isAdmin } from "@/lib/admin-guard";
 import { cn } from "@/lib/utils";
-import logoMark from "@/assets/karrierenmin-mark.svg";
 import logoLockup from "@/assets/karrierenmin-lockup.svg";
 
 type SubItem = {
@@ -51,7 +50,7 @@ type GroupNode = {
   matchPrefixes?: string[];
 };
 
-const RAIL_WIDTH = 64;
+const RAIL_WIDTH = 96;
 const SUBPANEL_WIDTH = 220;
 
 const primaryGroups: GroupNode[] = [
@@ -334,14 +333,8 @@ export function AppSidebar() {
       className="flex shrink-0 flex-col items-stretch border-r bg-sidebar text-sidebar-foreground"
       style={{ width: RAIL_WIDTH }}
     >
-      {/* Brand mark — K4 */}
-      <Link
-        to="/dashboard"
-        aria-label="Karrierenmin — Dashboard"
-        className="flex h-14 items-center justify-center border-b hover:bg-sidebar-accent/40"
-      >
-        <img src={logoMark} alt="" className="h-7 w-7" />
-      </Link>
+      {/* Plass til den faste merkeplassen som ligger øverst til venstre. */}
+      <div aria-hidden className="h-16 border-b" />
 
       <nav aria-label="Hovedmeny" className="flex-1 overflow-y-auto py-2">
         <ul className="flex flex-col items-stretch gap-1 px-2">
@@ -663,14 +656,14 @@ function RailButton({
           aria-expanded={group.items ? expanded : undefined}
           aria-controls={group.items ? `subpanel-${group.id}` : undefined}
           className={cn(
-            "mx-auto flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-md text-[10px] font-medium transition-colors",
+            "flex w-full flex-col items-center justify-center gap-1 rounded-md px-1 py-2 text-center text-[11px] font-medium leading-tight transition-colors",
             active
               ? "bg-primary/10 text-primary"
               : "text-sidebar-foreground hover:bg-sidebar-accent/50",
           )}
         >
           <Icon className="h-5 w-5" />
-          <span className="leading-none">{group.label}</span>
+          <span className="hyphens-auto break-words">{group.label}</span>
         </button>
       </TooltipTrigger>
       <TooltipContent side="right">{group.title}</TooltipContent>

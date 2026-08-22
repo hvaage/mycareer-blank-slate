@@ -27,11 +27,11 @@ function AuthenticatedLayout() {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-12 flex items-center gap-2 border-b px-2">
+          {/* Venstre hjørne er reservert for den faste K-merkeplassen. */}
+          <header className="h-16 flex items-center gap-2 border-b px-2 pl-16 sm:pl-2">
             <span className="sm:hidden">
               <SidebarTrigger />
             </span>
-            <span className="text-sm font-semibold sm:hidden">Karrierenmin</span>
             <div className="ml-auto">
               <NotificationBell />
             </div>
