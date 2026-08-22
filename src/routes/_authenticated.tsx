@@ -7,6 +7,8 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 
 
 export const Route = createFileRoute("/_authenticated")({
+  // Økten ligger i localStorage; uten dette kjører ikke porten ved full innlasting.
+  ssr: false,
   beforeLoad: async ({ location }) => {
     if (typeof window === "undefined") return;
     await authReady;
