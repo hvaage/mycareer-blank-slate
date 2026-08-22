@@ -120,7 +120,7 @@ function ContactDetail() {
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-3 md:overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-4 md:overflow-hidden">
         <NetworkPanel title="Kontaktprofil og kontaktkanaler">
           <dl className="space-y-1">
             <Row label="Navn" value={contact.display_name} source={contact.nameSource} />
@@ -133,6 +133,15 @@ function ContactDetail() {
                   ? new Date(contact.connected_on).toLocaleDateString("nb-NO")
                   : null
               }
+            />
+            <Row
+              label="Din relasjon"
+              value={
+                contact.manualRelationStatus
+                  ? RELATION_STATUS_LABEL[contact.manualRelationStatus]
+                  : null
+              }
+              source={contact.manualRelationStatus ? "user_input" : undefined}
             />
             <Row label="Kilde" value={contact.source_system === "linkedin_import" ? "LinkedIn-import" : contact.source_system} />
           </dl>
