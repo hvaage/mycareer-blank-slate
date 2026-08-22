@@ -221,12 +221,22 @@ async function decide(proposalId: string, decision: string, reasonCode: string |
   return Boolean((data as unknown as { ok?: boolean } | null)?.ok);
 }
 
+/** Kvalifikasjonstyper går alltid til kvalifikasjonsporten, uansett kildedomene. */
+const QUALIFICATION_ATOM_TYPES = new Set(["education", "certification", "language", "course"]);
+const SKILL_ATOM_TYPES = new Set(["skill", "endorsement"]);
+
 /** Hvilken promoteringsport hører et forslag hjemme i? */
 export function promotionActionForDomain(
   domain: string,
   proposalKind: string,
+  atomType?: string | null,
 ): PromotionAction | null {
   if (proposalKind === "not_actionable_in_phase_3") return null;
+
+  const type = (atomType ?? "").trim().toLowerCase();
+  if (type && QUALIFICATION_ATOM_TYPES.has(type)) return "promote_qualification";
+  if (type && SKILL_ATOM_TYPES.has(type) && domain !== "network") return "promote_skill_or_signal";
+
   switch (domain) {
     case "profile":
       return "promote_profile_field";
@@ -246,6 +256,7 @@ export function promotionActionForDomain(
       return null; // content: not_actionable_in_phase_4
   }
 }
+
 
 export const PROMOTION_BUTTON_LABELS: Record<PromotionAction, string> = {
   promote_profile_field: "Legg til i min profil",
