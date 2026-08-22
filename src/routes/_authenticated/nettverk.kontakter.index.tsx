@@ -134,14 +134,12 @@ function ContactsPage() {
                   ) : null}
                   {c.company ? <Badge variant="secondary">{c.company}</Badge> : null}
                   {c.linkedinProfileUrl ? (
-                    <a
+                    <ExternalUrlLink
                       href={c.linkedinProfileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground underline underline-offset-2"
+                      className="text-xs text-muted-foreground"
                     >
-                      LinkedIn <ExternalLink className="h-3 w-3" aria-hidden />
-                    </a>
+                      LinkedIn
+                    </ExternalUrlLink>
                   ) : null}
                   <span className="ml-auto text-xs text-muted-foreground">
                     {c.nextActivity
