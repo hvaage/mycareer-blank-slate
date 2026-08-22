@@ -71,9 +71,16 @@ export const startActivitySuggestionRun = createServerFn({ method: "POST" })
     // kjøringen opp av det planlagte worker-kallet.
     if (!payload.reused || payload.status === "queued") {
       const secret = process.env["NETWORK_SUGGESTIONS_WORKER_SECRET"];
-      const baseUrl = process.env["PUBLIC_APP_URL"] ?? null;
-      if (secret && baseUrl) {
-        void fetch(new URL("/api/public/jobs/network-suggestions", baseUrl), {
+      const { getRequest } = await import("@tanstack/react-start/server");
+      const origin = (() => {
+        try {
+          return new URL(getRequest().url).origin;
+        } catch {
+          return null;
+        }
+      })();
+      if (secret && origin) {
+        void fetch(new URL("/api/public/jobs/network-suggestions", origin), {
           method: "POST",
           headers: { "content-type": "application/json", "x-worker-secret": secret },
           body: "{}",
@@ -82,6 +89,7 @@ export const startActivitySuggestionRun = createServerFn({ method: "POST" })
           .catch(() => undefined);
       }
     }
+
 
     return {
       ok: true as const,
