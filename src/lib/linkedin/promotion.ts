@@ -63,7 +63,13 @@ const NO_EVENT_ERROR_CODES = new Set([
   "proposal_not_found",
   "already_promoted",
   "not_approved_for_promotion",
+  // «Finnes allerede» er et gyldig utfall, ikke en feil: forslaget er
+  // avsluttet gjennom beslutningslaget som allerede registrert.
+  "already_registered",
 ]);
+
+/** Utfall som betyr «du har dette fra før», ikke at noe gikk galt. */
+export const ALREADY_REGISTERED_CODE = "already_registered";
 
 /** Korte, kontrollerte forklaringer. Aldri kildeinnhold, aldri databasefeil. */
 const ERROR_SUMMARIES: Record<string, string> = {
@@ -84,7 +90,9 @@ const ERROR_SUMMARIES: Record<string, string> = {
   import_inactive: "Importen er slettet eller avbrutt.",
   skipped_no_selected_purpose: "Formålet dette forslaget hører til, er ikke valgt.",
   wrong_promotion_port: "Forslaget hører til et annet promoteringsområde.",
+  already_registered: "Du har dette fra før. Forslaget er markert som allerede registrert.",
 };
+
 
 export const PROMOTION_ERROR_MESSAGES = ERROR_SUMMARIES;
 
