@@ -30,7 +30,6 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth-context";
 import { isAdmin } from "@/lib/admin-guard";
 import { cn } from "@/lib/utils";
-import logoMark from "@/assets/karrierenmin-mark.svg";
 import logoLockup from "@/assets/karrierenmin-lockup.svg";
 
 type SubItem = {
