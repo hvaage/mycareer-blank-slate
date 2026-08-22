@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuthUserId } from "@/components/network/use-network-user";
 import { networkGraphQuery, searchNetwork } from "@/lib/queries/network";
+import { ExternalUrlLink } from "@/components/external-url-link";
 
 const TABS = [
   { label: "Oversikt", to: "/nettverk/oversikt" },
@@ -52,14 +53,25 @@ export function NetworkShell({ children }: { children: ReactNode }) {
               ) : null}
               <SearchGroup label="Kontakter">
                 {results.contacts.map((c) => (
-                  <SearchLink
-                    key={c.id}
-                    to="/nettverk/kontakter/$id"
-                    params={{ id: c.id }}
-                    onNavigate={() => setTerm("")}
-                    primary={c.display_name}
-                    secondary={c.company}
-                  />
+                  <div key={c.id} className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <SearchLink
+                        to="/nettverk/kontakter/$id"
+                        params={{ id: c.id }}
+                        onNavigate={() => setTerm("")}
+                        primary={c.display_name}
+                        secondary={c.company}
+                      />
+                    </div>
+                    {c.linkedinProfileUrl ? (
+                      <ExternalUrlLink
+                        href={c.linkedinProfileUrl}
+                        className="shrink-0 px-2 text-xs text-muted-foreground"
+                      >
+                        LinkedIn
+                      </ExternalUrlLink>
+                    ) : null}
+                  </div>
                 ))}
               </SearchGroup>
               <SearchGroup label="Selskaper">

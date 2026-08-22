@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { EmailConnections } from "@/components/email-connections";
 import { startLinkedInOAuth } from "@/lib/linkedin-oauth";
+import { ExternalUrlLink } from "@/components/external-url-link";
 
 export function IntegrationsPanel({ userId }: { userId: string }) {
   const { data: profile } = useQuery({
