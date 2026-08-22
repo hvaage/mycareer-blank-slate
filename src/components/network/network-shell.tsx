@@ -43,7 +43,7 @@ export function NetworkShell({ children }: { children: ReactNode }) {
             onChange={(e) => setTerm(e.target.value)}
             placeholder="Søk i kontakter, selskaper og muligheter"
             className="pl-8"
-            aria-label="Søk i nettverk og muligheter"
+            aria-label="Søk i nettverksarbeid"
           />
           {term.trim().length >= 2 ? (
             <div className="absolute z-30 mt-1 max-h-80 w-full overflow-y-auto rounded-md border border-border bg-popover p-2 shadow-md">
@@ -76,12 +76,14 @@ export function NetworkShell({ children }: { children: ReactNode }) {
               </SearchGroup>
               <SearchGroup label="Muligheter">
                 {results.opportunities.map((o) => (
-                  <div key={o.id} className="rounded px-2 py-1 text-sm">
-                    <span className="font-medium">{o.title}</span>
-                    {o.company ? (
-                      <span className="text-muted-foreground"> · {o.company}</span>
-                    ) : null}
-                  </div>
+                  <SearchLink
+                    key={o.id}
+                    to="/nettverk/muligheter/$id"
+                    params={{ id: o.id }}
+                    onNavigate={() => setTerm("")}
+                    primary={o.title}
+                    secondary={o.company}
+                  />
                 ))}
               </SearchGroup>
             </div>
@@ -89,7 +91,7 @@ export function NetworkShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b border-border" aria-label="Nettverk og muligheter">
+      <nav className="flex flex-wrap gap-1 border-b border-border" aria-label="Nettverksarbeid">
         {TABS.map((tab) => (
           <Link
             key={tab.to}
