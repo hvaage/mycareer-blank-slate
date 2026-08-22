@@ -39,9 +39,19 @@ Serveren bygger en nummerert, lukket liste over tillatte kildeobjekter (`ref` �
 
 ### Database (additive migrasjoner)
 
+`public.network_activity_suggestion_scope_state` — eier regenereringstelleren:
+
+- `user_id`, `scope`, `scope_object_id` (nullable kun for `overview`, CHECK som håndhever dette)
+- `scope_key` (normalisert: `overview`, `company:<uuid>`, `contact:<uuid>`, `opportunity:<uuid>`) med unik nøkkel på `(user_id, scope_key)`
+- `generation_epoch integer NOT NULL DEFAULT 0`, `updated_at`
+- RLS: kun eier kan lese (`auth.uid() = user_id`); kun `service_role` skriver. GRANT `SELECT` til `authenticated`, `ALL` til `service_role`, ingen `anon`.
+
+Ved `regenerate: true` økes `generation_epoch` atomisk i samme transaksjon som enqueue, og den nye verdien inngår i `input_signature` og lagres på kjøringen.
+
 `public.network_activity_suggestion_runs` — eier kjøringen:
 
-- `id`, `user_id`, `scope` (`overview` | `company` | `contact` | `opportunity`), `scope_object_id`
+- `id`, `user_id`, `scope` (`overview` | `company` | `contact` | `opportunity`), `scope_object_id`, `scope_key`, `generation_epoch`
+
 - `status`: `queued` | `running` | `succeeded` | `failed` | `cancelled`
 - `input_signature` (text, unik sammen med `user_id` for aktive/ferdige kjøringer), `correlation_id`
 - `model_profile`, `model_name`, `prompt_version`, `model_run_id` (peker til `ai.model_runs`)
