@@ -113,6 +113,7 @@ import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './rout
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
 import { Route as ApiPublicOpsWatchdogRouteImport } from './routes/api/public/ops/watchdog'
 import { Route as ApiPublicLinkedinWorkerRouteImport } from './routes/api/public/linkedin/worker'
+import { Route as ApiPublicJobsNetworkSuggestionsRouteImport } from './routes/api/public/jobs/network-suggestions'
 import { Route as ApiPublicCvAtomizationWorkerRouteImport } from './routes/api/public/cv/atomization-worker'
 import { Route as ApiCvGenerationsJobIdRouteImport } from './routes/api/cv/generations.$jobId'
 import { Route as ApiCvAtomizationJobsJobIdRouteImport } from './routes/api/cv/atomization-jobs.$jobId'
@@ -706,6 +707,12 @@ const ApiPublicLinkedinWorkerRoute = ApiPublicLinkedinWorkerRouteImport.update({
   path: '/api/public/linkedin/worker',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicJobsNetworkSuggestionsRoute =
+  ApiPublicJobsNetworkSuggestionsRouteImport.update({
+    id: '/api/public/jobs/network-suggestions',
+    path: '/api/public/jobs/network-suggestions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCvAtomizationWorkerRoute =
   ApiPublicCvAtomizationWorkerRouteImport.update({
     id: '/api/public/cv/atomization-worker',
@@ -847,6 +854,7 @@ export interface FileRoutesByFullPath {
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
+  '/api/public/jobs/network-suggestions': typeof ApiPublicJobsNetworkSuggestionsRoute
   '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -955,6 +963,7 @@ export interface FileRoutesByTo {
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
+  '/api/public/jobs/network-suggestions': typeof ApiPublicJobsNetworkSuggestionsRoute
   '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -1069,6 +1078,7 @@ export interface FileRoutesById {
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
+  '/api/public/jobs/network-suggestions': typeof ApiPublicJobsNetworkSuggestionsRoute
   '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -1183,6 +1193,7 @@ export interface FileRouteTypes {
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
+    | '/api/public/jobs/network-suggestions'
     | '/api/public/linkedin/worker'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
@@ -1291,6 +1302,7 @@ export interface FileRouteTypes {
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
+    | '/api/public/jobs/network-suggestions'
     | '/api/public/linkedin/worker'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
@@ -1404,6 +1416,7 @@ export interface FileRouteTypes {
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
+    | '/api/public/jobs/network-suggestions'
     | '/api/public/linkedin/worker'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
@@ -1443,6 +1456,7 @@ export interface RootRouteChildren {
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
+  ApiPublicJobsNetworkSuggestionsRoute: typeof ApiPublicJobsNetworkSuggestionsRoute
   ApiPublicLinkedinWorkerRoute: typeof ApiPublicLinkedinWorkerRoute
   ApiPublicOpsWatchdogRoute: typeof ApiPublicOpsWatchdogRoute
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
@@ -2183,6 +2197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLinkedinWorkerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/jobs/network-suggestions': {
+      id: '/api/public/jobs/network-suggestions'
+      path: '/api/public/jobs/network-suggestions'
+      fullPath: '/api/public/jobs/network-suggestions'
+      preLoaderRoute: typeof ApiPublicJobsNetworkSuggestionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cv/atomization-worker': {
       id: '/api/public/cv/atomization-worker'
       path: '/api/public/cv/atomization-worker'
@@ -2509,6 +2530,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
+  ApiPublicJobsNetworkSuggestionsRoute: ApiPublicJobsNetworkSuggestionsRoute,
   ApiPublicLinkedinWorkerRoute: ApiPublicLinkedinWorkerRoute,
   ApiPublicOpsWatchdogRoute: ApiPublicOpsWatchdogRoute,
   ApiPublicSelskapsanalyseDownloadRoute: ApiPublicSelskapsanalyseDownloadRoute,
