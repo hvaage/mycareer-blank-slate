@@ -141,10 +141,32 @@ async function loadNetworkGraph(userId: string) {
     fetchAllPages((from, to) =>
       supabase
         .from("next_steps")
-        .select("id, title, due_date, priority, completed, completed_at, company_id, contact_id, opportunity_id, created_at")
+        .select(
+          "id, title, description, due_date, priority, completed, completed_at, status, activity_type, activity_scope, result_note, company_id, contact_id, opportunity_id, application_id, created_at",
+        )
         .eq("user_id", userId)
         .is("archived_at", null)
         .order("due_date", { ascending: true, nullsFirst: false })
+        .order("id")
+        .range(from, to),
+    ),
+  ]);
+
+  const [interviews, applications] = await Promise.all([
+    fetchAllPages((from, to) =>
+      supabase
+        .from("interviews")
+        .select("id, application_id, interview_type, scheduled_at, outcome")
+        .eq("user_id", userId)
+        .order("scheduled_at", { ascending: true, nullsFirst: false })
+        .order("id")
+        .range(from, to),
+    ),
+    fetchAllPages((from, to) =>
+      supabase
+        .from("applications")
+        .select("id, role_title, company_name, status")
+        .eq("user_id", userId)
         .order("id")
         .range(from, to),
     ),
@@ -157,6 +179,8 @@ async function loadNetworkGraph(userId: string) {
     userCompanies,
     opportunities,
     steps,
+    interviews,
+    applications,
   };
 }
 
