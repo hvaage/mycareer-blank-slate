@@ -54,6 +54,8 @@ async function fetchAllPages<T>(
 export type NetworkCompanyItem = {
   key: CompanyKey;
   companyId: string | null;
+  /** Organisasjonsnummer fra selskapsregisteret. Null når selskapet kun er kjent via navn. */
+  orgnr: string | null;
   name: string;
   industry: string | null;
   location: string | null;
