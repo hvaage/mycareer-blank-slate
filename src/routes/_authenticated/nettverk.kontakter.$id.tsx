@@ -67,9 +67,9 @@ function ContactDetail() {
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-2 md:overflow-hidden">
         <NetworkPanel title="Kontaktprofil og kontaktkanaler">
           <dl className="space-y-1">
-            <Row label="Navn" value={contact.display_name} />
-            <Row label="Tittel" value={contact.headline} />
-            <Row label="Selskap" value={contact.company} />
+            <Row label="Navn" value={contact.display_name} source={contact.nameSource} />
+            <Row label="Tittel" value={contact.headline} source={contact.headlineSource} />
+            <Row label="Selskap" value={contact.company} source={contact.companySource} />
             <Row
               label="Koblet"
               value={
@@ -80,17 +80,41 @@ function ContactDetail() {
             />
             <Row label="Kilde" value={contact.source_system === "linkedin_import" ? "LinkedIn-import" : contact.source_system} />
           </dl>
+
+          <div className="mt-3 rounded-md border border-border p-2">
+            <p className="text-xs font-medium">Observert i LinkedIn</p>
+            <dl className="mt-1 space-y-1 text-xs text-muted-foreground">
+              <Row label="Navn" value={contact.linkedinDisplayName} />
+              <Row label="Tittel" value={contact.linkedinHeadline} />
+              <Row label="Selskap" value={contact.linkedinCompany} />
+              <Row
+                label="Sist observert"
+                value={
+                  contact.linkedinObservedAt
+                    ? new Date(contact.linkedinObservedAt).toLocaleDateString("nb-NO")
+                    : null
+                }
+              />
+            </dl>
+            {contact.linkedinProfileUrl ? (
+              <a
+                href={contact.linkedinProfileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex items-center gap-1 text-xs underline underline-offset-2"
+              >
+                Åpne LinkedIn-profil <ExternalLink className="h-3 w-3" aria-hidden />
+              </a>
+            ) : null}
+          </div>
+
           <p className="mt-2 text-xs text-muted-foreground">
-            E-post, telefon og profillenke vises kun når du selv har lagt dem inn i produktet.
+            E-post og telefon vises kun når du selv har lagt dem inn i produktet.
           </p>
         </NetworkPanel>
 
-        <NetworkPanel title="Relasjon og notater">
-          <PanelEmpty>
-            Relasjonsstyrke, introduksjonsevne, referansemarkering og notater registreres i neste
-            leveranse.
-          </PanelEmpty>
-        </NetworkPanel>
+        <ManualFieldsPanel contact={contact} />
+
 
         <NetworkPanel title={`Relevante muligheter (${opportunities.length})`}>
           {opportunities.length === 0 ? (
