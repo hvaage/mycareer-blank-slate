@@ -69,6 +69,7 @@ import { Route as ApiInternalCvGenerationWorkerRouteImport } from './routes/api/
 import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
 import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generations'
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
+import { Route as AuthenticatedNettverkOversiktRouteImport } from './routes/_authenticated/nettverk.oversikt'
 import { Route as AuthenticatedMinProfilKarriereretningRouteImport } from './routes/_authenticated/min-profil/karriereretning'
 import { Route as AuthenticatedMinProfilImportgjennomgangRouteImport } from './routes/_authenticated/min-profil/importgjennomgang'
 import { Route as AuthenticatedMinProfilImporterCvRouteImport } from './routes/_authenticated/min-profil/importer-cv'
@@ -447,6 +448,12 @@ const ApiCvAtomizationJobsRoute = ApiCvAtomizationJobsRouteImport.update({
   path: '/api/cv/atomization-jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedNettverkOversiktRoute =
+  AuthenticatedNettverkOversiktRouteImport.update({
+    id: '/oversikt',
+    path: '/oversikt',
+    getParentRoute: () => AuthenticatedNettverkRoute,
+  } as any)
 const AuthenticatedMinProfilKarriereretningRoute =
   AuthenticatedMinProfilKarriereretningRouteImport.update({
     id: '/min-profil/karriereretning',
@@ -805,6 +812,7 @@ export interface FileRoutesByFullPath {
   '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
+  '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -912,6 +920,7 @@ export interface FileRoutesByTo {
   '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
+  '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -1025,6 +1034,7 @@ export interface FileRoutesById {
   '/_authenticated/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/_authenticated/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/_authenticated/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
+  '/_authenticated/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -1138,6 +1148,7 @@ export interface FileRouteTypes {
     | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
+    | '/nettverk/oversikt'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1245,6 +1256,7 @@ export interface FileRouteTypes {
     | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
+    | '/nettverk/oversikt'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1357,6 +1369,7 @@ export interface FileRouteTypes {
     | '/_authenticated/min-profil/importer-cv'
     | '/_authenticated/min-profil/importgjennomgang'
     | '/_authenticated/min-profil/karriereretning'
+    | '/_authenticated/nettverk/oversikt'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1862,6 +1875,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCvAtomizationJobsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/nettverk/oversikt': {
+      id: '/_authenticated/nettverk/oversikt'
+      path: '/oversikt'
+      fullPath: '/nettverk/oversikt'
+      preLoaderRoute: typeof AuthenticatedNettverkOversiktRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
+    }
     '/_authenticated/min-profil/karriereretning': {
       id: '/_authenticated/min-profil/karriereretning'
       path: '/min-profil/karriereretning'
@@ -2216,6 +2236,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedNettverkRouteChildren {
+  AuthenticatedNettverkOversiktRoute: typeof AuthenticatedNettverkOversiktRoute
   AuthenticatedNettverkIndexRoute: typeof AuthenticatedNettverkIndexRoute
   AuthenticatedNettverkKontakterIdRoute: typeof AuthenticatedNettverkKontakterIdRoute
   AuthenticatedNettverkKontakterImportRoute: typeof AuthenticatedNettverkKontakterImportRoute
@@ -2228,6 +2249,7 @@ interface AuthenticatedNettverkRouteChildren {
 }
 
 const AuthenticatedNettverkRouteChildren: AuthenticatedNettverkRouteChildren = {
+  AuthenticatedNettverkOversiktRoute: AuthenticatedNettverkOversiktRoute,
   AuthenticatedNettverkIndexRoute: AuthenticatedNettverkIndexRoute,
   AuthenticatedNettverkKontakterIdRoute: AuthenticatedNettverkKontakterIdRoute,
   AuthenticatedNettverkKontakterImportRoute:
