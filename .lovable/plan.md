@@ -14,9 +14,11 @@ Kontaktdetaljen bygges om til et arbeidskort med fast panelrutenett, sticky pane
 ## 1. Datamodell (additiv migrasjon)
 
 - `network_contacts`: nye kolonner `manual_email text`, `manual_phone text`, `manual_notes text`, `manual_relation_status text`. Ingen backfill, ingen endring av eksisterende kolonner. LinkedIn-importen skriver aldri til disse.
-- Ny kobling for anbefalinger: `career_recommendations.network_contact_id uuid` (nullable, FK bruker-scopet) settes kun ved eksplisitt brukerhandling. Ingen navnematching.
-- RPC `network_update_contact_contact_points(p_user_id, p_contact_id, p_email, p_phone)` og utvidelse av eksisterende `network_update_contact_manual_fields` med notater/relasjonsstatus — begge SECURITY DEFINER, validerer eierskap, uten execute for `anon`.
-- Serverhandlinger i `src/lib/network.functions.ts` henter `user_id` fra verifisert sesjon; klienten kan aldri sende den.
+- `manual_relation_status` beskriver **kun brukerens relasjon til personen**, aldri kontaktens ansettelsesforhold. Tillatte og CHECK-validerte verdier: `ukjent`, `varm`, `aktiv`, `referanse`, `ikke_aktuell`. Selskapstilknytning eies fortsatt av `network_contact_company_relations`.
+- Anbefalingskobling: `network_contacts` og `career_recommendations` får bruker-scopede nøkler (`UNIQUE (id, user_id)`), deretter `career_recommendations.network_contact_id uuid` med sammensatt FK `(network_contact_id, user_id) → network_contacts(id, user_id)`. Kun mottatte anbefalinger (`direction = 'received'`) kan kobles. Frakobling nullstiller kun `network_contact_id` og bevarer anbefaling og revisjonsspor.
+- RPC-autorisering: alle nye/endrede RPC-er er SECURITY DEFINER, henter bruker fra `auth.uid()` internt, avviser manglende sesjon, validerer at kontakt, anbefaling og relasjoner eies av samme bruker, låser `search_path`, og gir aldri EXECUTE til `anon`. Ingen RPC tar `p_user_id` som autoritativ parameter — verken fra klient eller serverhandling.
+- Nye/endrede RPC-er: `network_update_contact_contact_points(p_contact_id, p_email, p_phone)`, utvidelse av `network_update_contact_manual_fields` med notater og relasjonsstatus, og `network_link_recommendation_contact(p_recommendation_id, p_contact_id)` / tilhørende frakobling.
+
 
 ## 2. Toppnivå
 
@@ -30,12 +32,12 @@ Selskaper                 |  Muligheter
 Aktiviteter og tidslinje  |  Anbefalinger
 ```
 
-- **Kontaktpunkter** (alltid øverst): e-post, telefon, LinkedIn. Kilde og tidspunkt per verdi. Manglende verdi vises som «Ikke registrert». Inline redigering av e-post/telefon via ny serverhandling. Annonsekontaktverdier vises som «Fra jobbannonse» med observert tidspunkt, sekundært under den manuelle aktive verdien.
-- **Relasjon og notater**: relasjonstype/status og brukerens fritekstnotat, lagres eksplisitt.
+- **Kontaktpunkter** (alltid øverst): e-post, telefon, LinkedIn. `manual_email`/`manual_phone` er brukerens eksplisitte aktive verdier og vises først. Observasjoner fra `network_posting_contacts` vises separat og sekundært som «Sist observert i jobbannonse» med observert tidspunkt — de kopieres aldri automatisk til manuelle felt. LinkedIn er aldri kilde til e-post eller telefon. Uten aktiv manuell verdi vises «Ikke registrert», også når en annonseobservasjon finnes.
+- **Relasjon og notater**: brukerens relasjon til personen (`ukjent`, `varm`, `aktiv`, `referanse`, `ikke_aktuell`) og brukerens fritekstnotat, lagres eksplisitt.
 - **Selskaper**: aktiv og historisk observert tilknytning, navn lenker til selskapsdetalj, LinkedIn-observasjoner merkes som kildeinformasjon.
 - **Muligheter**: stilling, selskap, status og neste aktivitet, rad lenker til mulighetsdetalj, reell tomtilstand.
 - **Aktiviteter og tidslinje**: dato først på samme linje, visuelt skille mellom planlagt, utført og avlyst, klikk åpner aktivitetsredigering, «Logg aktivitet» bruker kanonisk aktivitetsflyt.
-- **Anbefalinger**: kun eksplisitt koblede, merket «Tredjepartsinformasjon fra LinkedIn». Ingen forslag basert på navnelikhet.
+- **Anbefalinger**: kun mottatte LinkedIn-anbefalinger som brukeren eksplisitt har koblet, merket «Tredjepartsinformasjon fra LinkedIn». Navnelikhet, selskap eller rolle er aldri nok til kobling. Frakobling beholder anbefalingen.
 - **Endorsements fjernes** helt fra kontaktdetaljen.
 
 ## 4. Layout
