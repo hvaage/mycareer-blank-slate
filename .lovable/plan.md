@@ -37,7 +37,7 @@ Aktiviteter og tidslinje  |  Anbefalinger
 - **Selskaper**: aktiv og historisk observert tilknytning, navn lenker til selskapsdetalj, LinkedIn-observasjoner merkes som kildeinformasjon.
 - **Muligheter**: stilling, selskap, status og neste aktivitet, rad lenker til mulighetsdetalj, reell tomtilstand.
 - **Aktiviteter og tidslinje**: dato først på samme linje, visuelt skille mellom planlagt, utført og avlyst, klikk åpner aktivitetsredigering, «Logg aktivitet» bruker kanonisk aktivitetsflyt.
-- **Anbefalinger**: kun eksplisitt koblede, merket «Tredjepartsinformasjon fra LinkedIn». Ingen forslag basert på navnelikhet.
+- **Anbefalinger**: kun mottatte LinkedIn-anbefalinger som brukeren eksplisitt har koblet, merket «Tredjepartsinformasjon fra LinkedIn». Navnelikhet, selskap eller rolle er aldri nok til kobling. Frakobling beholder anbefalingen.
 - **Endorsements fjernes** helt fra kontaktdetaljen.
 
 ## 4. Layout
