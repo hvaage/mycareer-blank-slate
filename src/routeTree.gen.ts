@@ -112,7 +112,6 @@ import { Route as ApiPublicSyncBrregEnheterRouteImport } from './routes/api/publ
 import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './routes/api/public/selskapsanalyse/preview-email'
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
 import { Route as ApiPublicOpsWatchdogRouteImport } from './routes/api/public/ops/watchdog'
-import { Route as ApiPublicOpsSyncWorkerSecretRouteImport } from './routes/api/public/ops/sync-worker-secret'
 import { Route as ApiPublicLinkedinWorkerRouteImport } from './routes/api/public/linkedin/worker'
 import { Route as ApiPublicJobsNetworkSuggestionsRouteImport } from './routes/api/public/jobs/network-suggestions'
 import { Route as ApiPublicCvAtomizationWorkerRouteImport } from './routes/api/public/cv/atomization-worker'
@@ -703,12 +702,6 @@ const ApiPublicOpsWatchdogRoute = ApiPublicOpsWatchdogRouteImport.update({
   path: '/api/public/ops/watchdog',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicOpsSyncWorkerSecretRoute =
-  ApiPublicOpsSyncWorkerSecretRouteImport.update({
-    id: '/api/public/ops/sync-worker-secret',
-    path: '/api/public/ops/sync-worker-secret',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicLinkedinWorkerRoute = ApiPublicLinkedinWorkerRouteImport.update({
   id: '/api/public/linkedin/worker',
   path: '/api/public/linkedin/worker',
@@ -863,7 +856,6 @@ export interface FileRoutesByFullPath {
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
   '/api/public/jobs/network-suggestions': typeof ApiPublicJobsNetworkSuggestionsRoute
   '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
-  '/api/public/ops/sync-worker-secret': typeof ApiPublicOpsSyncWorkerSecretRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -973,7 +965,6 @@ export interface FileRoutesByTo {
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
   '/api/public/jobs/network-suggestions': typeof ApiPublicJobsNetworkSuggestionsRoute
   '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
-  '/api/public/ops/sync-worker-secret': typeof ApiPublicOpsSyncWorkerSecretRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -1089,7 +1080,6 @@ export interface FileRoutesById {
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
   '/api/public/jobs/network-suggestions': typeof ApiPublicJobsNetworkSuggestionsRoute
   '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
-  '/api/public/ops/sync-worker-secret': typeof ApiPublicOpsSyncWorkerSecretRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -1205,7 +1195,6 @@ export interface FileRouteTypes {
     | '/api/public/cv/atomization-worker'
     | '/api/public/jobs/network-suggestions'
     | '/api/public/linkedin/worker'
-    | '/api/public/ops/sync-worker-secret'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1315,7 +1304,6 @@ export interface FileRouteTypes {
     | '/api/public/cv/atomization-worker'
     | '/api/public/jobs/network-suggestions'
     | '/api/public/linkedin/worker'
-    | '/api/public/ops/sync-worker-secret'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1430,7 +1418,6 @@ export interface FileRouteTypes {
     | '/api/public/cv/atomization-worker'
     | '/api/public/jobs/network-suggestions'
     | '/api/public/linkedin/worker'
-    | '/api/public/ops/sync-worker-secret'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1471,7 +1458,6 @@ export interface RootRouteChildren {
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
   ApiPublicJobsNetworkSuggestionsRoute: typeof ApiPublicJobsNetworkSuggestionsRoute
   ApiPublicLinkedinWorkerRoute: typeof ApiPublicLinkedinWorkerRoute
-  ApiPublicOpsSyncWorkerSecretRoute: typeof ApiPublicOpsSyncWorkerSecretRoute
   ApiPublicOpsWatchdogRoute: typeof ApiPublicOpsWatchdogRoute
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
   ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -2204,13 +2190,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOpsWatchdogRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/ops/sync-worker-secret': {
-      id: '/api/public/ops/sync-worker-secret'
-      path: '/api/public/ops/sync-worker-secret'
-      fullPath: '/api/public/ops/sync-worker-secret'
-      preLoaderRoute: typeof ApiPublicOpsSyncWorkerSecretRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/linkedin/worker': {
       id: '/api/public/linkedin/worker'
       path: '/api/public/linkedin/worker'
@@ -2553,7 +2532,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
   ApiPublicJobsNetworkSuggestionsRoute: ApiPublicJobsNetworkSuggestionsRoute,
   ApiPublicLinkedinWorkerRoute: ApiPublicLinkedinWorkerRoute,
-  ApiPublicOpsSyncWorkerSecretRoute: ApiPublicOpsSyncWorkerSecretRoute,
   ApiPublicOpsWatchdogRoute: ApiPublicOpsWatchdogRoute,
   ApiPublicSelskapsanalyseDownloadRoute: ApiPublicSelskapsanalyseDownloadRoute,
   ApiPublicSelskapsanalysePreviewEmailRoute:
