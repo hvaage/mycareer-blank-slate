@@ -405,6 +405,11 @@ export function buildContacts(graph: NetworkGraph): NetworkContactItem[] {
       last_observed_at: c.last_observed_at ?? null,
       nextActivity: next ? { id: next.id, title: next.title, due_date: next.due_date ?? null } : null,
       lastContactAt: done.length ? done[done.length - 1] : null,
+      manualEmail: c.manual_email ?? null,
+      manualPhone: c.manual_phone ?? null,
+      manualNotes: c.manual_notes ?? null,
+      manualRelationStatus: (c.manual_relation_status ?? null) as NetworkContactItem["manualRelationStatus"],
+      manualUpdatedAt: c.manual_updated_at ?? null,
     };
   });
 }
