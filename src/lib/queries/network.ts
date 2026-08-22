@@ -302,6 +302,12 @@ export function searchNetwork(graph: NetworkGraph, term: string): NetworkSearchR
   };
 }
 
+export type NetworkBatchState =
+  | "importable"
+  | "consumed"
+  | "superseded"
+  | "none";
+
 /** Nettverksbatch fra LinkedIn-import. Kun lesing — aldri register. */
 export function networkBatchQuery(userId: string | undefined) {
   return queryOptions({
@@ -309,18 +315,51 @@ export function networkBatchQuery(userId: string | undefined) {
     enabled: !!userId,
     staleTime: 30_000,
     queryFn: async () => {
-      const { data: batch, error } = await supabase
+      const select =
+        "id, status, total_count, new_contact_count, exact_identity_match_count, possible_duplicate_count, without_stable_identity_count, observed_profile_change_count, excluded_count, prepared_at, created_at, consumed_at, superseded_at, linkedin_import_id";
+
+      // Nyeste gyldige (ready, ukonsumert) batch er importvinduet.
+      const { data: readyBatch, error: readyError } = await supabase
         .from("linkedin_network_reconciliation_batches")
-        .select(
-          "id, status, total_count, new_contact_count, exact_identity_match_count, possible_duplicate_count, without_stable_identity_count, observed_profile_change_count, excluded_count, prepared_at, created_at",
-        )
+        .select(select)
         .eq("user_id", userId!)
         .eq("status", "ready")
+        .is("consumed_at", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error) throw error;
-      if (!batch) return null;
+      if (readyError) throw readyError;
+
+      // Uten importvindu: vis tilstanden til siste batch uansett status.
+      const { data: lastBatch, error: lastError } = readyBatch
+        ? { data: null, error: null }
+        : await supabase
+            .from("linkedin_network_reconciliation_batches")
+            .select(select)
+            .eq("user_id", userId!)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+      if (lastError) throw lastError;
+
+      const batch = readyBatch ?? lastBatch ?? null;
+      if (!batch) {
+        return {
+          state: "none" as NetworkBatchState,
+          batch: null,
+          objectKindCounts: {} as Record<string, number>,
+          pendingPersonItemIds: [] as string[],
+          latestReadyBatchId: null as string | null,
+        };
+      }
+
+      const state: NetworkBatchState = readyBatch
+        ? "importable"
+        : batch.consumed_at || batch.status === "consumed"
+          ? "consumed"
+          : batch.superseded_at || batch.status === "superseded"
+            ? "superseded"
+            : "none";
 
       // PostgREST returnerer maks 1000 rader per kall — les batchen sidevis
       // slik at tellingene per objektklasse blir fullstendige.
@@ -349,7 +388,15 @@ export function networkBatchQuery(userId: string | undefined) {
         }
       }
 
-      return { batch, objectKindCounts, pendingPersonItemIds };
+      return {
+        state,
+        batch,
+        objectKindCounts,
+        // Kun en importerbar batch kan gi handlingsbare elementer.
+        pendingPersonItemIds: state === "importable" ? pendingPersonItemIds : [],
+        latestReadyBatchId: readyBatch?.id ?? null,
+      };
     },
+
   });
 }
