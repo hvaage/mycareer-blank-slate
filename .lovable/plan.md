@@ -25,7 +25,11 @@ Statuskort (alle lenker til filtrert liste):
 - Trenger oppfølging → åpne/forfalte aktiviteter.
 - Aktive muligheter → ikke-avsluttede `user_opportunities`.
 - Varme kontakter → smal definisjon: kontakt med fullført aktivitet siste 90 dager der aktiviteten er knyttet til kontakten og `activity_type` er `moete`, `samtale` eller `e_post`. Fullført søknadsoppgave gjør ikke en kontakt varm. Uten grunnlag skjules kortet.
-- Intervjuer denne måneden → verifisert: `interviews` er bruker-scopet med RLS på `auth.uid()` og har `scheduled_at`, så kortet bygges på den tabellen, supplert med `next_steps` der `activity_type = 'intervju'` og `status <> 'avlyst'`.
+- Intervjuer denne måneden → verifisert: `interviews` er bruker-scopet med RLS på `auth.uid()` og har `scheduled_at`, så kortet bygges på den tabellen, supplert med `next_steps` der `activity_type = 'intervju'` og `status <> 'avlyst'`. Kildene dedupliseres på felles søknads-/mulighetskobling (`application_id`, sekundært `opportunity_id`) innenfor samme dato, slik at ett intervju som finnes i begge tabeller kun telles én gang. Deduperingen skjer i ett delt utledningslag som både tallet og den filtrerte listen bruker.
+
+Filtrerte lenker: hvert statuskort navigerer til sin flate med validerte URL-søkeparametre (Zod `validateSearch` på ruten, f.eks. `?filter=forfalt`, `?filter=aktive`, `?filter=intervju&periode=denne_maaneden`). Listen leser samme validerte parametre og kjører nøyaktig samme avgrensning som tallet er beregnet fra — tall og liste deler ett spørringslag, slik at de aldri kan divergere. Ugyldige parametre avvises til standardfilteret.
+
+
 
 
 Innhold: neste aktiviteter (dato først, tekst på samme linje), prioriterte selskaper kun der `status`/`priority` er lagret på `user_company_relationships`, siste aktivitet kun innenfor nylig periode (90 dager), hurtighandlinger `Logg aktivitet`, `Ny mulighet`, `Åpne aktiviteter`. `Få aktivitetsforslag` vises deaktivert med `Kommer snart` — ingen kall, ingen lagring.
