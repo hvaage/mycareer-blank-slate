@@ -59,6 +59,10 @@ RLS beholdes, ingen `anon`-grants, ingen automatisk promotering, reimport rører
 5. Kontakt med annonsekontaktdata viser riktig kilde og tidspunkt.
 6. LinkedIn åpnes i ny fane uten innbygging.
 7. Lenker til selskap, mulighet og aktivitet treffer riktig detalj; «Tilbake» bevarer kontekst.
-8. Skjermbilder ved 1440 px og 390 px, uten horisontal overflyt eller konsollfeil.
+9. En bruker kan ikke koble en mottatt anbefaling til en kontakt eid av en annen bruker (avvises av RPC og FK).
+10. Anbefaling med `direction != 'received'` avvises ved kobling.
+11. Flere annonsekontakt-observasjoner vises som kildehistorikk sortert på observert tidspunkt, uten å røre manuelle felt.
+12. Ugyldig e-postformat avvises; telefon vises normalisert; notater over maksimumslengde avvises.
+13. `manual_updated_at` endres kun ved faktisk manuell endring (uendret ved no-op-lagring).
 
 Stopp etter denne leveransen med rapport over nye/endrede felter, skriveveier og testresultater.
