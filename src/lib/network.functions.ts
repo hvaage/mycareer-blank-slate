@@ -248,3 +248,51 @@ export const completeActivity = createServerFn({ method: "POST" })
     }
     return { ok: true, errorCode: null, status: payload.status ?? null };
   });
+
+const hideCompanySchema = z.object({
+  companyKey: z.string().min(1).max(400),
+  companyId: z.string().uuid().nullable().optional(),
+  companyName: z.string().max(300).nullable().optional(),
+  reason: z.string().max(300).nullable().optional(),
+});
+
+/** Skjuler et selskap i brukerens eget nettverksregister. Kildedata røres ikke. */
+export const hideCompany = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => hideCompanySchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_hide_company" as never,
+      {
+        p_user_id: context.userId,
+        p_company_key: data.companyKey,
+        p_company_id: data.companyId ?? null,
+        p_company_name: data.companyName ?? null,
+        p_reason: data.reason ?? null,
+      } as never,
+    );
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed" };
+    }
+    return { ok: true, errorCode: null };
+  });
+
+export const unhideCompany = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ companyKey: z.string().min(1).max(400) }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_unhide_company" as never,
+      { p_user_id: context.userId, p_company_key: data.companyKey } as never,
+    );
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed" };
+    }
+    return { ok: true, errorCode: null };
+  });

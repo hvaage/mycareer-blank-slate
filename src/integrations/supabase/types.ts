@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      _tmp_5b_verification: {
+        Row: {
+          detail: string | null
+          step: string | null
+        }
+        Insert: {
+          detail?: string | null
+          step?: string | null
+        }
+        Update: {
+          detail?: string | null
+          step?: string | null
+        }
+        Relationships: []
+      }
       application_process_ratings: {
         Row: {
           application_id: string
@@ -6138,6 +6153,36 @@ export type Database = {
           },
         ]
       }
+      network_hidden_companies: {
+        Row: {
+          company_id: string | null
+          company_key: string
+          company_name: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          company_key: string
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          company_key?: string
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       next_steps: {
         Row: {
           activity_scope: string
@@ -9331,6 +9376,14 @@ export type Database = {
         }[]
       }
       nav_target_repair_tick: { Args: never; Returns: Json }
+      network_company_name_is_junk: {
+        Args: { p_name: string }
+        Returns: boolean
+      }
+      network_company_name_quality: {
+        Args: { p_name: string }
+        Returns: string
+      }
       network_complete_activity: {
         Args: {
           p_activity_id: string
@@ -9341,9 +9394,23 @@ export type Database = {
         }
         Returns: Json
       }
+      network_hide_company: {
+        Args: {
+          p_company_id?: string
+          p_company_key: string
+          p_company_name?: string
+          p_reason?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       network_promote_batch_person_contacts: {
         Args: { p_batch_id: string; p_item_ids: string[]; p_user_id: string }
         Returns: Json
+      }
+      network_sanitize_company_name: {
+        Args: { p_name: string }
+        Returns: string
       }
       network_set_company_relationship: {
         Args: {
@@ -9365,6 +9432,10 @@ export type Database = {
           p_valid_from?: string
           p_valid_to?: string
         }
+        Returns: Json
+      }
+      network_unhide_company: {
+        Args: { p_company_key: string; p_user_id: string }
         Returns: Json
       }
       network_update_contact_manual_fields: {
