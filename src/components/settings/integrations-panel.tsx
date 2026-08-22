@@ -78,14 +78,12 @@ function LinkedInConnection({ profile }: { profile: any }) {
                 <p className="text-sm text-foreground">{profile.linkedin_headline}</p>
               )}
               {profile.linkedin_vanity_url && (
-                <a
+                <ExternalUrlLink
                   href={profile.linkedin_vanity_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-primary hover:underline break-all"
+                  className="break-all text-sm text-primary no-underline hover:underline"
                 >
                   {profile.linkedin_vanity_url}
-                </a>
+                </ExternalUrlLink>
               )}
               <Button variant="outline" size="sm" onClick={handleConnect}>
                 Oppdater tilkobling
