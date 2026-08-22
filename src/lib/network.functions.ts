@@ -165,3 +165,86 @@ export const setContactCompanyRelation = createServerFn({ method: "POST" })
     return { ok: true, errorCode: null };
   });
 
+
+const activitySchema = z.object({
+  activityId: z.string().uuid().nullable().optional(),
+  title: z.string().min(1).max(300),
+  description: z.string().max(4000).nullable().optional(),
+  dueDate: z.string().date().nullable().optional(),
+  priority: z.enum(["høy", "middels", "lav"]).nullable().optional(),
+  activityType: z
+    .enum(["oppfolging", "moete", "samtale", "e_post", "soknad", "intervju", "annet"])
+    .nullable()
+    .optional(),
+  status: z.enum(["planlagt", "pagaar", "utfort", "avlyst"]).nullable().optional(),
+  resultNote: z.string().max(4000).nullable().optional(),
+  activityScope: z.enum(["context", "personal"]).default("context"),
+  contactId: z.string().uuid().nullable().optional(),
+  companyId: z.string().uuid().nullable().optional(),
+  opportunityId: z.string().uuid().nullable().optional(),
+  applicationId: z.string().uuid().nullable().optional(),
+});
+
+/**
+ * Kanonisk skrivehandling for aktiviteter. Klienten sender aldri `user_id`,
+ * og en kontekstaktivitet må ha minst én konkret kobling.
+ */
+export const upsertActivity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => activitySchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_upsert_activity" as never,
+      {
+        p_user_id: context.userId,
+        p_activity_id: data.activityId ?? null,
+        p_title: data.title,
+        p_description: data.description ?? null,
+        p_due_date: data.dueDate ?? null,
+        p_priority: data.priority ?? null,
+        p_activity_type: data.activityType ?? null,
+        p_status: data.status ?? null,
+        p_result_note: data.resultNote ?? null,
+        p_activity_scope: data.activityScope,
+        p_contact_id: data.contactId ?? null,
+        p_company_id: data.companyId ?? null,
+        p_opportunity_id: data.opportunityId ?? null,
+        p_application_id: data.applicationId ?? null,
+      } as never,
+    );
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string; activity_id?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed", activityId: null };
+    }
+    return { ok: true, errorCode: null, activityId: payload.activity_id ?? null };
+  });
+
+const completeSchema = z.object({
+  activityId: z.string().uuid(),
+  status: z.enum(["planlagt", "pagaar", "utfort", "avlyst"]).default("utfort"),
+  resultNote: z.string().max(4000).nullable().optional(),
+  completedAt: z.string().datetime().nullable().optional(),
+});
+
+export const completeActivity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => completeSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "network_complete_activity" as never,
+      {
+        p_user_id: context.userId,
+        p_activity_id: data.activityId,
+        p_status: data.status,
+        p_result_note: data.resultNote ?? null,
+        p_completed_at: data.completedAt ?? null,
+      } as never,
+    );
+    const payload = (result ?? null) as { ok?: boolean; error_code?: string; status?: string } | null;
+    if (error || !payload?.ok) {
+      return { ok: false, errorCode: payload?.error_code ?? "write_failed", status: null };
+    }
+    return { ok: true, errorCode: null, status: payload.status ?? null };
+  });

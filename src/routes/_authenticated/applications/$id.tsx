@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { completeActivity, upsertActivity } from "@/lib/network.functions";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -737,21 +738,28 @@ function NesteTab({ applicationId, steps, loading }: any) {
 
   const add = async () => {
     if (!title) return toast.error("Tittel er påkrevd");
-    const { error } = await supabase.from("next_steps").insert({
-      application_id: applicationId,
-      title,
-      due_date: due || null,
-      priority: priority as any,
+    const res = await upsertActivity({
+      data: {
+        title,
+        dueDate: due || null,
+        priority: priority as any,
+        activityType: "soknad",
+        activityScope: "context",
+        applicationId,
+      },
     });
-    if (error) return toast.error(error.message);
+    if (!res.ok) return toast.error("Kunne ikke lagre aktiviteten.");
     setOpen(false); setTitle(""); setDue("");
     qc.invalidateQueries({ queryKey: ["next_steps"] });
   };
 
   const toggle = async (s: any) => {
-    const { error } = await supabase.from("next_steps").update({ completed: !s.completed }).eq("id", s.id);
-    if (error) return toast.error(error.message);
+    const res = await completeActivity({
+      data: { activityId: s.id, status: s.completed ? "planlagt" : "utfort" },
+    });
+    if (!res.ok) return toast.error("Kunne ikke oppdatere aktiviteten.");
     qc.invalidateQueries({ queryKey: ["next_steps"] });
+    qc.invalidateQueries({ queryKey: ["network-graph"] });
   };
 
   if (loading) return <Skeleton className="h-40 w-full" />;

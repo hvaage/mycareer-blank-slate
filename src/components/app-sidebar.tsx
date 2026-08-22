@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   BookOpen,
   Building2,
+  Network,
   Search,
   Send,
   Settings,
@@ -73,7 +74,6 @@ const primaryGroups: GroupNode[] = [
       { label: "Legg til kilder", to: "/kilder" },
       { label: "Gjennomgå forslag", to: "/forslag" },
       { label: "Min dokumentasjon", to: "/documentation" },
-      { label: "Nettverk og muligheter", to: "/nettverk/kontakter" },
     ],
     matchPrefixes: [
       "/about-me",
@@ -85,10 +85,23 @@ const primaryGroups: GroupNode[] = [
       "/forslag",
       "/documentation",
       "/documents",
-      "/nettverk",
     ],
 
 
+  },
+  {
+    id: "network",
+    label: "Nettverksarbeid",
+    title: "Nettverksarbeid",
+    icon: Network,
+    items: [
+      { label: "Oversikt", to: "/nettverk/oversikt" },
+      { label: "Selskaper", to: "/nettverk/selskaper" },
+      { label: "Kontakter", to: "/nettverk/kontakter" },
+      { label: "Muligheter", to: "/nettverk/muligheter" },
+      { label: "Aktiviteter", to: "/nettverk/aktiviteter" },
+    ],
+    matchPrefixes: ["/nettverk"],
   },
   {
     id: "market",
