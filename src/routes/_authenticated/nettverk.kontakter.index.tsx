@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, ExternalLink, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,14 @@ import { buildContacts, networkBatchQuery, networkGraphQuery } from "@/lib/queri
 import { ExternalUrlLink } from "@/components/external-url-link";
 
 export const Route = createFileRoute("/_authenticated/nettverk/kontakter/")({
+  // Filter og side ligger i URL-en slik at «Tilbake» fra en kontakt beholder konteksten.
+  validateSearch: (search: Record<string, unknown>) => ({
+    q: typeof search.q === "string" ? search.q : undefined,
+    side: Number.isFinite(Number(search.side)) && Number(search.side) > 0 ? Number(search.side) : undefined,
+  }),
   component: ContactsPage,
 });
+
 
 const OBJECT_KIND_LABEL: Record<string, string> = {
   person_contact: "Personkontakter",
@@ -29,8 +35,23 @@ const CONTACTS_PER_PAGE = 100;
 
 function ContactsPage() {
   const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
-  const [term, setTerm] = useState("");
-  const [page, setPage] = useState(0);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const term = search.q ?? "";
+  const page = (search.side ?? 1) - 1;
+  const setTerm = (value: string) =>
+    navigate({
+      to: "/nettverk/kontakter",
+      search: { q: value.trim() ? value : undefined, side: undefined },
+      replace: true,
+    });
+  const setPage = (value: number) =>
+    navigate({
+      to: "/nettverk/kontakter",
+      search: (prev) => ({ ...prev, side: value > 0 ? value + 1 : undefined }),
+      replace: true,
+    });
+
   const { data: batchData } = useQuery(networkBatchQuery(userId));
 
   const contacts = useMemo(() => (graph ? buildContacts(graph) : []), [graph]);
@@ -45,14 +66,11 @@ function ContactsPage() {
     );
   }, [contacts, term]);
 
-  useEffect(() => {
-    setPage(0);
-  }, [term]);
-
   const pageCount = Math.max(1, Math.ceil(filtered.length / CONTACTS_PER_PAGE));
   const currentPage = Math.min(page, pageCount - 1);
   const pageStart = currentPage * CONTACTS_PER_PAGE;
   const visibleContacts = filtered.slice(pageStart, pageStart + CONTACTS_PER_PAGE);
+
   const title = term.trim()
     ? `Kontakter (${filtered.length.toLocaleString("nb-NO")} av ${contacts.length.toLocaleString("nb-NO")})`
     : `Kontakter (${contacts.length.toLocaleString("nb-NO")})`;
@@ -173,7 +191,7 @@ function ContactsPage() {
                     variant="outline"
                     className="h-7 w-7"
                     disabled={currentPage === 0}
-                    onClick={() => setPage((value) => Math.max(0, value - 1))}
+                    onClick={() => setPage(Math.max(0, currentPage - 1))}
                     aria-label="Forrige kontaktside"
                   >
                     <ChevronLeft className="h-4 w-4" aria-hidden />
@@ -187,7 +205,7 @@ function ContactsPage() {
                     variant="outline"
                     className="h-7 w-7"
                     disabled={currentPage >= pageCount - 1}
-                    onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}
+                    onClick={() => setPage(Math.min(pageCount - 1, currentPage + 1))}
                     aria-label="Neste kontaktside"
                   >
                     <ChevronRight className="h-4 w-4" aria-hidden />

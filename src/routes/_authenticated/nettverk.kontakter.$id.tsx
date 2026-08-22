@@ -101,11 +101,11 @@ function ContactDetail() {
   const companyKey = contact.company ? companyKeyFor(contact.companyId, contact.company) : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 md:overflow-hidden">
-      <div>
+    <div className="flex min-h-0 flex-1 flex-col gap-2 md:overflow-hidden">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <BackLink fallbackTo="/nettverk/kontakter" />
-        <h2 className="text-lg font-semibold">{contact.display_name}</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-base font-semibold leading-tight">{contact.display_name}</h2>
+        <p className="text-xs text-muted-foreground">
           {contact.headline ?? "Tittel ikke registrert"}
           {contact.company ? " · " : ""}
           {contact.company && companyKey ? (
@@ -117,10 +117,14 @@ function ContactDetail() {
               {contact.company}
             </Link>
           ) : null}
+          {contact.manualRelationStatus
+            ? ` · ${RELATION_STATUS_LABEL[contact.manualRelationStatus]}`
+            : ""}
         </p>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-2 md:grid-rows-4 md:overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 md:grid-cols-3 md:auto-rows-[minmax(240px,1fr)] md:overflow-y-auto">
+
         <NetworkPanel title="Kontaktprofil og kontaktkanaler">
           <dl className="space-y-1">
             <Row label="Navn" value={contact.display_name} source={contact.nameSource} />
@@ -173,9 +177,9 @@ function ContactDetail() {
           </p>
         </NetworkPanel>
 
-        <ManualFieldsPanel contact={contact} />
-
         <ContactPointsPanel contact={contact} observed={observedPoints} />
+
+        <ManualFieldsPanel contact={contact} />
 
 
         <NetworkPanel title={`Muligheter (${opportunities.length})`}>
@@ -418,7 +422,12 @@ function ContactPointsPanel({ contact, observed }) {
 
   return (
     <NetworkPanel title="Kontaktpunkter">
-      <div className="space-y-2">
+      <dl className="space-y-0.5">
+        <Row label="E-post" value={contact.manualEmail} source={contact.manualEmail ? "user_input" : undefined} />
+        <Row label="Telefon" value={contact.manualPhone} source={contact.manualPhone ? "user_input" : undefined} />
+      </dl>
+
+      <div className="mt-2 space-y-2">
         <Field id="contact-email" label="E-post" value={email} onChange={setEmail} placeholder="" />
         <Field id="contact-phone" label="Telefon" value={phone} onChange={setPhone} placeholder="" />
         <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
@@ -427,29 +436,35 @@ function ContactPointsPanel({ contact, observed }) {
         {status ? <p className="text-xs text-muted-foreground">{status}</p> : null}
       </div>
 
-      <div className="mt-3 rounded-md border border-border p-2">
-        <p className="text-xs font-medium">Observert i stillingsannonser</p>
+      <div className="mt-2 rounded-md border border-border p-2">
+        <p className="text-xs font-medium">Fra jobbannonse</p>
         {observed.length === 0 ? (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Ingen kontaktpunkter er observert i annonser. LinkedIn-import inneholder ikke e-post
-            eller telefon.
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Ingen kontaktpunkter observert i annonser.
           </p>
         ) : (
           <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
             {observed.map((o) => (
-              <li key={o.id}>
-                {o.contact_email ?? o.contact_phone}
-                {o.contact_role ? ` · ${o.contact_role}` : ""}
-                <Badge variant="outline" className="ml-2 text-[10px]">
-                  Annonsekilde
+              <li key={o.id} className="flex flex-wrap items-center gap-x-1">
+                <span>{[o.contact_email, o.contact_phone].filter(Boolean).join(" · ")}</span>
+                {o.contact_role ? <span>· {o.contact_role}</span> : null}
+                <Badge variant="outline" className="text-[10px]">
+                  Fra jobbannonse
                 </Badge>
+                {o.observed_at ? (
+                  <span>· observert {new Date(o.observed_at).toLocaleDateString("nb-NO")}</span>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Observasjoner fylles aldri inn i dine egne felt automatisk.
+        </p>
       </div>
     </NetworkPanel>
   );
+
 }
 
 /**
