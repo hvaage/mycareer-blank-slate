@@ -156,6 +156,7 @@ function CompanyDetail() {
         <NetworkPanel title="Selskapsprofil">
           <dl className="space-y-1">
             <Row label="Navn" value={company.name} />
+            <Row label="Organisasjonsnummer" value={company.orgnr} />
             <Row label="Bransje" value={company.industry} />
             <Row label="Sted" value={company.location} />
             <Row label="Kilder" value={company.sources.join(", ")} />
