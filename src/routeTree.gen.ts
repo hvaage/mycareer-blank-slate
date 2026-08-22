@@ -102,6 +102,7 @@ import { Route as AuthenticatedAdminCvTestRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authenticated/admin.changelog'
 import { Route as AuthenticatedNettverkSelskaperIndexRouteImport } from './routes/_authenticated/nettverk.selskaper.index'
 import { Route as AuthenticatedNettverkKontakterIndexRouteImport } from './routes/_authenticated/nettverk.kontakter.index'
+import { Route as AuthenticatedNettverkAktiviteterIndexRouteImport } from './routes/_authenticated/nettverk.aktiviteter.index'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -638,6 +639,12 @@ const AuthenticatedNettverkKontakterIndexRoute =
     path: '/kontakter/',
     getParentRoute: () => AuthenticatedNettverkRoute,
   } as any)
+const AuthenticatedNettverkAktiviteterIndexRoute =
+  AuthenticatedNettverkAktiviteterIndexRouteImport.update({
+    id: '/aktiviteter/',
+    path: '/aktiviteter/',
+    getParentRoute: () => AuthenticatedNettverkRoute,
+  } as any)
 const LovableEmailTransactionalSendRoute =
   LovableEmailTransactionalSendRouteImport.update({
     id: '/lovable/email/transactional/send',
@@ -825,6 +832,7 @@ export interface FileRoutesByFullPath {
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
+  '/nettverk/aktiviteter/': typeof AuthenticatedNettverkAktiviteterIndexRoute
   '/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
   '/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
 }
@@ -929,6 +937,7 @@ export interface FileRoutesByTo {
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
+  '/nettverk/aktiviteter': typeof AuthenticatedNettverkAktiviteterIndexRoute
   '/nettverk/kontakter': typeof AuthenticatedNettverkKontakterIndexRoute
   '/nettverk/selskaper': typeof AuthenticatedNettverkSelskaperIndexRoute
 }
@@ -1039,6 +1048,7 @@ export interface FileRoutesById {
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
+  '/_authenticated/nettverk/aktiviteter/': typeof AuthenticatedNettverkAktiviteterIndexRoute
   '/_authenticated/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
   '/_authenticated/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
 }
@@ -1149,6 +1159,7 @@ export interface FileRouteTypes {
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
+    | '/nettverk/aktiviteter/'
     | '/nettverk/kontakter/'
     | '/nettverk/selskaper/'
   fileRoutesByTo: FileRoutesByTo
@@ -1253,6 +1264,7 @@ export interface FileRouteTypes {
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
+    | '/nettverk/aktiviteter'
     | '/nettverk/kontakter'
     | '/nettverk/selskaper'
   id:
@@ -1362,6 +1374,7 @@ export interface FileRouteTypes {
     | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
     | '/lovable/email/transactional/send'
+    | '/_authenticated/nettverk/aktiviteter/'
     | '/_authenticated/nettverk/kontakter/'
     | '/_authenticated/nettverk/selskaper/'
   fileRoutesById: FileRoutesById
@@ -2054,6 +2067,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNettverkKontakterIndexRouteImport
       parentRoute: typeof AuthenticatedNettverkRoute
     }
+    '/_authenticated/nettverk/aktiviteter/': {
+      id: '/_authenticated/nettverk/aktiviteter/'
+      path: '/aktiviteter'
+      fullPath: '/nettverk/aktiviteter/'
+      preLoaderRoute: typeof AuthenticatedNettverkAktiviteterIndexRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
+    }
     '/lovable/email/transactional/send': {
       id: '/lovable/email/transactional/send'
       path: '/lovable/email/transactional/send'
@@ -2160,6 +2180,7 @@ interface AuthenticatedNettverkRouteChildren {
   AuthenticatedNettverkKontakterIdRoute: typeof AuthenticatedNettverkKontakterIdRoute
   AuthenticatedNettverkKontakterImportRoute: typeof AuthenticatedNettverkKontakterImportRoute
   AuthenticatedNettverkSelskaperIdRoute: typeof AuthenticatedNettverkSelskaperIdRoute
+  AuthenticatedNettverkAktiviteterIndexRoute: typeof AuthenticatedNettverkAktiviteterIndexRoute
   AuthenticatedNettverkKontakterIndexRoute: typeof AuthenticatedNettverkKontakterIndexRoute
   AuthenticatedNettverkSelskaperIndexRoute: typeof AuthenticatedNettverkSelskaperIndexRoute
 }
@@ -2170,6 +2191,8 @@ const AuthenticatedNettverkRouteChildren: AuthenticatedNettverkRouteChildren = {
   AuthenticatedNettverkKontakterImportRoute:
     AuthenticatedNettverkKontakterImportRoute,
   AuthenticatedNettverkSelskaperIdRoute: AuthenticatedNettverkSelskaperIdRoute,
+  AuthenticatedNettverkAktiviteterIndexRoute:
+    AuthenticatedNettverkAktiviteterIndexRoute,
   AuthenticatedNettverkKontakterIndexRoute:
     AuthenticatedNettverkKontakterIndexRoute,
   AuthenticatedNettverkSelskaperIndexRoute:
