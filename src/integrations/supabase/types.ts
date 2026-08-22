@@ -6140,6 +6140,8 @@ export type Database = {
       }
       next_steps: {
         Row: {
+          activity_scope: string
+          activity_type: string
           application_id: string | null
           archived_at: string | null
           company_id: string | null
@@ -6152,12 +6154,17 @@ export type Database = {
           id: string
           opportunity_id: string | null
           priority: Database["public"]["Enums"]["priority_level"] | null
+          result_note: string | null
           source_import_id: string | null
           source_system: string | null
+          status: string
           title: string
+          updated_at: string
           user_id: string
         }
         Insert: {
+          activity_scope?: string
+          activity_type?: string
           application_id?: string | null
           archived_at?: string | null
           company_id?: string | null
@@ -6170,12 +6177,17 @@ export type Database = {
           id?: string
           opportunity_id?: string | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
+          result_note?: string | null
           source_import_id?: string | null
           source_system?: string | null
+          status?: string
           title: string
+          updated_at?: string
           user_id: string
         }
         Update: {
+          activity_scope?: string
+          activity_type?: string
           application_id?: string | null
           archived_at?: string | null
           company_id?: string | null
@@ -6188,9 +6200,12 @@ export type Database = {
           id?: string
           opportunity_id?: string | null
           priority?: Database["public"]["Enums"]["priority_level"] | null
+          result_note?: string | null
           source_import_id?: string | null
           source_system?: string | null
+          status?: string
           title?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
