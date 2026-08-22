@@ -161,7 +161,10 @@ function ActivitiesPage() {
           </ul>
         )}
       </NetworkPanel>
+
+      <SuggestionPanel scope="overview" />
     </div>
+
   );
 }
 
