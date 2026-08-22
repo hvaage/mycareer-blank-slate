@@ -40,6 +40,7 @@ Layout og valg:
 - Alle handlingsbare nye forslag er avhuket ved start.
 - Allerede registrerte, motstridende, avviste og teknisk feilede forslag ligger i egne seksjoner og er ikke forhåndsvalgt.
 - Filtrering og søk endrer kun hva som vises. Avhukinger beholdes for forslag som filtreres bort, og gjenopprettes når filteret fjernes.
+- «Godkjenn og overfør» krever en eksplisitt bekreftelsesdialog som viser antall valgte per type før noe overføres.
 - Massehandlinger: godkjenn og overfør, behold det jeg har, avvis, utsett. Hvert forslag kjøres for seg, slik at én feil verken fjerner eller endrer valget på de andre.
 - Etter kjøring vises eksakt resultat: antall overført, allerede registrert, avvist, utsatt og feilet, med sanitert forklaring på det som feilet og mulighet til å åpne på nytt.
 - Enkeltdialogen beholdes for forslag som krever et reelt valg (motstrid, oppdatering av felt som allerede er utfylt).
