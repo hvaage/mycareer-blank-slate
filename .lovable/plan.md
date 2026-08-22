@@ -1,74 +1,71 @@
-# Fase 5A — Nettverk og muligheter: grunnflate og nettverksregister
+# Retting av NAV job feed smoke test
 
-Leveransen dekker modulnavigasjon, globalt søk, importstatus, Selskaper og Kontakter. Oversikt, Muligheter og Aktiviteter bygges ikke i denne runden. Stopp for gjennomgang før 5B.
+## Hva som skjedde
 
-## Navigasjon og modulskall
+Loggen viser årsakskjeden tydelig:
 
-- Ny gruppe **Nettverk og muligheter** i sidemenyen under **Min karriere**, plassert før **Marked**.
-- Rutetre under `/nettverk` i 5A:
+1. `Could not fetch NAV public token: ... Read timed out. (read timeout=30)`
+2. `Token source: none` / `Authorization header will be sent: False`
+3. `GET /api/v1/feed` → `401` med feil-JSON (`title/status/type/details`)
+4. Skriptet leter etter `items` i den JSON-en, finner den ikke, og feiler med
+   «feed response did not contain an 'items' list»
 
-```text
-/nettverk/selskaper     liste
-/nettverk/selskaper/$id detalj
-/nettverk/kontakter     liste
-/nettverk/kontakter/$id detalj
-```
+Selve `items`-feilen er altså en følgefeil. Rotproblemet er at testen henter
+tokenet dynamisk fra NAV ved hver kjøring (`NAV_FEED_USE_PUBLIC_TOKEN: 1`), og
+det kallet tidsavbrøt.
 
-- Sekundærnavigasjonen viser i 5A kun **Selskaper | Kontakter**. Det opprettes ingen plassholderruter eller -faner for Oversikt, Muligheter eller Aktiviteter; hele femflatenavigasjonen introduseres samlet i 5B.
-- Detaljsider har kun «← Tilbake» som bruker faktisk historikk (`router.history.back()` med fallback til registerlisten). Filtre og søk ligger i URL-søkeparametere slik at tilbake gjenoppretter kontekst.
+Kontroll utført nå mot NAV:
 
-## Globalt søk
+- Verten svarer raskt (0,2–0,3 s), så nedetid er ikke en varig tilstand — dette
+  var en forbigående treghet i NAV sitt token-endepunkt.
+- `GET /api/v1/feed` uten token gir fortsatt `401` (forventet).
+- Ingen av de åpne token-URL-ene svarer med et token via enkel GET
+  (`/api/v1/token`, `/api/v1/apiToken` → 404). Automatisk «public token»-henting
+  er derfor en skjør avhengighet CI ikke bør stå på.
 
-Tenant-scopet søkefelt i modulens topplinje. Slår opp i `network_contacts` og i selskaper brukeren er knyttet til — gjennom `user_company_relationships`, `user_opportunities` og `network_contacts` / `network_contact_company_relations`. Resultater grupperes etter objektklasse og lenker til kontakt- og selskapsdetalj. Ingen oppslag mot staging eller andre brukeres rader.
+Merk: koden som feiler ligger i repoet `hvaage/norwegian-career-intelligence`
+(`scripts/test_nav_feed.py` + GitHub Actions-workflowen), ikke i dette
+Lovable-prosjektet. Planen beskriver endringene som skal gjøres der.
 
+## Korreksjon
 
-## Selskaper
+1. **Token fra secret som primærkilde.** Workflowen setter `NAV_FEED_TOKEN` fra
+   `secrets.NAV_FEED_TOKEN`. Skriptet bruker det hvis satt, og forsøker kun
+   public-token som fallback. `NAV_FEED_USE_PUBLIC_TOKEN` settes til `0` når
+   secret finnes.
+2. **Robust nettverkslag.** Token-henting og feed-kall får `connect timeout 10 /
+   read timeout 60`, 3 forsøk med eksponentiell backoff (2s, 4s, 8s) på
+   timeout/5xx/429. Ingen retry på 401/403.
+3. **Skill infrastruktur fra datafeil.** Nye exit-koder:
+   - `0` = OK
+   - `1` = ekte datafeil (200 OK, men feil form / mangler `items`)
+   - `78` = infrastruktur/auth (timeout, 401, 403, 5xx) → workflowsteget merkes
+     som `neutral`/varsel i stedet for rød «All jobs have failed».
+4. **Presis feilmelding.** Når status ikke er 200, skal skriptet rapportere
+   HTTP-status og NAV sitt `title`-felt, og ikke påstå at feeden mangler
+   `items`. `items`-sjekken kjører kun på 200-svar.
+5. **Ingen råbody-lagring ved auth-feil.** `data/raw/sample_feed.json`
+   overskrives ikke med en 401-envelope, slik at siste gyldige eksempel består.
+6. **Verifisering.** Kjør workflowen manuelt (`workflow_dispatch`) etter at
+   secret er lagt inn: forventet resultat er 200 og en `items`-liste med
+   innslag; kjør deretter én gang med tomt token for å bekrefte at det gir
+   exit 78 og tydelig auth-melding, ikke «missing items».
 
-**Liste:** kompakt register med selskap, bransje/sted når kjent, brukerens status og prioritet, antall egne kontakter, åpne muligheter, neste aktivitet, siste reelle aktivitet. Tomtilstand forklarer at selskaper kommer fra importerte kontakter, jobbmuligheter eller eksplisitt lagt til selskapsrelasjon.
+## Det jeg trenger fra deg
 
-**Detaljside** som fast panelgrid: Selskapsprofil (register), Arbeidsgiverinnsikt (åtte dimensjoner når analyse finnes, ellers «ikke analysert»), Match med Min profil (preferanse og kompetanse som to separate måltall med grunnlag og tidspunkt), Dine kontakter i selskapet (minst to rader synlig, navn lenker til kontaktdetalj), samt lesende paneler for muligheter, aktiviteter og dokumenter når data finnes.
-
-**Din relasjon:** enkel, bruker-scopet kontroll for `status` og `priority` på `user_company_relationships`. Verdiene settes kun ved eksplisitt brukerhandling og fylles aldri fra LinkedIn-import. Endringen skrives gjennom kanonisk serverhandling.
-
-I 5A lenkes det kun mellom selskap og kontakt. Muligheter, aktiviteter og dokumenter vises lesende uten lenker til ubygde ruter; arbeidsflytlenkene kommer i 5B.
-
-## Kontakter
-
-**Liste:** navn, tittel, selskap, relasjon, neste aktivitet, sist kontaktet. Telefon, e-post og LinkedIn-lenke vises kun når verdien faktisk finnes i produktlaget.
-
-**Detaljside:** navn/tittel/selskap øverst, selskapsnavn lenker til selskapssiden. Paneler: kontaktprofil og kanaler, relasjon/introduksjon/referanse, samt lesende paneler for relevante muligheter, aktiviteter/tidslinje og notater. Ingen lenker til ubygde ruter i 5A. Mottatte anbefalinger vises kun ved eksplisitt brukerkobling. LinkedIn-endorsements vises ikke her.
-
-## LinkedIn-import og promoteringsinngang i UI
-
-Importstatus og batchoppsummering vises i Kildeimport/Kildegjennomgang med tellinger delt på personkontakter, selskapsobservasjoner, nettverksarrangementer, preferansesignaler og invitasjoner uten avklart identitet. Ingen av disse fremstår som lagt til i registeret.
-
-Promoteringsinngangen opererer kun på én frossen batch med status `ready`, gjennom eksisterende kontrollert serverflyt. Kun `person_contact` kan foreslås som kontakt og inngå i en eksplisitt massehandling. Selskapsobservasjoner, arrangementer, hashtag-signaler og invitasjoner vises separat og får aldri samme massehandling. Ingen automatisk promotering. LinkedIn-cron forblir inaktiv.
-
-## Arbeidsflate
-
-Desktop: fast sidehøyde innenfor viewport, stabilt panelgrid, intern scrolling per panel, sticky paneloverskrift, kollaps til én linje, ingen kort-i-kort, ingen dekorative gradienter. Mobil: én kolonne, vanlig sidescroll, ingen horisontal overflyt, paneler åpnes enkeltvis. Eksisterende designsystem, typografi og komponenter gjenbrukes uendret.
-
-## Migrasjon i 5A
-
-Kun selskapsrelasjonen, siden Selskaper bygges nå:
-
-- `user_company_relationships`: nye kolonner `status` (`following`, `target`, `active_dialogue`, `applied`, `former_employer`, `paused`) og `priority` (`low`, `normal`, `high`), begge nullable med validering. Eksisterende rader endres ikke, og verdier utledes aldri fra LinkedIn-import.
-- RLS beholdes med `user_id = auth.uid()`, ingen `anon`-tilgang. `authenticated` har kun leserett på egne rader; all skriving skjer gjennom kanoniske serverhandlinger/RPC-er med `security definer` og eierkontroll. `service_role` brukes kun serverside og er aldri tilgjengelig i klienten.
-
-`next_steps`-utvidelsen (`activity_type`, `status`, `result_note`) hører til Aktiviteter og gjøres i 5B.
+`NAV_FEED_TOKEN` må legges inn som GitHub Actions-secret i
+`hvaage/norwegian-career-intelligence` (Settings → Secrets → Actions). Tokenet
+bestilles fra NAV sin feed-dokumentasjon.
 
 ## Teknisk
 
-- Lesing skjer gjennom bruker-scopede server-DTO-er per flate (`network.contacts`, `network.companies`, `network.search`, `network.import-status`), aldri direkte mot staging-tabeller.
-- All skriving, inkludert selskapsstatus og prioritet, går via kanoniske serverruter/RPC-er. Ingen direkte klientskriving og ingen service-role-nøkkel i klientbunten.
-- Produktobjekter: `network_contacts`, `network_contact_identities`, `network_contact_company_relations`, `companies`, `user_company_relationships`, `user_opportunities`, `next_steps`, `documents`. Søknadsbundne `contacts` blandes ikke inn.
-- Alle DTO-felter bærer datatilstand (`present`, `missing_in_source`, `not_imported`, `not_analyzed`, `stale`) og kildeklasse etter kontraktens punkt 0.3.
-- Nettverksregisteret er i dag tomt fordi ingen LinkedIn-data er promotert, så alle flatene må ha reelle tomtilstander som primærtilstand — ingen demodata.
+Endringer i det andre repoet:
 
-## Verifisering før stopp
+- `scripts/test_nav_feed.py`: ny `http_get_with_retry()`-hjelper, tokenoppslag
+  omskrevet til secret-først, statusbasert exit-kode, betinget råbody-lagring.
+- `.github/workflows/<nav-smoke>.yml`: `NAV_FEED_TOKEN: ${{ secrets.NAV_FEED_TOKEN }}`,
+  `NAV_FEED_USE_PUBLIC_TOKEN: 0`, `continue-on-error` håndtering av exit 78 og
+  `workflow_dispatch`-trigger.
 
-Rutetilgjengelighet, tomtilstander, tenant-scopet søk, dype lenker og tilbake-navigasjon, RLS-kontroll på tvers av brukere, skjermbilder desktop 1440 px og mobil 390 px, samt bekreftelse på at ingen LinkedIn-data ble promotert og at klientbunten ikke inneholder hemmeligheter.
-
-## Fase 5B (etter godkjenning av 5A)
-
-Aktiviteter med utvidet `next_steps`-modell og samlet «Legg til aktivitet», Muligheter som board og detaljside med annonsekontakt, dokumenter, tidslinje og separate matchmåltall, Oversikt med klikkbare KPI-er, samt capability-kontrakt for KI-aktivitetsforslag (`available | not_configured | unavailable`) som holdes skjult i UI til tjenesten er aktiv.
+Siden repoet ikke er koblet til dette prosjektet, leverer jeg ferdig patch-tekst
+du limer inn (eller kjører via Codex/Claude i det repoet).
