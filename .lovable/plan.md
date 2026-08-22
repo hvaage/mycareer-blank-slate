@@ -32,8 +32,8 @@ Selskaper                 |  Muligheter
 Aktiviteter og tidslinje  |  Anbefalinger
 ```
 
-- **Kontaktpunkter** (alltid øverst): e-post, telefon, LinkedIn. Kilde og tidspunkt per verdi. Manglende verdi vises som «Ikke registrert». Inline redigering av e-post/telefon via ny serverhandling. Annonsekontaktverdier vises som «Fra jobbannonse» med observert tidspunkt, sekundært under den manuelle aktive verdien.
-- **Relasjon og notater**: relasjonstype/status og brukerens fritekstnotat, lagres eksplisitt.
+- **Kontaktpunkter** (alltid øverst): e-post, telefon, LinkedIn. `manual_email`/`manual_phone` er brukerens eksplisitte aktive verdier og vises først. Observasjoner fra `network_posting_contacts` vises separat og sekundært som «Sist observert i jobbannonse» med observert tidspunkt — de kopieres aldri automatisk til manuelle felt. LinkedIn er aldri kilde til e-post eller telefon. Uten aktiv manuell verdi vises «Ikke registrert», også når en annonseobservasjon finnes.
+- **Relasjon og notater**: brukerens relasjon til personen (`ukjent`, `varm`, `aktiv`, `referanse`, `ikke_aktuell`) og brukerens fritekstnotat, lagres eksplisitt.
 - **Selskaper**: aktiv og historisk observert tilknytning, navn lenker til selskapsdetalj, LinkedIn-observasjoner merkes som kildeinformasjon.
 - **Muligheter**: stilling, selskap, status og neste aktivitet, rad lenker til mulighetsdetalj, reell tomtilstand.
 - **Aktiviteter og tidslinje**: dato først på samme linje, visuelt skille mellom planlagt, utført og avlyst, klikk åpner aktivitetsredigering, «Logg aktivitet» bruker kanonisk aktivitetsflyt.
