@@ -116,6 +116,7 @@ import { Route as ApiPublicCvAtomizationWorkerRouteImport } from './routes/api/p
 import { Route as ApiCvGenerationsJobIdRouteImport } from './routes/api/cv/generations.$jobId'
 import { Route as ApiCvAtomizationJobsJobIdRouteImport } from './routes/api/cv/atomization-jobs.$jobId'
 import { Route as AuthenticatedNettverkSelskaperIdRouteImport } from './routes/_authenticated/nettverk.selskaper.$id'
+import { Route as AuthenticatedNettverkMuligheterIdRouteImport } from './routes/_authenticated/nettverk.muligheter.$id'
 import { Route as AuthenticatedNettverkKontakterImportRouteImport } from './routes/_authenticated/nettverk.kontakter.import'
 import { Route as AuthenticatedNettverkKontakterIdRouteImport } from './routes/_authenticated/nettverk.kontakter.$id'
 
@@ -721,6 +722,12 @@ const AuthenticatedNettverkSelskaperIdRoute =
     path: '/selskaper/$id',
     getParentRoute: () => AuthenticatedNettverkRoute,
   } as any)
+const AuthenticatedNettverkMuligheterIdRoute =
+  AuthenticatedNettverkMuligheterIdRouteImport.update({
+    id: '/muligheter/$id',
+    path: '/muligheter/$id',
+    getParentRoute: () => AuthenticatedNettverkRoute,
+  } as any)
 const AuthenticatedNettverkKontakterImportRoute =
   AuthenticatedNettverkKontakterImportRouteImport.update({
     id: '/kontakter/import',
@@ -827,6 +834,7 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
   '/nettverk/kontakter/import': typeof AuthenticatedNettverkKontakterImportRoute
+  '/nettverk/muligheter/$id': typeof AuthenticatedNettverkMuligheterIdRoute
   '/nettverk/selskaper/$id': typeof AuthenticatedNettverkSelskaperIdRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
@@ -933,6 +941,7 @@ export interface FileRoutesByTo {
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
   '/nettverk/kontakter/import': typeof AuthenticatedNettverkKontakterImportRoute
+  '/nettverk/muligheter/$id': typeof AuthenticatedNettverkMuligheterIdRoute
   '/nettverk/selskaper/$id': typeof AuthenticatedNettverkSelskaperIdRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
@@ -1045,6 +1054,7 @@ export interface FileRoutesById {
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/_authenticated/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
   '/_authenticated/nettverk/kontakter/import': typeof AuthenticatedNettverkKontakterImportRoute
+  '/_authenticated/nettverk/muligheter/$id': typeof AuthenticatedNettverkMuligheterIdRoute
   '/_authenticated/nettverk/selskaper/$id': typeof AuthenticatedNettverkSelskaperIdRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
@@ -1157,6 +1167,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/analysedatabase/'
     | '/nettverk/kontakter/$id'
     | '/nettverk/kontakter/import'
+    | '/nettverk/muligheter/$id'
     | '/nettverk/selskaper/$id'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
@@ -1263,6 +1274,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/analysedatabase'
     | '/nettverk/kontakter/$id'
     | '/nettverk/kontakter/import'
+    | '/nettverk/muligheter/$id'
     | '/nettverk/selskaper/$id'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
@@ -1374,6 +1386,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse/analysedatabase/'
     | '/_authenticated/nettverk/kontakter/$id'
     | '/_authenticated/nettverk/kontakter/import'
+    | '/_authenticated/nettverk/muligheter/$id'
     | '/_authenticated/nettverk/selskaper/$id'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
@@ -2178,6 +2191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNettverkSelskaperIdRouteImport
       parentRoute: typeof AuthenticatedNettverkRoute
     }
+    '/_authenticated/nettverk/muligheter/$id': {
+      id: '/_authenticated/nettverk/muligheter/$id'
+      path: '/muligheter/$id'
+      fullPath: '/nettverk/muligheter/$id'
+      preLoaderRoute: typeof AuthenticatedNettverkMuligheterIdRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
+    }
     '/_authenticated/nettverk/kontakter/import': {
       id: '/_authenticated/nettverk/kontakter/import'
       path: '/kontakter/import'
@@ -2199,6 +2219,7 @@ interface AuthenticatedNettverkRouteChildren {
   AuthenticatedNettverkIndexRoute: typeof AuthenticatedNettverkIndexRoute
   AuthenticatedNettverkKontakterIdRoute: typeof AuthenticatedNettverkKontakterIdRoute
   AuthenticatedNettverkKontakterImportRoute: typeof AuthenticatedNettverkKontakterImportRoute
+  AuthenticatedNettverkMuligheterIdRoute: typeof AuthenticatedNettverkMuligheterIdRoute
   AuthenticatedNettverkSelskaperIdRoute: typeof AuthenticatedNettverkSelskaperIdRoute
   AuthenticatedNettverkAktiviteterIndexRoute: typeof AuthenticatedNettverkAktiviteterIndexRoute
   AuthenticatedNettverkKontakterIndexRoute: typeof AuthenticatedNettverkKontakterIndexRoute
@@ -2211,6 +2232,8 @@ const AuthenticatedNettverkRouteChildren: AuthenticatedNettverkRouteChildren = {
   AuthenticatedNettverkKontakterIdRoute: AuthenticatedNettverkKontakterIdRoute,
   AuthenticatedNettverkKontakterImportRoute:
     AuthenticatedNettverkKontakterImportRoute,
+  AuthenticatedNettverkMuligheterIdRoute:
+    AuthenticatedNettverkMuligheterIdRoute,
   AuthenticatedNettverkSelskaperIdRoute: AuthenticatedNettverkSelskaperIdRoute,
   AuthenticatedNettverkAktiviteterIndexRoute:
     AuthenticatedNettverkAktiviteterIndexRoute,
