@@ -149,7 +149,7 @@ export function SuggestionPanel({
   return (
     <NetworkPanel
       title="Aktivitetsforslag"
-      action={
+      actions={
         <div className="flex items-center gap-2">
           <Button
             size="sm"
