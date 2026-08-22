@@ -18,7 +18,8 @@ import {
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
 import { BackLink } from "@/components/network/network-shell";
 import { Timeline } from "@/components/network/timeline";
-import { useAuthUserId } from "@/components/network/use-network-user";
+import { useNetworkGraph } from "@/components/network/use-network-user";
+import { NetworkErrorState } from "@/components/network/network-error";
 import { ActivityDialog } from "@/components/network/activity-dialog";
 import {
   buildActivities,
@@ -61,8 +62,7 @@ function deadlineQuery(userId: string | undefined, canonicalId: string | null | 
 
 function OpportunityDetail() {
   const { id } = Route.useParams();
-  const userId = useAuthUserId();
-  const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
+  const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
 
   const opp = useMemo(() => graph?.opportunities.find((o) => o.id === id) ?? null, [graph, id]);
   const activities = useMemo(

@@ -7,7 +7,8 @@ import { CalendarClock, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
-import { useAuthUserId } from "@/components/network/use-network-user";
+import { useNetworkGraph } from "@/components/network/use-network-user";
+import { NetworkErrorState } from "@/components/network/network-error";
 import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
 import {
   ACTIVITY_STATUS_LABEL,
@@ -34,9 +35,8 @@ export const Route = createFileRoute("/_authenticated/nettverk/aktiviteter/")({
 });
 
 function ActivitiesPage() {
-  const userId = useAuthUserId();
+  const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
   const search = Route.useSearch();
-  const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
 
   const all = useMemo(() => (graph ? buildActivities(graph) : []), [graph]);
   const list = useMemo(() => filterActivities(all, search), [all, search]);

@@ -13,7 +13,8 @@ import { Timeline } from "@/components/network/timeline";
 import { ExternalUrlLink } from "@/components/external-url-link";
 import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
 import { BackLink } from "@/components/network/network-shell";
-import { useAuthUserId } from "@/components/network/use-network-user";
+import { useNetworkGraph } from "@/components/network/use-network-user";
+import { NetworkErrorState } from "@/components/network/network-error";
 import {
   ACTIVITY_STATUS_LABEL,
   ACTIVITY_TYPE_LABEL,
@@ -31,8 +32,7 @@ export const Route = createFileRoute("/_authenticated/nettverk/kontakter/$id")({
 
 function ContactDetail() {
   const { id } = Route.useParams();
-  const userId = useAuthUserId();
-  const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
+  const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
 
   const contact = useMemo(
     () => (graph ? buildContacts(graph).find((c) => c.id === id) ?? null : null),

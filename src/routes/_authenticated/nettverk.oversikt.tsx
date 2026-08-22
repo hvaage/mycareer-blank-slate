@@ -6,7 +6,8 @@ import { CalendarClock, Flame, ListChecks, Sparkles, Briefcase } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
-import { useAuthUserId } from "@/components/network/use-network-user";
+import { useNetworkGraph } from "@/components/network/use-network-user";
+import { NetworkErrorState } from "@/components/network/network-error";
 import {
   activeOpportunities,
   followUpActivities,
@@ -20,8 +21,7 @@ export const Route = createFileRoute("/_authenticated/nettverk/oversikt")({
 });
 
 function OverviewPage() {
-  const userId = useAuthUserId();
-  const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
+  const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
 
   const followUp = useMemo(() => (graph ? followUpActivities(graph) : []), [graph]);
   const opportunities = useMemo(() => (graph ? activeOpportunities(graph) : []), [graph]);

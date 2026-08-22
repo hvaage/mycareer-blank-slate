@@ -6,7 +6,8 @@ import { z } from "zod";
 import { Briefcase, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
-import { useAuthUserId } from "@/components/network/use-network-user";
+import { useNetworkGraph } from "@/components/network/use-network-user";
+import { NetworkErrorState } from "@/components/network/network-error";
 import { buildOpportunities, networkGraphQuery } from "@/lib/queries/network";
 
 const searchSchema = z.object({
@@ -19,9 +20,8 @@ export const Route = createFileRoute("/_authenticated/nettverk/muligheter/")({
 });
 
 function OpportunitiesPage() {
-  const userId = useAuthUserId();
+  const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
   const { tilstand } = Route.useSearch();
-  const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
 
   const all = useMemo(() => (graph ? buildOpportunities(graph) : []), [graph]);
   const list = useMemo(

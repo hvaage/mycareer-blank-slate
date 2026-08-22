@@ -17,7 +17,8 @@ import { Timeline } from "@/components/network/timeline";
 import { ActivityDialog, ActivityStatusButton } from "@/components/network/activity-dialog";
 import { Plus } from "lucide-react";
 import { BackLink } from "@/components/network/network-shell";
-import { useAuthUserId } from "@/components/network/use-network-user";
+import { useNetworkGraph } from "@/components/network/use-network-user";
+import { NetworkErrorState } from "@/components/network/network-error";
 import {
   ACTIVITY_STATUS_LABEL,
   ACTIVITY_TYPE_LABEL,
@@ -39,9 +40,8 @@ const NONE = "__none__";
 
 function CompanyDetail() {
   const { id } = Route.useParams();
-  const userId = useAuthUserId();
+  const { userId, graph, isLoading, isError, refetch } = useNetworkGraph();
   const queryClient = useQueryClient();
-  const { data: graph, isLoading } = useQuery(networkGraphQuery(userId));
   const save = useServerFn(setCompanyRelationship);
 
   const company = useMemo(
