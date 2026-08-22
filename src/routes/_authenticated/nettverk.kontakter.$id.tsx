@@ -119,14 +119,9 @@ function ContactDetail() {
               />
             </dl>
             {contact.linkedinProfileUrl ? (
-              <a
-                href={contact.linkedinProfileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 inline-flex items-center gap-1 text-xs underline underline-offset-2"
-              >
-                Åpne LinkedIn-profil <ExternalLink className="h-3 w-3" aria-hidden />
-              </a>
+              <ExternalUrlLink href={contact.linkedinProfileUrl} className="mt-1 text-xs">
+                Åpne LinkedIn-profil
+              </ExternalUrlLink>
             ) : null}
           </div>
 
