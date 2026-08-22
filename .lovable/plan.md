@@ -16,8 +16,10 @@ Kontaktdetaljen bygges om til et arbeidskort med fast panelrutenett, sticky pane
 - `network_contacts`: nye kolonner `manual_email text`, `manual_phone text`, `manual_notes text`, `manual_relation_status text`. Ingen backfill, ingen endring av eksisterende kolonner. LinkedIn-importen skriver aldri til disse.
 - `manual_relation_status` beskriver **kun brukerens relasjon til personen**, aldri kontaktens ansettelsesforhold. Tillatte og CHECK-validerte verdier: `ukjent`, `varm`, `aktiv`, `referanse`, `ikke_aktuell`. Selskapstilknytning eies fortsatt av `network_contact_company_relations`.
 - Anbefalingskobling: `network_contacts` og `career_recommendations` får bruker-scopede nøkler (`UNIQUE (id, user_id)`), deretter `career_recommendations.network_contact_id uuid` med sammensatt FK `(network_contact_id, user_id) → network_contacts(id, user_id)`. Kun mottatte anbefalinger (`direction = 'received'`) kan kobles. Frakobling nullstiller kun `network_contact_id` og bevarer anbefaling og revisjonsspor.
-- RPC-autorisering: alle nye/endrede RPC-er er SECURITY DEFINER, henter bruker fra `auth.uid()` internt, avviser manglende sesjon, validerer at kontakt, anbefaling og relasjoner eies av samme bruker, låser `search_path`, og gir aldri EXECUTE til `anon`. Ingen RPC tar `p_user_id` som autoritativ parameter — verken fra klient eller serverhandling.
+- **Autoriseringsmodell (valgt og bindende):** RPC-ene kjøres med brukerens verifiserte JWT, ikke service_role. Serverhandlingen i `src/lib/network.functions.ts` bruker `requireSupabaseAuth` og kaller RPC-en gjennom `context.supabase` (klient bygget på brukerens access token). `supabaseAdmin` brukes ikke for disse kontaktskrivehandlingene. EXECUTE gis kun til `authenticated`, aldri til `anon`.
+- Alle nye/endrede funksjoner er SECURITY DEFINER med låst `search_path`, bruker `auth.uid()` som eneste autoritative brukeridentitet, avviser manglende sesjon, og validerer internt at kontakt, anbefaling og relasjoner eies av samme bruker. Ingen RPC tar `p_user_id`.
 - Nye/endrede RPC-er: `network_update_contact_contact_points(p_contact_id, p_email, p_phone)`, utvidelse av `network_update_contact_manual_fields` med notater og relasjonsstatus, og `network_link_recommendation_contact(p_recommendation_id, p_contact_id)` / tilhørende frakobling.
+- Validering: e-post må ha gyldig e-postformat, telefon normaliseres forsiktig (trimming/mellomrom) kun for visning, notater har definert maksimumslengde (4 000 tegn). `manual_updated_at` settes kun når en manuell verdi faktisk endres.
 
 
 ## 2. Toppnivå
@@ -58,5 +60,10 @@ RLS beholdes, ingen `anon`-grants, ingen automatisk promotering, reimport rører
 6. LinkedIn åpnes i ny fane uten innbygging.
 7. Lenker til selskap, mulighet og aktivitet treffer riktig detalj; «Tilbake» bevarer kontekst.
 8. Skjermbilder ved 1440 px og 390 px, uten horisontal overflyt eller konsollfeil.
+9. En bruker kan ikke koble en mottatt anbefaling til en kontakt eid av en annen bruker (avvises av RPC og FK).
+10. Anbefaling med `direction != 'received'` avvises ved kobling.
+11. Flere annonsekontakt-observasjoner vises som kildehistorikk sortert på observert tidspunkt, uten å røre manuelle felt.
+12. Ugyldig e-postformat avvises; telefon vises normalisert; notater over maksimumslengde avvises.
+13. `manual_updated_at` endres kun ved faktisk manuell endring (uendret ved no-op-lagring).
 
 Stopp etter denne leveransen med rapport over nye/endrede felter, skriveveier og testresultater.
