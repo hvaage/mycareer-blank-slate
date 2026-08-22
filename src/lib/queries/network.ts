@@ -463,3 +463,276 @@ export function networkBatchQuery(userId: string | undefined) {
 
   });
 }
+
+// ============================================================
+// Fase 5B — delt utledningslag for aktiviteter, muligheter og
+// oversiktstall. Både statuskortenes tall og de filtrerte listene
+// bruker nøyaktig disse funksjonene, slik at de aldri kan divergere.
+// ============================================================
+
+export const ACTIVITY_TYPE_LABEL: Record<string, string> = {
+  oppfolging: "Oppfølging",
+  moete: "Møte",
+  samtale: "Samtale",
+  e_post: "E-post",
+  soknad: "Søknad",
+  intervju: "Intervju",
+  annet: "Annet",
+};
+
+export const ACTIVITY_STATUS_LABEL: Record<string, string> = {
+  planlagt: "Planlagt",
+  pagaar: "Pågår",
+  utfort: "Utført",
+  avlyst: "Avlyst",
+};
+
+/** Kontaktnær aktivitet som gjør en kontakt «varm». Søknadsoppgaver teller ikke. */
+const WARM_ACTIVITY_TYPES = new Set(["moete", "samtale", "e_post"]);
+const WARM_WINDOW_DAYS = 90;
+
+export type NetworkActivity = {
+  id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  priority: string | null;
+  status: string;
+  activity_type: string;
+  activity_scope: string;
+  result_note: string | null;
+  completed_at: string | null;
+  contactId: string | null;
+  contactName: string | null;
+  companyKey: CompanyKey | null;
+  companyName: string | null;
+  opportunityId: string | null;
+  opportunityTitle: string | null;
+  applicationId: string | null;
+  applicationTitle: string | null;
+  isOpen: boolean;
+  isOverdue: boolean;
+};
+
+export function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function buildActivities(graph: NetworkGraph): NetworkActivity[] {
+  const contactById = new Map(graph.contacts.map((c) => [c.id, c]));
+  const oppById = new Map(graph.opportunities.map((o) => [o.id, o]));
+  const appById = new Map((graph.applications ?? []).map((a) => [a.id, a]));
+  const companyNameById = new Map<string, string>();
+  for (const rel of graph.userCompanies) {
+    if (rel.company_id) companyNameById.set(rel.company_id, rel.companies?.name ?? rel.company_name_user ?? "");
+  }
+  for (const rel of graph.relations) {
+    if (rel.company_id && !companyNameById.get(rel.company_id)) {
+      companyNameById.set(rel.company_id, rel.company_name_observed ?? rel.company_name_canonical ?? "");
+    }
+  }
+  const today = todayIso();
+
+  return graph.steps.map((s) => {
+    const status = s.status ?? (s.completed ? "utfort" : "planlagt");
+    const contact = s.contact_id ? contactById.get(s.contact_id) : null;
+    const opp = s.opportunity_id ? oppById.get(s.opportunity_id) : null;
+    const app = s.application_id ? appById.get(s.application_id) : null;
+    const isOpen = status === "planlagt" || status === "pagaar";
+    return {
+      id: s.id,
+      title: s.title,
+      description: s.description ?? null,
+      due_date: s.due_date ?? null,
+      priority: s.priority ?? null,
+      status,
+      activity_type: s.activity_type ?? "annet",
+      activity_scope: s.activity_scope ?? "context",
+      result_note: s.result_note ?? null,
+      completed_at: s.completed_at ?? null,
+      contactId: s.contact_id ?? null,
+      contactName: contact ? (contact.manual_display_name ?? contact.display_name) : null,
+      companyKey: s.company_id ?? null,
+      companyName: s.company_id ? (companyNameById.get(s.company_id) || null) : null,
+      opportunityId: s.opportunity_id ?? null,
+      opportunityTitle: opp?.card_title ?? null,
+      applicationId: s.application_id ?? null,
+      applicationTitle: app ? `${app.role_title ?? "Søknad"} · ${app.company_name ?? ""}`.trim() : null,
+      isOpen,
+      isOverdue: isOpen && !!s.due_date && s.due_date < today,
+    };
+  });
+}
+
+export type ActivityFilter = {
+  tilstand?: "apen" | "utfort" | "alle";
+  forfall?: "forfalt" | "kommende" | "alle";
+  type?: string;
+  prioritet?: string;
+  kontakt?: string;
+  selskap?: string;
+  mulighet?: string;
+};
+
+export function filterActivities(activities: NetworkActivity[], f: ActivityFilter): NetworkActivity[] {
+  return activities.filter((a) => {
+    if ((f.tilstand ?? "apen") === "apen" && !a.isOpen) return false;
+    if (f.tilstand === "utfort" && a.status !== "utfort") return false;
+    if (f.forfall === "forfalt" && !a.isOverdue) return false;
+    if (f.forfall === "kommende" && (a.isOverdue || !a.isOpen)) return false;
+    if (f.type && a.activity_type !== f.type) return false;
+    if (f.prioritet && a.priority !== f.prioritet) return false;
+    if (f.kontakt && a.contactId !== f.kontakt) return false;
+    if (f.selskap && a.companyKey !== f.selskap) return false;
+    if (f.mulighet && a.opportunityId !== f.mulighet) return false;
+    return true;
+  });
+}
+
+/** Statuskort «Trenger oppfølging» = åpne eller forfalte aktiviteter. */
+export function followUpActivities(graph: NetworkGraph): NetworkActivity[] {
+  return filterActivities(buildActivities(graph), { tilstand: "apen" });
+}
+
+const CLOSED_OPPORTUNITY_STATUSES = new Set([
+  "avsluttet",
+  "avslag",
+  "rejected",
+  "closed",
+  "withdrawn",
+  "trukket",
+  "arkivert",
+  "archived",
+  "declined",
+]);
+
+export type NetworkOpportunityItem = {
+  id: string;
+  title: string;
+  company: string | null;
+  location: string | null;
+  status: string | null;
+  url: string | null;
+  isOpen: boolean;
+  relevanceScore: number | null;
+  matchVersion: string | null;
+  matchModel: string | null;
+  screeningEvaluatedAt: string | null;
+  nextActivity: NetworkActivity | null;
+};
+
+export function buildOpportunities(graph: NetworkGraph): NetworkOpportunityItem[] {
+  const activities = buildActivities(graph);
+  return graph.opportunities.map((o) => {
+    const open = !o.status || !CLOSED_OPPORTUNITY_STATUSES.has(String(o.status).toLowerCase());
+    const next =
+      activities
+        .filter((a) => a.opportunityId === o.id && a.isOpen)
+        .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"))[0] ?? null;
+    return {
+      id: o.id,
+      title: o.card_title ?? "Uten tittel",
+      company: o.card_company ?? null,
+      location: o.card_location ?? null,
+      status: o.status ?? null,
+      url: o.card_display_url ?? o.card_raw_url ?? null,
+      isOpen: open,
+      relevanceScore: o.relevance_score ?? null,
+      matchVersion: o.match_score_version ?? null,
+      matchModel: o.match_scored_model ?? null,
+      screeningEvaluatedAt: o.screening_evaluated_at ?? null,
+      nextActivity: next,
+    };
+  });
+}
+
+export function activeOpportunities(graph: NetworkGraph): NetworkOpportunityItem[] {
+  return buildOpportunities(graph).filter((o) => o.isOpen);
+}
+
+/**
+ * Varme kontakter: fullført kontaktnær aktivitet (møte, samtale, e-post)
+ * knyttet til kontakten de siste 90 dagene. Fullført søknadsoppgave teller ikke.
+ */
+export function warmContacts(graph: NetworkGraph): NetworkContactItem[] {
+  const cutoff = new Date(Date.now() - WARM_WINDOW_DAYS * 86_400_000).toISOString();
+  const warmIds = new Set(
+    graph.steps
+      .filter(
+        (s) =>
+          s.contact_id &&
+          (s.status ?? (s.completed ? "utfort" : "planlagt")) === "utfort" &&
+          WARM_ACTIVITY_TYPES.has(s.activity_type ?? "annet") &&
+          (s.completed_at ?? "") >= cutoff,
+      )
+      .map((s) => s.contact_id as string),
+  );
+  if (warmIds.size === 0) return [];
+  return buildContacts(graph).filter((c) => warmIds.has(c.id));
+}
+
+export type InterviewEntry = {
+  key: string;
+  source: "interviews" | "activity";
+  title: string;
+  date: string;
+  applicationId: string | null;
+  opportunityId: string | null;
+  activityId: string | null;
+};
+
+/**
+ * Intervjuer denne måneden fra to kilder. Samme intervju må ikke telles to
+ * ganger: rader dedupliseres på felles søknads-/mulighetskobling innenfor
+ * samme dato, med `interviews` som foretrukket kilde.
+ */
+export function interviewsThisMonth(graph: NetworkGraph): InterviewEntry[] {
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
+  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+  const inMonth = (d: string | null) => !!d && d >= monthStart && d <= monthEnd;
+
+  const seen = new Set<string>();
+  const out: InterviewEntry[] = [];
+  const dedupeKey = (appId: string | null, oppId: string | null, date: string) =>
+    appId ? `a:${appId}:${date}` : oppId ? `o:${oppId}:${date}` : null;
+
+  const appById = new Map((graph.applications ?? []).map((a) => [a.id, a]));
+
+  for (const iv of graph.interviews ?? []) {
+    const date = iv.scheduled_at ? String(iv.scheduled_at).slice(0, 10) : null;
+    if (!inMonth(date)) continue;
+    const app = iv.application_id ? appById.get(iv.application_id) : null;
+    const key = dedupeKey(iv.application_id ?? null, null, date!);
+    if (key) seen.add(key);
+    out.push({
+      key: `interview-${iv.id}`,
+      source: "interviews",
+      title: app ? `${app.role_title ?? "Intervju"} · ${app.company_name ?? ""}`.trim() : (iv.interview_type ?? "Intervju"),
+      date: date!,
+      applicationId: iv.application_id ?? null,
+      opportunityId: null,
+      activityId: null,
+    });
+  }
+
+  for (const a of buildActivities(graph)) {
+    if (a.activity_type !== "intervju" || a.status === "avlyst") continue;
+    const date = a.due_date ?? (a.completed_at ? a.completed_at.slice(0, 10) : null);
+    if (!inMonth(date)) continue;
+    const key = dedupeKey(a.applicationId, a.opportunityId, date!);
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    out.push({
+      key: `activity-${a.id}`,
+      source: "activity",
+      title: a.title,
+      date: date!,
+      applicationId: a.applicationId,
+      opportunityId: a.opportunityId,
+      activityId: a.id,
+    });
+  }
+
+  return out.sort((x, y) => x.date.localeCompare(y.date));
+}
