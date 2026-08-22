@@ -101,6 +101,7 @@ import { Route as AuthenticatedAdminIngestionRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminCvTestRouteImport } from './routes/_authenticated/admin.cv-test'
 import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authenticated/admin.changelog'
 import { Route as AuthenticatedNettverkSelskaperIndexRouteImport } from './routes/_authenticated/nettverk.selskaper.index'
+import { Route as AuthenticatedNettverkMuligheterIndexRouteImport } from './routes/_authenticated/nettverk.muligheter.index'
 import { Route as AuthenticatedNettverkKontakterIndexRouteImport } from './routes/_authenticated/nettverk.kontakter.index'
 import { Route as AuthenticatedNettverkAktiviteterIndexRouteImport } from './routes/_authenticated/nettverk.aktiviteter.index'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
@@ -633,6 +634,12 @@ const AuthenticatedNettverkSelskaperIndexRoute =
     path: '/selskaper/',
     getParentRoute: () => AuthenticatedNettverkRoute,
   } as any)
+const AuthenticatedNettverkMuligheterIndexRoute =
+  AuthenticatedNettverkMuligheterIndexRouteImport.update({
+    id: '/muligheter/',
+    path: '/muligheter/',
+    getParentRoute: () => AuthenticatedNettverkRoute,
+  } as any)
 const AuthenticatedNettverkKontakterIndexRoute =
   AuthenticatedNettverkKontakterIndexRouteImport.update({
     id: '/kontakter/',
@@ -834,6 +841,7 @@ export interface FileRoutesByFullPath {
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/nettverk/aktiviteter/': typeof AuthenticatedNettverkAktiviteterIndexRoute
   '/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
+  '/nettverk/muligheter/': typeof AuthenticatedNettverkMuligheterIndexRoute
   '/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
 }
 export interface FileRoutesByTo {
@@ -939,6 +947,7 @@ export interface FileRoutesByTo {
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/nettverk/aktiviteter': typeof AuthenticatedNettverkAktiviteterIndexRoute
   '/nettverk/kontakter': typeof AuthenticatedNettverkKontakterIndexRoute
+  '/nettverk/muligheter': typeof AuthenticatedNettverkMuligheterIndexRoute
   '/nettverk/selskaper': typeof AuthenticatedNettverkSelskaperIndexRoute
 }
 export interface FileRoutesById {
@@ -1050,6 +1059,7 @@ export interface FileRoutesById {
   '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/_authenticated/nettverk/aktiviteter/': typeof AuthenticatedNettverkAktiviteterIndexRoute
   '/_authenticated/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
+  '/_authenticated/nettverk/muligheter/': typeof AuthenticatedNettverkMuligheterIndexRoute
   '/_authenticated/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
 }
 export interface FileRouteTypes {
@@ -1161,6 +1171,7 @@ export interface FileRouteTypes {
     | '/lovable/email/transactional/send'
     | '/nettverk/aktiviteter/'
     | '/nettverk/kontakter/'
+    | '/nettverk/muligheter/'
     | '/nettverk/selskaper/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1266,6 +1277,7 @@ export interface FileRouteTypes {
     | '/lovable/email/transactional/send'
     | '/nettverk/aktiviteter'
     | '/nettverk/kontakter'
+    | '/nettverk/muligheter'
     | '/nettverk/selskaper'
   id:
     | '__root__'
@@ -1376,6 +1388,7 @@ export interface FileRouteTypes {
     | '/lovable/email/transactional/send'
     | '/_authenticated/nettverk/aktiviteter/'
     | '/_authenticated/nettverk/kontakter/'
+    | '/_authenticated/nettverk/muligheter/'
     | '/_authenticated/nettverk/selskaper/'
   fileRoutesById: FileRoutesById
 }
@@ -2060,6 +2073,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNettverkSelskaperIndexRouteImport
       parentRoute: typeof AuthenticatedNettverkRoute
     }
+    '/_authenticated/nettverk/muligheter/': {
+      id: '/_authenticated/nettverk/muligheter/'
+      path: '/muligheter'
+      fullPath: '/nettverk/muligheter/'
+      preLoaderRoute: typeof AuthenticatedNettverkMuligheterIndexRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
+    }
     '/_authenticated/nettverk/kontakter/': {
       id: '/_authenticated/nettverk/kontakter/'
       path: '/kontakter'
@@ -2182,6 +2202,7 @@ interface AuthenticatedNettverkRouteChildren {
   AuthenticatedNettverkSelskaperIdRoute: typeof AuthenticatedNettverkSelskaperIdRoute
   AuthenticatedNettverkAktiviteterIndexRoute: typeof AuthenticatedNettverkAktiviteterIndexRoute
   AuthenticatedNettverkKontakterIndexRoute: typeof AuthenticatedNettverkKontakterIndexRoute
+  AuthenticatedNettverkMuligheterIndexRoute: typeof AuthenticatedNettverkMuligheterIndexRoute
   AuthenticatedNettverkSelskaperIndexRoute: typeof AuthenticatedNettverkSelskaperIndexRoute
 }
 
@@ -2195,6 +2216,8 @@ const AuthenticatedNettverkRouteChildren: AuthenticatedNettverkRouteChildren = {
     AuthenticatedNettverkAktiviteterIndexRoute,
   AuthenticatedNettverkKontakterIndexRoute:
     AuthenticatedNettverkKontakterIndexRoute,
+  AuthenticatedNettverkMuligheterIndexRoute:
+    AuthenticatedNettverkMuligheterIndexRoute,
   AuthenticatedNettverkSelskaperIndexRoute:
     AuthenticatedNettverkSelskaperIndexRoute,
 }
