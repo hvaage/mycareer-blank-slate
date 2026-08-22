@@ -281,6 +281,7 @@ export function buildCompanies(graph: NetworkGraph): NetworkCompanyItem[] {
       item = {
         key,
         companyId,
+        orgnr: null,
         name: clean || "Ukjent selskap",
         industry: null,
         location: null,
