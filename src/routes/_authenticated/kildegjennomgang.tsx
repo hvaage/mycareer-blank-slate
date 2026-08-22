@@ -28,6 +28,12 @@ import {
 import { Info, Check, X, Clock, PencilLine, ShieldAlert, ArrowRight, RotateCcw } from "lucide-react";
 import { ExternalUrlLink, isExternalUrl } from "@/components/external-url-link";
 import {
+  BulkReviewList,
+  type BulkItem,
+  type BulkOutcome,
+} from "@/components/kildegjennomgang/bulk-review";
+import {
+  ALREADY_REGISTERED_CODE,
   PROMOTION_BUTTON_LABELS,
   promoteProposal,
   promotionActionForDomain,
@@ -35,6 +41,50 @@ import {
   type PromotionAction,
   type PromotionResolution,
 } from "@/lib/linkedin/promotion";
+
+/** Kvalifikasjonsforslag som kan behandles i bulk: nye, ikke besluttede. */
+function bulkActionable(items: Proposal[]): Proposal[] {
+  return items.filter(
+    (p) =>
+      p.proposal_kind === "create" &&
+      (p.status === "pending_review" || p.status === "approved_for_promotion") &&
+      Boolean(proposalAtomType(p)),
+  );
+}
+
+function proposalAtomType(proposal: Proposal): string | null {
+  const payload = (proposal.proposed_payload_json ?? {}) as Record<string, unknown>;
+  const value = payload["atom_type"] ?? payload["qualification_kind"];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function proposalLabel(proposal: Proposal): string {
+  const payload = (proposal.proposed_payload_json ?? {}) as Record<string, unknown>;
+  const source = (proposal.source_snapshot_json ?? {}) as Record<string, unknown>;
+  for (const value of [
+    payload["label"],
+    payload["title"],
+    payload["name"],
+    source["label"],
+    source["title"],
+    source["name"],
+  ]) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return proposal.review_message ?? "Forslag fra LinkedIn";
+}
+
+function toBulkItem(proposal: Proposal): BulkItem {
+  return {
+    id: proposal.id,
+    label: proposalLabel(proposal),
+    atomType: proposalAtomType(proposal),
+    status: proposal.status,
+    proposalKind: proposal.proposal_kind,
+    details: proposal.source_snapshot_json,
+  };
+}
+
 
 type Proposal = {
   id: string;
@@ -217,6 +267,82 @@ function KildegjennomgangPage() {
     },
   });
 
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkOutcome, setBulkOutcome] = useState<BulkOutcome | null>(null);
+
+  // Massehandling kjøres forslag for forslag. Feil i ett forslag stopper aldri
+  // de andre, og ingenting skrives uten at forslaget først er godkjent.
+  const bulkRun = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const all = proposalsQuery.data ?? [];
+      const outcome: BulkOutcome = {
+        promoted: 0,
+        alreadyRegistered: 0,
+        dismissed: 0,
+        deferred: 0,
+        failed: 0,
+      };
+      setBulkOutcome(null);
+      setBulkProgress({ done: 0, total: ids.length });
+
+      for (const [index, id] of ids.entries()) {
+        const proposal = all.find((p) => p.id === id);
+        try {
+          if (!proposal) {
+            outcome.failed += 1;
+            continue;
+          }
+          const action = promotionActionForDomain(
+            proposal.proposal_domain,
+            proposal.proposal_kind,
+            proposalAtomType(proposal),
+          );
+          if (!action) {
+            outcome.failed += 1;
+            continue;
+          }
+          if (proposal.status !== "approved_for_promotion") {
+            const { data, error } = await supabase.rpc(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              "linkedin_reconciliation_decide" as any,
+              {
+                p_proposal_id: id,
+                p_decision: "approve_for_promotion",
+                p_reason_code: null,
+                p_note: null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+            );
+            if (error || !(data as unknown as { ok?: boolean } | null)?.ok) {
+              outcome.failed += 1;
+              continue;
+            }
+          }
+          const result = await promoteProposal({ proposalId: id, action, resolution: "create_new" });
+          if (result.ok) outcome.promoted += 1;
+          else if (result.errorCode === ALREADY_REGISTERED_CODE) outcome.alreadyRegistered += 1;
+          else outcome.failed += 1;
+        } catch {
+          outcome.failed += 1;
+        } finally {
+          setBulkProgress({ done: index + 1, total: ids.length });
+        }
+      }
+      return outcome;
+    },
+    onSuccess: (outcome) => {
+      setBulkOutcome(outcome);
+      setBulkProgress(null);
+      queryClient.invalidateQueries({ queryKey: ["linkedin-reconciliation-proposals"] });
+      toast.success(
+        `Overført ${outcome.promoted}. Allerede registrert ${outcome.alreadyRegistered}. Feilet ${outcome.failed}.`,
+      );
+    },
+    onError: () => {
+      setBulkProgress(null);
+      toast.error("Massehandlingen ble avbrutt. Ingenting mer ble overført.");
+    },
+  });
 
 
   const proposals = proposalsQuery.data ?? [];
@@ -286,24 +412,49 @@ function KildegjennomgangPage() {
                 </TabsTrigger>
               ))}
             </TabsList>
-            {domains.map(([domain]) => (
-              <TabsContent key={domain} value={domain} className="space-y-3 pt-4">
-                {proposals
-                  .filter((p) => p.proposal_domain === domain)
-                  .map((proposal) => (
-                    <ProposalCard
-                      key={proposal.id}
-                      proposal={proposal}
-                      busy={decide.isPending || promote.isPending}
-                      onDecide={(decision, reasonCode) =>
-                        decide.mutate({ proposalId: proposal.id, decision, reasonCode })
-                      }
-                      onStartPromotion={(action) => setPendingPromotion({ proposal, action })}
-                      onReopen={() => reopen.mutate(proposal.id)}
+            {domains.map(([domain]) => {
+              const inDomain = proposals.filter((p) => p.proposal_domain === domain);
+              const bulkIds = new Set(bulkActionable(inDomain).map((p) => p.id));
+              return (
+                <TabsContent key={domain} value={domain} className="space-y-3 pt-4">
+                  {bulkIds.size > 0 && (
+                    <BulkReviewList
+                      actionable={bulkActionable(inDomain).map(toBulkItem)}
+                      alreadyRegistered={inDomain
+                        .filter((p) => p.status === "promoted" || p.proposal_kind === "keep_existing")
+                        .map(toBulkItem)}
+                      conflicts={inDomain
+                        .filter(
+                          (p) =>
+                            p.proposal_kind === "conflict" || p.proposal_kind === "possible_duplicate",
+                        )
+                        .map(toBulkItem)}
+                      dismissed={inDomain.filter((p) => p.status === "dismissed").map(toBulkItem)}
+                      failed={inDomain.filter((p) => p.status === "promotion_failed").map(toBulkItem)}
+                      busy={bulkRun.isPending}
+                      progress={bulkProgress}
+                      outcome={bulkOutcome}
+                      onSubmit={(ids) => bulkRun.mutate(ids)}
                     />
-                  ))}
-              </TabsContent>
-            ))}
+                  )}
+                  {inDomain
+                    .filter((p) => !bulkIds.has(p.id))
+                    .map((proposal) => (
+                      <ProposalCard
+                        key={proposal.id}
+                        proposal={proposal}
+                        busy={decide.isPending || promote.isPending || bulkRun.isPending}
+                        onDecide={(decision, reasonCode) =>
+                          decide.mutate({ proposalId: proposal.id, decision, reasonCode })
+                        }
+                        onStartPromotion={(action) => setPendingPromotion({ proposal, action })}
+                        onReopen={() => reopen.mutate(proposal.id)}
+                      />
+                    ))}
+                </TabsContent>
+              );
+            })}
+
           </Tabs>
         </>
       )}
@@ -427,7 +578,12 @@ function ProposalCard({
   const decided = proposal.status !== "pending_review";
   const locked = ["stale_source", "stale_target", "superseded"].includes(proposal.status);
   const contextOnly = proposal.proposal_kind === "not_actionable_in_phase_3";
-  const promotionAction = promotionActionForDomain(proposal.proposal_domain, proposal.proposal_kind);
+  const promotionAction = promotionActionForDomain(
+    proposal.proposal_domain,
+    proposal.proposal_kind,
+    proposalAtomType(proposal),
+  );
+
   const approved = proposal.status === "approved_for_promotion";
   const promoted = proposal.status === "promoted";
   const failed = proposal.status === "promotion_failed";

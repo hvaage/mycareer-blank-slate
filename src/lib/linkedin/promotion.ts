@@ -63,7 +63,13 @@ const NO_EVENT_ERROR_CODES = new Set([
   "proposal_not_found",
   "already_promoted",
   "not_approved_for_promotion",
+  // «Finnes allerede» er et gyldig utfall, ikke en feil: forslaget er
+  // avsluttet gjennom beslutningslaget som allerede registrert.
+  "already_registered",
 ]);
+
+/** Utfall som betyr «du har dette fra før», ikke at noe gikk galt. */
+export const ALREADY_REGISTERED_CODE = "already_registered";
 
 /** Korte, kontrollerte forklaringer. Aldri kildeinnhold, aldri databasefeil. */
 const ERROR_SUMMARIES: Record<string, string> = {
@@ -84,7 +90,9 @@ const ERROR_SUMMARIES: Record<string, string> = {
   import_inactive: "Importen er slettet eller avbrutt.",
   skipped_no_selected_purpose: "Formålet dette forslaget hører til, er ikke valgt.",
   wrong_promotion_port: "Forslaget hører til et annet promoteringsområde.",
+  already_registered: "Du har dette fra før. Forslaget er markert som allerede registrert.",
 };
+
 
 export const PROMOTION_ERROR_MESSAGES = ERROR_SUMMARIES;
 
@@ -221,12 +229,22 @@ async function decide(proposalId: string, decision: string, reasonCode: string |
   return Boolean((data as unknown as { ok?: boolean } | null)?.ok);
 }
 
+/** Kvalifikasjonstyper går alltid til kvalifikasjonsporten, uansett kildedomene. */
+const QUALIFICATION_ATOM_TYPES = new Set(["education", "certification", "language", "course"]);
+const SKILL_ATOM_TYPES = new Set(["skill", "endorsement"]);
+
 /** Hvilken promoteringsport hører et forslag hjemme i? */
 export function promotionActionForDomain(
   domain: string,
   proposalKind: string,
+  atomType?: string | null,
 ): PromotionAction | null {
   if (proposalKind === "not_actionable_in_phase_3") return null;
+
+  const type = (atomType ?? "").trim().toLowerCase();
+  if (type && QUALIFICATION_ATOM_TYPES.has(type)) return "promote_qualification";
+  if (type && SKILL_ATOM_TYPES.has(type) && domain !== "network") return "promote_skill_or_signal";
+
   switch (domain) {
     case "profile":
       return "promote_profile_field";
@@ -246,6 +264,7 @@ export function promotionActionForDomain(
       return null; // content: not_actionable_in_phase_4
   }
 }
+
 
 export const PROMOTION_BUTTON_LABELS: Record<PromotionAction, string> = {
   promote_profile_field: "Legg til i min profil",

@@ -54,6 +54,8 @@ async function fetchAllPages<T>(
 export type NetworkCompanyItem = {
   key: CompanyKey;
   companyId: string | null;
+  /** Organisasjonsnummer fra selskapsregisteret. Null når selskapet kun er kjent via navn. */
+  orgnr: string | null;
   name: string;
   industry: string | null;
   location: string | null;
@@ -279,6 +281,7 @@ export function buildCompanies(graph: NetworkGraph): NetworkCompanyItem[] {
       item = {
         key,
         companyId,
+        orgnr: null,
         name: clean || "Ukjent selskap",
         industry: null,
         location: null,
@@ -306,6 +309,7 @@ export function buildCompanies(graph: NetworkGraph): NetworkCompanyItem[] {
     item.priority = rel.priority ?? null;
     item.industry = company?.industry ?? item.industry;
     item.location = company?.country ?? item.location;
+    item.orgnr = (company as { organisasjonsnummer?: string | null } | null)?.organisasjonsnummer ?? item.orgnr;
   }
 
   const contactCompany = new Map<string, string[]>();

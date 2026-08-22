@@ -8541,6 +8541,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      _linkedin_language_canonical: { Args: { p_text: string }; Returns: Json }
       _linkedin_promotion_commit: {
         Args: {
           p_action: string
