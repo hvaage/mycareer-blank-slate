@@ -21,6 +21,10 @@ import { BackLink } from "@/components/network/network-shell";
 import { useNetworkGraph } from "@/components/network/use-network-user";
 import { NetworkErrorState } from "@/components/network/network-error";
 import {
+  CompanyInsightPanel,
+  CompanyRegisterPanel,
+} from "@/components/network/company-insight-panels";
+import {
   ACTIVITY_STATUS_LABEL,
   ACTIVITY_TYPE_LABEL,
   buildActivities,
