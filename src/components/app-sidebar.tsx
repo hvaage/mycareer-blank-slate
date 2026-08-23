@@ -109,7 +109,7 @@ const primaryGroups: GroupNode[] = [
     icon: Building2,
     items: [
       { label: "Markedsinnsikt", to: "/marked" },
-      { label: "Arbeidsgivere", to: "/employers" },
+      { label: "Arbeidsgiveranalyser", to: "/employers" },
     ],
     matchPrefixes: ["/marked", "/employers"],
   },
