@@ -84,6 +84,16 @@ function OpportunityDetail() {
     [graph, id],
   );
 
+  // Selskapet bak annonsen, slått opp i nettverksgrafen for å få reell
+  // selskaps-ID og organisasjonsnummer når det finnes.
+  const companyItem = useMemo(() => {
+    if (!graph || !opp?.card_company) return null;
+    const target = opp.card_company.trim().toLowerCase();
+    return (
+      buildCompanies(graph).find((c) => (c.name ?? "").trim().toLowerCase() === target) ?? null
+    );
+  }, [graph, opp]);
+
   const companyContacts = useMemo(() => {
     if (!graph || !opp?.card_company) return [];
     const target = opp.card_company.trim().toLowerCase();
