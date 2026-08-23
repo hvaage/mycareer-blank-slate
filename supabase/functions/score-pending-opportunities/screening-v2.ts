@@ -1,8 +1,9 @@
 // Karriereontologi v4, fase 2.1: evidensgrunnlaget byttet fra user_evidence_atoms
 // til career_atoms. Scoringer mot ulike grunnlag kan ikke sammenlignes, derfor ny versjon.
-export const MATCH_SCORE_VERSION = "job_match_v3_2026_08_15";
+// Fase 0 (jobb-leads v3): grunnlaget er strammet inn til user_confirmed=true — ny versjon igjen.
+export const MATCH_SCORE_VERSION = "job_match_v4_2026_08_23";
 /** Forrige versjon. Rader med denne er scoret mot et annet evidensgrunnlag. */
-export const MATCH_SCORE_VERSION_LEGACY = "job_match_v2_2026_06_24";
+export const MATCH_SCORE_VERSION_LEGACY = "job_match_v3_2026_08_15";
 
 export type ScreeningStatus = "eligible" | "excluded" | "needs_review";
 export type ScreeningSeverity = "hard_filter" | "review";
