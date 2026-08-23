@@ -3,7 +3,11 @@
 De fire beslutningene er lagt til grunn. Én ting i Fase 0 lar seg ikke bygge slik den er
 formulert, og det er avklart nedenfor før noe annet.
 
-## Blokkerende avklaring i Fase 0: `cv_evidence_atoms` finnes ikke i dette prosjektet
+## Fase 0: `cv_evidence_atoms` er droppet — `career_atoms` er evidensgrunnlaget
+
+Historikken er notert: `cv_evidence_atoms` var en egen, tom tabell som ble droppet 15. august
+samme dag `career_atoms` ble opprettet. Det endrer ikke Fase 0.
+
 
 Verifisert mot databasen: det finnes ingen tabell `cv_evidence_atoms` i karrierenmin.no.
 Evidenstabellen her er `career_atoms` (karriereontologi v4), og den er allerede resultatet av
