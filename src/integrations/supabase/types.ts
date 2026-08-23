@@ -2878,6 +2878,68 @@ export type Database = {
         }
         Relationships: []
       }
+      email_job_sources: {
+        Row: {
+          created_at: string
+          email_connection_id: string | null
+          filter_query: string | null
+          id: string
+          inbound_alias_token: string | null
+          intake_mode: string
+          is_active: boolean
+          label: string | null
+          last_error: string | null
+          last_synced_at: string | null
+          last_synced_internal_date: string | null
+          sender_pattern: string | null
+          source_system: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_connection_id?: string | null
+          filter_query?: string | null
+          id?: string
+          inbound_alias_token?: string | null
+          intake_mode?: string
+          is_active?: boolean
+          label?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          last_synced_internal_date?: string | null
+          sender_pattern?: string | null
+          source_system: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_connection_id?: string | null
+          filter_query?: string | null
+          id?: string
+          inbound_alias_token?: string | null
+          intake_mode?: string
+          is_active?: boolean
+          label?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          last_synced_internal_date?: string | null
+          sender_pattern?: string | null
+          source_system?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_job_sources_email_connection_id_fkey"
+            columns: ["email_connection_id"]
+            isOneToOne: false
+            referencedRelation: "email_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -3675,6 +3737,99 @@ export type Database = {
           },
         ]
       }
+      imported_job_emails: {
+        Row: {
+          created_at: string
+          email_connection_id: string | null
+          email_job_source_id: string | null
+          from_address: string | null
+          id: string
+          intake_mode: string
+          lead_count: number
+          parse_confidence: number | null
+          parse_status: string
+          parsed_at: string | null
+          provider_internal_date: string | null
+          provider_message_id: string
+          raw_html: string | null
+          raw_text: string | null
+          received_at: string | null
+          reject_reason: string | null
+          retain_until: string
+          size_bytes: number | null
+          source_system: string
+          subject: string | null
+          to_address: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_connection_id?: string | null
+          email_job_source_id?: string | null
+          from_address?: string | null
+          id?: string
+          intake_mode?: string
+          lead_count?: number
+          parse_confidence?: number | null
+          parse_status?: string
+          parsed_at?: string | null
+          provider_internal_date?: string | null
+          provider_message_id: string
+          raw_html?: string | null
+          raw_text?: string | null
+          received_at?: string | null
+          reject_reason?: string | null
+          retain_until?: string
+          size_bytes?: number | null
+          source_system: string
+          subject?: string | null
+          to_address?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_connection_id?: string | null
+          email_job_source_id?: string | null
+          from_address?: string | null
+          id?: string
+          intake_mode?: string
+          lead_count?: number
+          parse_confidence?: number | null
+          parse_status?: string
+          parsed_at?: string | null
+          provider_internal_date?: string | null
+          provider_message_id?: string
+          raw_html?: string | null
+          raw_text?: string | null
+          received_at?: string | null
+          reject_reason?: string | null
+          retain_until?: string
+          size_bytes?: number | null
+          source_system?: string
+          subject?: string | null
+          to_address?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imported_job_emails_email_connection_id_fkey"
+            columns: ["email_connection_id"]
+            isOneToOne: false
+            referencedRelation: "email_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "imported_job_emails_email_job_source_id_fkey"
+            columns: ["email_job_source_id"]
+            isOneToOne: false
+            referencedRelation: "email_job_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interviews: {
         Row: {
           application_id: string
@@ -3878,16 +4033,24 @@ export type Database = {
           ai_match_highlights: string | null
           ai_reasoning: string | null
           ai_score: number | null
+          application_due: string | null
           company: string | null
           created_at: string
           email_connection_id: string | null
           id: string
+          imported_job_email_id: string | null
           job_url: string | null
           location: string | null
+          parse_confidence: number | null
           posted_text: string | null
           promoted_application_id: string | null
+          qualification_reason: string | null
+          qualification_score: number | null
+          qualification_status: string | null
+          raw_payload: Json | null
           raw_snippet: string | null
           received_at: string | null
+          reject_reason: string | null
           salary_text: string | null
           source_email_from: string | null
           source_message_id: string | null
@@ -3906,16 +4069,24 @@ export type Database = {
           ai_match_highlights?: string | null
           ai_reasoning?: string | null
           ai_score?: number | null
+          application_due?: string | null
           company?: string | null
           created_at?: string
           email_connection_id?: string | null
           id?: string
+          imported_job_email_id?: string | null
           job_url?: string | null
           location?: string | null
+          parse_confidence?: number | null
           posted_text?: string | null
           promoted_application_id?: string | null
+          qualification_reason?: string | null
+          qualification_score?: number | null
+          qualification_status?: string | null
+          raw_payload?: Json | null
           raw_snippet?: string | null
           received_at?: string | null
+          reject_reason?: string | null
           salary_text?: string | null
           source_email_from?: string | null
           source_message_id?: string | null
@@ -3934,16 +4105,24 @@ export type Database = {
           ai_match_highlights?: string | null
           ai_reasoning?: string | null
           ai_score?: number | null
+          application_due?: string | null
           company?: string | null
           created_at?: string
           email_connection_id?: string | null
           id?: string
+          imported_job_email_id?: string | null
           job_url?: string | null
           location?: string | null
+          parse_confidence?: number | null
           posted_text?: string | null
           promoted_application_id?: string | null
+          qualification_reason?: string | null
+          qualification_score?: number | null
+          qualification_status?: string | null
+          raw_payload?: Json | null
           raw_snippet?: string | null
           received_at?: string | null
+          reject_reason?: string | null
           salary_text?: string | null
           source_email_from?: string | null
           source_message_id?: string | null
@@ -3964,6 +4143,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "email_connections"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_leads_imported_job_email_fk"
+            columns: ["user_id", "imported_job_email_id"]
+            isOneToOne: false
+            referencedRelation: "imported_job_emails"
+            referencedColumns: ["user_id", "id"]
           },
         ]
       }
