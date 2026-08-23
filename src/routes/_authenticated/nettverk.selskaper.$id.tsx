@@ -340,10 +340,11 @@ function LabeledSelect({
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
-    <div className="flex flex-wrap gap-x-2">
-      <dt className="w-28 shrink-0 break-words text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 break-words">{value || "Ikke registrert"}</dd>
+    <div className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] gap-x-2">
+      <dt className="text-muted-foreground [overflow-wrap:anywhere]">{label}</dt>
+      <dd className="[overflow-wrap:anywhere]">{value || "Ikke registrert"}</dd>
     </div>
+
 
   );
 }
