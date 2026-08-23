@@ -49,8 +49,8 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 ### Trinn 4 — Moderering
 
 - Serverfunksjon kjører AI-sjekk (Lovable AI) ved innsending og skriver kun flagg/kategorier — aldri rå prompt — til `employer_review_moderation`.
-- Fast statusflyt i 5I: `draft → submitted → ai_checked → needs_manual_review → approved | needs_revision | rejected | withdrawn`. Fritekst publiseres aldri fordi AI-sjekken ikke fant flagg; alt offentlig tekstutdrag krever eksplisitt manuell godkjenning.
-- Numeriske vurderinger kan inngå i aggregater når øvrige porter er oppfylt, uavhengig av tekstmoderering.
+- Fast tekststatusflyt i 5I: `draft → submitted → ai_checked → needs_manual_review → approved | needs_revision | rejected | withdrawn`. Fritekst publiseres aldri fordi AI-sjekken ikke fant flagg; alt offentlig tekstutdrag krever eksplisitt manuell godkjenning.
+- Tekstmoderering er helt adskilt fra numerisk bidrag: en vurdering med tekst i `needs_manual_review` kan fortsatt ha `numeric_contribution_status = 'eligible_for_aggregate'` og telle i aggregatet.
 - Det bygges en enkel administrativ modereringskø (admin-rolle). Blir køen ikke ferdig i denne leveransen, holdes «Erfaringer fra brukere» skjult.
 - Publisert utdrag er anonymisert, merket «Brukeropplevelse» og vist med grovt tidspunkt, f.eks. «Tidligere ansatt · 2026».
 
