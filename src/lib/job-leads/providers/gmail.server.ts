@@ -142,10 +142,6 @@ function decodeBase64Url(input: string): string {
   return Buffer.from(padded, "base64").toString("utf-8");
 }
 
-function configPlaceholder(value: string, _field: string): string {
-  return value || "unknown@example.com";
-}
-
 type GmailHeader = { name: string; value: string };
 
 type GmailBody = {
