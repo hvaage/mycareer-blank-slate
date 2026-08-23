@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
+import { CompanyInsightPanel } from "@/components/network/company-insight-panels";
 import { SuggestionPanel } from "@/components/network/suggestion-panel";
 import { BackLink } from "@/components/network/network-shell";
 import { Timeline } from "@/components/network/timeline";
@@ -24,6 +25,7 @@ import { NetworkErrorState } from "@/components/network/network-error";
 import { ActivityDialog } from "@/components/network/activity-dialog";
 import {
   buildActivities,
+  buildCompanies,
   buildContacts,
   companyKeyFor,
   networkGraphQuery,
@@ -83,6 +85,16 @@ function OpportunityDetail() {
     () => (graph ? buildTimeline(graph, { type: "opportunity", id }) : []),
     [graph, id],
   );
+
+  // Selskapet bak annonsen, slått opp i nettverksgrafen for å få reell
+  // selskaps-ID og organisasjonsnummer når det finnes.
+  const companyItem = useMemo(() => {
+    if (!graph || !opp?.card_company) return null;
+    const target = opp.card_company.trim().toLowerCase();
+    return (
+      buildCompanies(graph).find((c) => (c.name ?? "").trim().toLowerCase() === target) ?? null
+    );
+  }, [graph, opp]);
 
   const companyContacts = useMemo(() => {
     if (!graph || !opp?.card_company) return [];
@@ -219,12 +231,11 @@ function OpportunityDetail() {
 
 
 
-        <NetworkPanel title="Arbeidsgiverinnsikt">
-          <PanelEmpty>
-            Ikke analysert ennå. Arbeidsgiveranalyse vises her når en reell analyse finnes for
-            selskapet.
-          </PanelEmpty>
-        </NetworkPanel>
+        <CompanyInsightPanel
+          orgnr={companyItem?.orgnr ?? null}
+          companyId={companyItem?.companyId ?? null}
+          companyName={opp.card_company ?? null}
+        />
       </div>
     </div>
   );
