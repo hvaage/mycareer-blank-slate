@@ -340,9 +340,10 @@ function LabeledSelect({
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
-    <div className="flex gap-2">
-      <dt className="w-28 shrink-0 text-muted-foreground">{label}</dt>
+    <div className="flex flex-wrap gap-x-2">
+      <dt className="w-28 shrink-0 break-words text-muted-foreground">{label}</dt>
       <dd className="min-w-0 break-words">{value || "Ikke registrert"}</dd>
     </div>
+
   );
 }
