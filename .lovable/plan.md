@@ -1,101 +1,99 @@
-# Jobb-Leads: steg 0-rapport og revidert byggeplan
+# Jobb-Leads v3 — bygg etter de fire beslutningene
 
-Briefens steg 0 krever fakta om hva som allerede finnes i karrierenmin.no før noe migreres.
-Dette er svarene, hentet fra kode og database i dette prosjektet. Deretter følger den justerte
-byggeplanen, som er vesentlig mindre enn briefen antar, fordi flere ledd allerede er bygget her.
+De fire beslutningene er lagt til grunn. Én ting i Fase 0 lar seg ikke bygge slik den er
+formulert, og det er avklart nedenfor før noe annet.
 
-## Del 1 — Steg 0: faktisk tilstand (verifisert)
+## Blokkerende avklaring i Fase 0: `cv_evidence_atoms` finnes ikke i dette prosjektet
 
-**`job_leads` finnes allerede, og er e-post-orientert.**
-Kolonner i dag: `user_id`, `email_connection_id`, `source_message_id`, `source_email_from`,
-`source_subject`, `received_at`, `posted_text`, `title`, `company`, `location`, `work_type`,
-`salary_text`, `job_url`, `raw_snippet`, `ai_score`, `ai_reasoning`, `ai_match_highlights`,
-`ai_concerns`, `status` (enum), `promoted_application_id`, `source_system`, `source_url_hash`,
-`source_observed_at`. Tabellen er **tom (0 rader)**. Den mangler `logical_job_key`,
-`qualification_status/score/reason`, `match_score/band`, `gaps`, `application_due`,
-`reject_reason`, `confidence`, `raw_payload`.
+Verifisert mot databasen: det finnes ingen tabell `cv_evidence_atoms` i karrierenmin.no.
+Evidenstabellen her er `career_atoms` (karriereontologi v4), og den er allerede resultatet av
+LinkedIn-import, CV-import og «Om meg»/«Min karriere» — altså nøyaktig det evidensgrunnlaget
+beslutningen beskriver, men under et annet navn. Kommentaren i
+`score-pending-opportunities/index.ts` (linje 520–521) sier det eksplisitt: «career_atoms er
+eneste evidenskilde. user_evidence_atoms og cv_evidence_atoms leses ikke lenger her.»
+`cv_evidence_atoms` var navnet i det gamle skjemaet og i skill-dokumentasjonen; overgangen bort
+fra det er allerede gjennomført.
 
-**`email_connections` finnes, med kryptertoken-form** (`provider`-enum, `access_token`,
-`refresh_token`, `token_expires_at`, `scopes_granted`, `status`, `last_sync_at`,
-`last_synced_internal_date`). Også **tom (0 rader)**. Frontend `EmailConnections` er i dag kun
-en «kommer snart»-stub. Det finnes ingen Gmail-/Graph-henting i noen edge function.
-`email_job_sources` og `imported_job_emails` finnes **ikke**.
+`career_atoms` har feltene beslutningen forutsetter: `atom_type`, `content_no`, `content_en`,
+`source_quote`, `confidence`, `attestation`, `user_confirmed`, samt `atom_kind='evidens'`.
 
-**`job-leads.tsx` leser ikke `job_leads` som hovedkilde.** Siden slår sammen tre kilder:
-`list_user_job_opportunities` (RPC), `user_opportunities`, `user_job_listing_status` — og bruker
-`job_leads` kun til sletting/statusoppdatering av eldre rader. Kildefiltrene i UI-et er
-`linkedin`, `careerjet`, `nav`.
+**Svar på spørsmålet om supersedert/slettet evidens:** `career_atoms` bruker ikke sletting.
+Utgått evidens markeres med `is_active=false`, og i tillegg finnes `state`, `valid_from`/`valid_to`
+og `stale_at` for tidsavgrensning og foreldelse. Filteret `is_active=true` må derfor **beholdes** —
+uten det scores brukeren mot tilbakekalt og supersedert evidens.
 
-**NAV-katalogen er allerede i dette prosjektet, ikke bare i `norwegian-career-intelligence`.**
-`source_postings` har 338 563 rader og `canonical_opportunities` 243 679, med
-`sync-nav-opportunities` og `sync-careerjet-opportunities` som aktive edge functions,
-pluss kanonisering, dedupnøkler (`lead_dedupe_keys`) og identitetsavstemming. Å bygge en ny
-kryss-kilde-identitet fra job-buddy-db ville blitt en tredje variant — briefens 11.2-risiko er reell.
+**Konsekvens for Fase 0:** ingen tabellbytte. Det reelle innholdet i beslutningen — «kun bekreftet
+evidens skal brukes» — gjennomføres som en filterendring.
 
-**Matchelaget finnes allerede, som versjonert kontrakt.**
-`score-pending-opportunities/screening-v2.ts` gjør hardfilter + kravuttrekk
-(`mandatory/preferred/context`), status `eligible/excluded/needs_review`, mot `career_atoms`,
-versjonsmerket `job_match_v3_2026_08_15`. Dette dekker mye av det briefen kaller `cv-tailoring`,
-og er allerede synlig i Jobb-Leads-UI-et.
+## Fase 0 — Stram inn evidensgrunnlaget (gjøres og verifiseres først)
 
-**`extract-job-ad` er allerede deployert her** som egen edge function.
+1. I `loadProfileAndEvidence()`: bytt `.order("user_confirmed", …)` med
+   `.eq("user_confirmed", true)`. `is_active=true` og `atom_kind='evidens'` beholdes.
+   Ubekreftet og `inferred` evidens brukes dermed ikke til matching, i tråd med
+   evidensprinsippet.
+2. `EvidenceItem`-formen er allerede `ref`/`category`/`label`/`description`. `ref`-prefikset
+   settes til `ca:<id>` og `evidence_basis.source` beholdes som `career_atoms` (faktisk kilde).
+3. Bump `MATCH_SCORE_VERSION` til `job_match_v4_2026_08_23`, flytt
+   `job_match_v3_2026_08_15` til `MATCH_SCORE_VERSION_LEGACY`, og legg den nye strengen inn i
+   `ACCEPTED_MATCH_SCORE_VERSIONS` i `job-leads.tsx`.
+4. Verifikasjon før Trinn C startes: tell hvor mange brukere som mister evidensgrunnlag helt
+   (får `evidence_basis.status='empty'`) ved det strammere filteret, og rescore et representativt
+   utvalg NAV/Careerjet-rader mot v4 med sammenligning mot v3-resultatet.
 
-**Preferansefelt for qualification-laget** ligger i `user_career_profiles`:
-`desired_role_types`, `desired_industries`, `preferred_locations`, `preferred_company_sizes`,
-`preferred_work_styles`, `remote_preference`, `career_stage`, `leadership_level`,
-`years_experience`, `salary_expectation_min/max`, `dimension_weights`.
+## Trinn A — Datamodell
 
-**Konsekvens:** det som faktisk mangler er kun **e-postinntaket** (innhenting, rålagring, parsing,
-konfidens) og **koblingen** fra e-post-leads inn i den eksisterende identitets-, dedup- og
-screeningkjeden. Punkt 1–3 i briefens byggerekkefølge krymper tilsvarende; punkt 4 er ferdig,
-og punkt 5–6 blir «koble på», ikke «bygg nytt».
+- `job_leads` utvides additivt: `qualification_status`, `qualification_score`,
+  `qualification_reason`, `application_due`, `raw_payload`, `parse_confidence`, `reject_reason`.
+- **Ingen ny identitetsnøkkel.** De to eksisterende unike indeksene beholdes uendret:
+  `idx_job_leads_dedupe (user_id, coalesce(job_url), coalesce(title), coalesce(company))` er
+  upsert-nøkkelen ved inntak, og `job_leads_source_url_hash_idx (user_id, source_system,
+  source_url_hash) WHERE source_url_hash IS NOT NULL` er kildenøkkelen. Der en tekstlig
+  kryss-kildenøkkel trengs, brukes `normalize_lead_key()` og `lead_dedupe_keys`.
+- Nye tabeller `imported_job_emails` (rå e-post, egen oppbevaringstid) og `email_job_sources`
+  (kilde, søkefilter, aktiv-status), begge: `CREATE TABLE` → `GRANT` → `ENABLE ROW LEVEL
+  SECURITY` → egne policyer per operasjon på `auth.uid()`, samme mønster som `job_leads`.
+- `email_connections` finnes allerede med `provider`-enum og tokenfelter og gjenbrukes uendret.
 
-## Del 2 — Revidert byggeplan
+## Trinn B — Inntak og parsing
 
-### Trinn A — Konsolider datamodellen (én migrasjon)
-- Utvid `job_leads` additivt: `logical_job_key`, `reject_reason`, `parse_confidence`,
-  `qualification_status`, `qualification_score`, `qualification_reason`, `application_due`,
-  `raw_payload`. Match-score legges **ikke** her; den leses fra eksisterende screeninglag.
-- Ny `imported_job_emails` (rå e-post per bruker, egen oppbevaringstid) og
-  `email_job_sources` (kilde + søkefilter + aktiv-status), begge med
-  `GRANT` → `ENABLE ROW LEVEL SECURITY` → policy scoped på `auth.uid()`.
-- `logical_job_key` genereres med de **eksisterende** nøkkelfunksjonene (`normalize_lead_key`,
-  `lead_dedupe_keys`), ikke med en portert kopi fra job-buddy-db.
+- **Én parser-modul** for både Finn og LinkedIn: prefilter → faste selectors per kilde →
+  AI-fallback kun for e-poster ingen selector treffer → konfidens og `reject_reason`.
+  Gjelder kun e-postkildene; NAV og Careerjet er strukturerte feeder uten tekstparsing.
+- **Gmail og Outlook bygges parallelt bak samme abstraksjon** (`connect`, `listSince`,
+  `fetchMessage`, tokenfornyelse), med `last_synced_internal_date` som inkrementell markør.
+  `EmailConnections`-stubben erstattes med reell tilkoblingsflate for begge.
+- **Videresending som tredje vei**, med tjeneste navngitt før bygging. Anbefaling: Mailjet
+  inbound parse, siden Mailjet allerede er utgående e-postleverandør i prosjektet — én leverandør,
+  ett domene, ingen ny avtale. Mottak via `/api/public/inbound/job-email`, med:
+  signaturverifisering fra leverandøren, ugjettbart alias (tilfeldig token, ikke bruker-id),
+  rate-limiting per alias og per IP, og hard størrelsesgrense per melding.
+- Skriving til `job_leads` bruker det eksisterende status-enumet (`ny`, `avvist`, `promotert`,
+  `arkivert`) og setter `source_system` + `source_url_hash`.
+- **Eneste påkrevde UI-endring:** i `job-leads.tsx` (~linje 341) er `source: "linkedin"` hardkodet
+  for alle `job_leads`-rader. Les `source_system` og map til riktig etikett, og utvid
+  kildefilteret med `finn`.
 
-### Trinn B — Inntak
-- Gmail aktiv henting: OAuth-tilkobling, tokenkryptering, `gmail_query`-filtrert henting,
-  inkrementell synk på `last_synced_internal_date`. Erstatter dagens «kommer snart»-stub.
-- Videresending som fallback (iCloud m.fl.): alias-tabell som knytter en ugjettbar mottaksadresse
-  til `user_id`, mottak via `/api/public/*`-rute med verifisering av avsender og alias.
-- Outlook/Graph legges inn etter samme grensesnitt, men bak samme abstraksjon som Gmail.
+## Trinn C — Lik matching for alle fire kilder
 
-### Trinn C — Parsing og klassifisering
-- Regelbasert parser (prefilter → feltuttrekk Finn/LinkedIn inkl. digest → konfidens), uten AI.
-  Manglende tittel/selskap/URL gir `rejected` + `reject_reason`, aldri tom «gyldig» rad.
-- Qualification-lag leser `user_career_profiles`-feltene over. Ingen hardkodede fraser,
-  stedlister eller person­spesifikke regler.
+Forutsetter at Fase 0 er verifisert.
 
-### Trinn D — Kobling til eksisterende kjede
-- E-post-leads registreres i `lead_dedupe_keys` slik at de dedupliseres mot NAV/Careerjet-radene.
-- Screening kjøres av eksisterende `score-pending-opportunities`-kontrakt, uten ny scoringversjon.
-- Jobb-Leads-UI får e-post som fjerde kildefilter; ingen ny visningsflate.
+- `job_leads` legges inn som tredje kandidatkilde i `loadCandidates()`, sidestilt med
+  `user_opportunities` og `user_job_listing_status`. Samme `initialScreening()` og samme
+  AI-evaluering, ingen egen logikk for e-postkilder.
+- Ufullstendig annonsetekst i `posted_text`/`raw_snippet` håndteres av den eksisterende
+  `insufficient_job_text` / `description_complete`-mekanismen i `screening-v2.ts`.
+- Registrering i `lead_dedupe_keys` flyttes til innhentingstidspunktet, innført samtidig for
+  alle fire kilder — ikke bare e-post.
 
-### Trinn E — Drift og personvern
-- Helsemål: andel `rejected` per `reject_reason` per kilde over tid.
-- Skill «ingen nye leads» fra «innhenting nede» i status, slik driftsprinsippene krever.
-- Daglig jobb setter utløpt frist til `expired`.
-- Egen oppbevaringstid på rå e-posttekst; samtykketekst må si eksplisitt at lesescopet er bredere
-  enn «kun jobbvarsler».
+## Trinn D — Drift
 
-## Tekniske merknader
-- Alt nytt er multi-tenant; ingen bruker­spesifikke regler.
-- Ingen migrering av de 62 e-postene / 120 kandidatene fra job-buddy-db.
-- `cv-tailoring` bygges ikke som en parallell matchemotor. Den semantiske utvidelsen
-  (`semantic_key`/`semantic_aliases`) hører hjemme som en endring **inne i**
-  `screening-v2.ts` med ny versjonsstreng, ikke som en ny pipeline.
-- RLS-funnet i `norwegian-career-intelligence` (brief 11.1) gjelder et annet Supabase-prosjekt
-  som ikke styres herfra, og er utenfor denne planens rekkevidde.
+- Ny innhentingsfunksjon bruker samme «tomt vs. feilet vs. delvis»-responsmønster som
+  `score-pending-opportunities` og `fetch-careerjet-listings`.
+- Helsemål: andel `avvist` per `reject_reason` per kilde over tid.
+- Daglig jobb arkiverer leads med passert `application_due`.
+- Rå e-posttekst får kortere oppbevaringstid enn det strukturerte resultatet; samtykketeksten
+  sier eksplisitt at lesescopet er bredere enn «kun jobbvarsler».
 
-## Beslutninger jeg trenger svar på før bygging
-1. Bygger vi Gmail-henting nå, eller kun videresendingsveien først (raskere, ingen Google-verifisering)?
-2. Skal e-post-leads vises i dagens Jobb-Leads-liste (anbefalt) eller på egen flate?
+## Rekkefølge
+Fase 0 → verifikasjon → Trinn A → Trinn B (Gmail, Outlook og videresending parallelt) →
+Trinn C → Trinn D.
