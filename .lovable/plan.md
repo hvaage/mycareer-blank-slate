@@ -51,6 +51,11 @@ Avvik som må noteres: `ai_score` er `smallint` på `job_leads` og `user_job_lis
 - Tredje gren leser `job_leads` direkte: `user_id`, `source_system IN ('linkedin','finn')`,
   `status = 'ny'` (enumet `job_lead_status` er `ny | avvist | promotert | arkivert` — de tre
   siste ekskluderes), samme `modeMatches()` som de andre grenene, og respekterer `input.limit`.
+- I tillegg filtreres det på parse-kvalitet: `qualification_status <> 'rejected'` (verdiene
+  `ingest.ts` setter er `pending | qualified | needs_review | rejected`), med `OR
+  qualification_status IS NULL` slik at eldre rader uten verdi ikke faller ut. `status='ny'`
+  alene holder ikke — `insert_job_lead_dedup` setter ikke status, så avviste rader får
+  `ny` som kolonnedefault og ville blitt AI-evaluert unødig.
 - `description` = `posted_text` når den finnes, ellers `raw_snippet`, gjennom samme
   `cleanText(..., DESC_MAX_LEN)`. `description_complete` settes `true` bare når `posted_text`
   har innhold; `raw_snippet` alene gir `false`, som utløser den eksisterende
