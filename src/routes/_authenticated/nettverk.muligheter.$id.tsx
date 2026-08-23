@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NetworkPanel, PanelEmpty } from "@/components/network/panel";
+import { CompanyInsightPanel } from "@/components/network/company-insight-panels";
 import { SuggestionPanel } from "@/components/network/suggestion-panel";
 import { BackLink } from "@/components/network/network-shell";
 import { Timeline } from "@/components/network/timeline";
@@ -24,6 +25,7 @@ import { NetworkErrorState } from "@/components/network/network-error";
 import { ActivityDialog } from "@/components/network/activity-dialog";
 import {
   buildActivities,
+  buildCompanies,
   buildContacts,
   companyKeyFor,
   networkGraphQuery,
@@ -229,12 +231,11 @@ function OpportunityDetail() {
 
 
 
-        <NetworkPanel title="Arbeidsgiverinnsikt">
-          <PanelEmpty>
-            Ikke analysert ennå. Arbeidsgiveranalyse vises her når en reell analyse finnes for
-            selskapet.
-          </PanelEmpty>
-        </NetworkPanel>
+        <CompanyInsightPanel
+          orgnr={companyItem?.orgnr ?? null}
+          companyId={companyItem?.companyId ?? null}
+          companyName={opp.card_company ?? null}
+        />
       </div>
     </div>
   );
