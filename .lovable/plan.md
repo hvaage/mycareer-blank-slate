@@ -40,16 +40,38 @@ evidens skal brukes» — gjennomføres som en filterendring.
 3. Bump `MATCH_SCORE_VERSION` til `job_match_v4_2026_08_23`, flytt
    `job_match_v3_2026_08_15` til `MATCH_SCORE_VERSION_LEGACY`, og legg den nye strengen inn i
    `ACCEPTED_MATCH_SCORE_VERSIONS` i `job-leads.tsx`.
-4. **Målingen er allerede gjort — terskelen er ikke i nærheten av å slå inn.**
-   Talt i databasen nå: 5 brukerkontoer totalt, 2 av dem har evidensatomer i det hele tatt,
-   og begge to (100 % av brukerne med evidens) beholder grunnlaget etter innstrammingen.
-   Alle 77 aktive `atom_kind='evidens'`-rader har allerede `user_confirmed=true`; det finnes
-   null aktive ubekreftede evidensatomer. Filterendringen er derfor et **no-op på dagens data**
-   og kan ikke tømme evidensgrunnlaget for noen. Terskelen settes til 20 % som instruert, men
-   er oppfylt med god margin (100 %). Målingen gjentas rett før innstrammingen kjøres, i tilfelle
-   ubekreftede atomer har kommet til i mellomtiden.
-5. Gjenstående verifikasjon før Trinn C: rescore et representativt utvalg NAV/Careerjet-rader
-   mot v4 og sammenlign status og score mot v3-resultatet.
+4. **Rett skriveveien for manuell registrering før filteret skrus på.** Funnet er verifisert i
+   koden: `upsertEvidenceAtom()` (`src/lib/queries/career-atoms.ts`, `common`-objektet linje
+   294–309) setter hverken `confidence` eller `user_confirmed`, og `UpsertEvidencePayload` har
+   ikke feltet. `source_type` defaulter til `'manual'` i samme funksjon. Uten rettelsen blir alt
+   som legges inn under «Min karriere» permanent usynlig for matching.
+   - `upsertEvidenceAtom()`: i `common`, sett `confidence: 'verified'` og `user_confirmed: true`
+     når `source_type` er `'manual'`. Beregnes én gang fra `payload.source ?? "manual"` slik at
+     et eksplisitt ikke-manuelt kall ikke får bekreftelsen gratis.
+   - `insertCareerAtomFields()` (`src/lib/atom-explicit-writes.ts`): sett
+     `user_confirmed: fields.source_type === 'manual'` — ikke hardkodet `true`, siden funksjonen
+     er ment som fellesfunksjon også for importbaserte skriveveier senere. (Funksjonen er i dag
+     ubrukt; rettes defensivt.)
+   - Ingen endring for import- og KI-forslag: de går fortsatt via `cv_parse_candidates` og blir
+     `user_confirmed` bare ved eksplisitt bekreftelse der.
+5. **Engangsoppdatering av eksisterende data — allerede talt: 0 rader berøres.**
+   Telling i databasen nå viser at det ikke finnes én eneste rad med `source_type='manual'`.
+   Hele evidensbestanden er 74 + 1 `old_cv_pdf` og 3 `user_input`, alle med
+   `confidence='verified'`. Den ene `user_confirmed=false`-raden er `old_cv_pdf` (inaktiv, derfor
+   utenfor de 77 aktive) og skal ikke røres — den er importert, ikke manuell.
+   Oppdateringen (`atom_kind='evidens'`, `source_type='manual'`, `user_confirmed=false`
+   → `user_confirmed=true`, `confidence='verified'`) kjøres likevel som del av Fase 0, og
+   radtallet rapporteres på nytt etter kjøring i tilfelle noe er lagt inn i mellomtiden.
+   Merk: dagens manuelle CV-gjennomgangsvei skriver `source_type='user_input'` og setter allerede
+   `user_confirmed: true` selv, så den er upåvirket.
+6. **Terskelmålingen — oppfylt med god margin.** 5 brukerkontoer totalt, 2 har evidensatomer,
+   og begge (100 %) beholder grunnlaget etter innstrammingen. Alle 77 aktive evidensatomer har
+   allerede `user_confirmed=true`; null aktive ubekreftede. Filterendringen er et no-op på dagens
+   data og kan ikke tømme evidensgrunnlaget for noen. Terskelen på 20 % er dermed klarert.
+7. **Fase 0 er ferdig først når punkt 4–6 er gjennomført og talt på nytt.** Deretter gjenstår
+   én verifikasjon før Trinn C: rescore et representativt utvalg NAV/Careerjet-rader mot v4 og
+   sammenlign status og score mot v3-resultatet.
+
 
 
 ## Trinn A — Datamodell
