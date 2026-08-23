@@ -192,7 +192,6 @@ export function EmployerCommonReview({
   const [scores, setScores] = useState<Record<string, number>>({});
   const [body, setBody] = useState("");
   const [touched, setTouched] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
 
   const effectiveBasis = touched ? basis : (myReview?.experience_basis ?? basis);
   const cohort = BASIS_OPTIONS.find((b) => b.value === effectiveBasis)?.cohort ?? null;
