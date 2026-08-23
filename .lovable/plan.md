@@ -3,7 +3,11 @@
 De fire beslutningene er lagt til grunn. Én ting i Fase 0 lar seg ikke bygge slik den er
 formulert, og det er avklart nedenfor før noe annet.
 
-## Blokkerende avklaring i Fase 0: `cv_evidence_atoms` finnes ikke i dette prosjektet
+## Fase 0: `cv_evidence_atoms` er droppet — `career_atoms` er evidensgrunnlaget
+
+Historikken er notert: `cv_evidence_atoms` var en egen, tom tabell som ble droppet 15. august
+samme dag `career_atoms` ble opprettet. Det endrer ikke Fase 0.
+
 
 Verifisert mot databasen: det finnes ingen tabell `cv_evidence_atoms` i karrierenmin.no.
 Evidenstabellen her er `career_atoms` (karriereontologi v4), og den er allerede resultatet av
@@ -36,9 +40,17 @@ evidens skal brukes» — gjennomføres som en filterendring.
 3. Bump `MATCH_SCORE_VERSION` til `job_match_v4_2026_08_23`, flytt
    `job_match_v3_2026_08_15` til `MATCH_SCORE_VERSION_LEGACY`, og legg den nye strengen inn i
    `ACCEPTED_MATCH_SCORE_VERSIONS` i `job-leads.tsx`.
-4. Verifikasjon før Trinn C startes: tell hvor mange brukere som mister evidensgrunnlag helt
-   (får `evidence_basis.status='empty'`) ved det strammere filteret, og rescore et representativt
-   utvalg NAV/Careerjet-rader mot v4 med sammenligning mot v3-resultatet.
+4. **Målingen er allerede gjort — terskelen er ikke i nærheten av å slå inn.**
+   Talt i databasen nå: 5 brukerkontoer totalt, 2 av dem har evidensatomer i det hele tatt,
+   og begge to (100 % av brukerne med evidens) beholder grunnlaget etter innstrammingen.
+   Alle 77 aktive `atom_kind='evidens'`-rader har allerede `user_confirmed=true`; det finnes
+   null aktive ubekreftede evidensatomer. Filterendringen er derfor et **no-op på dagens data**
+   og kan ikke tømme evidensgrunnlaget for noen. Terskelen settes til 20 % som instruert, men
+   er oppfylt med god margin (100 %). Målingen gjentas rett før innstrammingen kjøres, i tilfelle
+   ubekreftede atomer har kommet til i mellomtiden.
+5. Gjenstående verifikasjon før Trinn C: rescore et representativt utvalg NAV/Careerjet-rader
+   mot v4 og sammenlign status og score mot v3-resultatet.
+
 
 ## Trinn A — Datamodell
 
