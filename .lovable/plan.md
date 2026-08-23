@@ -86,8 +86,10 @@ Valgt retning (én, ikke to): **egen liten telletabell uten bruker-FK**, sjekket
 
 - `public.inbound_email_rate_events`: `id`, `ip_hash text not null`,
   `alias_hash text` (hash av det oppgitte aliaset, null når det mangler),
-  `alias_known boolean not null`, `outcome text not null`
-  (`accepted` / `unknown_alias` / `rejected` / `rate_limited`), `created_at`.
+  `alias_known boolean` (nullable ved innsetting, settes etter aliasoppslag),
+  `outcome text not null`
+  (`pending` / `accepted` / `unknown_alias` / `rejected` / `rate_limited`), `created_at`.
+
   Ingen `user_id`, ingen FK mot bruker eller alias — raden skal kunne skrives før
   vi vet hvem, om noen, forespørselen tilhører.
 - `CREATE TABLE` → `GRANT ALL ... TO service_role` (ingen `anon`, ingen
