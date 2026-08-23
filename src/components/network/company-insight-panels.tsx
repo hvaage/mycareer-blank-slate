@@ -256,6 +256,15 @@ export function CompanyInsightPanel({
             Brukervurderinger er selvrapporterte og holdes adskilt fra KI-scoren.
           </p>
         </div>
+
+        <div className="border-t border-border pt-2">
+          <StartAnalysisButton
+            companyId={companyId}
+            companyName={companyName}
+            orgnr={orgnr}
+            label="Oppdater arbeidsgiveranalyse"
+          />
+        </div>
       </div>
     </NetworkPanel>
   );
