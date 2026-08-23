@@ -145,12 +145,36 @@ function StartAnalysisButton({
 
   return (
     <div className="space-y-1">
-      <Button size="sm" onClick={() => start.mutate()} disabled={start.isPending || !user?.id}>
+      <Button
+        size="sm"
+        onClick={() => (hasOrgnr ? start.mutate(undefined) : setDialogOpen(true))}
+        disabled={start.isPending || !user?.id}
+      >
         {start.isPending ? "Starter analyse…" : label}
       </Button>
       <p className="text-xs text-muted-foreground">
-        Analysen er KI-generert og bygger på åpne, offentlige kilder.
+        {hasOrgnr
+          ? "Analysen er KI-generert og bygger på åpne, offentlige kilder."
+          : "Du velger og bekrefter riktig juridisk enhet før analysen starter."}
       </p>
+
+      <EmployerAnalysisSearchDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        initialQuery={companyName ?? null}
+        existingByOrgnr={existingByOrgnr}
+        isPending={start.isPending}
+        onAnalyzeConfirmed={async (row) => {
+          const chosen = row.organisasjonsnummer ?? "";
+          await start.mutateAsync(chosen);
+          onOrgnrSelected?.(chosen);
+          setDialogOpen(false);
+        }}
+        onOpenExisting={(cid) => {
+          setDialogOpen(false);
+          navigate({ to: "/employers/$companyId", params: { companyId: cid } });
+        }}
+      />
     </div>
   );
 }
