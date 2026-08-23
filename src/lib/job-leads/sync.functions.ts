@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { parseEmail } from "@/lib/job-leads/parse";
 import { ingestParsedEmail } from "@/lib/job-leads/ingest";
 
 export const syncEmailConnection = createServerFn({ method: "POST" })
@@ -27,6 +28,35 @@ export const syncEmailConnection = createServerFn({ method: "POST" })
       throw new Error("Missing access token; re-authenticate the connection");
     }
 
+    // Ensure an email_job_sources row exists for this user + connection.
+    let sourceId: string;
+    const { data: existingSource } = await context.supabase
+      .from("email_job_sources")
+      .select("id")
+      .eq("user_id", context.userId)
+      .eq("email_connection_id", connectionId)
+      .maybeSingle();
+
+    if (existingSource?.id) {
+      sourceId = existingSource.id;
+    } else {
+      const { data: inserted, error: insertErr } = await context.supabase
+        .from("email_job_sources")
+        .insert({
+          user_id: context.userId,
+          email_connection_id: connectionId,
+          provider: conn.provider,
+          status: "active",
+          is_forwarding_address: false,
+        })
+        .select("id")
+        .single();
+      if (insertErr || !inserted) {
+        throw new Error(insertErr?.message ?? "Failed to create email job source");
+      }
+      sourceId = inserted.id;
+    }
+
     // Server-only import: providers touch tokens and Node crypto imports.
     const { getMailboxProvider } = await import("@/lib/job-leads/providers/index.server");
     const provider = getMailboxProvider(conn.provider);
@@ -43,25 +73,46 @@ export const syncEmailConnection = createServerFn({ method: "POST" })
     let accepted = 0;
     let skipped = 0;
     for (const msg of result.messages) {
-      const { lead, error } = await ingestParsedEmail({
-        supabase: context.supabase,
-        userId: context.userId,
-        sourceSystem: conn.provider === "google" ? "gmail" : "outlook",
-        sourceEmailFrom: msg.from,
-        sourceEmailTo: msg.to,
+      const parseResult = parseEmail({
+        from: msg.from,
+        to: msg.to,
         subject: msg.subject,
-        textBody: msg.text,
-        htmlBody: msg.html,
+        text: msg.text,
+        html: msg.html,
         receivedAt: msg.providerInternalDate,
-        providerMessageId: msg.providerMessageId,
       });
-      if (error) {
-        console.warn("[syncEmailConnection] ingest failed", error);
+      if (!parseResult.ok) {
         skipped++;
         continue;
       }
-      if (lead) accepted++;
-      else skipped++;
+
+      const sourceSystem =
+        conn.provider === "google" ? "gmail" : conn.provider === "microsoft" ? "outlook" : "other";
+
+      try {
+        const ingestResult = await ingestParsedEmail({
+          userId: context.userId,
+          emailJobSourceId: sourceId,
+          sourceSystem,
+          intakeMode: "mailbox",
+          emailConnectionId: connectionId,
+          providerMessageId: msg.providerMessageId,
+          fromAddress: msg.from,
+          toAddress: msg.to,
+          subject: msg.subject,
+          receivedAt: msg.providerInternalDate,
+          rawText: msg.text,
+          rawHtml: msg.html,
+          sizeBytes: msg.sizeEstimate,
+          parsed: parseResult.lead,
+          parseConfidence: parseResult.lead.confidence,
+        });
+        accepted += ingestResult.leadsCreated;
+        skipped += ingestResult.leadsDeduped;
+      } catch (err) {
+        console.warn("[syncEmailConnection] ingest failed", err);
+        skipped++;
+      }
     }
 
     const lastSync = result.nextInternalDate ?? new Date().toISOString();
