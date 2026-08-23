@@ -86,20 +86,26 @@ Valgt retning (én, ikke to): **egen liten telletabell uten bruker-FK**, sjekket
 
 - `public.inbound_email_rate_events`: `id`, `ip_hash text not null`,
   `alias_hash text` (hash av det oppgitte aliaset, null når det mangler),
-  `alias_known boolean not null`, `outcome text not null`
-  (`accepted` / `unknown_alias` / `rejected` / `rate_limited`), `created_at`.
+  `alias_known boolean` (nullable ved innsetting, settes etter aliasoppslag),
+  `outcome text not null`
+  (`pending` / `accepted` / `unknown_alias` / `rejected` / `rate_limited`), `created_at`.
+
   Ingen `user_id`, ingen FK mot bruker eller alias — raden skal kunne skrives før
   vi vet hvem, om noen, forespørselen tilhører.
 - `CREATE TABLE` → `GRANT ALL ... TO service_role` (ingen `anon`, ingen
   `authenticated`) → `ENABLE ROW LEVEL SECURITY` → ingen lesepolicy for vanlige
   brukere. Skriving og telling skjer kun via `supabaseAdmin` i webhook-handleren.
 - Indekser: `(ip_hash, created_at)` og `(alias_hash, created_at)`.
-- Handlerflyt: størrelsesgrense → signaturverifisering → **skriv telle-rad** →
-  to tellinger (per `ip_hash` siste døgn, per `alias_hash` siste time) → 429 ved
-  overskridelse → Zod-validering → aliasoppslag → lagring i `imported_job_emails`.
-  Ukjent alias gir fortsatt 404, men er da allerede talt.
+- Handlerflyt: størrelsesgrense → signaturverifisering → **skriv telle-rad** med
+  `outcome = 'pending'` og `alias_known = null` → to tellinger (per `ip_hash` siste
+  døgn, per `alias_hash` siste time) → 429 ved overskridelse → Zod-validering →
+  aliasoppslag → lagring i `imported_job_emails` → **oppdater telle-rad med endelig
+  `outcome` og `alias_known`** (`accepted` / `unknown_alias` / `rejected` /
+  `rate_limited`). All skriving og oppdatering skjer i samme handler-kall.
+
 - `imported_job_emails` får ingen `ip_hash`-kolonne og ingen skjemaendring.
 - Rydding: rader eldre enn 30 dager slettes av den daglige driftsjobben (Trinn D).
+
 
 ## B4 — Skriving til `job_leads`
 
