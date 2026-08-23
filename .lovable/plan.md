@@ -25,12 +25,14 @@ Bygger videre på eksisterende Arbeidsgiveranalyse (Marked → Arbeidsgiveranaly
 
 Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 
-- `employer_review_targets` — globalt, verifisert vurderingsobjekt med egen `id`. `target_kind`: `juridisk_enhet` (verifisert `company_id`/orgnr), `arbeidsgivervirksomhet` (verifisert underenhet eller annen autoritativ arbeidsstedsidentitet, med `parent_target_id` til juridisk enhet), `konsern` (kun kontrollert global konsernidentitet). Objekter opprettes kun av kontrollert serverlogikk, aldri fra fri tekst eller LinkedIn-navn.
-- `employer_reviews` — peker på `review_target_id` (ikke bare `company_id`). Felter: `review_target_id`, `user_id` eller `guest_control_id`, `experience_basis`, `status` (`draft | submitted | ai_checked | needs_manual_review | approved | needs_revision | rejected | withdrawn`), `submitted_at`, `published_at`.
+- `employer_review_targets` — globalt, verifisert vurderingsobjekt med egen `id`. `target_kind`: `juridisk_enhet` (verifisert `company_id`/orgnr), `arbeidsgivervirksomhet` (verifisert underenhet eller annen autoritativ arbeidsstedsidentitet, med `parent_target_id` til juridisk enhet), `konsern` (kun kontrollert global konsernidentitet).
+  - Kanonisk unikhet via partielle unike indekser på aktive objekter (`superseded_at IS NULL`): én aktiv `juridisk_enhet` per verifisert `company_id`, én aktiv `arbeidsgivervirksomhet` per verifisert underenhetsidentitet, én aktiv `konsern` per kontrollert global konsernidentitet. `superseded_at` beholdes for historikk.
+  - Objekter opprettes og endres kun av kontrollert serverlogikk (SECURITY DEFINER). Verken bruker eller gjest har INSERT/UPDATE — aldri fra fri tekst eller LinkedIn-navn.
+- `employer_reviews` — peker på `review_target_id` (ikke bare `company_id`). Felter: `review_target_id`, `user_id` eller `guest_control_id`, `experience_basis`, `numeric_contribution_status` (`draft | eligible_for_aggregate | withdrawn | rejected`), `submitted_at`.
   - CHECK: nøyaktig én forfatteridentitet (`user_id IS NOT NULL) <> (guest_control_id IS NOT NULL`).
   - Partielle unike indekser for aktive vurderinger: (`user_id`, `review_target_id`, `experience_basis`) og (`guest_control_id`, `review_target_id`, `experience_basis`).
 - `employer_review_dimension_scores` — åtte kanoniske dimensjoner, `score` eller `insufficient_basis` (teller ikke som lav score).
-- `employer_review_texts` — fritekst + anonymisert, godkjent utdrag som eget felt.
+- `employer_review_texts` — fritekst, anonymisert utdrag og **egen** publiseringsstatus: `draft | submitted | ai_checked | needs_manual_review | approved | needs_revision | rejected | withdrawn`. Tekststatus påvirker aldri `numeric_contribution_status`, og godkjent numerisk bidrag gjør aldri fritekst synlig.
 - `employer_review_moderation` — AI-flagg (personopplysninger, særlige kategorier, identifiserbare personer, alvorlige påstander, injurier, intern info), modell-/regelversjon, manuell beslutning og beslutningstaker.
 - `employer_review_revisions` — append-only revisjonshistorikk.
 - `employer_review_guest_controls` — engangsverifisering og rate limit. E-post lagres som keyed HMAC (server-hemmelighet), aldri usaltet hash; rå IP lagres aldri permanent, kun HMAC med kort retensjon; rate-limit-rader slettes automatisk. Ingen kontrollopplysning i noen DTO.
@@ -38,7 +40,7 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 
 ### Trinn 3 — Aggregering med personvernterskel
 
-- `employer_review_aggregates` grupperes på `review_target_id` × dimensjon (aldri company_id × scope), og oppdateres av SECURITY DEFINER-RPC ved publisering/tilbaketrekking. Avdeling, selskap og konsern kan dermed ikke blandes.
+- `employer_review_aggregates` grupperes på `review_target_id` × dimensjon (aldri company_id × scope), og oppdateres av SECURITY DEFINER-RPC. Kun numeriske svar med `numeric_contribution_status = 'eligible_for_aggregate'`, verifisert forfatteridentitet og verifisert `review_target_id` teller. Avdeling, selskap og konsern kan ikke blandes.
 - Terskel: minst fem ulike bidragsytere per dimensjon og vurderingsobjekt. Under terskel returneres kun «For få vurderinger til å vise en samlet score».
 - Søker/intervjuet teller kun i «Rekruttering og retensjon». Kunde/partner holdes i eget spor og blandes ikke inn i medarbeideropplevelse.
 - Aggregater leses kun via `get_employer_review_aggregate` — ingen `anon`-grants, ingen klientside-`user_id`.
@@ -47,8 +49,8 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 ### Trinn 4 — Moderering
 
 - Serverfunksjon kjører AI-sjekk (Lovable AI) ved innsending og skriver kun flagg/kategorier — aldri rå prompt — til `employer_review_moderation`.
-- Fast statusflyt i 5I: `draft → submitted → ai_checked → needs_manual_review → approved | needs_revision | rejected | withdrawn`. Fritekst publiseres aldri fordi AI-sjekken ikke fant flagg; alt offentlig tekstutdrag krever eksplisitt manuell godkjenning.
-- Numeriske vurderinger kan inngå i aggregater når øvrige porter er oppfylt, uavhengig av tekstmoderering.
+- Fast tekststatusflyt i 5I: `draft → submitted → ai_checked → needs_manual_review → approved | needs_revision | rejected | withdrawn`. Fritekst publiseres aldri fordi AI-sjekken ikke fant flagg; alt offentlig tekstutdrag krever eksplisitt manuell godkjenning.
+- Tekstmoderering er helt adskilt fra numerisk bidrag: en vurdering med tekst i `needs_manual_review` kan fortsatt ha `numeric_contribution_status = 'eligible_for_aggregate'` og telle i aggregatet.
 - Det bygges en enkel administrativ modereringskø (admin-rolle). Blir køen ikke ferdig i denne leveransen, holdes «Erfaringer fra brukere» skjult.
 - Publisert utdrag er anonymisert, merket «Brukeropplevelse» og vist med grovt tidspunkt, f.eks. «Tidligere ansatt · 2026».
 
