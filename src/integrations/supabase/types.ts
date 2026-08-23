@@ -6112,6 +6112,87 @@ export type Database = {
           },
         ]
       }
+      network_company_reconciliation: {
+        Row: {
+          candidates: Json
+          company_id: string | null
+          confidence: number | null
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          match_method: string | null
+          matcher_version: string
+          normalized_name: string
+          observed_name: string
+          orgnr: string | null
+          rejected_at: string | null
+          source_identity_key: string
+          source_record_id: string
+          source_system: string
+          state: string
+          superseded_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          candidates?: Json
+          company_id?: string | null
+          confidence?: number | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          match_method?: string | null
+          matcher_version?: string
+          normalized_name: string
+          observed_name: string
+          orgnr?: string | null
+          rejected_at?: string | null
+          source_identity_key: string
+          source_record_id: string
+          source_system: string
+          state: string
+          superseded_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          candidates?: Json
+          company_id?: string | null
+          confidence?: number | null
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          match_method?: string | null
+          matcher_version?: string
+          normalized_name?: string
+          observed_name?: string
+          orgnr?: string | null
+          rejected_at?: string | null
+          source_identity_key?: string
+          source_record_id?: string
+          source_system?: string
+          state?: string
+          superseded_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "network_company_reconciliation_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "network_company_reconciliation_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "employer_search_v1"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       network_contact_company_relations: {
         Row: {
           company_id: string | null
@@ -7323,6 +7404,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "survey_versions"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      source_company_resolutions: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          orgnr: string
+          provenance: Json
+          resolution_method: string
+          resolution_version: string
+          resolved_at: string
+          source_identity_key: string
+          source_observed_at: string | null
+          source_record_id: string
+          source_system: string
+          superseded_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          orgnr: string
+          provenance?: Json
+          resolution_method: string
+          resolution_version?: string
+          resolved_at?: string
+          source_identity_key: string
+          source_observed_at?: string | null
+          source_record_id: string
+          source_system: string
+          superseded_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          orgnr?: string
+          provenance?: Json
+          resolution_method?: string
+          resolution_version?: string
+          resolved_at?: string
+          source_identity_key?: string
+          source_observed_at?: string | null
+          source_record_id?: string
+          source_system?: string
+          superseded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "source_company_resolutions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "source_company_resolutions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "employer_search_v1"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -9643,6 +9787,23 @@ export type Database = {
         Args: { p_name: string }
         Returns: string
       }
+      network_company_norm_name: { Args: { p_name: string }; Returns: string }
+      network_company_reconciliation_confirm: {
+        Args: {
+          p_from_register_search?: boolean
+          p_orgnr: string
+          p_reconciliation_id: string
+        }
+        Returns: Json
+      }
+      network_company_reconciliation_scan: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
+      network_company_reconciliation_set_state: {
+        Args: { p_reconciliation_id: string; p_state: string }
+        Returns: Json
+      }
       network_complete_activity: {
         Args: {
           p_activity_id: string
@@ -10050,6 +10211,17 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      source_company_resolution_upsert: {
+        Args: {
+          p_orgnr: string
+          p_provenance?: Json
+          p_resolution_method?: string
+          p_source_observed_at?: string
+          p_source_record_id: string
+          p_source_system: string
+        }
+        Returns: Json
+      }
       sync_user_opportunity_ai_from_legacy: {
         Args: { p_user_id: string }
         Returns: undefined
