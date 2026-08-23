@@ -30,6 +30,8 @@ type Props = {
   isPending: boolean;
   onAnalyzeConfirmed: (row: EmployerSearchRow) => Promise<void>;
   onOpenExisting: (companyId: string) => void;
+  /** Forhåndsutfylt søk når dialogen åpnes (f.eks. selskapsnavnet fra en mulighet). */
+  initialQuery?: string | null;
 };
 
 export function EmployerAnalysisSearchDialog({
@@ -39,6 +41,7 @@ export function EmployerAnalysisSearchDialog({
   isPending,
   onAnalyzeConfirmed,
   onOpenExisting,
+  initialQuery = null,
 }: Props) {
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -46,7 +49,7 @@ export function EmployerAnalysisSearchDialog({
   const [selected, setSelected] = useState<EmployerSearchRow | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
-  // Reset state when dialog closes/opens
+  // Reset state when dialog closes; seed the search from initialQuery when it opens.
   useEffect(() => {
     if (!open) {
       setQuery("");
@@ -54,7 +57,14 @@ export function EmployerAnalysisSearchDialog({
       setStep("search");
       setSelected(null);
       setConfirmed(false);
+      return;
     }
+    const seed = (initialQuery ?? "").trim();
+    if (seed) {
+      setQuery(seed);
+      setDebounced(seed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Debounce search query (350ms), only while dialog is open
