@@ -864,6 +864,15 @@ function JobLeadsPage() {
         </div>
         <div className="flex gap-2 shrink-0">
           <Button
+            onClick={handleSyncMailbox}
+            disabled={syncingMailbox || !emailConnections?.length}
+            variant="outline"
+            title={!emailConnections?.length ? "Ingen aktiv e-posttilkobling" : undefined}
+          >
+            <Mail className={`h-4 w-4 mr-2 ${syncingMailbox ? "animate-spin" : ""}`} />
+            {syncingMailbox ? "Synker e-post…" : "Synk e-post"}
+          </Button>
+          <Button
             onClick={handleScorePending}
             disabled={scoring || sourceFilter === "linkedin"}
             variant="outline"
