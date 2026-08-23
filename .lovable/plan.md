@@ -25,13 +25,16 @@ Bygger videre på eksisterende Arbeidsgiveranalyse (Marked → Arbeidsgiveranaly
 
 Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 
-- `employer_reviews` — én aktiv rad per (bruker/gjest, vurderingsobjekt, erfaringsgrunnlag). Felter: `company_id` (påkrevd for publisering), `organisasjonsnummer`, `scope` (`juridisk_enhet | arbeidsgivervirksomhet | konsern`), `experience_basis`, `status` (`draft | submitted | ai_checked | approved | needs_revision | needs_manual_review | rejected | withdrawn`), `submitted_at`, `published_at`.
+- `employer_review_targets` — globalt, verifisert vurderingsobjekt med egen `id`. `target_kind`: `juridisk_enhet` (verifisert `company_id`/orgnr), `arbeidsgivervirksomhet` (verifisert underenhet eller annen autoritativ arbeidsstedsidentitet, med `parent_target_id` til juridisk enhet), `konsern` (kun kontrollert global konsernidentitet). Objekter opprettes kun av kontrollert serverlogikk, aldri fra fri tekst eller LinkedIn-navn.
+- `employer_reviews` — peker på `review_target_id` (ikke bare `company_id`). Felter: `review_target_id`, `user_id` eller `guest_control_id`, `experience_basis`, `status` (`draft | submitted | ai_checked | needs_manual_review | approved | needs_revision | rejected | withdrawn`), `submitted_at`, `published_at`.
+  - CHECK: nøyaktig én forfatteridentitet (`user_id IS NOT NULL) <> (guest_control_id IS NOT NULL`).
+  - Partielle unike indekser for aktive vurderinger: (`user_id`, `review_target_id`, `experience_basis`) og (`guest_control_id`, `review_target_id`, `experience_basis`).
 - `employer_review_dimension_scores` — åtte kanoniske dimensjoner, `score` eller `insufficient_basis` (teller ikke som lav score).
 - `employer_review_texts` — fritekst + anonymisert, godkjent utdrag som eget felt.
-- `employer_review_moderation` — AI-flagg (personopplysninger, særlige kategorier, identifiserbare personer, alvorlige påstander, injurier, intern info), modell-/regelversjon, manuell beslutning.
+- `employer_review_moderation` — AI-flagg (personopplysninger, særlige kategorier, identifiserbare personer, alvorlige påstander, injurier, intern info), modell-/regelversjon, manuell beslutning og beslutningstaker.
 - `employer_review_revisions` — append-only revisjonshistorikk.
-- `employer_review_guest_controls` — engangsverifisering/rate limit; kontaktopplysning lagres adskilt, aldri i DTO.
-- Transaksjonell migrering av eksisterende `user_company_ratings` inn i modellen med proveniens `legacy_user_company_ratings`; gamle rader beholdes read-only.
+- `employer_review_guest_controls` — engangsverifisering og rate limit. E-post lagres som keyed HMAC (server-hemmelighet), aldri usaltet hash; rå IP lagres aldri permanent, kun HMAC med kort retensjon; rate-limit-rader slettes automatisk. Ingen kontrollopplysning i noen DTO.
+- Transaksjonell migrering av `user_company_ratings` med proveniens `legacy_user_company_ratings`: kun faktisk lagrede svar flyttes. De to dimensjonene som mangler i gammel modell (og alle NULL-verdier) blir `insufficient_basis` — aldri 3.0 eller annen standardverdi. Gamle rader beholdes read-only.
 
 ### Trinn 3 — Aggregering med personvernterskel
 
