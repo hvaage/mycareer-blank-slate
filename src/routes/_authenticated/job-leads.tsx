@@ -41,7 +41,7 @@ const ACCEPTED_MATCH_SCORE_VERSIONS = new Set<string>([
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
-type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
+type SourceFilter = "all" | "linkedin" | "careerjet" | "nav" | "finn" | "other";
 type ExtentFilter = "all" | "full_time" | "part_time" | "unspecified";
 type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim" | "unspecified";
 type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all";
@@ -49,7 +49,7 @@ type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all"
 const HIGH_MATCH_MIN = 70;
 const RELEVANT_MIN = 40;
 
-type LeadSource = "linkedin" | "careerjet" | "nav";
+type LeadSource = "linkedin" | "careerjet" | "nav" | "finn" | "other";
 type ScreeningStatus = "eligible" | "excluded" | "needs_review" | null;
 
 type ScreeningReason = {
