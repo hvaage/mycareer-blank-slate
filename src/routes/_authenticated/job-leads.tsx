@@ -815,7 +815,7 @@ function JobLeadsPage() {
           <p className="text-sm text-muted-foreground mt-1">
             {profile?.listings_last_fetched_at
               ? <>Sist hentet (Careerjet): {fmtDateTime(profile.listings_last_fetched_at)}</>
-              : "LinkedIn-leads kommer fra e-post-synk · Careerjet hentes manuelt"}
+              : "Jobb-e-post fra Gmail/Outlook/videresending · Careerjet + NAV hentes manuelt"}
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
