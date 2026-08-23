@@ -101,6 +101,8 @@ export async function insertCareerAtomFields(
     evidence_atom_ids: fields.evidence_atom_ids,
     confidence: fields.confidence,
     viktighet: fields.viktighet,
+    // Kun manuelle skriveveier er bekreftet ved innlegging; import må bekreftes eksplisitt.
+    user_confirmed: fields.source_type === "manual",
     is_active: true,
   };
   const { data, error } = await supabase
