@@ -453,8 +453,12 @@ function EmployersPage() {
                 job?.status === "rate_limited" &&
                 job.retry_after_at &&
                 new Date(job.retry_after_at) > new Date();
-              const jobFailed = job?.status === "failed";
-              const jobDone = job?.status === "completed";
+              const jobFailed = job?.status === "failed" || job?.status === "invalid_output";
+              const analysisValid =
+                (c as { employer_analysis_output_validation_status?: string | null })
+                  .employer_analysis_output_validation_status === "valid";
+              const jobDone = job?.status === "completed" && analysisValid;
+              const jobInvalid = job?.status === "completed" && !analysisValid;
               const legacyPending = ae?.status === "pending" && !job;
               const legacyFailed = ae?.status === "failed" && !jobFailed;
 
@@ -484,8 +488,16 @@ function EmployersPage() {
                         </span>
                       )}
                       {!jobRunning && !jobRateLimitedWait && jobDone && (
-                        <span className="text-xs text-emerald-600 shrink-0" title="Siste analyse fullført">
+                        <span className="text-xs text-emerald-600 shrink-0" title="Siste analyse fullført og validert">
                           Ferdig
+                        </span>
+                      )}
+                      {!jobRunning && !jobRateLimitedWait && jobInvalid && (
+                        <span
+                          className="text-xs text-amber-700 dark:text-amber-500 shrink-0"
+                          title="Analysen mangler gyldig grunnlag (for eksempel organisasjonsnummer eller innhold)"
+                        >
+                          Ikke gyldig grunnlag
                         </span>
                       )}
                       {!jobRunning && !jobRateLimitedWait && jobFailed && (
@@ -516,7 +528,10 @@ function EmployersPage() {
                   </div>
                   <div className="md:text-right">
                     <span className="md:hidden text-xs text-muted-foreground mr-1">AI selskap:</span>
-                    <EmployerListScore variant="company_ai" value={c.ai_overall_score as number | null} />
+                    <EmployerListScore
+                      variant="company_ai"
+                      value={analysisValid ? (c.ai_overall_score as number | null) : null}
+                    />
                   </div>
                   <div className="md:text-right">
                     <span className="md:hidden text-xs text-muted-foreground mr-1">Match:</span>

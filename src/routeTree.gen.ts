@@ -44,6 +44,7 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAboutMeRouteImport } from './routes/_authenticated/about-me'
 import { Route as SelskapsanalyseAnalysedatabaseIndexRouteImport } from './routes/selskapsanalyse.analysedatabase.index'
 import { Route as RekruttererundersokelseResultaterIndexRouteImport } from './routes/rekruttererundersokelse.resultater.index'
+import { Route as AuthenticatedVurderingAvArbeidsgivereIndexRouteImport } from './routes/_authenticated/vurdering-av-arbeidsgivere/index'
 import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated/onboarding/index'
 import { Route as AuthenticatedOfferAnalysisIndexRouteImport } from './routes/_authenticated/offer-analysis/index'
 import { Route as AuthenticatedNextStepsIndexRouteImport } from './routes/_authenticated/next-steps/index'
@@ -306,6 +307,12 @@ const RekruttererundersokelseResultaterIndexRoute =
     id: '/resultater/',
     path: '/resultater/',
     getParentRoute: () => RekruttererundersokelseRoute,
+  } as any)
+const AuthenticatedVurderingAvArbeidsgivereIndexRoute =
+  AuthenticatedVurderingAvArbeidsgivereIndexRouteImport.update({
+    id: '/vurdering-av-arbeidsgivere/',
+    path: '/vurdering-av-arbeidsgivere/',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedOnboardingIndexRoute =
   AuthenticatedOnboardingIndexRouteImport.update({
@@ -852,6 +859,7 @@ export interface FileRoutesByFullPath {
   '/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
+  '/vurdering-av-arbeidsgivere/': typeof AuthenticatedVurderingAvArbeidsgivereIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
@@ -962,6 +970,7 @@ export interface FileRoutesByTo {
   '/next-steps': typeof AuthenticatedNextStepsIndexRoute
   '/offer-analysis': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
+  '/vurdering-av-arbeidsgivere': typeof AuthenticatedVurderingAvArbeidsgivereIndexRoute
   '/rekruttererundersokelse/resultater': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
@@ -1078,6 +1087,7 @@ export interface FileRoutesById {
   '/_authenticated/next-steps/': typeof AuthenticatedNextStepsIndexRoute
   '/_authenticated/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
+  '/_authenticated/vurdering-av-arbeidsgivere/': typeof AuthenticatedVurderingAvArbeidsgivereIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/_authenticated/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
@@ -1194,6 +1204,7 @@ export interface FileRouteTypes {
     | '/next-steps/'
     | '/offer-analysis/'
     | '/onboarding/'
+    | '/vurdering-av-arbeidsgivere/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
     | '/nettverk/kontakter/$id'
@@ -1304,6 +1315,7 @@ export interface FileRouteTypes {
     | '/next-steps'
     | '/offer-analysis'
     | '/onboarding'
+    | '/vurdering-av-arbeidsgivere'
     | '/rekruttererundersokelse/resultater'
     | '/selskapsanalyse/analysedatabase'
     | '/nettverk/kontakter/$id'
@@ -1419,6 +1431,7 @@ export interface FileRouteTypes {
     | '/_authenticated/next-steps/'
     | '/_authenticated/offer-analysis/'
     | '/_authenticated/onboarding/'
+    | '/_authenticated/vurdering-av-arbeidsgivere/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
     | '/_authenticated/nettverk/kontakter/$id'
@@ -1726,6 +1739,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/rekruttererundersokelse/resultater/'
       preLoaderRoute: typeof RekruttererundersokelseResultaterIndexRouteImport
       parentRoute: typeof RekruttererundersokelseRoute
+    }
+    '/_authenticated/vurdering-av-arbeidsgivere/': {
+      id: '/_authenticated/vurdering-av-arbeidsgivere/'
+      path: '/vurdering-av-arbeidsgivere'
+      fullPath: '/vurdering-av-arbeidsgivere/'
+      preLoaderRoute: typeof AuthenticatedVurderingAvArbeidsgivereIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/onboarding/': {
       id: '/_authenticated/onboarding/'
@@ -2374,6 +2394,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedNextStepsIndexRoute: typeof AuthenticatedNextStepsIndexRoute
   AuthenticatedOfferAnalysisIndexRoute: typeof AuthenticatedOfferAnalysisIndexRoute
   AuthenticatedOnboardingIndexRoute: typeof AuthenticatedOnboardingIndexRoute
+  AuthenticatedVurderingAvArbeidsgivereIndexRoute: typeof AuthenticatedVurderingAvArbeidsgivereIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -2444,6 +2465,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedNextStepsIndexRoute: AuthenticatedNextStepsIndexRoute,
   AuthenticatedOfferAnalysisIndexRoute: AuthenticatedOfferAnalysisIndexRoute,
   AuthenticatedOnboardingIndexRoute: AuthenticatedOnboardingIndexRoute,
+  AuthenticatedVurderingAvArbeidsgivereIndexRoute:
+    AuthenticatedVurderingAvArbeidsgivereIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

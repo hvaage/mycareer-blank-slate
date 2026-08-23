@@ -1546,6 +1546,8 @@ export type Database = {
           created_at: string
           description: string | null
           domain: string | null
+          employer_analysis_output_validated_at: string | null
+          employer_analysis_output_validation_status: string
           employer_analysis_rated_at: string | null
           employer_analysis_source_updated_at: string | null
           employer_analysis_v2: Json | null
@@ -1595,6 +1597,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           domain?: string | null
+          employer_analysis_output_validated_at?: string | null
+          employer_analysis_output_validation_status?: string
           employer_analysis_rated_at?: string | null
           employer_analysis_source_updated_at?: string | null
           employer_analysis_v2?: Json | null
@@ -1644,6 +1648,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           domain?: string | null
+          employer_analysis_output_validated_at?: string | null
+          employer_analysis_output_validation_status?: string
           employer_analysis_rated_at?: string | null
           employer_analysis_source_updated_at?: string | null
           employer_analysis_v2?: Json | null
@@ -3306,6 +3312,368 @@ export type Database = {
           total_dimensions?: number | null
         }
         Relationships: []
+      }
+      employer_review_aggregates: {
+        Row: {
+          average_score: number | null
+          contributor_count: number
+          dimension: Database["public"]["Enums"]["employer_review_dimension"]
+          experience_cohort: Database["public"]["Enums"]["employer_experience_cohort"]
+          id: string
+          insufficient_basis_count: number
+          review_target_id: string
+          updated_at: string
+        }
+        Insert: {
+          average_score?: number | null
+          contributor_count?: number
+          dimension: Database["public"]["Enums"]["employer_review_dimension"]
+          experience_cohort: Database["public"]["Enums"]["employer_experience_cohort"]
+          id?: string
+          insufficient_basis_count?: number
+          review_target_id: string
+          updated_at?: string
+        }
+        Update: {
+          average_score?: number | null
+          contributor_count?: number
+          dimension?: Database["public"]["Enums"]["employer_review_dimension"]
+          experience_cohort?: Database["public"]["Enums"]["employer_experience_cohort"]
+          id?: string
+          insufficient_basis_count?: number
+          review_target_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_review_aggregates_review_target_id_fkey"
+            columns: ["review_target_id"]
+            isOneToOne: false
+            referencedRelation: "employer_review_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_review_dimension_scores: {
+        Row: {
+          created_at: string
+          dimension: Database["public"]["Enums"]["employer_review_dimension"]
+          id: string
+          insufficient_basis: boolean
+          review_id: string
+          score: number | null
+        }
+        Insert: {
+          created_at?: string
+          dimension: Database["public"]["Enums"]["employer_review_dimension"]
+          id?: string
+          insufficient_basis?: boolean
+          review_id: string
+          score?: number | null
+        }
+        Update: {
+          created_at?: string
+          dimension?: Database["public"]["Enums"]["employer_review_dimension"]
+          id?: string
+          insufficient_basis?: boolean
+          review_id?: string
+          score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_review_dimension_scores_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "employer_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_review_guest_controls: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          email_hmac: string
+          id: string
+          ip_hmac: string | null
+          last_attempt_at: string | null
+          otp_expires_at: string | null
+          otp_hash: string | null
+          retention_until: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          email_hmac: string
+          id?: string
+          ip_hmac?: string | null
+          last_attempt_at?: string | null
+          otp_expires_at?: string | null
+          otp_hash?: string | null
+          retention_until?: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          email_hmac?: string
+          id?: string
+          ip_hmac?: string | null
+          last_attempt_at?: string | null
+          otp_expires_at?: string | null
+          otp_hash?: string | null
+          retention_until?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
+      employer_review_moderation: {
+        Row: {
+          ai_checked_at: string | null
+          ai_flags: Json
+          ai_model: string | null
+          created_at: string
+          id: string
+          manual_decided_at: string | null
+          manual_decided_by: string | null
+          manual_decision: string | null
+          review_id: string
+          rule_version: string | null
+        }
+        Insert: {
+          ai_checked_at?: string | null
+          ai_flags?: Json
+          ai_model?: string | null
+          created_at?: string
+          id?: string
+          manual_decided_at?: string | null
+          manual_decided_by?: string | null
+          manual_decision?: string | null
+          review_id: string
+          rule_version?: string | null
+        }
+        Update: {
+          ai_checked_at?: string | null
+          ai_flags?: Json
+          ai_model?: string | null
+          created_at?: string
+          id?: string
+          manual_decided_at?: string | null
+          manual_decided_by?: string | null
+          manual_decision?: string | null
+          review_id?: string
+          rule_version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_review_moderation_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "employer_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_review_revisions: {
+        Row: {
+          created_at: string
+          id: string
+          review_id: string
+          revision_kind: string
+          snapshot: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          review_id: string
+          revision_kind: string
+          snapshot: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          review_id?: string
+          revision_kind?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_review_revisions_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "employer_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_review_targets: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          display_name: string
+          group_identity: string | null
+          id: string
+          organisasjonsnummer: string | null
+          parent_target_id: string | null
+          superseded_at: string | null
+          target_kind: Database["public"]["Enums"]["employer_review_target_kind"]
+          underenhet_identity: string | null
+          verified_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          display_name: string
+          group_identity?: string | null
+          id?: string
+          organisasjonsnummer?: string | null
+          parent_target_id?: string | null
+          superseded_at?: string | null
+          target_kind: Database["public"]["Enums"]["employer_review_target_kind"]
+          underenhet_identity?: string | null
+          verified_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          display_name?: string
+          group_identity?: string | null
+          id?: string
+          organisasjonsnummer?: string | null
+          parent_target_id?: string | null
+          superseded_at?: string | null
+          target_kind?: Database["public"]["Enums"]["employer_review_target_kind"]
+          underenhet_identity?: string | null
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_review_targets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employer_review_targets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "employer_search_v1"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "employer_review_targets_parent_target_id_fkey"
+            columns: ["parent_target_id"]
+            isOneToOne: false
+            referencedRelation: "employer_review_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_review_texts: {
+        Row: {
+          anonymized_excerpt: string | null
+          approved_at: string | null
+          approved_by: string | null
+          body: string
+          created_at: string
+          id: string
+          publication_status: Database["public"]["Enums"]["employer_review_text_status"]
+          review_id: string
+          updated_at: string
+        }
+        Insert: {
+          anonymized_excerpt?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          publication_status?: Database["public"]["Enums"]["employer_review_text_status"]
+          review_id: string
+          updated_at?: string
+        }
+        Update: {
+          anonymized_excerpt?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          publication_status?: Database["public"]["Enums"]["employer_review_text_status"]
+          review_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_review_texts_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: true
+            referencedRelation: "employer_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_reviews: {
+        Row: {
+          created_at: string
+          experience_basis: Database["public"]["Enums"]["employer_experience_basis"]
+          experience_cohort: Database["public"]["Enums"]["employer_experience_cohort"]
+          guest_control_id: string | null
+          id: string
+          is_active: boolean
+          numeric_contribution_status: Database["public"]["Enums"]["employer_review_numeric_status"]
+          provenance: string
+          review_target_id: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          experience_basis: Database["public"]["Enums"]["employer_experience_basis"]
+          experience_cohort: Database["public"]["Enums"]["employer_experience_cohort"]
+          guest_control_id?: string | null
+          id?: string
+          is_active?: boolean
+          numeric_contribution_status?: Database["public"]["Enums"]["employer_review_numeric_status"]
+          provenance?: string
+          review_target_id: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          experience_basis?: Database["public"]["Enums"]["employer_experience_basis"]
+          experience_cohort?: Database["public"]["Enums"]["employer_experience_cohort"]
+          guest_control_id?: string | null
+          id?: string
+          is_active?: boolean
+          numeric_contribution_status?: Database["public"]["Enums"]["employer_review_numeric_status"]
+          provenance?: string
+          review_target_id?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_reviews_guest_control_id_fkey"
+            columns: ["guest_control_id"]
+            isOneToOne: false
+            referencedRelation: "employer_review_guest_controls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employer_reviews_review_target_id_fkey"
+            columns: ["review_target_id"]
+            isOneToOne: false
+            referencedRelation: "employer_review_targets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       interviews: {
         Row: {
@@ -9050,6 +9418,15 @@ export type Database = {
         Returns: boolean
       }
       email_queue_dispatch: { Args: never; Returns: undefined }
+      employer_analysis_output_is_valid: {
+        Args: {
+          p_analysis: Json
+          p_orgnr: string
+          p_rated_at: string
+          p_version: number
+        }
+        Returns: boolean
+      }
       employer_ansatte_distribution: {
         Args: {
           p_arbeidsgiver_type?: string
@@ -9064,6 +9441,44 @@ export type Database = {
           p_query?: string
         }
         Returns: Json
+      }
+      employer_review_cohort_for_basis: {
+        Args: {
+          p_basis: Database["public"]["Enums"]["employer_experience_basis"]
+        }
+        Returns: Database["public"]["Enums"]["employer_experience_cohort"]
+      }
+      employer_review_ensure_target: {
+        Args: { p_company_id: string }
+        Returns: string
+      }
+      employer_review_moderate: {
+        Args: {
+          p_anonymized_excerpt?: string
+          p_decision: string
+          p_review_id: string
+        }
+        Returns: undefined
+      }
+      employer_review_refresh_aggregate: {
+        Args: {
+          p_cohort: Database["public"]["Enums"]["employer_experience_cohort"]
+          p_review_target_id: string
+        }
+        Returns: undefined
+      }
+      employer_review_submit: {
+        Args: {
+          p_experience_basis: Database["public"]["Enums"]["employer_experience_basis"]
+          p_review_target_id: string
+          p_scores: Json
+          p_text?: string
+        }
+        Returns: string
+      }
+      employer_review_withdraw: {
+        Args: { p_review_id: string }
+        Returns: undefined
       }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -9204,6 +9619,17 @@ export type Database = {
       }
       get_employer_regnskap_history: {
         Args: { p_organisasjonsnummer: string }
+        Returns: Json
+      }
+      get_employer_review_aggregate: {
+        Args: {
+          p_cohort?: Database["public"]["Enums"]["employer_experience_cohort"]
+          p_review_target_id: string
+        }
+        Returns: Json
+      }
+      get_my_employer_review: {
+        Args: { p_review_target_id: string }
         Returns: Json
       }
       get_nav_repair_cron_info: {
@@ -10284,6 +10710,49 @@ export type Database = {
         | "completed"
         | "failed"
         | "rate_limited"
+        | "cancelled"
+        | "invalid_output"
+      employer_experience_basis:
+        | "current_employee"
+        | "former_employee"
+        | "contractor"
+        | "applicant"
+        | "interviewed"
+        | "customer"
+        | "partner"
+        | "other"
+      employer_experience_cohort:
+        | "employee_experience"
+        | "candidate_experience"
+        | "external_relationship"
+        | "not_eligible"
+      employer_review_dimension:
+        | "culture"
+        | "leadership"
+        | "work_environment"
+        | "career_development"
+        | "financial_stability"
+        | "mission"
+        | "talent_attraction_retention"
+        | "diversity_inclusion"
+      employer_review_numeric_status:
+        | "draft"
+        | "eligible_for_aggregate"
+        | "withdrawn"
+        | "rejected"
+      employer_review_target_kind:
+        | "juridisk_enhet"
+        | "arbeidsgivervirksomhet"
+        | "konsern"
+      employer_review_text_status:
+        | "draft"
+        | "submitted"
+        | "ai_checked"
+        | "needs_manual_review"
+        | "approved"
+        | "needs_revision"
+        | "rejected"
+        | "withdrawn"
       job_lead_status: "ny" | "avvist" | "promotert" | "arkivert"
       linkedin_endorsement_direction:
         | "received_for_user_skill"
@@ -10510,6 +10979,55 @@ export const Constants = {
         "completed",
         "failed",
         "rate_limited",
+        "cancelled",
+        "invalid_output",
+      ],
+      employer_experience_basis: [
+        "current_employee",
+        "former_employee",
+        "contractor",
+        "applicant",
+        "interviewed",
+        "customer",
+        "partner",
+        "other",
+      ],
+      employer_experience_cohort: [
+        "employee_experience",
+        "candidate_experience",
+        "external_relationship",
+        "not_eligible",
+      ],
+      employer_review_dimension: [
+        "culture",
+        "leadership",
+        "work_environment",
+        "career_development",
+        "financial_stability",
+        "mission",
+        "talent_attraction_retention",
+        "diversity_inclusion",
+      ],
+      employer_review_numeric_status: [
+        "draft",
+        "eligible_for_aggregate",
+        "withdrawn",
+        "rejected",
+      ],
+      employer_review_target_kind: [
+        "juridisk_enhet",
+        "arbeidsgivervirksomhet",
+        "konsern",
+      ],
+      employer_review_text_status: [
+        "draft",
+        "submitted",
+        "ai_checked",
+        "needs_manual_review",
+        "approved",
+        "needs_revision",
+        "rejected",
+        "withdrawn",
       ],
       job_lead_status: ["ny", "avvist", "promotert", "arkivert"],
       linkedin_endorsement_direction: [
