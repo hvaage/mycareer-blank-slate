@@ -97,11 +97,12 @@ Valgt retning (én, ikke to): **egen liten telletabell uten bruker-FK**, sjekket
   brukere. Skriving og telling skjer kun via `supabaseAdmin` i webhook-handleren.
 - Indekser: `(ip_hash, created_at)` og `(alias_hash, created_at)`.
 - Handlerflyt: størrelsesgrense → signaturverifisering → **skriv telle-rad** med
-  `outcome = 'pending'` (nullable ved innsetting, men settes til `pending` først) →
-  to tellinger (per `ip_hash` siste døgn, per `alias_hash` siste time) → 429 ved
-  overskridelse → Zod-validering → aliasoppslag → lagring i `imported_job_emails` →
-  **oppdater telle-rad med endelig `outcome`** (`accepted` / `unknown_alias` /
-  `rejected` / `rate_limited`). All skriving og oppdatering skjer i samme handler-kall.
+  `outcome = 'pending'` og `alias_known = null` → to tellinger (per `ip_hash` siste
+  døgn, per `alias_hash` siste time) → 429 ved overskridelse → Zod-validering →
+  aliasoppslag → lagring i `imported_job_emails` → **oppdater telle-rad med endelig
+  `outcome` og `alias_known`** (`accepted` / `unknown_alias` / `rejected` /
+  `rate_limited`). All skriving og oppdatering skjer i samme handler-kall.
+
 - `imported_job_emails` får ingen `ip_hash`-kolonne og ingen skjemaendring.
 - Rydding: rader eldre enn 30 dager slettes av den daglige driftsjobben (Trinn D).
 
