@@ -6,8 +6,15 @@
 // registertabellene direkte. Ingen score oppdiktes: manglende dimensjoner
 // merkes «Ikke analysert», og manglende regnskapsgrunnlag gir tomtilstand.
 // ============================================================
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import {
+  EmployerAnalysisSearchDialog,
+  type ExistingEmployerMatch,
+} from "@/components/employers/EmployerAnalysisSearchDialog";
+import { myEmployersQuery } from "@/lib/queries/companies";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
