@@ -15,6 +15,8 @@ const CORS_HEADERS = {
 
 const RATE_LIMIT_ALIAS_PER_HOUR = 60;
 const RATE_LIMIT_IP_PER_DAY = 100;
+const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
+
 
 const lovableEmailPayloadSchema = z.object({
   version: z.string().optional(),
@@ -101,10 +103,20 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS_HEADERS }),
 
       POST: async ({ request }) => {
+        // 0. Size guard — first step, before any parsing or DB work.
+        const contentLength = Number(request.headers.get("content-length") ?? "0");
+        if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+          return Response.json(
+            { error: "payload_too_large" },
+            { status: 413, headers: CORS_HEADERS },
+          );
+        }
+
         const ip = getClientIp(request);
         const ipH = ipHash(ip);
         const eventHour = nowHour().toISOString();
         let aliasToken: string | null = null;
+
 
         // 1. Record a pending rate event before any work, so even unknown aliases are counted.
         const { data: pendingEvent, error: pendingError } = await supabaseAdmin

@@ -9889,6 +9889,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      insert_job_lead_dedup: {
+        Args: { p_payload: Json }
+        Returns: {
+          lead_id: string
+          was_inserted: boolean
+        }[]
+      }
       internal_ai_begin_regeneration: {
         Args: { p_import_id: string; p_user_id: string }
         Returns: Json
