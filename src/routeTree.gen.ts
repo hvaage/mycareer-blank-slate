@@ -117,6 +117,7 @@ import { Route as ApiPublicJobsNetworkSuggestionsRouteImport } from './routes/ap
 import { Route as ApiPublicCvAtomizationWorkerRouteImport } from './routes/api/public/cv/atomization-worker'
 import { Route as ApiCvGenerationsJobIdRouteImport } from './routes/api/cv/generations.$jobId'
 import { Route as ApiCvAtomizationJobsJobIdRouteImport } from './routes/api/cv/atomization-jobs.$jobId'
+import { Route as AuthenticatedNettverkSelskaperAvstemmingRouteImport } from './routes/_authenticated/nettverk.selskaper.avstemming'
 import { Route as AuthenticatedNettverkSelskaperIdRouteImport } from './routes/_authenticated/nettverk.selskaper.$id'
 import { Route as AuthenticatedNettverkMuligheterIdRouteImport } from './routes/_authenticated/nettverk.muligheter.$id'
 import { Route as AuthenticatedNettverkKontakterImportRouteImport } from './routes/_authenticated/nettverk.kontakter.import'
@@ -730,6 +731,12 @@ const ApiCvAtomizationJobsJobIdRoute =
     path: '/$jobId',
     getParentRoute: () => ApiCvAtomizationJobsRoute,
   } as any)
+const AuthenticatedNettverkSelskaperAvstemmingRoute =
+  AuthenticatedNettverkSelskaperAvstemmingRouteImport.update({
+    id: '/selskaper/avstemming',
+    path: '/selskaper/avstemming',
+    getParentRoute: () => AuthenticatedNettverkRoute,
+  } as any)
 const AuthenticatedNettverkSelskaperIdRoute =
   AuthenticatedNettverkSelskaperIdRouteImport.update({
     id: '/selskaper/$id',
@@ -851,6 +858,7 @@ export interface FileRoutesByFullPath {
   '/nettverk/kontakter/import': typeof AuthenticatedNettverkKontakterImportRoute
   '/nettverk/muligheter/$id': typeof AuthenticatedNettverkMuligheterIdRoute
   '/nettverk/selskaper/$id': typeof AuthenticatedNettverkSelskaperIdRoute
+  '/nettverk/selskaper/avstemming': typeof AuthenticatedNettverkSelskaperAvstemmingRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
@@ -960,6 +968,7 @@ export interface FileRoutesByTo {
   '/nettverk/kontakter/import': typeof AuthenticatedNettverkKontakterImportRoute
   '/nettverk/muligheter/$id': typeof AuthenticatedNettverkMuligheterIdRoute
   '/nettverk/selskaper/$id': typeof AuthenticatedNettverkSelskaperIdRoute
+  '/nettverk/selskaper/avstemming': typeof AuthenticatedNettverkSelskaperAvstemmingRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
@@ -1075,6 +1084,7 @@ export interface FileRoutesById {
   '/_authenticated/nettverk/kontakter/import': typeof AuthenticatedNettverkKontakterImportRoute
   '/_authenticated/nettverk/muligheter/$id': typeof AuthenticatedNettverkMuligheterIdRoute
   '/_authenticated/nettverk/selskaper/$id': typeof AuthenticatedNettverkSelskaperIdRoute
+  '/_authenticated/nettverk/selskaper/avstemming': typeof AuthenticatedNettverkSelskaperAvstemmingRoute
   '/api/cv/atomization-jobs/$jobId': typeof ApiCvAtomizationJobsJobIdRoute
   '/api/cv/generations/$jobId': typeof ApiCvGenerationsJobIdRoute
   '/api/public/cv/atomization-worker': typeof ApiPublicCvAtomizationWorkerRoute
@@ -1190,6 +1200,7 @@ export interface FileRouteTypes {
     | '/nettverk/kontakter/import'
     | '/nettverk/muligheter/$id'
     | '/nettverk/selskaper/$id'
+    | '/nettverk/selskaper/avstemming'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
@@ -1299,6 +1310,7 @@ export interface FileRouteTypes {
     | '/nettverk/kontakter/import'
     | '/nettverk/muligheter/$id'
     | '/nettverk/selskaper/$id'
+    | '/nettverk/selskaper/avstemming'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
@@ -1413,6 +1425,7 @@ export interface FileRouteTypes {
     | '/_authenticated/nettverk/kontakter/import'
     | '/_authenticated/nettverk/muligheter/$id'
     | '/_authenticated/nettverk/selskaper/$id'
+    | '/_authenticated/nettverk/selskaper/avstemming'
     | '/api/cv/atomization-jobs/$jobId'
     | '/api/cv/generations/$jobId'
     | '/api/public/cv/atomization-worker'
@@ -2225,6 +2238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCvAtomizationJobsJobIdRouteImport
       parentRoute: typeof ApiCvAtomizationJobsRoute
     }
+    '/_authenticated/nettverk/selskaper/avstemming': {
+      id: '/_authenticated/nettverk/selskaper/avstemming'
+      path: '/selskaper/avstemming'
+      fullPath: '/nettverk/selskaper/avstemming'
+      preLoaderRoute: typeof AuthenticatedNettverkSelskaperAvstemmingRouteImport
+      parentRoute: typeof AuthenticatedNettverkRoute
+    }
     '/_authenticated/nettverk/selskaper/$id': {
       id: '/_authenticated/nettverk/selskaper/$id'
       path: '/selskaper/$id'
@@ -2263,6 +2283,7 @@ interface AuthenticatedNettverkRouteChildren {
   AuthenticatedNettverkKontakterImportRoute: typeof AuthenticatedNettverkKontakterImportRoute
   AuthenticatedNettverkMuligheterIdRoute: typeof AuthenticatedNettverkMuligheterIdRoute
   AuthenticatedNettverkSelskaperIdRoute: typeof AuthenticatedNettverkSelskaperIdRoute
+  AuthenticatedNettverkSelskaperAvstemmingRoute: typeof AuthenticatedNettverkSelskaperAvstemmingRoute
   AuthenticatedNettverkAktiviteterIndexRoute: typeof AuthenticatedNettverkAktiviteterIndexRoute
   AuthenticatedNettverkKontakterIndexRoute: typeof AuthenticatedNettverkKontakterIndexRoute
   AuthenticatedNettverkMuligheterIndexRoute: typeof AuthenticatedNettverkMuligheterIndexRoute
@@ -2278,6 +2299,8 @@ const AuthenticatedNettverkRouteChildren: AuthenticatedNettverkRouteChildren = {
   AuthenticatedNettverkMuligheterIdRoute:
     AuthenticatedNettverkMuligheterIdRoute,
   AuthenticatedNettverkSelskaperIdRoute: AuthenticatedNettverkSelskaperIdRoute,
+  AuthenticatedNettverkSelskaperAvstemmingRoute:
+    AuthenticatedNettverkSelskaperAvstemmingRoute,
   AuthenticatedNettverkAktiviteterIndexRoute:
     AuthenticatedNettverkAktiviteterIndexRoute,
   AuthenticatedNettverkKontakterIndexRoute:

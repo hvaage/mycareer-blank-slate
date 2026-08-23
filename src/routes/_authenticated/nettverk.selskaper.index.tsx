@@ -76,14 +76,20 @@ function CompaniesPage() {
         title={`Selskaper (${filtered.length})`}
         className="min-h-0 flex-1"
         actions={
-          <Input
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            placeholder="Filtrer"
-            className="h-8 w-36 md:w-52"
-            aria-label="Filtrer selskaper"
-          />
+          <>
+            <Input
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              placeholder="Filtrer"
+              className="h-8 w-36 md:w-52"
+              aria-label="Filtrer selskaper"
+            />
+            <Button asChild size="sm" variant="outline">
+              <Link to="/nettverk/selskaper/avstemming">Avstem mot registeret</Link>
+            </Button>
+          </>
         }
+
       >
         {isLoading ? (
           <PanelEmpty>Laster selskaper…</PanelEmpty>
