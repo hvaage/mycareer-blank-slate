@@ -87,14 +87,11 @@ export const syncEmailConnection = createServerFn({ method: "POST" })
         continue;
       }
 
-      const sourceSystem =
-        conn.provider === "google" ? "gmail" : conn.provider === "microsoft" ? "outlook" : "other";
-
       try {
         const ingestResult = await ingestParsedEmail({
           userId: context.userId,
           emailJobSourceId: sourceId,
-          sourceSystem,
+          sourceSystem: "other",
           intakeMode: "mailbox",
           emailConnectionId: connectionId,
           providerMessageId: msg.providerMessageId,
