@@ -291,17 +291,23 @@ export async function upsertEvidenceAtom(
     structured_data: structured,
   });
 
+  const sourceType = payload.source ?? "manual";
+  // Manuell registrering under «Min karriere» er brukerens egen bekreftelse.
+  // Import- og KI-forslag går fortsatt via cv_parse_candidates og bekreftes der.
+  const isManual = sourceType === "manual";
+
   const common = {
     atom_kind: "evidens",
     atom_type: atomType,
     parent_atom_id: parent,
     content_no: label,
     structured_data: structured as Json,
-    source_type: payload.source ?? "manual",
+    source_type: sourceType,
     source_ref: payload.source_field ?? null,
     source_quote: payload.description?.trim() || null,
     evidence_atom_ids: pointers,
     viktighet: clamp6(payload.strength_score),
+    ...(isManual ? { confidence: "verified" as const, user_confirmed: true } : {}),
     refreshed_at: now,
     // Evidens forfaller aldri.
     stale_at: null,
