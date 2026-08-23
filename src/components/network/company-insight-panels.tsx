@@ -189,10 +189,16 @@ export function CompanyInsightPanel({
   companyName?: string | null;
 }) {
   const { user } = useAuth();
-  const analysis = useQuery(employerAnalysisViewQuery(orgnr, user?.id ?? "anon"));
-  const detail = useQuery({ ...employerDetailQuery(orgnr ?? ""), enabled: Boolean(orgnr) });
+  // Velger brukeren juridisk enhet i dialogen, leser panelet videre på det orgnr-et.
+  const [pickedOrgnr, setPickedOrgnr] = useState<string | null>(null);
+  const effectiveOrgnr = orgnr ?? pickedOrgnr;
+  const analysis = useQuery(employerAnalysisViewQuery(effectiveOrgnr, user?.id ?? "anon"));
+  const detail = useQuery({
+    ...employerDetailQuery(effectiveOrgnr ?? ""),
+    enabled: Boolean(effectiveOrgnr),
+  });
 
-  if (!orgnr) {
+  if (!effectiveOrgnr) {
     return (
       <NetworkPanel title="Arbeidsgiverinnsikt">
         <PanelEmpty>
@@ -205,6 +211,7 @@ export function CompanyInsightPanel({
             companyName={companyName}
             orgnr={null}
             label="Start arbeidsgiveranalyse"
+            onOrgnrSelected={setPickedOrgnr}
           />
         </div>
       </NetworkPanel>
