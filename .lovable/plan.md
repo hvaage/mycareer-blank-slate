@@ -28,8 +28,10 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 - `employer_review_targets` — globalt, verifisert vurderingsobjekt med egen `id`. `target_kind`: `juridisk_enhet` (verifisert `company_id`/orgnr), `arbeidsgivervirksomhet` (verifisert underenhet eller annen autoritativ arbeidsstedsidentitet, med `parent_target_id` til juridisk enhet), `konsern` (kun kontrollert global konsernidentitet).
   - Kanonisk unikhet via partielle unike indekser på aktive objekter (`superseded_at IS NULL`): én aktiv `juridisk_enhet` per verifisert `company_id`, én aktiv `arbeidsgivervirksomhet` per verifisert underenhetsidentitet, én aktiv `konsern` per kontrollert global konsernidentitet. `superseded_at` beholdes for historikk.
   - Objekter opprettes og endres kun av kontrollert serverlogikk (SECURITY DEFINER). Verken bruker eller gjest har INSERT/UPDATE — aldri fra fri tekst eller LinkedIn-navn.
-- `employer_reviews` — peker på `review_target_id` (ikke bare `company_id`). Felter: `review_target_id`, `user_id` eller `guest_control_id`, `experience_basis`, `numeric_contribution_status` (`draft | eligible_for_aggregate | withdrawn | rejected`), `submitted_at`.
-  - CHECK: nøyaktig én forfatteridentitet (`user_id IS NOT NULL) <> (guest_control_id IS NOT NULL`).
+- `employer_reviews` — peker på `review_target_id` (ikke bare `company_id`). Felter: `review_target_id`, `user_id` eller `guest_control_id`, `experience_basis`, `experience_cohort`, `numeric_contribution_status` (`draft | eligible_for_aggregate | withdrawn | rejected`), `submitted_at`.
+  - `experience_cohort` utledes deterministisk på serveren fra `experience_basis`: `employee_experience` (`current_employee`, `former_employee`, `contractor`), `candidate_experience` (`applicant`, `interviewed`), `external_relationship` (`customer`, `partner`), `not_eligible` (`other` eller ukjent grunnlag). Kohorten settes aldri av klienten.
+  - Vurderinger i `not_eligible` kan lagres som private utkast, men kan aldri få `numeric_contribution_status = 'eligible_for_aggregate'` (håndhevet i RPC og CHECK).
+  - CHECK: nøyaktig én forfatteridentitet — `CHECK ((user_id IS NOT NULL) <> (guest_control_id IS NOT NULL))`.
   - Partielle unike indekser for aktive vurderinger: (`user_id`, `review_target_id`, `experience_basis`) og (`guest_control_id`, `review_target_id`, `experience_basis`).
 - `employer_review_dimension_scores` — åtte kanoniske dimensjoner, `score` eller `insufficient_basis` (teller ikke som lav score).
 - `employer_review_texts` — fritekst, anonymisert utdrag og **egen** publiseringsstatus: `draft | submitted | ai_checked | needs_manual_review | approved | needs_revision | rejected | withdrawn`. Tekststatus påvirker aldri `numeric_contribution_status`, og godkjent numerisk bidrag gjør aldri fritekst synlig.
@@ -40,11 +42,12 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 
 ### Trinn 3 — Aggregering med personvernterskel
 
-- `employer_review_aggregates` grupperes på `review_target_id` × dimensjon (aldri company_id × scope), og oppdateres av SECURITY DEFINER-RPC. Kun numeriske svar med `numeric_contribution_status = 'eligible_for_aggregate'`, verifisert forfatteridentitet og verifisert `review_target_id` teller. Avdeling, selskap og konsern kan ikke blandes.
-- Terskel: minst fem ulike bidragsytere per dimensjon og vurderingsobjekt. Under terskel returneres kun «For få vurderinger til å vise en samlet score».
-- Søker/intervjuet teller kun i «Rekruttering og retensjon». Kunde/partner holdes i eget spor og blandes ikke inn i medarbeideropplevelse.
-- Aggregater leses kun via `get_employer_review_aggregate` — ingen `anon`-grants, ingen klientside-`user_id`.
-- Tilbaketrekking fjerner bidraget fra aggregatet i samme transaksjon.
+- `employer_review_aggregates` grupperes på `review_target_id` × `experience_cohort` × dimensjon (aldri company_id × scope, og aldri kun target × dimensjon), og oppdateres av SECURITY DEFINER-RPC. Kun numeriske svar med `numeric_contribution_status = 'eligible_for_aggregate'`, verifisert forfatteridentitet og verifisert `review_target_id` teller. Avdeling, selskap og konsern kan ikke blandes.
+- Terskel: minst fem ulike kvalifiserte bidragsytere per kohort, vurderingsobjekt og dimensjon. Under terskel returneres kun «For få vurderinger til å vise en samlet score».
+- «Felles vektet vurdering» vises kun når terskelen er oppfylt i den valgte kohorten, og grunnlaget (kohort, antall bidragsytere, dimensjoner) vises tydelig. Er terskelen kun oppfylt for enkelte dimensjoner, vises kun disse dimensjonene — ingen totalvurdering.
+- Visning: «Felles vurdering» i Arbeidsgiveranalysen viser som standard `employee_experience`. `candidate_experience` vises separat som «Erfaringer fra søknadsprosessen» og kan kun inneholde «Rekruttering og retensjon». `external_relationship` vises i eget spor og blandes aldri med arbeidsplassvurderinger. `not_eligible` vises aldri offentlig.
+- Aggregater leses kun via `get_employer_review_aggregate` (kohort som parameter) — ingen `anon`-grants, ingen klientside-`user_id`.
+- Tilbaketrekking fjerner bidraget fra riktig kohortaggregat i samme transaksjon.
 
 ### Trinn 4 — Moderering
 
