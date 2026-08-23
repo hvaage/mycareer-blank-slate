@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import { companyDetailQuery } from "@/lib/queries/companies";
 import { EmployerCommonReview } from "@/components/employers/EmployerCommonReview";
+import { EmployerKeyFacts } from "@/components/employers/EmployerKeyFacts";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -62,11 +63,14 @@ function RouteComponent() {
         ) : null}
       </header>
 
+      <EmployerKeyFacts orgnr={orgnr} />
+
       <EmployerCommonReview
         companyId={companyId}
         orgnr={orgnr}
         companyName={company?.name ?? null}
       />
+
 
       <div>
         <Link to="/employers/$companyId" params={{ companyId }}>

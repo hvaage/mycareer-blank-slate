@@ -98,73 +98,33 @@ function ScoreMarks({ value }: { value: number }) {
   );
 }
 
-function AggregateBlock({ agg }: { agg: AggregateDto }) {
-  const dims = agg.dimensions ?? [];
-  const locked = dims.length === 0;
+/** Andres tekstvurderinger — vises kun når personverntersklene er passert. */
+function OthersTexts({ aggs }: { aggs: AggregateDto[] }) {
+  const items = aggs.flatMap((a) => (a.texts ?? []).map((t) => ({ ...t, cohort: a.cohort })));
+  if (items.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Ingen tekstvurderinger er publisert ennå. Tekst vises først etter godkjenning og når nok
+        bidragsytere har svart.
+      </p>
+    );
+  }
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-medium">{COHORT_LABEL[agg.cohort] ?? agg.cohort}</h3>
-        <span className="text-xs text-muted-foreground">
-          {agg.contributor_count} kvalifiserte bidrag
-        </span>
-      </div>
-
-      {locked ? (
-        <div className="flex items-start gap-2 rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
-          <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <span>
-            Vises når minst {agg.threshold} ulike kvalifiserte bidragsytere har svart på samme
-            dimensjon.
-          </span>
-        </div>
-      ) : (
-        <>
-          {agg.has_weighted_total && typeof agg.weighted_total === "number" ? (
-            <p className="text-sm">
-              Felles vektet vurdering:{" "}
-              <span className="tabular-nums font-medium">{agg.weighted_total.toFixed(1)} / 5</span>{" "}
-              <span className="text-muted-foreground">
-                — basert på {agg.contributor_count} bidragsytere
-              </span>
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Kun dimensjoner som selv oppfyller terskelen vises. Det beregnes ingen totalvurdering.
-            </p>
-          )}
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {dims.map((d) => (
-              <li key={d.dimension} className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">{dimensionLabel(d.dimension)}</span>
-                <span className="flex items-center gap-2">
-                  <ScoreMarks value={Number(d.average_score)} />
-                  <span className="tabular-nums font-medium w-8 text-right">
-                    {Number(d.average_score).toFixed(1)}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {(agg.texts ?? []).length > 0 && (
-        <ul className="space-y-2 pt-1">
-          {agg.texts.map((t, i) => (
-            <li key={i} className="rounded-md border bg-muted/20 p-3 text-sm">
-              <p>{t.excerpt}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {BASIS_OPTIONS.find((b) => b.value === t.basis)?.label ?? t.basis}
-                {t.period ? ` · ${t.period}` : ""}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <ul className="space-y-2">
+      {items.map((t, i) => (
+        <li key={i} className="rounded-md border bg-muted/20 p-3 text-sm">
+          <p>{t.excerpt}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {BASIS_OPTIONS.find((b) => b.value === t.basis)?.label ?? t.basis}
+            {t.period ? ` · ${t.period}` : ""}
+            {COHORT_LABEL[t.cohort] ? ` · ${COHORT_LABEL[t.cohort]}` : ""}
+          </p>
+        </li>
+      ))}
+    </ul>
   );
 }
+
 
 export function EmployerCommonReview({
   companyId,
@@ -232,7 +192,6 @@ export function EmployerCommonReview({
   const [scores, setScores] = useState<Record<string, number>>({});
   const [body, setBody] = useState("");
   const [touched, setTouched] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
 
   const effectiveBasis = touched ? basis : (myReview?.experience_basis ?? basis);
   const cohort = BASIS_OPTIONS.find((b) => b.value === effectiveBasis)?.cohort ?? null;
@@ -310,14 +269,22 @@ export function EmployerCommonReview({
     );
   }
 
-  const showForm = formOpen || !!myReview;
+  const aggs = aggregatesQuery.data ?? [];
+  const activeAgg = aggs.find((a) => a.cohort === (cohort ?? "employee_experience")) ?? null;
+  const avgByDimension = new Map<string, { avg: number; count: number }>();
+  for (const d of activeAgg?.dimensions ?? []) {
+    avgByDimension.set(d.dimension, {
+      avg: Number(d.average_score),
+      count: Number(d.contributor_count),
+    });
+  }
 
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>Vurdering av arbeidsgiver</CardTitle>
+            <CardTitle>Gi din vurdering av selskapet</CardTitle>
             <CardDescription>
               Felles tall er anonymiserte og vises kun over personverntersklene.
             </CardDescription>
@@ -334,148 +301,164 @@ export function EmployerCommonReview({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Andres vurderinger først */}
-        {targetQuery.isPending ? (
-          <p className="text-sm text-muted-foreground">Henter vurderingsobjekt…</p>
-        ) : !targetId ? (
-          <p className="text-sm text-muted-foreground">
-            Ingen vurderinger er registrert på denne arbeidsgiveren ennå. Bli den første.
+        <div className="space-y-2">
+          <Label>Din relasjon til selskapet</Label>
+          <div className="flex flex-wrap gap-2">
+            {BASIS_OPTIONS.map((b) => {
+              const active = effectiveBasis === b.value;
+              return (
+                <Button
+                  key={b.value}
+                  type="button"
+                  size="sm"
+                  variant={active ? "default" : "outline"}
+                  className="rounded-full"
+                  onClick={() => {
+                    setScores(effectiveScores);
+                    setBody(effectiveBody);
+                    setBasis(b.value);
+                    setTouched(true);
+                  }}
+                >
+                  {b.label}
+                </Button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {cohort
+              ? BASIS_HINT[cohort]
+              : "Velg relasjonen som passer best. Ingen verdier er forhåndsutfylt."}
           </p>
-        ) : aggregatesQuery.isPending ? (
-          <p className="text-sm text-muted-foreground">Henter felles vurdering…</p>
-        ) : (
-          <div className="grid gap-3">
-            {(aggregatesQuery.data ?? []).map((agg) => (
-              <AggregateBlock key={agg.cohort} agg={agg} />
-            ))}
-          </div>
-        )}
+        </div>
 
-        {!showForm ? (
-          <div className="border-t pt-5">
-            <Button onClick={() => setFormOpen(true)}>Gi din vurdering</Button>
-          </div>
-        ) : (
-          <div className="space-y-5 border-t pt-5">
-            <div className="space-y-2">
-              <Label>Din relasjon til selskapet</Label>
-              <div className="flex flex-wrap gap-2">
-                {BASIS_OPTIONS.map((b) => {
-                  const active = effectiveBasis === b.value;
-                  return (
-                    <Button
-                      key={b.value}
-                      type="button"
-                      size="sm"
-                      variant={active ? "default" : "outline"}
-                      className="rounded-full"
-                      onClick={() => {
-                        setScores(effectiveScores);
-                        setBody(effectiveBody);
-                        setBasis(b.value);
+        {effectiveBasis ? (
+          <div className="space-y-5">
+            <div className="hidden gap-6 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[1fr_14rem]">
+              <span>Din vurdering</span>
+              <span>Andre brukeres snitt</span>
+            </div>
+
+            {allowedDimensions.map((d) => {
+              const v = effectiveScores[d.key];
+              const rated = typeof v === "number";
+              const other = avgByDimension.get(d.key) ?? null;
+              return (
+                <div
+                  key={d.key}
+                  className="grid gap-3 border-b pb-4 last:border-b-0 sm:grid-cols-[1fr_14rem] sm:gap-6"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label>{d.label}</Label>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={cn(
+                            "text-sm tabular-nums",
+                            rated ? "text-foreground" : "text-muted-foreground",
+                          )}
+                        >
+                          {rated ? `${v} / 5` : "Ikke vurdert"}
+                        </span>
+                        {rated && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              setScores(() => {
+                                const next = { ...effectiveScores };
+                                delete next[d.key];
+                                return next;
+                              });
+                              setTouched(true);
+                            }}
+                          >
+                            Ikke nok grunnlag
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <Slider
+                      aria-label={d.label}
+                      value={[rated ? v : 3]}
+                      min={1}
+                      max={5}
+                      step={1}
+                      className={cn(!rated && "opacity-50")}
+                      onValueChange={([nv]) => {
+                        setScores({ ...effectiveScores, [d.key]: nv });
                         setTouched(true);
                       }}
-                    >
-                      {b.label}
-                    </Button>
-                  );
-                })}
-              </div>
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 sm:justify-end">
+                    {other ? (
+                      <>
+                        <ScoreMarks value={other.avg} />
+                        <span className="tabular-nums text-sm font-medium">
+                          {other.avg.toFixed(1)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">({other.count})</span>
+                      </>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Lock className="h-3.5 w-3.5" aria-hidden /> For få svar
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="space-y-2">
+              <Label htmlFor="review-body">Din vurdering av {navn}</Label>
+              <Textarea
+                id="review-body"
+                rows={4}
+                value={effectiveBody}
+                placeholder={`Beskriv erfaringen din med ${navn}. Teksten blir moderert før den eventuelt vises for andre.`}
+                onChange={(e) => {
+                  setScores(effectiveScores);
+                  setBody(e.target.value);
+                  setTouched(true);
+                }}
+              />
               <p className="text-xs text-muted-foreground">
-                {cohort
-                  ? BASIS_HINT[cohort]
-                  : "Velg relasjonen som passer best. Ingen verdier er forhåndsutfylt."}
+                Fritekst vises for andre først etter manuell godkjenning og når kohorten har nok
+                bidragsytere.
               </p>
             </div>
 
-            {effectiveBasis ? (
-              <div className="grid gap-5">
-                {allowedDimensions.map((d) => {
-                  const v = effectiveScores[d.key];
-                  const rated = typeof v === "number";
-                  return (
-                    <div key={d.key} className="space-y-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <Label>{d.label}</Label>
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={cn(
-                              "text-sm tabular-nums",
-                              rated ? "text-foreground" : "text-muted-foreground",
-                            )}
-                          >
-                            {rated ? `${v} / 5` : "Ikke vurdert"}
-                          </span>
-                          {rated && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs"
-                              onClick={() => {
-                                setScores(() => {
-                                  const next = { ...effectiveScores };
-                                  delete next[d.key];
-                                  return next;
-                                });
-                                setTouched(true);
-                              }}
-                            >
-                              Ikke nok grunnlag
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      <Slider
-                        aria-label={d.label}
-                        value={[rated ? v : 3]}
-                        min={1}
-                        max={5}
-                        step={1}
-                        className={cn(!rated && "opacity-50")}
-                        onValueChange={([nv]) => {
-                          setScores({ ...effectiveScores, [d.key]: nv });
-                          setTouched(true);
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-
-                <div className="space-y-2">
-                  <Label htmlFor="review-body">Din vurdering av {navn}</Label>
-                  <Textarea
-                    id="review-body"
-                    rows={4}
-                    value={effectiveBody}
-                    placeholder={`Beskriv erfaringen din med ${navn}. Teksten blir moderert før den eventuelt vises for andre.`}
-                    onChange={(e) => {
-                      setScores(effectiveScores);
-                      setBody(e.target.value);
-                      setTouched(true);
-                    }}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Fritekst vises for andre først etter manuell godkjenning og når kohorten har nok
-                    bidragsytere.
-                  </p>
-                </div>
-
-                <div>
-                  <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
-                    {submit.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="mr-2 h-4 w-4" />
-                    )}
-                    Lagre vurdering
-                  </Button>
-                </div>
-              </div>
-            ) : null}
+            <div>
+              <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
+                {submit.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Lagre vurdering
+              </Button>
+            </div>
           </div>
-        )}
+        ) : null}
+
+        <div className="space-y-3 border-t pt-5">
+          <h3 className="text-sm font-medium">Vurderinger fra andre brukere</h3>
+          {targetQuery.isPending || aggregatesQuery.isPending ? (
+            <p className="text-sm text-muted-foreground">Henter vurderinger…</p>
+          ) : !targetId ? (
+            <p className="text-sm text-muted-foreground">
+              Ingen vurderinger er registrert på denne arbeidsgiveren ennå. Bli den første.
+            </p>
+          ) : (
+            <OthersTexts aggs={aggs} />
+          )}
+        </div>
       </CardContent>
     </Card>
   );
 }
+
