@@ -240,7 +240,7 @@ export function CompanyInsightPanel({
           <StartAnalysisButton
             companyId={companyId}
             companyName={companyName}
-            orgnr={orgnr}
+            orgnr={effectiveOrgnr}
             label="Start arbeidsgiveranalyse"
           />
         </div>
@@ -325,7 +325,7 @@ export function CompanyInsightPanel({
           <StartAnalysisButton
             companyId={companyId}
             companyName={companyName}
-            orgnr={orgnr}
+            orgnr={effectiveOrgnr}
             label="Oppdater arbeidsgiveranalyse"
           />
         </div>
