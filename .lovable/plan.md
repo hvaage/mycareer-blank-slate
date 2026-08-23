@@ -62,11 +62,11 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 ## Verifikasjon før rapport
 
 - Read-only revisjon av alle analyser vist som Ferdig; rapport med run-status, gyldig rapport ja/nei, kilde til score, og rader med konstruerte verdier.
-- Syntetiske rollback-tester: gjesteinnsending, AI-flagg for personopplysninger, tilbakeholdt alvorlig påstand, godkjent anonymisert tekst, terskel 4 vs. 5 bidragsytere, tilbaketrekking, kryssbrukerlesing av rå vurdering og privat notat.
+- Syntetiske rollback-tester: gjesteinnsending, CHECK på nøyaktig én forfatteridentitet, AI-flagg for personopplysninger, tilbakeholdt alvorlig påstand, tekst som krever manuell godkjenning før visning, terskel 4 vs. 5 bidragsytere, tilbaketrekking, aggregat som ikke blander avdeling/selskap/konsern, kryssbrukerlesing av rå vurdering og privat notat.
 - UI-verifikasjon med reell innlogget økt på desktop og mobil: ingen horisontal overflow, ingen konsollfeil, ingen tomme/falske scorefelt.
 
 ## Tolkninger
 
 - «succeeded» implementeres mot eksisterende `completed`-verdi i enum-en, med `cancelled` og `invalid_output` som nye verdier (ingen destruktiv omdøping av historiske rader).
-- Gjestekontroll løses med e-post-engangskode + IP-basert rate limit; e-posten lagres hashet og adskilt fra vurderingen.
-- `arbeidsgivervirksomhet` og `konsern` bygges i skjema og RPC nå, men kan bare velges når verifisert global identitet finnes; ellers er kun `juridisk_enhet` valgbar.
+- Gjestekontroll løses med e-post-engangskode og rate limit; både e-post og IP lagres kun som keyed HMAC med kort retensjon, adskilt fra vurderingen.
+- `arbeidsgivervirksomhet` og `konsern` bygges i skjema og RPC nå, men kan bare velges når et verifisert `employer_review_target` finnes; ellers er kun `juridisk_enhet` valgbar.
