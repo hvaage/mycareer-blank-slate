@@ -29,7 +29,7 @@ Ny flate «Selskapsavstemming» under Nettverksarbeid → Selskaper.
 - Mulige kandidater åpnes enkeltvis med kandidatliste og søkefelt, samme mønster som «Finn ny arbeidsgiver».
 - Bekreftelsesdialog med antall før noe skrives. Avhukinger overlever søk og filtrering.
 - Etter kjøring: antall koblet, hoppet over, avvist og feilet, med sanitert forklaring per feil. Ett forslag som feiler påvirker aldri de andre.
-- Brukeren kan markere «ikke aktuelt» — da spørres det ikke igjen for det navnet.
+- Brukeren kan markere «ikke aktuelt». Valget lagres mot den konkrete kildeobservasjonen, slik at det ikke blokkerer andre selskaper med samme navn.
 
 ## Datamodell og skrivelag
 
