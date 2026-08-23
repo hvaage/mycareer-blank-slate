@@ -219,6 +219,9 @@ function JobLeadsPage() {
   const [engagementFilter, setEngagementFilter] = useState<EngagementFilter>("all");
   const [fetching, setFetching] = useState(false);
   const [scoring, setScoring] = useState(false);
+  const [syncingMailbox, setSyncingMailbox] = useState(false);
+  const doSyncMailbox = useServerFn(syncEmailConnection);
+
 
   const { data: profile } = useQuery({
     queryKey: ["profile-jobprefs", user?.id],
