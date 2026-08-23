@@ -98,73 +98,33 @@ function ScoreMarks({ value }: { value: number }) {
   );
 }
 
-function AggregateBlock({ agg }: { agg: AggregateDto }) {
-  const dims = agg.dimensions ?? [];
-  const locked = dims.length === 0;
+/** Andres tekstvurderinger — vises kun når personverntersklene er passert. */
+function OthersTexts({ aggs }: { aggs: AggregateDto[] }) {
+  const items = aggs.flatMap((a) => (a.texts ?? []).map((t) => ({ ...t, cohort: a.cohort })));
+  if (items.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Ingen tekstvurderinger er publisert ennå. Tekst vises først etter godkjenning og når nok
+        bidragsytere har svart.
+      </p>
+    );
+  }
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-medium">{COHORT_LABEL[agg.cohort] ?? agg.cohort}</h3>
-        <span className="text-xs text-muted-foreground">
-          {agg.contributor_count} kvalifiserte bidrag
-        </span>
-      </div>
-
-      {locked ? (
-        <div className="flex items-start gap-2 rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
-          <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <span>
-            Vises når minst {agg.threshold} ulike kvalifiserte bidragsytere har svart på samme
-            dimensjon.
-          </span>
-        </div>
-      ) : (
-        <>
-          {agg.has_weighted_total && typeof agg.weighted_total === "number" ? (
-            <p className="text-sm">
-              Felles vektet vurdering:{" "}
-              <span className="tabular-nums font-medium">{agg.weighted_total.toFixed(1)} / 5</span>{" "}
-              <span className="text-muted-foreground">
-                — basert på {agg.contributor_count} bidragsytere
-              </span>
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Kun dimensjoner som selv oppfyller terskelen vises. Det beregnes ingen totalvurdering.
-            </p>
-          )}
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {dims.map((d) => (
-              <li key={d.dimension} className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">{dimensionLabel(d.dimension)}</span>
-                <span className="flex items-center gap-2">
-                  <ScoreMarks value={Number(d.average_score)} />
-                  <span className="tabular-nums font-medium w-8 text-right">
-                    {Number(d.average_score).toFixed(1)}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      {(agg.texts ?? []).length > 0 && (
-        <ul className="space-y-2 pt-1">
-          {agg.texts.map((t, i) => (
-            <li key={i} className="rounded-md border bg-muted/20 p-3 text-sm">
-              <p>{t.excerpt}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {BASIS_OPTIONS.find((b) => b.value === t.basis)?.label ?? t.basis}
-                {t.period ? ` · ${t.period}` : ""}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <ul className="space-y-2">
+      {items.map((t, i) => (
+        <li key={i} className="rounded-md border bg-muted/20 p-3 text-sm">
+          <p>{t.excerpt}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {BASIS_OPTIONS.find((b) => b.value === t.basis)?.label ?? t.basis}
+            {t.period ? ` · ${t.period}` : ""}
+            {COHORT_LABEL[t.cohort] ? ` · ${COHORT_LABEL[t.cohort]}` : ""}
+          </p>
+        </li>
+      ))}
+    </ul>
   );
 }
+
 
 export function EmployerCommonReview({
   companyId,
