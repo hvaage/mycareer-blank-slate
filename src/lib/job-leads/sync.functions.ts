@@ -45,7 +45,8 @@ export const syncEmailConnection = createServerFn({ method: "POST" })
         .insert({
           user_id: context.userId,
           email_connection_id: connectionId,
-          provider: conn.provider,
+          source_system: "other",
+          intake_mode: "mailbox",
           status: "active",
           is_forwarding_address: false,
         })
