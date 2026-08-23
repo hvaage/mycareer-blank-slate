@@ -9452,6 +9452,10 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: string
       }
+      employer_review_ensure_target_by_orgnr: {
+        Args: { p_organisasjonsnummer: string }
+        Returns: Json
+      }
       employer_review_moderate: {
         Args: {
           p_anonymized_excerpt?: string
@@ -9466,6 +9470,13 @@ export type Database = {
           p_review_target_id: string
         }
         Returns: undefined
+      }
+      employer_review_search_status: {
+        Args: { p_organisasjonsnumre: string[] }
+        Returns: {
+          has_public_aggregate: boolean
+          organisasjonsnummer: string
+        }[]
       }
       employer_review_submit: {
         Args: {
