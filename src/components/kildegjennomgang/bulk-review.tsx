@@ -155,14 +155,15 @@ export function BulkReviewList({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:flex sm:flex-wrap">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Søk i navn"
-            className="sm:max-w-64"
+            className="w-full sm:max-w-64"
             aria-label="Søk i forslag"
           />
+
           <div className="flex shrink-0 flex-wrap gap-1">
             <Button
               size="sm"
