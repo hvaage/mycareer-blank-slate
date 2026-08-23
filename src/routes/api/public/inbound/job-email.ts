@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createHash } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import { z } from "zod";
 import { WebhookError, verifyWebhookRequest } from "@lovable.dev/webhooks-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
