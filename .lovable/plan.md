@@ -13,11 +13,13 @@ Bygger videre på eksisterende Arbeidsgiveranalyse (Marked → Arbeidsgiveranaly
 
 ### Trinn 1 — Analyseintegritet (retting av eksisterende flate)
 
-- Utvid jobbstatus med `cancelled` og `invalid_output`; innfør serverside-validering som setter `invalid_output` når rapporten mangler dimensjoner/tidspunkt.
-- «Ferdig» krever: status `succeeded`/`completed` + gyldig `employer_analysis_v2` + `employer_analysis_rated_at` + verifisert `organisasjonsnummer`. Ellers ingen badge, ingen AI-score, ingen match, ingen dimensjonsscore — verken i liste eller detalj.
+- Utvid jobbstatus med `cancelled` og `invalid_output`; innfør serverside-validering av analyseoutput.
+- Nye, eksplisitte felt: `output_validation_status` og `output_validated_at`. De settes kun etter serverside-validering av rapportinnhold, analyseversjon, analysetidspunkt og verifisert organisasjonsnummer. Semantikken til `employer_analysis_rated_at` verifiseres først, og feltet brukes kun som visningsdato dersom det faktisk betyr analysetidspunkt.
+- «Ferdig» krever terminal suksess-status + `output_validation_status = 'valid'`. Brukervurderinger er aldri en forutsetning for at en KI-/registeranalyse regnes som vellykket.
+- Ved ikke-validert output: ingen badge, ingen AI-score, ingen match, ingen dimensjonsscore — verken i liste eller detalj.
 - Eldre vellykket analyse + nyere feilet forsøk vises adskilt: «Siste analyse: <dato>» pluss egen linje «Seneste forsøk feilet».
 - Fjern alle frontend-fallbacks (3, 4.1, 1.0) — `EmployerListScore` og detaljsiden viser «Ikke vurdert» / «Ikke nok data».
-- Rett OLIVIA-tilfellet: analyser uten verifisert orgnr markeres `invalid_output` og skjules som ferdig; start-knappen krever valgt registerenhet (samme dialog som i Muligheter).
+- Rett OLIVIA-tilfellet: analyser uten verifisert orgnr får `output_validation_status = 'invalid'` og vises ikke som ferdig; start-knappen krever valgt registerenhet (samme dialog som i Muligheter).
 
 ### Trinn 2 — Kanonisk vurderingsmodell (migrering, ikke kopi)
 
