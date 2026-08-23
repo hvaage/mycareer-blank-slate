@@ -322,7 +322,7 @@ function EmployersPage() {
       <header className="flex items-start gap-3 flex-wrap">
         <Building2 className="h-6 w-6 text-primary shrink-0 mt-1" />
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight">Arbeidsgivere</h1>
+          <h1 className="text-xl sm:text-2xl font-display font-bold tracking-tight">Arbeidsgiveranalyser</h1>
           <p className="text-sm text-muted-foreground">
             Selskaper du har søkt på, vurdert eller fått AI-analyse av
           </p>
