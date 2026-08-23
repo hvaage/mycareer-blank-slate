@@ -62,11 +62,14 @@ function RouteComponent() {
         ) : null}
       </header>
 
+      <EmployerKeyFacts orgnr={orgnr} />
+
       <EmployerCommonReview
         companyId={companyId}
         orgnr={orgnr}
         companyName={company?.name ?? null}
       />
+
 
       <div>
         <Link to="/employers/$companyId" params={{ companyId }}>
