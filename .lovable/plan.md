@@ -40,7 +40,7 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 
 ### Trinn 3 — Aggregering med personvernterskel
 
-- `employer_review_aggregates` grupperes på `review_target_id` × dimensjon (aldri company_id × scope), og oppdateres av SECURITY DEFINER-RPC ved publisering/tilbaketrekking. Avdeling, selskap og konsern kan dermed ikke blandes.
+- `employer_review_aggregates` grupperes på `review_target_id` × dimensjon (aldri company_id × scope), og oppdateres av SECURITY DEFINER-RPC. Kun numeriske svar med `numeric_contribution_status = 'eligible_for_aggregate'`, verifisert forfatteridentitet og verifisert `review_target_id` teller. Avdeling, selskap og konsern kan ikke blandes.
 - Terskel: minst fem ulike bidragsytere per dimensjon og vurderingsobjekt. Under terskel returneres kun «For få vurderinger til å vise en samlet score».
 - Søker/intervjuet teller kun i «Rekruttering og retensjon». Kunde/partner holdes i eget spor og blandes ikke inn i medarbeideropplevelse.
 - Aggregater leses kun via `get_employer_review_aggregate` — ingen `anon`-grants, ingen klientside-`user_id`.
