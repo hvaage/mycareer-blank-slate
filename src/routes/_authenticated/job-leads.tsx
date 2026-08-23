@@ -83,7 +83,7 @@ function hasEmptyEvidenceBasis(summary: RequirementSummary): boolean {
 
 type Lead = {
   id: string;
-  rowKind: "linkedin" | "careerjet" | "nav";
+  rowKind: "linkedin" | "careerjet" | "nav" | "finn" | "other";
   rowId: string;
   cjBackend?: "uo" | "legacy";
   source: LeadSource;
