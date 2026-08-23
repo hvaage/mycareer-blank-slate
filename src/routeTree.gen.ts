@@ -70,6 +70,7 @@ import { Route as ApiInternalCvGenerationWorkerRouteImport } from './routes/api/
 import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
 import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generations'
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
+import { Route as AuthenticatedVurderingAvArbeidsgivereCompanyIdRouteImport } from './routes/_authenticated/vurdering-av-arbeidsgivere/$companyId'
 import { Route as AuthenticatedNettverkOversiktRouteImport } from './routes/_authenticated/nettverk.oversikt'
 import { Route as AuthenticatedMinProfilKarriereretningRouteImport } from './routes/_authenticated/min-profil/karriereretning'
 import { Route as AuthenticatedMinProfilImportgjennomgangRouteImport } from './routes/_authenticated/min-profil/importgjennomgang'
@@ -457,6 +458,12 @@ const ApiCvAtomizationJobsRoute = ApiCvAtomizationJobsRouteImport.update({
   path: '/api/cv/atomization-jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute =
+  AuthenticatedVurderingAvArbeidsgivereCompanyIdRouteImport.update({
+    id: '/vurdering-av-arbeidsgivere/$companyId',
+    path: '/vurdering-av-arbeidsgivere/$companyId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedNettverkOversiktRoute =
   AuthenticatedNettverkOversiktRouteImport.update({
     id: '/oversikt',
@@ -834,6 +841,7 @@ export interface FileRoutesByFullPath {
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
+  '/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -945,6 +953,7 @@ export interface FileRoutesByTo {
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
+  '/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -1062,6 +1071,7 @@ export interface FileRoutesById {
   '/_authenticated/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/_authenticated/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
   '/_authenticated/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
+  '/_authenticated/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -1179,6 +1189,7 @@ export interface FileRouteTypes {
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
     | '/nettverk/oversikt'
+    | '/vurdering-av-arbeidsgivere/$companyId'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1290,6 +1301,7 @@ export interface FileRouteTypes {
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
     | '/nettverk/oversikt'
+    | '/vurdering-av-arbeidsgivere/$companyId'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1406,6 +1418,7 @@ export interface FileRouteTypes {
     | '/_authenticated/min-profil/importgjennomgang'
     | '/_authenticated/min-profil/karriereretning'
     | '/_authenticated/nettverk/oversikt'
+    | '/_authenticated/vurdering-av-arbeidsgivere/$companyId'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1922,6 +1935,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCvAtomizationJobsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/vurdering-av-arbeidsgivere/$companyId': {
+      id: '/_authenticated/vurdering-av-arbeidsgivere/$companyId'
+      path: '/vurdering-av-arbeidsgivere/$companyId'
+      fullPath: '/vurdering-av-arbeidsgivere/$companyId'
+      preLoaderRoute: typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/nettverk/oversikt': {
       id: '/_authenticated/nettverk/oversikt'
       path: '/oversikt'
@@ -2381,6 +2401,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMinProfilImporterCvRoute: typeof AuthenticatedMinProfilImporterCvRoute
   AuthenticatedMinProfilImportgjennomgangRoute: typeof AuthenticatedMinProfilImportgjennomgangRoute
   AuthenticatedMinProfilKarriereretningRoute: typeof AuthenticatedMinProfilKarriereretningRoute
+  AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute: typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedApplicationsIndexRoute: typeof AuthenticatedApplicationsIndexRoute
   AuthenticatedCvBuilderIndexRoute: typeof AuthenticatedCvBuilderIndexRoute
@@ -2452,6 +2473,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedMinProfilImportgjennomgangRoute,
   AuthenticatedMinProfilKarriereretningRoute:
     AuthenticatedMinProfilKarriereretningRoute,
+  AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute:
+    AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedApplicationsIndexRoute: AuthenticatedApplicationsIndexRoute,
   AuthenticatedCvBuilderIndexRoute: AuthenticatedCvBuilderIndexRoute,
