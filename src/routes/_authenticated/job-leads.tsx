@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { StartApplicationButton } from "@/components/network/start-application-button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -23,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { fmtRelative, fmtDateTime } from "@/lib/format";
 import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/careerjet-links";
+import { syncEmailConnection } from "@/lib/job-leads/sync.functions";
 
 export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
