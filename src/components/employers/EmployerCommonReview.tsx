@@ -1,5 +1,5 @@
 /**
- * Felles vurdering og «Min vurdering» for en verifisert arbeidsgiver.
+ * Felles vurdering og egen vurdering for en verifisert arbeidsgiver.
  *
  * Regler:
  * - Ingen forhåndsutfylte verdier. Uvurderte dimensjoner er «ikke nok grunnlag».
@@ -10,20 +10,15 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Lock, Save } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 const DIMENSIONS: Array<{ key: string; label: string }> = [
   { key: "culture", label: "Kultur" },
@@ -41,7 +36,7 @@ const BASIS_OPTIONS: Array<{ value: string; label: string; cohort: string }> = [
   { value: "former_employee", label: "Tidligere ansatt", cohort: "employee_experience" },
   { value: "contractor", label: "Innleid eller konsulent", cohort: "employee_experience" },
   { value: "applicant", label: "Har søkt jobb", cohort: "candidate_experience" },
-  { value: "interviewed", label: "Har vært til intervju", cohort: "candidate_experience" },
+  { value: "interviewed", label: "Vært til intervju", cohort: "candidate_experience" },
   { value: "customer", label: "Kunde", cohort: "external_relationship" },
   { value: "partner", label: "Samarbeidspartner", cohort: "external_relationship" },
   { value: "other", label: "Annet grunnlag", cohort: "not_eligible" },
@@ -51,6 +46,15 @@ const COHORT_LABEL: Record<string, string> = {
   employee_experience: "Erfaring som ansatt",
   candidate_experience: "Erfaringer fra søknadsprosessen",
   external_relationship: "Erfaring som kunde eller partner",
+};
+
+const BASIS_HINT: Record<string, string> = {
+  candidate_experience:
+    "Søkererfaring vurderer kun rekruttering og retensjon, og vises i en egen kohort.",
+  external_relationship:
+    "Erfaring som kunde eller partner vises i en egen kohort, adskilt fra ansattes vurderinger.",
+  not_eligible: "Dette grunnlaget lagres som privat utkast og inngår ikke i felles tall.",
+  employee_experience: "Vurderingen inngår anonymt i fellestallene for ansattes erfaring.",
 };
 
 type AggregateDto = {
@@ -76,21 +80,44 @@ function dimensionLabel(key: string) {
   return DIMENSIONS.find((d) => d.key === key)?.label ?? key;
 }
 
+/** Fem-trinns markører — gjør snittet lesbart uten å tolke tallet. */
+function ScoreMarks({ value }: { value: number }) {
+  const filled = Math.round(value);
+  return (
+    <span className="flex items-center gap-1" aria-hidden>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span
+          key={i}
+          className={cn(
+            "h-2.5 w-2.5 rounded-full",
+            i <= filled ? "bg-primary" : "bg-muted-foreground/20",
+          )}
+        />
+      ))}
+    </span>
+  );
+}
+
 function AggregateBlock({ agg }: { agg: AggregateDto }) {
   const dims = agg.dimensions ?? [];
+  const locked = dims.length === 0;
   return (
-    <div className="space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
+    <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium">{COHORT_LABEL[agg.cohort] ?? agg.cohort}</h3>
         <span className="text-xs text-muted-foreground">
           {agg.contributor_count} kvalifiserte bidrag
         </span>
       </div>
-      {dims.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Felles vurdering vises først når minst {agg.threshold} ulike kvalifiserte bidragsytere har
-          svart på samme dimensjon.
-        </p>
+
+      {locked ? (
+        <div className="flex items-start gap-2 rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            Vises når minst {agg.threshold} ulike kvalifiserte bidragsytere har svart på samme
+            dimensjon.
+          </span>
+        </div>
       ) : (
         <>
           {agg.has_weighted_total && typeof agg.weighted_total === "number" ? (
@@ -98,7 +125,7 @@ function AggregateBlock({ agg }: { agg: AggregateDto }) {
               Felles vektet vurdering:{" "}
               <span className="tabular-nums font-medium">{agg.weighted_total.toFixed(1)} / 5</span>{" "}
               <span className="text-muted-foreground">
-                — basert på {agg.contributor_count} bidragsytere i denne kohorten
+                — basert på {agg.contributor_count} bidragsytere
               </span>
             </p>
           ) : (
@@ -106,14 +133,14 @@ function AggregateBlock({ agg }: { agg: AggregateDto }) {
               Kun dimensjoner som selv oppfyller terskelen vises. Det beregnes ingen totalvurdering.
             </p>
           )}
-          <ul className="grid gap-1 sm:grid-cols-2">
+          <ul className="grid gap-2 sm:grid-cols-2">
             {dims.map((d) => (
               <li key={d.dimension} className="flex items-center justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">{dimensionLabel(d.dimension)}</span>
-                <span className="tabular-nums font-medium">
-                  {Number(d.average_score).toFixed(1)}{" "}
-                  <span className="text-xs font-normal text-muted-foreground">
-                    ({d.contributor_count})
+                <span className="flex items-center gap-2">
+                  <ScoreMarks value={Number(d.average_score)} />
+                  <span className="tabular-nums font-medium w-8 text-right">
+                    {Number(d.average_score).toFixed(1)}
                   </span>
                 </span>
               </li>
@@ -121,8 +148,9 @@ function AggregateBlock({ agg }: { agg: AggregateDto }) {
           </ul>
         </>
       )}
+
       {(agg.texts ?? []).length > 0 && (
-        <ul className="space-y-2">
+        <ul className="space-y-2 pt-1">
           {agg.texts.map((t, i) => (
             <li key={i} className="rounded-md border bg-muted/20 p-3 text-sm">
               <p>{t.excerpt}</p>
@@ -141,12 +169,15 @@ function AggregateBlock({ agg }: { agg: AggregateDto }) {
 export function EmployerCommonReview({
   companyId,
   orgnr,
+  companyName,
 }: {
   companyId: string;
   orgnr: string | null;
+  companyName?: string | null;
 }) {
   const qc = useQueryClient();
   const verified = !!orgnr && /^\d{9}$/.test(orgnr);
+  const navn = (companyName ?? "").trim() || "selskapet";
 
   const targetQuery = useQuery({
     queryKey: ["employer-review-target", companyId],
@@ -201,6 +232,7 @@ export function EmployerCommonReview({
   const [scores, setScores] = useState<Record<string, number>>({});
   const [body, setBody] = useState("");
   const [touched, setTouched] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   const effectiveBasis = touched ? basis : (myReview?.experience_basis ?? basis);
   const cohort = BASIS_OPTIONS.find((b) => b.value === effectiveBasis)?.cohort ?? null;
@@ -221,9 +253,14 @@ export function EmployerCommonReview({
 
   const effectiveBody = touched ? body : (myReview?.text?.body ?? "");
 
+  const totalContributors = (aggregatesQuery.data ?? []).reduce(
+    (n, a) => n + (a?.contributor_count ?? 0),
+    0,
+  );
+
   const submit = useMutation({
     mutationFn: async () => {
-      if (!effectiveBasis) throw new Error("Velg erfaringsgrunnlag");
+      if (!effectiveBasis) throw new Error("Velg din relasjon til selskapet");
       let resolvedTarget = targetId;
       if (!resolvedTarget) {
         // Serveren oppretter vurderingsobjektet kun for verifisert organisasjonsnummer.
@@ -273,163 +310,171 @@ export function EmployerCommonReview({
     );
   }
 
+  const showForm = formOpen || !!myReview;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Vurdering av arbeidsgiver</CardTitle>
-        <CardDescription>
-          Felles tall er anonymiserte og vises kun over personverntersklene. Din egen vurdering er
-          alltid synlig for deg.
-        </CardDescription>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>Vurdering av arbeidsgiver</CardTitle>
+            <CardDescription>
+              Felles tall er anonymiserte og vises kun over personverntersklene.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {totalContributors > 0 && (
+              <Badge variant="secondary" className="whitespace-nowrap">
+                {totalContributors} vurdering{totalContributors === 1 ? "" : "er"}
+              </Badge>
+            )}
+            {myReview && <Badge variant="outline">Du har vurdert</Badge>}
+          </div>
+        </div>
       </CardHeader>
+
       <CardContent className="space-y-6">
+        {/* Andres vurderinger først */}
         {targetQuery.isPending ? (
           <p className="text-sm text-muted-foreground">Henter vurderingsobjekt…</p>
         ) : !targetId ? (
           <p className="text-sm text-muted-foreground">
-            Ingen vurderinger er registrert på denne arbeidsgiveren ennå.
+            Ingen vurderinger er registrert på denne arbeidsgiveren ennå. Bli den første.
           </p>
+        ) : aggregatesQuery.isPending ? (
+          <p className="text-sm text-muted-foreground">Henter felles vurdering…</p>
         ) : (
-          <div className="space-y-6">
-            {aggregatesQuery.isPending ? (
-              <p className="text-sm text-muted-foreground">Henter felles vurdering…</p>
-            ) : (
-              (aggregatesQuery.data ?? []).map((agg) => <AggregateBlock key={agg.cohort} agg={agg} />)
-            )}
+          <div className="grid gap-3">
+            {(aggregatesQuery.data ?? []).map((agg) => (
+              <AggregateBlock key={agg.cohort} agg={agg} />
+            ))}
           </div>
         )}
 
-        <div className="space-y-4 border-t pt-5">
-          <div className="space-y-2">
-            <Label>Min vurdering — erfaringsgrunnlag</Label>
-            <Select
-              value={effectiveBasis}
-              onValueChange={(v) => {
-                setTouched(true);
-                setBasis(v);
-                setScores(effectiveScores);
-                setBody(effectiveBody);
-              }}
-            >
-              <SelectTrigger className="max-w-sm">
-                <SelectValue placeholder="Velg grunnlag" />
-              </SelectTrigger>
-              <SelectContent>
-                {BASIS_OPTIONS.map((b) => (
-                  <SelectItem key={b.value} value={b.value}>
-                    {b.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {cohort === "not_eligible" && (
-              <p className="text-xs text-muted-foreground">
-                Dette grunnlaget lagres som privat utkast og inngår ikke i felles tall.
-              </p>
-            )}
+        {!showForm ? (
+          <div className="border-t pt-5">
+            <Button onClick={() => setFormOpen(true)}>Gi din vurdering</Button>
           </div>
+        ) : (
+          <div className="space-y-5 border-t pt-5">
+            <div className="space-y-2">
+              <Label>Din relasjon til selskapet</Label>
+              <div className="flex flex-wrap gap-2">
+                {BASIS_OPTIONS.map((b) => {
+                  const active = effectiveBasis === b.value;
+                  return (
+                    <Button
+                      key={b.value}
+                      type="button"
+                      size="sm"
+                      variant={active ? "default" : "outline"}
+                      className="rounded-full"
+                      onClick={() => {
+                        setScores(effectiveScores);
+                        setBody(effectiveBody);
+                        setBasis(b.value);
+                        setTouched(true);
+                      }}
+                    >
+                      {b.label}
+                    </Button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {cohort
+                  ? BASIS_HINT[cohort]
+                  : "Velg relasjonen som passer best. Ingen verdier er forhåndsutfylt."}
+              </p>
+            </div>
 
-          {effectiveBasis ? (
-            <div className="grid gap-4">
-              {allowedDimensions.map((d) => {
-                const v = effectiveScores[d.key];
-                const rated = typeof v === "number";
-                return (
-                  <div key={d.key} className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <Label>{d.label}</Label>
-                      {rated ? (
+            {effectiveBasis ? (
+              <div className="grid gap-5">
+                {allowedDimensions.map((d) => {
+                  const v = effectiveScores[d.key];
+                  const rated = typeof v === "number";
+                  return (
+                    <div key={d.key} className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label>{d.label}</Label>
                         <div className="flex items-center gap-3">
-                          <span className="text-sm tabular-nums text-muted-foreground">
-                            {v} / 5
+                          <span
+                            className={cn(
+                              "text-sm tabular-nums",
+                              rated ? "text-foreground" : "text-muted-foreground",
+                            )}
+                          >
+                            {rated ? `${v} / 5` : "Ikke vurdert"}
                           </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => {
-                              setTouched(true);
-                              setScores(() => {
-                                const next = { ...effectiveScores };
-                                delete next[d.key];
-                                return next;
-                              });
-                            }}
-                          >
-                            Ikke nok grunnlag
-                          </Button>
+                          {rated && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                setScores(() => {
+                                  const next = { ...effectiveScores };
+                                  delete next[d.key];
+                                  return next;
+                                });
+                                setTouched(true);
+                              }}
+                            >
+                              Ikke nok grunnlag
+                            </Button>
+                          )}
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm text-muted-foreground">Ikke nok grunnlag</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
-                            onClick={() => {
-                              setTouched(true);
-                              setScores({ ...effectiveScores, [d.key]: 3 });
-                            }}
-                          >
-                            Gi vurdering
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    {rated && (
+                      </div>
                       <Slider
-                        value={[v]}
+                        aria-label={d.label}
+                        value={[rated ? v : 3]}
                         min={1}
                         max={5}
                         step={1}
+                        className={cn(!rated && "opacity-50")}
                         onValueChange={([nv]) => {
-                          setTouched(true);
                           setScores({ ...effectiveScores, [d.key]: nv });
+                          setTouched(true);
                         }}
                       />
+                    </div>
+                  );
+                })}
+
+                <div className="space-y-2">
+                  <Label htmlFor="review-body">Din vurdering av {navn}</Label>
+                  <Textarea
+                    id="review-body"
+                    rows={4}
+                    value={effectiveBody}
+                    placeholder={`Beskriv erfaringen din med ${navn}. Teksten blir moderert før den eventuelt vises for andre.`}
+                    onChange={(e) => {
+                      setScores(effectiveScores);
+                      setBody(e.target.value);
+                      setTouched(true);
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Fritekst vises for andre først etter manuell godkjenning og når kohorten har nok
+                    bidragsytere.
+                  </p>
+                </div>
+
+                <div>
+                  <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
+                    {submit.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
                     )}
-                  </div>
-                );
-              })}
-
-              <div className="space-y-2">
-                <Label htmlFor="review-body">Fritekst (valgfritt)</Label>
-                <Textarea
-                  id="review-body"
-                  rows={3}
-                  value={effectiveBody}
-                  placeholder="Beskriv erfaringen din. Teksten blir moderert før den eventuelt vises for andre."
-                  onChange={(e) => {
-                    setTouched(true);
-                    setScores(effectiveScores);
-                    setBody(e.target.value);
-                  }}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Fritekst vises for andre først etter manuell godkjenning og når kohorten har nok
-                  bidragsytere.
-                </p>
+                    Lagre vurdering
+                  </Button>
+                </div>
               </div>
-
-              <div>
-                <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
-                  {submit.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  Lagre vurdering
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Velg erfaringsgrunnlag for å gi en vurdering. Ingen verdier er forhåndsutfylt.
-            </p>
-          )}
-        </div>
+            ) : null}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
