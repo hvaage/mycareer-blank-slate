@@ -127,7 +127,10 @@ function RouteComponent() {
       }
       setRecent(next);
 
-      await navigate({ to: "/employers/$companyId", params: { companyId } });
+      await navigate({
+        to: "/vurdering-av-arbeidsgivere/$companyId",
+        params: { companyId },
+      });
     } catch (e) {
       toast.error(
         e instanceof Error && e.message.includes("employer_not_found")
