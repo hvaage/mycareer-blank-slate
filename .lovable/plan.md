@@ -55,8 +55,10 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 - Serverfunksjon kjører AI-sjekk (Lovable AI) ved innsending og skriver kun flagg/kategorier — aldri rå prompt — til `employer_review_moderation`.
 - Fast tekststatusflyt i 5I: `draft → submitted → ai_checked → needs_manual_review → approved | needs_revision | rejected | withdrawn`. Fritekst publiseres aldri fordi AI-sjekken ikke fant flagg; alt offentlig tekstutdrag krever eksplisitt manuell godkjenning.
 - Tekstmoderering er helt adskilt fra numerisk bidrag: en vurdering med tekst i `needs_manual_review` kan fortsatt ha `numeric_contribution_status = 'eligible_for_aggregate'` og telle i aggregatet.
+- Godkjente fritekstutdrag blir ikke offentlige før minst fem kvalifiserte bidragsytere finnes for samme `review_target_id` og `experience_cohort`. Under terskelen kan teksten være moderert og lagret, men den vises ikke for andre brukere — dette gjelder også «Tidligere ansatt · 2026»-visningen.
 - Det bygges en enkel administrativ modereringskø (admin-rolle). Blir køen ikke ferdig i denne leveransen, holdes «Erfaringer fra brukere» skjult.
 - Publisert utdrag er anonymisert, merket «Brukeropplevelse» og vist med grovt tidspunkt, f.eks. «Tidligere ansatt · 2026».
+- Gjesteflyten går kun gjennom kontrollerte serverendepunkter. Ingen rå gjestekontroll, e-post-HMAC, IP-HMAC, rå vurdering eller modereringsdata eksponeres i offentlige DTO-er eller logger.
 
 ### Trinn 5 — UI
 
