@@ -38,8 +38,8 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 
 ### Trinn 3 — Aggregering med personvernterskel
 
-- `employer_review_aggregates` (materialisert per company_id × scope × dimensjon) oppdateres av SECURITY DEFINER-RPC ved publisering/tilbaketrekking.
-- Terskel: minst fem ulike bidragsytere per dimensjon, objekt og omfang. Under terskel returneres kun «For få vurderinger til å vise en samlet score».
+- `employer_review_aggregates` grupperes på `review_target_id` × dimensjon (aldri company_id × scope), og oppdateres av SECURITY DEFINER-RPC ved publisering/tilbaketrekking. Avdeling, selskap og konsern kan dermed ikke blandes.
+- Terskel: minst fem ulike bidragsytere per dimensjon og vurderingsobjekt. Under terskel returneres kun «For få vurderinger til å vise en samlet score».
 - Søker/intervjuet teller kun i «Rekruttering og retensjon». Kunde/partner holdes i eget spor og blandes ikke inn i medarbeideropplevelse.
 - Aggregater leses kun via `get_employer_review_aggregate` — ingen `anon`-grants, ingen klientside-`user_id`.
 - Tilbaketrekking fjerner bidraget fra aggregatet i samme transaksjon.
@@ -47,7 +47,9 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 ### Trinn 4 — Moderering
 
 - Serverfunksjon kjører AI-sjekk (Lovable AI) ved innsending og skriver kun flagg/kategorier — aldri rå prompt — til `employer_review_moderation`.
-- Ingen fritekst publiseres automatisk ved flagg: rutes til `needs_manual_review` eller `needs_revision` tilbake til forfatteren.
+- Fast statusflyt i 5I: `draft → submitted → ai_checked → needs_manual_review → approved | needs_revision | rejected | withdrawn`. Fritekst publiseres aldri fordi AI-sjekken ikke fant flagg; alt offentlig tekstutdrag krever eksplisitt manuell godkjenning.
+- Numeriske vurderinger kan inngå i aggregater når øvrige porter er oppfylt, uavhengig av tekstmoderering.
+- Det bygges en enkel administrativ modereringskø (admin-rolle). Blir køen ikke ferdig i denne leveransen, holdes «Erfaringer fra brukere» skjult.
 - Publisert utdrag er anonymisert, merket «Brukeropplevelse» og vist med grovt tidspunkt, f.eks. «Tidligere ansatt · 2026».
 
 ### Trinn 5 — UI
