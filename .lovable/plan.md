@@ -42,11 +42,12 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 
 ### Trinn 3 — Aggregering med personvernterskel
 
-- `employer_review_aggregates` grupperes på `review_target_id` × dimensjon (aldri company_id × scope), og oppdateres av SECURITY DEFINER-RPC. Kun numeriske svar med `numeric_contribution_status = 'eligible_for_aggregate'`, verifisert forfatteridentitet og verifisert `review_target_id` teller. Avdeling, selskap og konsern kan ikke blandes.
-- Terskel: minst fem ulike bidragsytere per dimensjon og vurderingsobjekt. Under terskel returneres kun «For få vurderinger til å vise en samlet score».
-- Søker/intervjuet teller kun i «Rekruttering og retensjon». Kunde/partner holdes i eget spor og blandes ikke inn i medarbeideropplevelse.
-- Aggregater leses kun via `get_employer_review_aggregate` — ingen `anon`-grants, ingen klientside-`user_id`.
-- Tilbaketrekking fjerner bidraget fra aggregatet i samme transaksjon.
+- `employer_review_aggregates` grupperes på `review_target_id` × `experience_cohort` × dimensjon (aldri company_id × scope, og aldri kun target × dimensjon), og oppdateres av SECURITY DEFINER-RPC. Kun numeriske svar med `numeric_contribution_status = 'eligible_for_aggregate'`, verifisert forfatteridentitet og verifisert `review_target_id` teller. Avdeling, selskap og konsern kan ikke blandes.
+- Terskel: minst fem ulike kvalifiserte bidragsytere per kohort, vurderingsobjekt og dimensjon. Under terskel returneres kun «For få vurderinger til å vise en samlet score».
+- «Felles vektet vurdering» vises kun når terskelen er oppfylt i den valgte kohorten, og grunnlaget (kohort, antall bidragsytere, dimensjoner) vises tydelig. Er terskelen kun oppfylt for enkelte dimensjoner, vises kun disse dimensjonene — ingen totalvurdering.
+- Visning: «Felles vurdering» i Arbeidsgiveranalysen viser som standard `employee_experience`. `candidate_experience` vises separat som «Erfaringer fra søknadsprosessen» og kan kun inneholde «Rekruttering og retensjon». `external_relationship` vises i eget spor og blandes aldri med arbeidsplassvurderinger. `not_eligible` vises aldri offentlig.
+- Aggregater leses kun via `get_employer_review_aggregate` (kohort som parameter) — ingen `anon`-grants, ingen klientside-`user_id`.
+- Tilbaketrekking fjerner bidraget fra riktig kohortaggregat i samme transaksjon.
 
 ### Trinn 4 — Moderering
 
