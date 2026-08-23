@@ -15,6 +15,8 @@ const CORS_HEADERS = {
 
 const RATE_LIMIT_ALIAS_PER_HOUR = 60;
 const RATE_LIMIT_IP_PER_DAY = 100;
+const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
+
 
 const lovableEmailPayloadSchema = z.object({
   version: z.string().optional(),
