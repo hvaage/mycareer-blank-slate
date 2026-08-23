@@ -96,9 +96,12 @@ function CompanyDetailPage() {
     refetch: envelopeRefetch,
   } = useQuery(employerAnalysisViewQuery(orgnr, userKey));
 
-  // K5: hasAnalysis utledes utelukkende fra V2-envelope.
+  // K5: hasAnalysis utledes utelukkende fra V2-envelope, og krever validert utdata.
+  const analysisValidated =
+    (company as { employer_analysis_output_validation_status?: string | null } | undefined)
+      ?.employer_analysis_output_validation_status === "valid";
   const hasAnalysis =
-    !!envelope?.analysis && !!envelope?.company?.analysis_rated_at;
+    !!envelope?.analysis && !!envelope?.company?.analysis_rated_at && analysisValidated;
 
   // K4: invalider også V2-query når jobben endrer status terminalt.
   useEffect(() => {
@@ -129,10 +132,11 @@ function CompanyDetailPage() {
 
   useEffect(() => {
     if (myRating) {
+      // Kun reelle, lagrede verdier fylles inn. Manglende svar forblir uvurdert.
       const next: Record<string, number> = {};
       USER_RATING_DIMENSIONS.forEach(({ key }) => {
         const v = (myRating as any)[key];
-        next[key as string] = typeof v === "number" ? v : 3;
+        if (typeof v === "number") next[key as string] = v;
       });
       setScores(next);
       setNotes(myRating.user_notes ?? "");
@@ -142,9 +146,7 @@ function CompanyDetailPage() {
         worked_here: !!myRating.worked_here,
       });
     } else {
-      const empty: Record<string, number> = {};
-      USER_RATING_DIMENSIONS.forEach(({ key }) => (empty[key as string] = 3));
-      setScores(empty);
+      setScores({});
       setNotes("");
       setFlags({ applied_here: false, interviewed_here: false, worked_here: false });
     }
@@ -416,7 +418,7 @@ function CompanyDetailPage() {
             </div>
           </div>
         </div>
-      ) : envelope ? (
+      ) : envelope && analysisValidated ? (
         <EmployerAnalysisReportV2
           envelope={envelope}
           mode="authenticated"
@@ -441,7 +443,9 @@ function CompanyDetailPage() {
               ? "Mangler organisasjonsnummer på selskapet — kan ikke vise arbeidsgiveranalyse."
               : envelopePending
                 ? "Henter arbeidsgiveranalyse…"
-                : "Ingen arbeidsgiveranalyse tilgjengelig."}
+                : envelope
+                  ? "Analysen mangler gyldig grunnlag og vises ikke. Start analysen på nytt med verifisert organisasjonsnummer."
+                  : "Ingen arbeidsgiveranalyse tilgjengelig."}
           </div>
         </div>
       )}
@@ -460,22 +464,57 @@ function CompanyDetailPage() {
           <div className="grid gap-5">
             {USER_RATING_DIMENSIONS.map(({ key, label }) => {
               const k = key as string;
-              const v = scores[k] ?? 3;
+              const v = scores[k];
+              const rated = typeof v === "number";
               return (
                 <div key={k} className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <Label>{label}</Label>
-                    <span className="text-sm tabular-nums text-muted-foreground">
-                      {v.toFixed(1)} / 5
-                    </span>
+                    {rated ? (
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm tabular-nums text-muted-foreground">
+                          {v.toFixed(1)} / 5
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() =>
+                            setScores((s) => {
+                              const next = { ...s };
+                              delete next[k];
+                              return next;
+                            })
+                          }
+                        >
+                          Ikke nok grunnlag
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-muted-foreground">Ikke vurdert</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setScores((s) => ({ ...s, [k]: 3 }))}
+                        >
+                          Gi vurdering
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <Slider
-                    value={[v]}
-                    min={1}
-                    max={5}
-                    step={0.5}
-                    onValueChange={([nv]) => setScores((s) => ({ ...s, [k]: nv }))}
-                  />
+                  {rated ? (
+                    <Slider
+                      value={[v]}
+                      min={1}
+                      max={5}
+                      step={0.5}
+                      onValueChange={([nv]) => setScores((s) => ({ ...s, [k]: nv }))}
+                    />
+                  ) : null}
                 </div>
               );
             })}
@@ -517,6 +556,8 @@ function CompanyDetailPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <EmployerCommonReview companyId={companyId} orgnr={orgnr} />
 
       {/* Brukersnitt */}
       <Card>
