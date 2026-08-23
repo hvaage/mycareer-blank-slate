@@ -32,8 +32,9 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
   - `experience_cohort` utledes deterministisk på serveren fra `experience_basis`: `employee_experience` (`current_employee`, `former_employee`, `contractor`), `candidate_experience` (`applicant`, `interviewed`), `external_relationship` (`customer`, `partner`), `not_eligible` (`other` eller ukjent grunnlag). Kohorten settes aldri av klienten.
   - Vurderinger i `not_eligible` kan lagres som private utkast, men kan aldri få `numeric_contribution_status = 'eligible_for_aggregate'` (håndhevet i RPC og CHECK).
   - CHECK: nøyaktig én forfatteridentitet — `CHECK ((user_id IS NOT NULL) <> (guest_control_id IS NOT NULL))`.
-  - Partielle unike indekser for aktive vurderinger: (`user_id`, `review_target_id`, `experience_basis`) og (`guest_control_id`, `review_target_id`, `experience_basis`).
-- `employer_review_dimension_scores` — åtte kanoniske dimensjoner, `score` eller `insufficient_basis` (teller ikke som lav score).
+  - Partielle unike indekser for aktive vurderinger: (`user_id`, `review_target_id`, `experience_basis`) og (`guest_control_id`, `review_target_id`, `experience_basis`). Revisjon erstatter den aktive vurderingen — den skaper aldri et ekstra aggregatbidrag.
+  - Både OTP-verifisert gjest og innlogget bruker kan lagre en vurdering, men `eligible_for_aggregate` settes først etter serverside kontroll av rate-limit, duplikatvern og integritetsregler. Klienten kan aldri sette statusen.
+- `employer_review_dimension_scores` — åtte kanoniske dimensjoner. CHECK håndhever nøyaktig ett av: `score` heltall 1–5, eller `insufficient_basis = true`; både eller ingen avvises. `insufficient_basis` teller ikke som lav score. Endring, tilbaketrekking og modereringsavvisning oppdaterer berørt kohortaggregat i samme transaksjon.
 - `employer_review_texts` — fritekst, anonymisert utdrag og **egen** publiseringsstatus: `draft | submitted | ai_checked | needs_manual_review | approved | needs_revision | rejected | withdrawn`. Tekststatus påvirker aldri `numeric_contribution_status`, og godkjent numerisk bidrag gjør aldri fritekst synlig.
 - `employer_review_moderation` — AI-flagg (personopplysninger, særlige kategorier, identifiserbare personer, alvorlige påstander, injurier, intern info), modell-/regelversjon, manuell beslutning og beslutningstaker.
 - `employer_review_revisions` — append-only revisjonshistorikk.
@@ -54,8 +55,10 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 - Serverfunksjon kjører AI-sjekk (Lovable AI) ved innsending og skriver kun flagg/kategorier — aldri rå prompt — til `employer_review_moderation`.
 - Fast tekststatusflyt i 5I: `draft → submitted → ai_checked → needs_manual_review → approved | needs_revision | rejected | withdrawn`. Fritekst publiseres aldri fordi AI-sjekken ikke fant flagg; alt offentlig tekstutdrag krever eksplisitt manuell godkjenning.
 - Tekstmoderering er helt adskilt fra numerisk bidrag: en vurdering med tekst i `needs_manual_review` kan fortsatt ha `numeric_contribution_status = 'eligible_for_aggregate'` og telle i aggregatet.
+- Godkjente fritekstutdrag blir ikke offentlige før minst fem kvalifiserte bidragsytere finnes for samme `review_target_id` og `experience_cohort`. Under terskelen kan teksten være moderert og lagret, men den vises ikke for andre brukere — dette gjelder også «Tidligere ansatt · 2026»-visningen.
 - Det bygges en enkel administrativ modereringskø (admin-rolle). Blir køen ikke ferdig i denne leveransen, holdes «Erfaringer fra brukere» skjult.
 - Publisert utdrag er anonymisert, merket «Brukeropplevelse» og vist med grovt tidspunkt, f.eks. «Tidligere ansatt · 2026».
+- Gjesteflyten går kun gjennom kontrollerte serverendepunkter. Ingen rå gjestekontroll, e-post-HMAC, IP-HMAC, rå vurdering eller modereringsdata eksponeres i offentlige DTO-er eller logger.
 
 ### Trinn 5 — UI
 
