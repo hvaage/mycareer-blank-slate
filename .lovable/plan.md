@@ -63,6 +63,26 @@ Når annonse- eller mulighetsgrunnlaget allerede inneholder organisasjonsnummer,
 - `authenticated` får kun `SELECT` på egne rader. `INSERT`, `UPDATE` og `DELETE` går utelukkende gjennom de kanoniske RPC-ene med `auth.uid()`-kontroll. Ingen `anon`-rettigheter.
 - Unike indekser hindrer: to aktive koblinger for samme bruker og samme kildeobservasjon, doble `user_company_relationships` for samme bruker og selskap, og doble globale selskaper for samme organisasjonsnummer.
 
+## Globalt kildekoblingslag
+
+I tillegg til den brukerscopede koblingstabellen opprettes et globalt, proveniensbevarende koblingslag for autoritative kilder: `source_company_resolutions` med `source_system`, `source_record_id` eller stabil `source_identity_key`, `company_id`, `orgnr`, `resolution_method`, `source_observed_at`, `resolved_at`, `provenance`/`evidence`, `resolution_version` og `superseded_at`.
+
+- Unikhet hindrer mer enn én aktiv global kobling per (`source_system`, `source_record_id`).
+- Laget brukes bare når kilden selv gir en sikker identitet — særlig organisasjonsnummer fra jobbannonse, arbeidsgiverregister eller annen autoritativ kilde. Koblingen valideres mot registerspeilet før lagring.
+- Koblinger med `match_method = source_orgnr` skrives både globalt i `source_company_resolutions`, slik at alle brukere gjenbruker samme verifiserte selskapskobling for samme annonse/kilde, og til brukerens egen relasjon når brukeren faktisk har en kontakt, mulighet eller annen relasjon til selskapet.
+- LinkedIn-observasjoner, navneforslag og brukerens individuelle bekreftelser skriver aldri til `source_company_resolutions`. De forblir brukerscopede til en kilde er verifisert gjennom autoritativ dokumentasjon eller kontrollert intern kvalitetssikring.
+- Frontend leser ikke den globale tabellen direkte. Den eksponeres gjennom kontrollerte serverfunksjoner og DTO-er uten brukerdata.
+
+## Fundament for neste fase — felles arbeidsgivervurderinger
+
+- Bare vurderinger med verifisert `company_id` kan inngå i en felles arbeidsgivervurdering.
+- Hver vurdering skal ha et eksplisitt omfang: `juridisk_enhet`, `arbeidsgivervirksomhet` eller `konsern`. Standard er `juridisk_enhet`.
+- Vurderinger uten verifisert `company_id` lagres eventuelt som private og venter på identitetsavstemming, men inngår aldri i aggregert score eller arbeidsgiveranalyse før koblingen er bekreftet.
+- Brukerens navnematch gjør aldri en global kobling eller vurdering gyldig for andre brukere.
+
+Neste fase etter 5H er 5I — arbeidsgivervurderinger og felles, avgrenset aggregering bygget på verifisert `company_id` og vurderingsomfang.
+
+
 
 ## Effekt på selskapsdetaljen
 
