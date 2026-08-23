@@ -445,8 +445,8 @@ function CompanyDetailPage() {
               : envelopePending
                 ? "Henter arbeidsgiveranalyse…"
                 : envelope
-                  ? "Analysen mangler gyldig grunnlag og vises ikke. Start analysen på nytt med verifisert organisasjonsnummer."
-                  : "Ingen arbeidsgiveranalyse tilgjengelig."}
+                  ? "Det er ikke laget en analyse på dette selskapet. Start analyse for å gjøre en oppdatering eller en ny analyse av selskapet."
+                  : "Det er ikke laget en analyse på dette selskapet. Start analyse for å gjøre en oppdatering eller en ny analyse av selskapet."}
           </div>
         </div>
       )}

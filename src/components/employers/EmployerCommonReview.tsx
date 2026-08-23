@@ -3,7 +3,7 @@
  *
  * Regler:
  * - Ingen forhåndsutfylte verdier. Uvurderte dimensjoner er «ikke nok grunnlag».
- * - Felles tall vises kun når minst fem kvalifiserte bidragsytere finnes i kohorten.
+ * - Felles tall vises kun når minst to kvalifiserte bidragsytere finnes i kohorten.
  * - Kandidatkohorten vises separat og kan kun inneholde rekruttering og retensjon.
  * - Klienten sender aldri bruker-ID. Alt skrives gjennom kontrollerte serverfunksjoner.
  */
