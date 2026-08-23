@@ -86,7 +86,7 @@ async function verifyMailgunSignature(
   const expected = Array.from(new Uint8Array(mac))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 }
 
 function nowHour(): Date {
