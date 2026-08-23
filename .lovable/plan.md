@@ -73,23 +73,35 @@ e-posthendelser er Mailgun.
 - Alias: `<token>@jobb.karrierenmin.no`, token som beskrevet øverst. Ukjent alias gir 404
   uten å avsløre om aliaset finnes. Brukeren kan rullere aliaset (nytt token, gammelt dør).
 
-## Rate-limiting — lagringssted valgt
+## Rate-limiting — retning valgt: egen telletabell uten bruker-FK
 
-Valget mellom «kolonne» og «egen telle-tabell» er tatt: **`ip_hash`-kolonne på
-`imported_job_emails`**, ingen ny tabell.
+Forrige forslag (`ip_hash` på `imported_job_emails`) er forkastet. Begrunnelsen holder:
+`imported_job_emails.user_id` er NOT NULL og `inbound_alias_token` ligger på
+`email_job_sources`, så en forespørsel mot et ukjent alias kan aldri skrives som rad —
+og aliasgjetting/-spraying mot den uautentiserte ruten er nettopp den trafikken som må
+stoppes. `employer_reports`-mønsteret fungerer der fordi den tabellen er anonym av natur.
 
-- Samme mønster som `ingest-report.ts`: SHA-256-hash av avsender-IP lagres som kolonne,
-  telles mot et tidsvindu med `supabaseAdmin`, 429 ved overskridelse.
-- To tellinger mot samme tabell med ulike vinduer — alias- og IP-grensene trenger ikke
-  hver sin tabell for å ha hvert sitt vindu:
-  - per alias: antall rader for aliaset siste time,
-  - per `ip_hash`: antall rader for IP-en siste døgn.
-- Forutsetning som må holdes: også avviste/uparsede e-poster skrives som rad (med
-  `reject_reason`), ellers teller ikke grensen misbruk som aldri produserer leads.
-- Migrasjonen legger til `ip_hash text` + indeks på `(ip_hash, created_at)` og
-  `(inbound_alias_token, created_at)`-ekvivalenten for tellespørringene.
+Valgt retning (én, ikke to): **egen liten telletabell uten bruker-FK**, sjekket
+**før** aliasoppslag.
 
-## B4 — Skriving til `job_leads` — uendret
+- `public.inbound_email_rate_events`: `id`, `ip_hash text not null`,
+  `alias_hash text` (hash av det oppgitte aliaset, null når det mangler),
+  `alias_known boolean not null`, `outcome text not null`
+  (`accepted` / `unknown_alias` / `rejected` / `rate_limited`), `created_at`.
+  Ingen `user_id`, ingen FK mot bruker eller alias — raden skal kunne skrives før
+  vi vet hvem, om noen, forespørselen tilhører.
+- `CREATE TABLE` → `GRANT ALL ... TO service_role` (ingen `anon`, ingen
+  `authenticated`) → `ENABLE ROW LEVEL SECURITY` → ingen lesepolicy for vanlige
+  brukere. Skriving og telling skjer kun via `supabaseAdmin` i webhook-handleren.
+- Indekser: `(ip_hash, created_at)` og `(alias_hash, created_at)`.
+- Handlerflyt: størrelsesgrense → signaturverifisering → **skriv telle-rad** →
+  to tellinger (per `ip_hash` siste døgn, per `alias_hash` siste time) → 429 ved
+  overskridelse → Zod-validering → aliasoppslag → lagring i `imported_job_emails`.
+  Ukjent alias gir fortsatt 404, men er da allerede talt.
+- `imported_job_emails` får ingen `ip_hash`-kolonne og ingen skjemaendring.
+- Rydding: rader eldre enn 30 dager slettes av den daglige driftsjobben (Trinn D).
+
+## B4 — Skriving til `job_leads`
 
 - Rå e-post lagres først i `imported_job_emails` (kortere oppbevaringstid enn det
   strukturerte resultatet).
@@ -97,7 +109,10 @@ Valget mellom «kolonne» og «egen telle-tabell» er tatt: **`ip_hash`-kolonne 
   (`finn`/`linkedin`), `source_url_hash`, `imported_job_email_id`, `parse_confidence`,
   `raw_payload` og status fra dagens enum.
 - Under konfidensterskel → `qualification_status='needs_review'`, ikke stille forkasting.
-- `lead_dedupe_keys` registreres ved innhenting.
+- **Ingen `lead_dedupe_keys`-registrering her.** Registrering ved innhenting innføres
+  samlet for alle fire kilder i Trinn C, slik instruks v3 krever — ikke som en
+  e-post-spesifikk avvik i B4.
+
 
 ## B5 — Rett hardkodet kilde — uendret
 
