@@ -584,6 +584,29 @@ function JobLeadsPage() {
     }
   };
 
+  const handleSyncMailbox = async () => {
+    if (!user || !emailConnections?.length) return;
+    setSyncingMailbox(true);
+    try {
+      let totalAccepted = 0;
+      let totalSkipped = 0;
+      for (const conn of emailConnections) {
+        const result = await doSyncMailbox({ data: { connectionId: conn.id } });
+        totalAccepted += result?.accepted ?? 0;
+        totalSkipped += result?.skipped ?? 0;
+      }
+      toast.success(
+        `E-post-synk fullført: ${totalAccepted} nye leads, ${totalSkipped} hoppet over.`,
+      );
+      qc.invalidateQueries({ queryKey: ["job-leads-linkedin", user.id] });
+    } catch (e: any) {
+      console.error("[job-leads] mailbox sync failed", e);
+      toast.error(e?.message ?? "Synk av e-post feilet");
+    } finally {
+      setSyncingMailbox(false);
+    }
+  };
+
   const handleScorePending = async () => {
     setScoring(true);
     try {
