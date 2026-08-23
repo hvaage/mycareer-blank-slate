@@ -238,6 +238,22 @@ function JobLeadsPage() {
     },
   });
 
+  const { data: emailConnections } = useQuery({
+    queryKey: ["email-connections", user?.id],
+    enabled: !!user,
+    staleTime: 60_000,
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("email_connections")
+        .select("id, email_address, provider, status, last_sync_at")
+        .eq("user_id", user.id)
+        .eq("status", "active");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   // LinkedIn-leads (uendret)
   const { data: linkedinLeads, isLoading: loadingLI } = useQuery({
     queryKey: ["job-leads-linkedin", user?.id, statusFilter],
