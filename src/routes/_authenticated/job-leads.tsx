@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { StartApplicationButton } from "@/components/network/start-application-button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -23,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { fmtRelative, fmtDateTime } from "@/lib/format";
 import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/careerjet-links";
+import { syncEmailConnection } from "@/lib/job-leads/sync.functions";
 
 export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
@@ -41,7 +43,7 @@ const ACCEPTED_MATCH_SCORE_VERSIONS = new Set<string>([
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
-type SourceFilter = "all" | "linkedin" | "careerjet" | "nav";
+type SourceFilter = "all" | "linkedin" | "careerjet" | "nav" | "finn" | "other";
 type ExtentFilter = "all" | "full_time" | "part_time" | "unspecified";
 type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim" | "unspecified";
 type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all";
@@ -49,7 +51,7 @@ type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all"
 const HIGH_MATCH_MIN = 70;
 const RELEVANT_MIN = 40;
 
-type LeadSource = "linkedin" | "careerjet" | "nav";
+type LeadSource = "linkedin" | "careerjet" | "nav" | "finn" | "other";
 type ScreeningStatus = "eligible" | "excluded" | "needs_review" | null;
 
 type ScreeningReason = {
@@ -83,7 +85,7 @@ function hasEmptyEvidenceBasis(summary: RequirementSummary): boolean {
 
 type Lead = {
   id: string;
-  rowKind: "linkedin" | "careerjet" | "nav";
+  rowKind: "linkedin" | "careerjet" | "nav" | "finn" | "other";
   rowId: string;
   cjBackend?: "uo" | "legacy";
   source: LeadSource;
@@ -217,6 +219,9 @@ function JobLeadsPage() {
   const [engagementFilter, setEngagementFilter] = useState<EngagementFilter>("all");
   const [fetching, setFetching] = useState(false);
   const [scoring, setScoring] = useState(false);
+  const [syncingMailbox, setSyncingMailbox] = useState(false);
+  const doSyncMailbox = useServerFn(syncEmailConnection);
+
 
   const { data: profile } = useQuery({
     queryKey: ["profile-jobprefs", user?.id],
@@ -230,6 +235,22 @@ function JobLeadsPage() {
         .eq("id", user!.id)
         .maybeSingle();
       return data as any;
+    },
+  });
+
+  const { data: emailConnections } = useQuery({
+    queryKey: ["email-connections", user?.id],
+    enabled: !!user,
+    staleTime: 60_000,
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("email_connections")
+        .select("id, email_address, provider, status, last_sync_at")
+        .eq("user_id", user.id)
+        .eq("status", "active");
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
@@ -337,12 +358,14 @@ function JobLeadsPage() {
   const rawLeads: Lead[] = useMemo(() => {
     const out: Lead[] = [];
     for (const r of linkedinLeads ?? []) {
-      const aiEvaluated = isLinkedInAiEvaluated((r as any).ai_score);
+      const rawSource = ((r as any).source_system ?? "linkedin") as LeadSource;
+      const aiEvaluated = rawSource === "linkedin" ? isLinkedInAiEvaluated((r as any).ai_score) : false;
+      const idPrefix = rawSource === "finn" ? "finn" : rawSource === "other" ? "other" : "li";
       out.push({
-        id: `li-${(r as any).id}`,
-        rowKind: "linkedin",
+        id: `${idPrefix}-${(r as any).id}`,
+        rowKind: rawSource,
         rowId: (r as any).id,
-        source: "linkedin",
+        source: rawSource,
         title: (r as any).title,
         company: (r as any).company,
         location: (r as any).location,
@@ -561,6 +584,29 @@ function JobLeadsPage() {
     }
   };
 
+  const handleSyncMailbox = async () => {
+    if (!user || !emailConnections?.length) return;
+    setSyncingMailbox(true);
+    try {
+      let totalAccepted = 0;
+      let totalSkipped = 0;
+      for (const conn of emailConnections) {
+        const result = await doSyncMailbox({ data: { connectionId: conn.id } });
+        totalAccepted += result?.accepted ?? 0;
+        totalSkipped += result?.skipped ?? 0;
+      }
+      toast.success(
+        `E-post-synk fullført: ${totalAccepted} nye leads, ${totalSkipped} hoppet over.`,
+      );
+      qc.invalidateQueries({ queryKey: ["job-leads-linkedin", user.id] });
+    } catch (e: any) {
+      console.error("[job-leads] mailbox sync failed", e);
+      toast.error(e?.message ?? "Synk av e-post feilet");
+    } finally {
+      setSyncingMailbox(false);
+    }
+  };
+
   const handleScorePending = async () => {
     setScoring(true);
     try {
@@ -695,8 +741,12 @@ function JobLeadsPage() {
       ? (buildCareerjetSearchUrl(lead) ?? lead.url)
       : lead.url;
     const sourceLabel =
-      lead.source === "linkedin" ? "LinkedIn" : lead.source === "nav" ? "NAV" : "Careerjet";
-    // Prioritet: bruk lead.score som allerede er nullet ut for ikke-V2 NAV/Careerjet.
+      lead.source === "linkedin" ? "LinkedIn" :
+      lead.source === "nav" ? "NAV" :
+      lead.source === "careerjet" ? "Careerjet" :
+      lead.source === "finn" ? "Finn.no" :
+      "Jobb-e-post";
+    // Prioritet: bruk lead.score som allerede er nullstilt ut for ikke-V2 NAV/Careerjet.
     const priority = (lead.score ?? 0) >= 70 ? "høy" : "middels";
     const { data: app, error: appErr } = await supabase
       .from("applications")
@@ -809,10 +859,19 @@ function JobLeadsPage() {
           <p className="text-sm text-muted-foreground mt-1">
             {profile?.listings_last_fetched_at
               ? <>Sist hentet (Careerjet): {fmtDateTime(profile.listings_last_fetched_at)}</>
-              : "LinkedIn-leads kommer fra e-post-synk · Careerjet hentes manuelt"}
+              : "Jobb-e-post fra Gmail/Outlook/videresending · Careerjet + NAV hentes manuelt"}
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
+          <Button
+            onClick={handleSyncMailbox}
+            disabled={syncingMailbox || !emailConnections?.length}
+            variant="outline"
+            title={!emailConnections?.length ? "Ingen aktiv e-posttilkobling" : undefined}
+          >
+            <Mail className={`h-4 w-4 mr-2 ${syncingMailbox ? "animate-spin" : ""}`} />
+            {syncingMailbox ? "Synker e-post…" : "Synk e-post"}
+          </Button>
           <Button
             onClick={handleScorePending}
             disabled={scoring || sourceFilter === "linkedin"}
@@ -837,6 +896,8 @@ function JobLeadsPage() {
             <SelectItem value="linkedin">LinkedIn</SelectItem>
             <SelectItem value="careerjet">Careerjet</SelectItem>
             <SelectItem value="nav">NAV</SelectItem>
+            <SelectItem value="finn">Finn.no</SelectItem>
+            <SelectItem value="other">Annen e-post</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>

@@ -3830,6 +3830,36 @@ export type Database = {
           },
         ]
       }
+      inbound_email_rate_events: {
+        Row: {
+          alias_token: string | null
+          created_at: string
+          event_hour: string
+          id: string
+          ip_hash: string
+          outcome: string
+          updated_at: string
+        }
+        Insert: {
+          alias_token?: string | null
+          created_at?: string
+          event_hour?: string
+          id?: string
+          ip_hash: string
+          outcome?: string
+          updated_at?: string
+        }
+        Update: {
+          alias_token?: string | null
+          created_at?: string
+          event_hour?: string
+          id?: string
+          ip_hash?: string
+          outcome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       interviews: {
         Row: {
           application_id: string
