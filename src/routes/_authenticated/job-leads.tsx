@@ -29,12 +29,14 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
 });
 
 /** Locked contract: only NAV/Careerjet rows with an accepted version + non-null screening_status are V2-evaluated. */
-const MATCH_SCORE_VERSION = "job_match_v3_2026_08_15";
-/** Eldre scoringer mot et annet evidensgrunnlag (user_evidence_atoms). Vises, men merkes. */
-const MATCH_SCORE_VERSION_LEGACY = "job_match_v2_2026_06_24";
+const MATCH_SCORE_VERSION = "job_match_v4_2026_08_23";
+/** Eldre scoringer mot et bredere evidensgrunnlag. Vises, men merkes. */
+const MATCH_SCORE_VERSION_LEGACY = "job_match_v3_2026_08_15";
+const MATCH_SCORE_VERSION_LEGACY_V2 = "job_match_v2_2026_06_24";
 const ACCEPTED_MATCH_SCORE_VERSIONS = new Set<string>([
   MATCH_SCORE_VERSION,
   MATCH_SCORE_VERSION_LEGACY,
+  MATCH_SCORE_VERSION_LEGACY_V2,
 ]);
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
@@ -141,7 +143,9 @@ function isV2EvaluatedRaw(version: string | null | undefined, status: ScreeningS
 }
 
 function isLegacyScoreVersion(version: string | null | undefined): boolean {
-  return version === MATCH_SCORE_VERSION_LEGACY;
+  return (
+    version === MATCH_SCORE_VERSION_LEGACY || version === MATCH_SCORE_VERSION_LEGACY_V2
+  );
 }
 
 function relevanceBadge(score: number | null) {
@@ -1104,8 +1108,8 @@ function LeadCard({
         <RequirementSummarySection summary={lead.requirementSummary ?? null} />
         {isLegacyScoreVersion(lead.matchScoreVersion) && (
           <div className="text-[11px] text-muted-foreground mt-1">
-            Vurdert mot et eldre evidensgrunnlag ({MATCH_SCORE_VERSION_LEGACY}). Kjør ny
-            vurdering for å score mot karriereatomene dine.
+            Vurdert mot et eldre evidensgrunnlag ({lead.matchScoreVersion}). Kjør ny
+            vurdering for å score mot bekreftede karriereatomer.
           </div>
         )}
 
