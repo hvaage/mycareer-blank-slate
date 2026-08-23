@@ -697,8 +697,12 @@ function JobLeadsPage() {
       ? (buildCareerjetSearchUrl(lead) ?? lead.url)
       : lead.url;
     const sourceLabel =
-      lead.source === "linkedin" ? "LinkedIn" : lead.source === "nav" ? "NAV" : "Careerjet";
-    // Prioritet: bruk lead.score som allerede er nullet ut for ikke-V2 NAV/Careerjet.
+      lead.source === "linkedin" ? "LinkedIn" :
+      lead.source === "nav" ? "NAV" :
+      lead.source === "careerjet" ? "Careerjet" :
+      lead.source === "finn" ? "Finn.no" :
+      "Jobb-e-post";
+    // Prioritet: bruk lead.score som allerede er nullstilt ut for ikke-V2 NAV/Careerjet.
     const priority = (lead.score ?? 0) >= 70 ? "høy" : "middels";
     const { data: app, error: appErr } = await supabase
       .from("applications")
