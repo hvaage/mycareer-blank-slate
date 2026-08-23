@@ -843,6 +843,8 @@ function JobLeadsPage() {
             <SelectItem value="linkedin">LinkedIn</SelectItem>
             <SelectItem value="careerjet">Careerjet</SelectItem>
             <SelectItem value="nav">NAV</SelectItem>
+            <SelectItem value="finn">Finn.no</SelectItem>
+            <SelectItem value="other">Annen e-post</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
