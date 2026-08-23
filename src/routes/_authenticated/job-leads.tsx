@@ -337,12 +337,14 @@ function JobLeadsPage() {
   const rawLeads: Lead[] = useMemo(() => {
     const out: Lead[] = [];
     for (const r of linkedinLeads ?? []) {
-      const aiEvaluated = isLinkedInAiEvaluated((r as any).ai_score);
+      const rawSource = ((r as any).source_system ?? "linkedin") as LeadSource;
+      const aiEvaluated = rawSource === "linkedin" ? isLinkedInAiEvaluated((r as any).ai_score) : false;
+      const idPrefix = rawSource === "finn" ? "finn" : rawSource === "other" ? "other" : "li";
       out.push({
-        id: `li-${(r as any).id}`,
-        rowKind: "linkedin",
+        id: `${idPrefix}-${(r as any).id}`,
+        rowKind: rawSource,
         rowId: (r as any).id,
-        source: "linkedin",
+        source: rawSource,
         title: (r as any).title,
         company: (r as any).company,
         location: (r as any).location,
