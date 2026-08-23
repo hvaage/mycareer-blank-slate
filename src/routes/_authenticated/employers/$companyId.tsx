@@ -451,114 +451,12 @@ function CompanyDetailPage() {
         </div>
       )}
 
-      {/* Min vurdering — bevart, men adskilt fra canonical V2-rapport */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Min vurdering</CardTitle>
-          {!myRating && (
-            <CardDescription>
-              Legg til din egen vurdering — flytt slidere og lagre nederst.
-            </CardDescription>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-5">
-            {USER_RATING_DIMENSIONS.map(({ key, label }) => {
-              const k = key as string;
-              const v = scores[k];
-              const rated = typeof v === "number";
-              return (
-                <div key={k} className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <Label>{label}</Label>
-                    {rated ? (
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm tabular-nums text-muted-foreground">
-                          {v.toFixed(1)} / 5
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() =>
-                            setScores((s) => {
-                              const next = { ...s };
-                              delete next[k];
-                              return next;
-                            })
-                          }
-                        >
-                          Ikke nok grunnlag
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground">Ikke vurdert</span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => setScores((s) => ({ ...s, [k]: 3 }))}
-                        >
-                          Gi vurdering
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  {rated ? (
-                    <Slider
-                      value={[v]}
-                      min={1}
-                      max={5}
-                      step={0.5}
-                      onValueChange={([nv]) => setScores((s) => ({ ...s, [k]: nv }))}
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
+      <EmployerCommonReview
+        companyId={companyId}
+        orgnr={orgnr}
+        companyName={(company as any)?.name ?? null}
+      />
 
-          <div className="space-y-2">
-            <Label htmlFor="user-notes">Notat</Label>
-            <Textarea
-              id="user-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Egne observasjoner om selskapet…"
-              rows={3}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-4">
-            {(["applied_here", "interviewed_here", "worked_here"] as const).map((f) => (
-              <label key={f} className="flex items-center gap-2 text-sm cursor-pointer">
-                <Checkbox
-                  checked={flags[f]}
-                  onCheckedChange={(v) => setFlags((s) => ({ ...s, [f]: !!v }))}
-                />
-                {f === "applied_here" ? "Søkt her" : f === "interviewed_here" ? "Intervjuet her" : "Jobbet her"}
-              </label>
-            ))}
-          </div>
-
-          <Button onClick={() => ratingMutation.mutate()} disabled={ratingMutation.isPending}>
-            {ratingMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Lagrer…
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" /> Lagre vurdering
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <EmployerCommonReview companyId={companyId} orgnr={orgnr} />
 
       {/* Brukersnitt */}
       <Card>
