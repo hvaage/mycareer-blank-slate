@@ -33,11 +33,36 @@ Ny flate «Selskapsavstemming» under Nettverksarbeid → Selskaper.
 
 ## Datamodell og skrivelag
 
-- Ny brukerscopet tabell for koblinger: normalisert navnenøkkel, valgt selskap, organisasjonsnummer, matchemetode, tilstand og bekreftelsestidspunkt. RLS på `auth.uid()`, GRANT til `authenticated` og `service_role`, ingen `anon`.
+Koblingen knyttes til den konkrete observerte selskapskilden, ikke til navnet alene. Samme navn kan være ulike juridiske enheter, grupper, tidligere navn eller selskaper i forskjellige land, og et «ikke aktuelt»-valg skal derfor gjelde den observasjonen — aldri alle framtidige selskaper med samme navn.
+
+Ny brukerscopet koblingstabell lagrer minst:
+
+- `user_id`
+- `source_observation_id` eller stabil `source_identity_key`
+- `normalized_name`
+- `company_id` og `orgnr` når koblet
+- `match_method` (`source_orgnr`, `name_exact`, `name_possible`, `manual_search`)
+- `matcher_version`
+- `confidence` og tilstand (`suggested`, `confirmed`, `rejected`, `not_applicable`, `not_found`, `foreign_unknown`)
+- `confirmed_at` / `rejected_at`
+- `superseded_at` når en nyere avstemming erstatter forslaget
+
+Skrivelag og validering:
+
 - Kandidatgenerering skjer i en SECURITY DEFINER-funksjon som leser registerspeilet på serversiden. Frontend leser aldri registertabellene direkte.
-- Bekreftelse skjer i én kanonisk funksjon som tar navnenøkkel og organisasjonsnummer fra sesjonens bruker, sikrer selskapsraden gjennom eksisterende `ensure_company_for_employer`, skriver koblingen og oppretter eller oppdaterer `user_company_relationships` — uten status eller prioritet.
-- Funksjonene tar aldri `user_id` fra klienten.
-- Sikker automatikk: når kilden allerede har organisasjonsnummer (annonse/mulighet), kobles selskapet direkte og merkes som registerbekreftet.
+- Bekreftelsesfunksjonen **validerer kandidaten på serveren**: det valgte organisasjonsnummeret må enten ligge i den gyldige kandidatmengden for nøyaktig den kildeobservasjonen, eller være valgt gjennom den eksplisitte registersøksflyten (`manual_search`), som logges som egen matchemetode. En vilkårlig kombinasjon av navn og organisasjonsnummer godtas aldri bare fordi selskapet finnes i registeret.
+- Bekreftelse sikrer selskapsraden gjennom eksisterende `ensure_company_for_employer`, skriver koblingen og oppretter eller oppdaterer `user_company_relationships` — uten status eller prioritet.
+- Funksjonene tar aldri `user_id` fra klienten; alt scopes på `auth.uid()`.
+
+### Direkte kobling fra pålitelig orgnr-kilde
+
+Når annonse- eller mulighetsgrunnlaget allerede inneholder organisasjonsnummer, opprettes koblingen uten ny brukerbekreftelse. Den må da merkes `match_method = source_orgnr`, ha kilde/proveniens og tidspunkt, valideres mot registerspeilet, aldri endre status eller prioritet, ha revisjonsspor, og kunne overstyres eller frakobles av brukeren senere. Dette gjelder aldri LinkedIn-navn alene.
+
+### Tilgang og duplikatvern
+
+- `authenticated` får kun `SELECT` på egne rader. `INSERT`, `UPDATE` og `DELETE` går utelukkende gjennom de kanoniske RPC-ene med `auth.uid()`-kontroll. Ingen `anon`-rettigheter.
+- Unike indekser hindrer: to aktive koblinger for samme bruker og samme kildeobservasjon, doble `user_company_relationships` for samme bruker og selskap, og doble globale selskaper for samme organisasjonsnummer.
+
 
 ## Effekt på selskapsdetaljen
 
