@@ -54,34 +54,60 @@ function formatScore(value: number | null | undefined): string | null {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 1 }).format(value);
 }
 
+const ORGNR_RE = /^[0-9]{9}$/;
+
 /**
  * Eksplisitt brukerhandling: starter en reell arbeidsgiveranalyse via
- * edge-funksjonen `analyze-company`. Ingenting startes automatisk, og knappen
- * vises bare når vi har nok identifikasjon (selskaps-ID, orgnr eller navn).
+ * edge-funksjonen `analyze-company`.
+ *
+ * Mangler selskapet organisasjonsnummer, startes ingenting: brukeren får samme
+ * søke- og bekreftelsesdialog som under Marked → Arbeidsgivere, forhåndsutfylt
+ * med selskapsnavnet, og analysen kjøres først på et validert orgnr.
  */
 function StartAnalysisButton({
   companyId,
   companyName,
   orgnr,
   label,
+  onOrgnrSelected,
 }: {
   companyId?: string | null;
   companyName?: string | null;
   orgnr?: string | null;
   label: string;
+  onOrgnrSelected?: (orgnr: string) => void;
 }) {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const canStart = Boolean(companyId || orgnr || (companyName && companyName.trim()));
+  const navigate = useNavigate();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const hasOrgnr = Boolean(orgnr && ORGNR_RE.test(orgnr));
+  const canStart = Boolean(companyId || hasOrgnr || (companyName && companyName.trim()));
+
+  const employers = useQuery({ ...myEmployersQuery(), enabled: dialogOpen });
+  const existingByOrgnr = useMemo(() => {
+    const m = new Map<string, ExistingEmployerMatch>();
+    (employers.data?.employers ?? []).forEach((e: { id: string; name?: string | null; organisasjonsnummer?: string | null }) => {
+      if (e.organisasjonsnummer && ORGNR_RE.test(e.organisasjonsnummer)) {
+        m.set(e.organisasjonsnummer, { id: e.id, name: e.name ?? "" });
+      }
+    });
+    return m;
+  }, [employers.data]);
 
   const start = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (chosenOrgnr?: string) => {
       const uid = user?.id;
       if (!uid) throw new Error("Du må være innlogget for å starte en analyse.");
       const body: Record<string, unknown> = { user_id: uid, force: true };
-      if (companyId) body.company_id = companyId;
-      if (orgnr) body.organisasjonsnummer = orgnr;
-      if (!companyId && companyName) body.name = companyName.trim();
+      if (chosenOrgnr) {
+        if (!ORGNR_RE.test(chosenOrgnr)) throw new Error("Ugyldig organisasjonsnummer");
+        body.organisasjonsnummer = chosenOrgnr;
+      } else {
+        if (companyId) body.company_id = companyId;
+        if (orgnr) body.organisasjonsnummer = orgnr;
+        if (!companyId && companyName) body.name = companyName.trim();
+      }
       const { data, error } = await supabase.functions.invoke("analyze-company", { body });
       if (error) throw new Error(await messageFromFunctionInvokeError(error, data));
       const res = data as { error?: unknown; message?: string } | null;
