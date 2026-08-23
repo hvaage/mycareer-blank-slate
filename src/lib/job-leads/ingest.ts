@@ -109,72 +109,57 @@ export async function ingestParsedEmail(params: {
     );
   }
 
-  // Upsert into job_leads with idempotent deduplication.
+  // Insert into job_leads via RPC: the dedupe index is expression-based
+  // (COALESCE(...)), which PostgREST's on_conflict cannot target.
   const urlHash = hashUrl(parsed.job_url);
-  const dedupeKey = {
-    user_id: userId,
-    job_url: parsed.job_url ?? "",
-    title: parsed.title ?? "",
-    company: parsed.company ?? "",
-  };
 
   let leadsCreated = 0;
   let leadsDeduped = 0;
 
-  try {
-    const { data: upserted, error: upsertError } = await supabaseAdmin
-      .from("job_leads")
-      .upsert(
-        {
-          user_id: userId,
-          email_connection_id: emailConnectionId ?? null,
-          source_message_id: providerMessageId,
-          source_email_from: fromAddress,
-          source_subject: subject,
-          received_at: receivedAt,
-          posted_text: parsed.raw_text,
-          title: parsed.title,
-          company: parsed.company,
-          location: parsed.location,
-          work_type: parsed.work_type,
-          salary_text: parsed.salary,
-          job_url: parsed.job_url,
-          raw_snippet: parsed.raw_text.slice(0, 2000),
-          source_system: parsed.source_system,
-          source_url_hash: urlHash,
-          source_observed_at: receivedAt,
-          qualification_status: qualificationStatus,
-          qualification_score: Math.round(parseConfidence * 100),
-          qualification_reason: parsed.reason,
-          application_due: parsed.application_due,
-          raw_payload: parsed as unknown as Record<string, unknown>,
-          parse_confidence: parseConfidence,
-          reject_reason: rejectReason,
-          imported_job_email_id: importedEmail.id,
-        },
-        {
-          onConflict: "user_id, COALESCE(job_url, ''), COALESCE(title, ''), COALESCE(company, '')",
-          ignoreDuplicates: true,
-        },
-      )
-      .select("id")
-      .maybeSingle();
+  const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
+    "insert_job_lead_dedup",
+    {
+      p_payload: {
+        user_id: userId,
+        email_connection_id: emailConnectionId ?? null,
+        source_message_id: providerMessageId,
+        source_email_from: fromAddress,
+        source_subject: subject,
+        received_at: receivedAt,
+        posted_text: parsed.raw_text,
+        title: parsed.title,
+        company: parsed.company,
+        location: parsed.location,
+        work_type: parsed.work_type,
+        salary_text: parsed.salary,
+        job_url: parsed.job_url,
+        raw_snippet: parsed.raw_text.slice(0, 2000),
+        source_system: parsed.source_system,
+        source_url_hash: urlHash,
+        source_observed_at: receivedAt,
+        qualification_status: qualificationStatus,
+        qualification_score: Math.round(parseConfidence * 100),
+        qualification_reason: parsed.reason,
+        application_due: parsed.application_due,
+        raw_payload: parsed as unknown as Record<string, unknown>,
+        parse_confidence: parseConfidence,
+        reject_reason: rejectReason,
+        imported_job_email_id: importedEmail.id,
+      },
+    } as never,
+  );
 
-    if (upsertError) {
-      if ((upsertError as { code?: string }).code === "23505") {
-        leadsDeduped = 1;
-      } else {
-        throw new Error(`Failed to upsert job_lead: ${upsertError.message}`);
-      }
-    } else if (upserted) {
-      leadsCreated = 1;
-    } else {
-      leadsDeduped = 1;
-    }
-  } catch (err) {
-    // Re-raise unexpected errors; deduplication races are handled above.
-    throw err;
+  if (rpcError) {
+    throw new Error(`Failed to insert job_lead: ${rpcError.message}`);
   }
+
+  const row = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
+  if (row && (row as { was_inserted?: boolean }).was_inserted) {
+    leadsCreated = 1;
+  } else {
+    leadsDeduped = 1;
+  }
+
 
   // Update lead_count on imported_job_email.
   await supabaseAdmin
