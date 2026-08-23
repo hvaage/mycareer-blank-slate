@@ -104,7 +104,7 @@ async function fetchMessage(accessToken: string, messageId: string): Promise<Mai
     providerMessageId: payload.id,
     providerInternalDate: internalDate,
     from: sanitizeEmailAddress(from),
-    to: sanitizeEmailAddress(to || configPlaceholder(to, "to")),
+    to: sanitizeEmailAddress(to || ""),
     subject,
     text: cleanEmailBody(text),
     html,
