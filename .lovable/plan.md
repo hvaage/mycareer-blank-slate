@@ -55,7 +55,7 @@ Nye/utvidede tabeller i `public`, alle med GRANT → RLS → policy:
 ### Trinn 5 — UI
 
 - Meny under Marked, i rekkefølge: Markedsinnsikt, Arbeidsgiveranalyser, **Vurdering av arbeidsgivere** (`/vurdering-av-arbeidsgivere`).
-- Ny flate: søk og valg av verifisert juridisk enhet fra registeret, aggregert visning, og innsendingsflyt (erfaringsgrunnlag → åtte dimensjoner med «Ikke nok grunnlag» → fritekst → omfang → bekreftelse). Gjesteflyt med engangsverifisering.
+- Ny flate: søk og valg av verifisert vurderingsobjekt (juridisk enhet nå; underenhet/konsern kun når verifisert objekt finnes), aggregert visning, og innsendingsflyt (erfaringsgrunnlag → åtte dimensjoner med «Ikke nok grunnlag» → fritekst → objekt → bekreftelse). Gjesteflyt med engangsverifisering og tydelig personverninformasjon vist før innsending.
 - Arbeidsgiveranalysen får to nye, tydelig adskilte områder: «Felles vektet vurdering» og «Erfaringer fra brukere». KI-score og brukerscore kombineres aldri.
 - «Min vurdering» beholdes, men uten forhåndsutfylte sliders; «Din vektede vurdering» viser «Ikke vurdert ennå» til brukeren har lagret.
 
