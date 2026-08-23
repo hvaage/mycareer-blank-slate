@@ -47,11 +47,11 @@ export const syncEmailConnection = createServerFn({ method: "POST" })
           email_connection_id: connectionId,
           source_system: "other",
           intake_mode: "mailbox",
-          status: "active",
-          is_forwarding_address: false,
+          is_active: true,
         })
         .select("id")
         .single();
+
       if (insertErr || !inserted) {
         throw new Error(insertErr?.message ?? "Failed to create email job source");
       }
