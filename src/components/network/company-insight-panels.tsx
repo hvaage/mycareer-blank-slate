@@ -6,8 +6,15 @@
 // registertabellene direkte. Ingen score oppdiktes: manglende dimensjoner
 // merkes «Ikke analysert», og manglende regnskapsgrunnlag gir tomtilstand.
 // ============================================================
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import {
+  EmployerAnalysisSearchDialog,
+  type ExistingEmployerMatch,
+} from "@/components/employers/EmployerAnalysisSearchDialog";
+import { myEmployersQuery } from "@/lib/queries/companies";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -54,34 +61,60 @@ function formatScore(value: number | null | undefined): string | null {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 1 }).format(value);
 }
 
+const ORGNR_RE = /^[0-9]{9}$/;
+
 /**
  * Eksplisitt brukerhandling: starter en reell arbeidsgiveranalyse via
- * edge-funksjonen `analyze-company`. Ingenting startes automatisk, og knappen
- * vises bare når vi har nok identifikasjon (selskaps-ID, orgnr eller navn).
+ * edge-funksjonen `analyze-company`.
+ *
+ * Mangler selskapet organisasjonsnummer, startes ingenting: brukeren får samme
+ * søke- og bekreftelsesdialog som under Marked → Arbeidsgivere, forhåndsutfylt
+ * med selskapsnavnet, og analysen kjøres først på et validert orgnr.
  */
 function StartAnalysisButton({
   companyId,
   companyName,
   orgnr,
   label,
+  onOrgnrSelected,
 }: {
   companyId?: string | null;
   companyName?: string | null;
   orgnr?: string | null;
   label: string;
+  onOrgnrSelected?: (orgnr: string) => void;
 }) {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const canStart = Boolean(companyId || orgnr || (companyName && companyName.trim()));
+  const navigate = useNavigate();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const hasOrgnr = Boolean(orgnr && ORGNR_RE.test(orgnr));
+  const canStart = Boolean(companyId || hasOrgnr || (companyName && companyName.trim()));
+
+  const employers = useQuery({ ...myEmployersQuery(), enabled: dialogOpen });
+  const existingByOrgnr = useMemo(() => {
+    const m = new Map<string, ExistingEmployerMatch>();
+    (employers.data?.employers ?? []).forEach((e: { id: string; name?: string | null; organisasjonsnummer?: string | null }) => {
+      if (e.organisasjonsnummer && ORGNR_RE.test(e.organisasjonsnummer)) {
+        m.set(e.organisasjonsnummer, { id: e.id, name: e.name ?? "" });
+      }
+    });
+    return m;
+  }, [employers.data]);
 
   const start = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (chosenOrgnr?: string) => {
       const uid = user?.id;
       if (!uid) throw new Error("Du må være innlogget for å starte en analyse.");
       const body: Record<string, unknown> = { user_id: uid, force: true };
-      if (companyId) body.company_id = companyId;
-      if (orgnr) body.organisasjonsnummer = orgnr;
-      if (!companyId && companyName) body.name = companyName.trim();
+      if (chosenOrgnr) {
+        if (!ORGNR_RE.test(chosenOrgnr)) throw new Error("Ugyldig organisasjonsnummer");
+        body.organisasjonsnummer = chosenOrgnr;
+      } else {
+        if (companyId) body.company_id = companyId;
+        if (orgnr) body.organisasjonsnummer = orgnr;
+        if (!companyId && companyName) body.name = companyName.trim();
+      }
       const { data, error } = await supabase.functions.invoke("analyze-company", { body });
       if (error) throw new Error(await messageFromFunctionInvokeError(error, data));
       const res = data as { error?: unknown; message?: string } | null;
@@ -112,12 +145,36 @@ function StartAnalysisButton({
 
   return (
     <div className="space-y-1">
-      <Button size="sm" onClick={() => start.mutate()} disabled={start.isPending || !user?.id}>
+      <Button
+        size="sm"
+        onClick={() => (hasOrgnr ? start.mutate(undefined) : setDialogOpen(true))}
+        disabled={start.isPending || !user?.id}
+      >
         {start.isPending ? "Starter analyse…" : label}
       </Button>
       <p className="text-xs text-muted-foreground">
-        Analysen er KI-generert og bygger på åpne, offentlige kilder.
+        {hasOrgnr
+          ? "Analysen er KI-generert og bygger på åpne, offentlige kilder."
+          : "Du velger og bekrefter riktig juridisk enhet før analysen starter."}
       </p>
+
+      <EmployerAnalysisSearchDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        initialQuery={companyName ?? null}
+        existingByOrgnr={existingByOrgnr}
+        isPending={start.isPending}
+        onAnalyzeConfirmed={async (row) => {
+          const chosen = row.organisasjonsnummer ?? "";
+          await start.mutateAsync(chosen);
+          onOrgnrSelected?.(chosen);
+          setDialogOpen(false);
+        }}
+        onOpenExisting={(cid) => {
+          setDialogOpen(false);
+          navigate({ to: "/employers/$companyId", params: { companyId: cid } });
+        }}
+      />
     </div>
   );
 }
@@ -132,10 +189,16 @@ export function CompanyInsightPanel({
   companyName?: string | null;
 }) {
   const { user } = useAuth();
-  const analysis = useQuery(employerAnalysisViewQuery(orgnr, user?.id ?? "anon"));
-  const detail = useQuery({ ...employerDetailQuery(orgnr ?? ""), enabled: Boolean(orgnr) });
+  // Velger brukeren juridisk enhet i dialogen, leser panelet videre på det orgnr-et.
+  const [pickedOrgnr, setPickedOrgnr] = useState<string | null>(null);
+  const effectiveOrgnr = orgnr ?? pickedOrgnr;
+  const analysis = useQuery(employerAnalysisViewQuery(effectiveOrgnr, user?.id ?? "anon"));
+  const detail = useQuery({
+    ...employerDetailQuery(effectiveOrgnr ?? ""),
+    enabled: Boolean(effectiveOrgnr),
+  });
 
-  if (!orgnr) {
+  if (!effectiveOrgnr) {
     return (
       <NetworkPanel title="Arbeidsgiverinnsikt">
         <PanelEmpty>
@@ -148,6 +211,7 @@ export function CompanyInsightPanel({
             companyName={companyName}
             orgnr={null}
             label="Start arbeidsgiveranalyse"
+            onOrgnrSelected={setPickedOrgnr}
           />
         </div>
       </NetworkPanel>
@@ -176,7 +240,7 @@ export function CompanyInsightPanel({
           <StartAnalysisButton
             companyId={companyId}
             companyName={companyName}
-            orgnr={orgnr}
+            orgnr={effectiveOrgnr}
             label="Start arbeidsgiveranalyse"
           />
         </div>
@@ -261,7 +325,7 @@ export function CompanyInsightPanel({
           <StartAnalysisButton
             companyId={companyId}
             companyName={companyName}
-            orgnr={orgnr}
+            orgnr={effectiveOrgnr}
             label="Oppdater arbeidsgiveranalyse"
           />
         </div>
