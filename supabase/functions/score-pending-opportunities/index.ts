@@ -538,7 +538,8 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
         .eq("user_id", userId)
         .eq("atom_kind", "evidens")
         .eq("is_active", true)
-        .order("user_confirmed", { ascending: false })
+        // Fase 0: kun brukerbekreftet evidens brukes til matching.
+        .eq("user_confirmed", true)
         .order("created_at", { ascending: false })
         .limit(EVIDENCE_LIMIT),
     ]);
