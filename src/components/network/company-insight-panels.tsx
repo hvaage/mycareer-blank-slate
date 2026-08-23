@@ -54,7 +54,83 @@ function formatScore(value: number | null | undefined): string | null {
   return new Intl.NumberFormat("nb-NO", { maximumFractionDigits: 1 }).format(value);
 }
 
-export function CompanyInsightPanel({ orgnr }: { orgnr: string | null }) {
+/**
+ * Eksplisitt brukerhandling: starter en reell arbeidsgiveranalyse via
+ * edge-funksjonen `analyze-company`. Ingenting startes automatisk, og knappen
+ * vises bare når vi har nok identifikasjon (selskaps-ID, orgnr eller navn).
+ */
+function StartAnalysisButton({
+  companyId,
+  companyName,
+  orgnr,
+  label,
+}: {
+  companyId?: string | null;
+  companyName?: string | null;
+  orgnr?: string | null;
+  label: string;
+}) {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const canStart = Boolean(companyId || orgnr || (companyName && companyName.trim()));
+
+  const start = useMutation({
+    mutationFn: async () => {
+      const uid = user?.id;
+      if (!uid) throw new Error("Du må være innlogget for å starte en analyse.");
+      const body: Record<string, unknown> = { user_id: uid, force: true };
+      if (companyId) body.company_id = companyId;
+      if (orgnr) body.organisasjonsnummer = orgnr;
+      if (!companyId && companyName) body.name = companyName.trim();
+      const { data, error } = await supabase.functions.invoke("analyze-company", { body });
+      if (error) throw new Error(await messageFromFunctionInvokeError(error, data));
+      const res = data as { error?: unknown; message?: string } | null;
+      if (res?.error) {
+        throw new Error(
+          normalizeAiErrorMessage(res.message ?? String(res.error), { kind: "analysis" }),
+        );
+      }
+      return res;
+    },
+    onSuccess: () => {
+      toast.success("Arbeidsgiveranalyse startet", {
+        description: "Analysen kjører i bakgrunnen. Panelet oppdateres når den er ferdig.",
+      });
+      qc.invalidateQueries({ queryKey: ["employer-analysis-view"] });
+      if (companyId) qc.invalidateQueries({ queryKey: ["company", companyId] });
+    },
+    onError: (err: unknown) => {
+      toast.error(
+        normalizeAiErrorMessage(err instanceof Error ? err.message : undefined, {
+          kind: "analysis",
+        }),
+      );
+    },
+  });
+
+  if (!canStart) return null;
+
+  return (
+    <div className="space-y-1">
+      <Button size="sm" onClick={() => start.mutate()} disabled={start.isPending || !user?.id}>
+        {start.isPending ? "Starter analyse…" : label}
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Analysen er KI-generert og bygger på åpne, offentlige kilder.
+      </p>
+    </div>
+  );
+}
+
+export function CompanyInsightPanel({
+  orgnr,
+  companyId = null,
+  companyName = null,
+}: {
+  orgnr: string | null;
+  companyId?: string | null;
+  companyName?: string | null;
+}) {
   const { user } = useAuth();
   const analysis = useQuery(employerAnalysisViewQuery(orgnr, user?.id ?? "anon"));
   const detail = useQuery({ ...employerDetailQuery(orgnr ?? ""), enabled: Boolean(orgnr) });
@@ -64,8 +140,16 @@ export function CompanyInsightPanel({ orgnr }: { orgnr: string | null }) {
       <NetworkPanel title="Arbeidsgiverinnsikt">
         <PanelEmpty>
           Selskapet er ikke koblet til et organisasjonsnummer, så det finnes ikke noe
-          analysegrunnlag å vise.
+          analysegrunnlag å vise ennå.
         </PanelEmpty>
+        <div className="mt-3">
+          <StartAnalysisButton
+            companyId={companyId}
+            companyName={companyName}
+            orgnr={null}
+            label="Start arbeidsgiveranalyse"
+          />
+        </div>
       </NetworkPanel>
     );
   }
@@ -88,6 +172,14 @@ export function CompanyInsightPanel({ orgnr }: { orgnr: string | null }) {
         <PanelEmpty>
           Ikke analysert ennå. Her vises kun reelle analyseresultater for selskapet.
         </PanelEmpty>
+        <div className="mt-3">
+          <StartAnalysisButton
+            companyId={companyId}
+            companyName={companyName}
+            orgnr={orgnr}
+            label="Start arbeidsgiveranalyse"
+          />
+        </div>
       </NetworkPanel>
     );
   }
