@@ -43,7 +43,7 @@ const AI_MODEL = Deno.env.get("SCORE_PENDING_AI_MODEL") ??
   "google/gemini-2.5-flash";
 
 
-const ALLOWED_SOURCES = new Set(["nav", "careerjet", "all"]);
+const ALLOWED_SOURCES = new Set(["nav", "careerjet", "linkedin", "finn", "all"]);
 const ALLOWED_MODES = new Set(["pending", "stale", "rescore"]);
 const DESC_MAX_LEN = 6000;
 const EVIDENCE_LIMIT = 80;
@@ -65,7 +65,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 type Validated = {
-  source: "nav" | "careerjet" | "all";
+  source: "nav" | "careerjet" | "linkedin" | "finn" | "all";
   mode: "pending" | "stale" | "rescore";
   limit: number;
   dry_run: boolean;
@@ -210,13 +210,13 @@ type SourcePosting = {
 };
 
 type Candidate = {
-  row_kind: "canonical" | "legacy";
+  row_kind: "canonical" | "legacy" | "job_leads";
   row_id: string;
   user_opportunity_id: string | null;
   listing_status_id: string | null;
   canonical_opportunity_id: string | null;
   listing_id: string | null;
-  source: "nav" | "careerjet";
+  source: "nav" | "careerjet" | "linkedin" | "finn";
   title: string | null;
   company: string | null;
   location: string | null;
