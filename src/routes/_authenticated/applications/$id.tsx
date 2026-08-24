@@ -759,7 +759,7 @@ function NesteTab({ applicationId, steps, loading }: any) {
     });
     if (!res.ok) return toast.error("Kunne ikke oppdatere aktiviteten.");
     qc.invalidateQueries({ queryKey: ["next_steps"] });
-    qc.invalidateQueries({ queryKey: ["network-graph"] });
+    qc.invalidateQueries({ queryKey: ["network"] });
   };
 
   if (loading) return <Skeleton className="h-40 w-full" />;

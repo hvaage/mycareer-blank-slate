@@ -230,7 +230,7 @@ export function SuggestionPanel({
         onDone={() => {
           setAccepting(null);
           void qc.invalidateQueries({ queryKey: ["network-suggestions", userId, key] });
-          void qc.invalidateQueries({ queryKey: ["network-graph"] });
+          void qc.invalidateQueries({ queryKey: ["network"] });
         }}
       />
     </NetworkPanel>
