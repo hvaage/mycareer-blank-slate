@@ -737,6 +737,20 @@ async function runMatching(
       if (ins.data) {
         matched_user_opps++;
         usersToScore.push({ userId: p.id, canonicalId: co.id, co });
+        const { data: dedupeKey } = await admin.rpc("normalize_lead_key", {
+          p_url: co.display_url ?? null,
+          p_company: co.display_company ?? null,
+          p_title: co.display_title ?? null,
+          p_location: co.display_location ?? null,
+        });
+        await admin.rpc("register_lead", {
+          p_user_id: p.id,
+          p_source: "nav",
+          p_priority: 1,
+          p_dedupe_key: typeof dedupeKey === "string" ? dedupeKey : "",
+          p_ref_table: "user_opportunities",
+          p_ref_id: ins.data.id,
+        });
       }
     }
   }
