@@ -303,7 +303,12 @@ async function loadCandidates(
   const now = Date.now();
   const targeted =
     input.user_opportunity_ids.length + input.listing_status_ids.length > 0;
-  if (!targeted || input.user_opportunity_ids.length > 0) {
+
+  // Canonical branch: NAV/Careerjet via canonical_opportunities.
+  if (
+    input.source !== "linkedin" && input.source !== "finn" &&
+    (!targeted || input.user_opportunity_ids.length > 0)
+  ) {
     let canonicalQuery = admin
       .from("user_opportunities")
       .select(
@@ -435,70 +440,124 @@ async function loadCandidates(
     }
   }
 
+  // Legacy branch: direct Careerjet listings.
   if (
-    candidates.length >= input.limit || input.source === "nav" ||
-    (targeted && input.listing_status_ids.length === 0)
+    input.source !== "nav" && input.source !== "linkedin" &&
+    input.source !== "finn" &&
+    candidates.length < input.limit &&
+    (!targeted || input.listing_status_ids.length > 0)
   ) {
-    return candidates;
-  }
-  const representedStatusIds = new Set<string>();
-  const { data: represented } = await admin
-    .from("user_opportunities")
-    .select("legacy_listing_status_id")
-    .eq("user_id", userId)
-    .not("legacy_listing_status_id", "is", null);
-  for (const row of represented ?? []) {
-    if ((row as any).legacy_listing_status_id) {
-      representedStatusIds.add((row as any).legacy_listing_status_id);
+    const representedStatusIds = new Set<string>();
+    const { data: represented } = await admin
+      .from("user_opportunities")
+      .select("legacy_listing_status_id")
+      .eq("user_id", userId)
+      .not("legacy_listing_status_id", "is", null);
+    for (const row of represented ?? []) {
+      if ((row as any).legacy_listing_status_id) {
+        representedStatusIds.add((row as any).legacy_listing_status_id);
+      }
+    }
+
+    let legacyQuery = admin
+      .from("user_job_listing_status")
+      .select(
+        "id, listing_id, status, ai_score, ai_scored_at, ai_reasoning, ai_match_highlights, ai_concerns, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model, job_listings!inner(id, source, title, employer, location, description, is_expired, expires_at)",
+      )
+      .eq("user_id", userId)
+      .in("status", ["new", "saved"])
+      .eq("job_listings.source", "careerjet")
+      .limit(200);
+    if (input.listing_status_ids.length > 0) {
+      legacyQuery = legacyQuery.in("id", input.listing_status_ids);
+    }
+    const { data: legacyRows, error: legacyError } = await legacyQuery;
+    if (legacyError) {
+      throw new Error(`legacy_select_failed:${legacyError.message}`);
+    }
+    for (const row of legacyRows ?? []) {
+      if (candidates.length >= input.limit) break;
+      if (
+        representedStatusIds.has((row as any).id) || !modeMatches(row, input.mode)
+      ) continue;
+      const listing = relation((row as any).job_listings);
+      if (!listing || listing.is_expired === true) continue;
+      if (listing.expires_at && new Date(listing.expires_at).getTime() <= now) {
+        continue;
+      }
+      const description = cleanText(listing.description, DESC_MAX_LEN);
+      candidates.push({
+        row_kind: "legacy",
+        row_id: (row as any).id,
+        user_opportunity_id: null,
+        listing_status_id: (row as any).id,
+        canonical_opportunity_id: null,
+        listing_id: (row as any).listing_id,
+        source: "careerjet",
+        title: listing.title ?? null,
+        company: listing.employer ?? null,
+        location: listing.location ?? null,
+        work_type: null,
+        work_extent: null,
+        engagement_type: null,
+        description,
+        description_complete: !!description,
+        current: currentResult(row),
+      });
     }
   }
 
-  let legacyQuery = admin
-    .from("user_job_listing_status")
-    .select(
-      "id, listing_id, status, ai_score, ai_scored_at, ai_reasoning, ai_match_highlights, ai_concerns, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model, job_listings!inner(id, source, title, employer, location, description, is_expired, expires_at)",
-    )
-    .eq("user_id", userId)
-    .in("status", ["new", "saved"])
-    .eq("job_listings.source", "careerjet")
-    .limit(200);
-  if (input.listing_status_ids.length > 0) {
-    legacyQuery = legacyQuery.in("id", input.listing_status_ids);
-  }
-  const { data: legacyRows, error: legacyError } = await legacyQuery;
-  if (legacyError) {
-    throw new Error(`legacy_select_failed:${legacyError.message}`);
-  }
-  for (const row of legacyRows ?? []) {
-    if (candidates.length >= input.limit) break;
-    if (
-      representedStatusIds.has((row as any).id) || !modeMatches(row, input.mode)
-    ) continue;
-    const listing = relation((row as any).job_listings);
-    if (!listing || listing.is_expired === true) continue;
-    if (listing.expires_at && new Date(listing.expires_at).getTime() <= now) {
-      continue;
+  // Job leads branch: LinkedIn/Finn from email intake.
+  if (
+    input.source !== "nav" && input.source !== "careerjet" &&
+    candidates.length < input.limit && !targeted
+  ) {
+    let jobLeadQuery = admin
+      .from("job_leads")
+      .select(
+        "id, source_system, title, company, location, work_type, posted_text, raw_snippet, status, qualification_status, ai_score, ai_scored_at, ai_reasoning, ai_match_highlights, ai_concerns, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model",
+      )
+      .eq("user_id", userId)
+      .eq("status", "ny")
+      .not("qualification_status", "eq", "rejected")
+      .limit(200);
+    if (input.source !== "all") {
+      jobLeadQuery = jobLeadQuery.eq("source_system", input.source);
     }
-    const description = cleanText(listing.description, DESC_MAX_LEN);
-    candidates.push({
-      row_kind: "legacy",
-      row_id: (row as any).id,
-      user_opportunity_id: null,
-      listing_status_id: (row as any).id,
-      canonical_opportunity_id: null,
-      listing_id: (row as any).listing_id,
-      source: "careerjet",
-      title: listing.title ?? null,
-      company: listing.employer ?? null,
-      location: listing.location ?? null,
-      work_type: null,
-      work_extent: null,
-      engagement_type: null,
-      description,
-      description_complete: !!description,
-      current: currentResult(row),
-    });
+    const { data: jobLeadRows, error: jobLeadError } = await jobLeadQuery;
+    if (jobLeadError) {
+      throw new Error(`job_leads_select_failed:${jobLeadError.message}`);
+    }
+    for (const row of jobLeadRows ?? []) {
+      if (candidates.length >= input.limit) break;
+      if (!modeMatches(row, input.mode)) continue;
+      const descriptionRaw = typeof row.posted_text === "string" &&
+          row.posted_text.trim().length > 0
+        ? row.posted_text
+        : (typeof row.raw_snippet === "string" ? row.raw_snippet : "");
+      const descriptionComplete = typeof row.posted_text === "string" &&
+        row.posted_text.trim().length > 0;
+      candidates.push({
+        row_kind: "job_leads",
+        row_id: row.id,
+        user_opportunity_id: null,
+        listing_status_id: null,
+        canonical_opportunity_id: null,
+        listing_id: null,
+        source: row.source_system as Candidate["source"],
+        title: row.title ?? null,
+        company: row.company ?? null,
+        location: row.location ?? null,
+        work_type: row.work_type ?? null,
+        work_extent: null,
+        engagement_type: null,
+        description: cleanText(descriptionRaw, DESC_MAX_LEN),
+        description_complete: descriptionComplete,
+        current: currentResult(row),
+      });
+    }
   }
+
   return candidates;
 }
 
