@@ -519,7 +519,7 @@ async function loadCandidates(
       )
       .eq("user_id", userId)
       .in("status", ["ny"])
-      .not("qualification_status", "eq", "rejected")
+      .or("qualification_status.is.null,qualification_status.neq.rejected")
       .limit(200);
     if (input.source !== "all") {
       jobLeadQuery = jobLeadQuery.eq("source_system", input.source);
