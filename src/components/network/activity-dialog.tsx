@@ -102,7 +102,7 @@ export function ActivityDialog({
         toast.error(ERROR_TEXT[res.errorCode ?? "write_failed"] ?? ERROR_TEXT.write_failed);
         return;
       }
-      qc.invalidateQueries({ queryKey: ["network-graph"] });
+      qc.invalidateQueries({ queryKey: ["network"] });
       toast.success(activity ? "Aktiviteten er oppdatert." : "Aktiviteten er lagret.");
       setOpen(false);
     },
@@ -236,7 +236,7 @@ export function ActivityStatusButton({
         toast.error(ERROR_TEXT[res.errorCode ?? "write_failed"] ?? ERROR_TEXT.write_failed);
         return;
       }
-      qc.invalidateQueries({ queryKey: ["network-graph"] });
+      qc.invalidateQueries({ queryKey: ["network"] });
     },
     onError: () => toast.error(ERROR_TEXT.write_failed),
   });

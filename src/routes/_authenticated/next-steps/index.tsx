@@ -33,7 +33,7 @@ function NextStepsPage() {
       return;
     }
     qc.invalidateQueries({ queryKey: ["next_steps"] });
-    qc.invalidateQueries({ queryKey: ["network-graph"] });
+    qc.invalidateQueries({ queryKey: ["network"] });
     qc.invalidateQueries({ queryKey: ["applications", "søknad_generert_light"] });
   };
 
