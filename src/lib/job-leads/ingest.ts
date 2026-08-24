@@ -154,10 +154,29 @@ export async function ingestParsedEmail(params: {
   }
 
   const row = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
+  let leadId: string | null = null;
   if (row && (row as { was_inserted?: boolean }).was_inserted) {
     leadsCreated = 1;
+    leadId = (row as { lead_id?: string }).lead_id ?? null;
   } else {
     leadsDeduped = 1;
+  }
+
+  if (leadId) {
+    const { data: dedupeKey } = await supabaseAdmin.rpc("normalize_lead_key", {
+      p_url: parsed.job_url ?? null,
+      p_company: parsed.company ?? null,
+      p_title: parsed.title ?? null,
+      p_location: parsed.location ?? null,
+    });
+    await supabaseAdmin.rpc("register_lead", {
+      p_user_id: userId,
+      p_source: parsed.source_system,
+      p_priority: 1,
+      p_dedupe_key: typeof dedupeKey === "string" ? dedupeKey : "",
+      p_ref_table: "job_leads",
+      p_ref_id: leadId,
+    });
   }
 
 
