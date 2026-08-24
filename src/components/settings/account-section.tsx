@@ -98,7 +98,7 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
     if (!confirm("Slette kontoen din permanent? All data slettes også. Dette kan ikke angres.")) return;
     setDeleting(true);
     try {
-      await deleteMyData();
+      await deleteMyData({ confirmFirst: false });
       const { error } = await supabase.functions.invoke("delete-account");
       if (error) throw error;
       await signOut();
