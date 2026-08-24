@@ -901,9 +901,7 @@ async function runRepairMode(
       }).eq("id", repairRun.id);
       return { errorSummary: `system_error: target id scan: ${idErr.message}`, repair_run_id: repairRun.id };
     }
-    const ids = (idRows ?? [])
-      .map((r: any) => String(r.source_external_id ?? ""))
-      .filter((x) => x.length > 0);
+    const ids = (idRows ?? []).map((r: any) => r.source_external_id).filter(Boolean);
     if (ids.length === 0) {
       // Completed
       await admin.from("nav_repair_runs").update({
