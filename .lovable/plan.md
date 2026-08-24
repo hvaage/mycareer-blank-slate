@@ -26,7 +26,7 @@ Ingen av disse har et kallsted fra klientsiden, så appen påvirkes ikke.
 
 ## Runde 2 — nye avklaringer
 
-**`email_queue_wake` er en trigger-funksjon, ikke en RPC.** Live-definisjonen viser `RETURNS trigger`, `SECURITY DEFINER`, og at den fyres inne i innleggingstransaksjonen: den tar et rådgivende lås, planlegger `process-email-queue` (`5 seconds`) hvis jobben ikke finnes, og POSTer straks til `/lovable/email/queue/process`. Arm/disarm-mekanismen er altså reell — «5-second interval» i `email_infra.sql` beskriver intervallet på jobben `wake` oppretter, ikke en statisk jobb. Fordi den kun kjøres av trigger-maskineriet, brytes ingenting av å trekke tilbake `EXECUTE` fra `anon`/`authenticated`.
+**`email_queue_wake` er en trigger-funksjon, ikke en RPC.** Live-definisjonen viser `RETURNS trigger`, `SECURITY DEFINER`, og at den fyres inne i innleggingstransaksjonen: den tar et rådgivende lås, planlegger `process-email-queue` (`5 seconds`) hvis jobben ikke finnes, og POSTer straks til `/lovable/email/queue/process`. Arm/disarm-mekanismen er altså reell — «5-second interval» i `email_infra.sql` beskriver intervallet på jobben `wake` oppretter, ikke en statisk jobb. Din presisering er tatt inn: en trigger-funksjon kan ikke kalles direkte via SQL og eksponeres aldri som RPC-endepunkt, så `EXECUTE` til `PUBLIC` har aldri vært en reell vei inn her. Begrunnelsen for å ta den med i S1 er derfor rydding av advisor-støy, ikke lukking av et hull. Migrasjonen er uendret.
 
 **Søkevei er allerede satt på begge.** `email_queue_dispatch` og `email_queue_wake` har begge `SET search_path TO ''` i live-definisjonen. Ditt sekundære poeng er dermed dekket — ingen ekstra søkevei-linje for disse to. De fire pgmq-wrapperne i S3 mangler den fortsatt.
 
