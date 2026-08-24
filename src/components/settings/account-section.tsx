@@ -61,22 +61,17 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
     }
   };
 
-  const deleteMyData = async () => {
-    if (!confirm("Slette ALL din data (søknader, dokumenter, leads, karriereoversikt, profil)? Dette kan ikke angres.")) return;
+  const deleteMyData = async ({ confirmFirst = true }: { confirmFirst?: boolean } = {}) => {
+    if (
+      confirmFirst &&
+      !confirm(
+        "Slette ALT innholdet ditt (søknader, dokumenter, leads, kontakter, karriereoversikt og nettverksdata)? Kontoen beholdes. Dette kan ikke angres.",
+      )
+    )
+      return false;
     try {
-      await Promise.all([
-        supabase.from("documents").delete().eq("user_id", userId),
-        supabase.from("attachments").delete().eq("user_id", userId),
-        supabase.from("contacts").delete().eq("user_id", userId),
-        supabase.from("interviews").delete().eq("user_id", userId),
-        supabase.from("job_leads").delete().eq("user_id", userId),
-        supabase.from("email_connections").delete().eq("user_id", userId),
-        supabase.from("user_company_ratings").delete().eq("user_id", userId),
-        supabase.from("cv_parse_candidates").delete().eq("user_id", userId),
-        supabase.from("career_atoms").delete().eq("user_id", userId),
-        supabase.from("cv_imports").delete().eq("user_id", userId),
-        supabase.from("applications").delete().eq("user_id", userId),
-      ]);
+      const { error } = await supabase.rpc("delete_all_my_data");
+      if (error) throw error;
 
       // Best-effort: rydd opp opplastede CV-filer fra storage (cv-uploads/<userId>/...)
       try {
@@ -91,9 +86,11 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
         // ignorer storage-feil
       }
 
-      toast.success("All data slettet");
+      if (confirmFirst) toast.success("All data slettet");
+      return true;
     } catch (e: any) {
       toast.error(e.message ?? "Kunne ikke slette all data");
+      return false;
     }
   };
 
@@ -101,7 +98,7 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
     if (!confirm("Slette kontoen din permanent? All data slettes også. Dette kan ikke angres.")) return;
     setDeleting(true);
     try {
-      await deleteMyData();
+      await deleteMyData({ confirmFirst: false });
       const { error } = await supabase.functions.invoke("delete-account");
       if (error) throw error;
       await signOut();
@@ -177,7 +174,7 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
         <div className="border-t pt-4 space-y-3">
           <h3 className="text-sm font-semibold text-destructive">Faresone</h3>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={deleteMyData}>
+            <Button variant="outline" size="sm" onClick={() => deleteMyData()}>
               <Trash2 className="h-4 w-4 mr-2" /> Slett all min data
             </Button>
             <Button variant="destructive" size="sm" onClick={deleteAccount} disabled={deleting}>
@@ -185,7 +182,8 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            «Slett all min data» fjerner søknader, dokumenter, leads og kontakter, men beholder kontoen.
+            «Slett all min data» fjerner alt innhold du har lagt inn — søknader, dokumenter, leads,
+            kontakter, karriereoversikt og nettverksdata — men beholder kontoen og innloggingen din.
             «Slett konto» fjerner alt og logger deg ut.
           </p>
         </div>

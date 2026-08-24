@@ -141,6 +141,14 @@ function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              <div className="text-right">
+                <Link
+                  to="/glemt-passord"
+                  className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                >
+                  Glemt passord?
+                </Link>
+              </div>
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading || googleLoading || linkedinLoading}>

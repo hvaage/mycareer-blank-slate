@@ -9660,6 +9660,7 @@ export type Database = {
         }
       }
       cv_variant_db: { Args: { p_variant: string }; Returns: string }
+      delete_all_my_data: { Args: never; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean

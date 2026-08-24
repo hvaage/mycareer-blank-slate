@@ -17,6 +17,7 @@ import { Route as RekruttererundersokelseRouteImport } from './routes/rekruttere
 import { Route as PersonvernRouteImport } from './routes/personvern'
 import { Route as MarkedsinnsiktRouteImport } from './routes/markedsinnsikt'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GlemtPassordRouteImport } from './routes/glemt-passord'
 import { Route as ArbeidsgivereRouteImport } from './routes/arbeidsgivere'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
@@ -26,6 +27,7 @@ import { Route as ArbeidsgivereIndexRouteImport } from './routes/arbeidsgivere.i
 import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
 import { Route as RekruttererundersokelseTakkRouteImport } from './routes/rekruttererundersokelse.takk'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as AuthNyttPassordRouteImport } from './routes/auth.nytt-passord'
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ArbeidsgivereOrgnrRouteImport } from './routes/arbeidsgivere.$orgnr'
@@ -166,6 +168,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GlemtPassordRoute = GlemtPassordRouteImport.update({
+  id: '/glemt-passord',
+  path: '/glemt-passord',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ArbeidsgivereRoute = ArbeidsgivereRouteImport.update({
   id: '/arbeidsgivere',
   path: '/arbeidsgivere',
@@ -210,6 +217,11 @@ const RekruttererundersokelseTakkRoute =
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthNyttPassordRoute = AuthNyttPassordRouteImport.update({
+  id: '/auth/nytt-passord',
+  path: '/auth/nytt-passord',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLinkedinCallbackRoute = AuthLinkedinCallbackRouteImport.update({
@@ -786,6 +798,7 @@ const AuthenticatedNettverkKontakterIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/arbeidsgivere': typeof ArbeidsgivereRouteWithChildren
+  '/glemt-passord': typeof GlemtPassordRoute
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
@@ -810,6 +823,7 @@ export interface FileRoutesByFullPath {
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
+  '/auth/nytt-passord': typeof AuthNyttPassordRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
@@ -902,6 +916,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/glemt-passord': typeof GlemtPassordRoute
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
@@ -923,6 +938,7 @@ export interface FileRoutesByTo {
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
+  '/auth/nytt-passord': typeof AuthNyttPassordRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
@@ -1018,6 +1034,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/arbeidsgivere': typeof ArbeidsgivereRouteWithChildren
+  '/glemt-passord': typeof GlemtPassordRoute
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
@@ -1042,6 +1059,7 @@ export interface FileRoutesById {
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
+  '/auth/nytt-passord': typeof AuthNyttPassordRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
@@ -1137,6 +1155,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/arbeidsgivere'
+    | '/glemt-passord'
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
@@ -1161,6 +1180,7 @@ export interface FileRouteTypes {
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
+    | '/auth/nytt-passord'
     | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
@@ -1253,6 +1273,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/glemt-passord'
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
@@ -1274,6 +1295,7 @@ export interface FileRouteTypes {
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
+    | '/auth/nytt-passord'
     | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
@@ -1368,6 +1390,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/arbeidsgivere'
+    | '/glemt-passord'
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
@@ -1392,6 +1415,7 @@ export interface FileRouteTypes {
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
+    | '/auth/nytt-passord'
     | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
@@ -1487,6 +1511,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   ArbeidsgivereRoute: typeof ArbeidsgivereRouteWithChildren
+  GlemtPassordRoute: typeof GlemtPassordRoute
   LoginRoute: typeof LoginRoute
   MarkedsinnsiktRoute: typeof MarkedsinnsiktRoute
   PersonvernRoute: typeof PersonvernRoute
@@ -1497,6 +1522,7 @@ export interface RootRouteChildren {
   UnsubscribeRoute: typeof UnsubscribeRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
+  AuthNyttPassordRoute: typeof AuthNyttPassordRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRouteWithChildren
   ApiCvGenerationsRoute: typeof ApiCvGenerationsRouteWithChildren
@@ -1578,6 +1604,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/glemt-passord': {
+      id: '/glemt-passord'
+      path: '/glemt-passord'
+      fullPath: '/glemt-passord'
+      preLoaderRoute: typeof GlemtPassordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/arbeidsgivere': {
       id: '/arbeidsgivere'
       path: '/arbeidsgivere'
@@ -1639,6 +1672,13 @@ declare module '@tanstack/react-router' {
       path: '/email/unsubscribe'
       fullPath: '/email/unsubscribe'
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/nytt-passord': {
+      id: '/auth/nytt-passord'
+      path: '/auth/nytt-passord'
+      fullPath: '/auth/nytt-passord'
+      preLoaderRoute: typeof AuthNyttPassordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/linkedin-callback': {
@@ -2598,6 +2638,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   ArbeidsgivereRoute: ArbeidsgivereRouteWithChildren,
+  GlemtPassordRoute: GlemtPassordRoute,
   LoginRoute: LoginRoute,
   MarkedsinnsiktRoute: MarkedsinnsiktRoute,
   PersonvernRoute: PersonvernRoute,
@@ -2608,6 +2649,7 @@ const rootRouteChildren: RootRouteChildren = {
   UnsubscribeRoute: UnsubscribeRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
+  AuthNyttPassordRoute: AuthNyttPassordRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRouteWithChildren,
   ApiCvGenerationsRoute: ApiCvGenerationsRouteWithChildren,
