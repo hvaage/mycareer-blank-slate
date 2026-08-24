@@ -9908,7 +9908,7 @@ export type Database = {
         }[]
       }
       get_user_employers: {
-        Args: { p_user_id: string }
+        Args: never
         Returns: {
           company_id: string
           source: string
