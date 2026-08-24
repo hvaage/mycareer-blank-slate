@@ -27,6 +27,7 @@ import { Route as ArbeidsgivereIndexRouteImport } from './routes/arbeidsgivere.i
 import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
 import { Route as RekruttererundersokelseTakkRouteImport } from './routes/rekruttererundersokelse.takk'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as AuthNyttPassordRouteImport } from './routes/auth.nytt-passord'
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ArbeidsgivereOrgnrRouteImport } from './routes/arbeidsgivere.$orgnr'
@@ -216,6 +217,11 @@ const RekruttererundersokelseTakkRoute =
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthNyttPassordRoute = AuthNyttPassordRouteImport.update({
+  id: '/auth/nytt-passord',
+  path: '/auth/nytt-passord',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLinkedinCallbackRoute = AuthLinkedinCallbackRouteImport.update({
@@ -817,6 +823,7 @@ export interface FileRoutesByFullPath {
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
+  '/auth/nytt-passord': typeof AuthNyttPassordRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
@@ -931,6 +938,7 @@ export interface FileRoutesByTo {
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
+  '/auth/nytt-passord': typeof AuthNyttPassordRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
@@ -1051,6 +1059,7 @@ export interface FileRoutesById {
   '/arbeidsgivere/$orgnr': typeof ArbeidsgivereOrgnrRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
+  '/auth/nytt-passord': typeof AuthNyttPassordRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
@@ -1171,6 +1180,7 @@ export interface FileRouteTypes {
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
+    | '/auth/nytt-passord'
     | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
@@ -1285,6 +1295,7 @@ export interface FileRouteTypes {
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
+    | '/auth/nytt-passord'
     | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
@@ -1404,6 +1415,7 @@ export interface FileRouteTypes {
     | '/arbeidsgivere/$orgnr'
     | '/auth/callback'
     | '/auth/linkedin-callback'
+    | '/auth/nytt-passord'
     | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
@@ -1510,6 +1522,7 @@ export interface RootRouteChildren {
   UnsubscribeRoute: typeof UnsubscribeRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
+  AuthNyttPassordRoute: typeof AuthNyttPassordRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRouteWithChildren
   ApiCvGenerationsRoute: typeof ApiCvGenerationsRouteWithChildren
@@ -1659,6 +1672,13 @@ declare module '@tanstack/react-router' {
       path: '/email/unsubscribe'
       fullPath: '/email/unsubscribe'
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/nytt-passord': {
+      id: '/auth/nytt-passord'
+      path: '/auth/nytt-passord'
+      fullPath: '/auth/nytt-passord'
+      preLoaderRoute: typeof AuthNyttPassordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/linkedin-callback': {
@@ -2629,6 +2649,7 @@ const rootRouteChildren: RootRouteChildren = {
   UnsubscribeRoute: UnsubscribeRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
+  AuthNyttPassordRoute: AuthNyttPassordRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRouteWithChildren,
   ApiCvGenerationsRoute: ApiCvGenerationsRouteWithChildren,
