@@ -108,9 +108,8 @@ export const myEmployersQuery = () =>
       const uid = userData.user?.id;
       if (!uid) return { employers: [], jobsByCompanyId: {} };
 
-      const { data: rpcData, error: rpcErr } = await supabase.rpc("get_user_employers", {
-        p_user_id: uid,
-      });
+      // Funksjonen bruker auth.uid() internt — ingen bruker-ID sendes inn.
+      const { data: rpcData, error: rpcErr } = await supabase.rpc("get_user_employers");
       if (rpcErr) throw rpcErr;
 
       const ids = Array.from(new Set((rpcData ?? []).map((r: any) => r.company_id).filter(Boolean)));
