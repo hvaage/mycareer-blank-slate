@@ -61,22 +61,17 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
     }
   };
 
-  const deleteMyData = async () => {
-    if (!confirm("Slette ALL din data (søknader, dokumenter, leads, karriereoversikt, profil)? Dette kan ikke angres.")) return;
+  const deleteMyData = async ({ confirmFirst = true }: { confirmFirst?: boolean } = {}) => {
+    if (
+      confirmFirst &&
+      !confirm(
+        "Slette ALT innholdet ditt (søknader, dokumenter, leads, kontakter, karriereoversikt og nettverksdata)? Kontoen beholdes. Dette kan ikke angres.",
+      )
+    )
+      return false;
     try {
-      await Promise.all([
-        supabase.from("documents").delete().eq("user_id", userId),
-        supabase.from("attachments").delete().eq("user_id", userId),
-        supabase.from("contacts").delete().eq("user_id", userId),
-        supabase.from("interviews").delete().eq("user_id", userId),
-        supabase.from("job_leads").delete().eq("user_id", userId),
-        supabase.from("email_connections").delete().eq("user_id", userId),
-        supabase.from("user_company_ratings").delete().eq("user_id", userId),
-        supabase.from("cv_parse_candidates").delete().eq("user_id", userId),
-        supabase.from("career_atoms").delete().eq("user_id", userId),
-        supabase.from("cv_imports").delete().eq("user_id", userId),
-        supabase.from("applications").delete().eq("user_id", userId),
-      ]);
+      const { error } = await supabase.rpc("delete_all_my_data");
+      if (error) throw error;
 
       // Best-effort: rydd opp opplastede CV-filer fra storage (cv-uploads/<userId>/...)
       try {
@@ -91,9 +86,11 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
         // ignorer storage-feil
       }
 
-      toast.success("All data slettet");
+      if (confirmFirst) toast.success("All data slettet");
+      return true;
     } catch (e: any) {
       toast.error(e.message ?? "Kunne ikke slette all data");
+      return false;
     }
   };
 
