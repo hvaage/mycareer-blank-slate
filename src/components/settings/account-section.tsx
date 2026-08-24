@@ -174,7 +174,7 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
         <div className="border-t pt-4 space-y-3">
           <h3 className="text-sm font-semibold text-destructive">Faresone</h3>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={deleteMyData}>
+            <Button variant="outline" size="sm" onClick={() => deleteMyData()}>
               <Trash2 className="h-4 w-4 mr-2" /> Slett all min data
             </Button>
             <Button variant="destructive" size="sm" onClick={deleteAccount} disabled={deleting}>
@@ -182,7 +182,8 @@ export function AccountSection({ email, userId }: { email: string; userId: strin
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            «Slett all min data» fjerner søknader, dokumenter, leads og kontakter, men beholder kontoen.
+            «Slett all min data» fjerner alt innhold du har lagt inn — søknader, dokumenter, leads,
+            kontakter, karriereoversikt og nettverksdata — men beholder kontoen og innloggingen din.
             «Slett konto» fjerner alt og logger deg ut.
           </p>
         </div>
