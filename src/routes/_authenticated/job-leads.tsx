@@ -680,22 +680,22 @@ function JobLeadsPage() {
         return;
       }
 
-      const skipped = Number((data as any).skipped_duplicates ?? (data as any).skipped ?? 0);
-      const newLinks = Number((data as any).new_lead_links ?? (data as any).scored ?? 0);
-      const upserted = Number((data as any).listing_rows_upserted ?? (data as any).upserted ?? 0);
-      const refreshed = Number((data as any).existing_rows_refreshed ?? 0);
-      const navMatched = Number((data as any).nav_matched ?? 0);
-      const msg = [
-        `${(data as any).fetched} fra Careerjet`,
-        upserted ? `${upserted} rader i jobbliste` : null,
-        `${newLinks} nye koblinger til deg`,
-        navMatched ? `${navMatched} NAV-treff` : null,
-        skipped ? `${skipped} duplikater hoppet over` : null,
-        refreshed ? `${refreshed} eksisterende oppdatert` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ");
+      if (data?.reason === "no_keywords") {
+        toast.warning("Legg inn søkeord i jobbpreferansene dine først.");
+        return;
+      }
+      const matched = Number((data as any).matched ?? (data as any).new_lead_links ?? 0);
+      const aiScored = Number((data as any).ai_scored ?? 0);
+      const msg = matched
+        ? [
+            `${matched} nye muligheter fra arkivet (Careerjet + NAV)`,
+            aiScored ? `${aiScored} KI-scoret` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")
+        : "Ingen nye treff — alle aktuelle annonser er allerede koblet til deg";
       toast.success(msg);
+
       qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
       qc.invalidateQueries({ queryKey: ["profile-jobprefs"] });
       qc.invalidateQueries({ queryKey: ["user-opportunities"] });

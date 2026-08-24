@@ -9475,6 +9475,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      careerjet_purge_old_postings: {
+        Args: { p_batch?: number; p_days?: number }
+        Returns: Json
+      }
       careerjet_resolve_listing: {
         Args: {
           p_fencing_token: number
@@ -10365,6 +10369,14 @@ export type Database = {
       mark_stale_careerjet_postings: {
         Args: { p_days?: number }
         Returns: number
+      }
+      match_user_opportunities_from_mirror: {
+        Args: {
+          p_limit?: number
+          p_max_age_days?: number
+          p_sources?: string[]
+        }
+        Returns: Json
       }
       move_to_dlq: {
         Args: {

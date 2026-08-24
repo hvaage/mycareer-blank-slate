@@ -1,0 +1,119 @@
+CREATE INDEX IF NOT EXISTS idx_source_postings_source_status_published
+  ON public.source_postings (source, posting_status, published_at DESC)
+  WHERE identity_superseded_by_source_posting_id IS NULL;
+
+CREATE OR REPLACE FUNCTION public.match_user_opportunities_from_mirror(
+  p_sources text[] DEFAULT ARRAY['careerjet','nav'],
+  p_max_age_days integer DEFAULT 60,
+  p_limit integer DEFAULT 200
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_user uuid := auth.uid();
+  v_cutoff timestamptz := now() - make_interval(days => greatest(p_max_age_days, 1));
+  v_keywords text[];
+  v_locations text[];
+  v_inserted integer := 0;
+  v_new_ids uuid[] := '{}';
+BEGIN
+  IF v_user IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+
+  SELECT
+    coalesce(array(
+      SELECT DISTINCT lower(btrim(k))
+      FROM unnest(
+        string_to_array(coalesce(p.job_search_keywords, ''), ',')
+        || coalesce(p.target_roles, ARRAY[]::text[])
+        || CASE WHEN p.target_role IS NULL THEN ARRAY[]::text[] ELSE ARRAY[p.target_role] END
+      ) AS k
+      WHERE length(btrim(k)) >= 2
+    ), ARRAY[]::text[]),
+    coalesce(array(
+      SELECT DISTINCT lower(btrim(split_part(l, '(', 1)))
+      FROM unnest(
+        coalesce(p.preferred_locations, ARRAY[]::text[])
+        || CASE WHEN p.target_city IS NULL THEN ARRAY[]::text[] ELSE ARRAY[p.target_city] END
+        || CASE WHEN p.target_region IS NULL THEN ARRAY[]::text[] ELSE ARRAY[p.target_region] END
+      ) AS l
+      WHERE length(btrim(split_part(l, '(', 1))) >= 2
+    ), ARRAY[]::text[])
+  INTO v_keywords, v_locations
+  FROM public.profiles p
+  WHERE p.id = v_user;
+
+  IF v_keywords IS NULL OR array_length(v_keywords, 1) IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'no_keywords', 'matched', 0);
+  END IF;
+
+  WITH ferske AS (
+    -- Filtrer tidlig på annonsenivå: kilde, aktiv, fersk og tittel-treff.
+    SELECT l.canonical_opportunity_id AS cid, sp.source, sp.published_at
+    FROM public.source_postings sp
+    JOIN public.opportunity_source_links l ON l.source_posting_id = sp.id
+    WHERE sp.source = ANY (p_sources)
+      AND sp.posting_status = 'active'
+      AND sp.identity_superseded_by_source_posting_id IS NULL
+      AND sp.identity_role IS DISTINCT FROM 'superseded'
+      AND sp.published_at >= v_cutoff
+      AND EXISTS (
+        SELECT 1 FROM unnest(v_keywords) k
+        WHERE lower(coalesce(sp.title, '')) LIKE '%' || k || '%'
+      )
+  ),
+  kandidater AS (
+    SELECT DISTINCT ON (co.id)
+      co.id, co.identity_fingerprint, co.display_title, co.display_company,
+      co.display_location, co.display_url, f.source, f.published_at
+    FROM ferske f
+    JOIN public.canonical_opportunities co ON co.id = f.cid
+    WHERE (co.live_until IS NULL OR co.live_until > now())
+      AND (
+        array_length(v_locations, 1) IS NULL
+        OR EXISTS (
+          SELECT 1 FROM unnest(v_locations) loc
+          WHERE lower(coalesce(co.display_location, '')) LIKE '%' || loc || '%'
+             OR (length(coalesce(co.display_location, '')) >= 2
+                 AND loc LIKE '%' || lower(co.display_location) || '%')
+        )
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM public.user_opportunities uo
+        WHERE uo.user_id = v_user AND uo.canonical_opportunity_id = co.id
+      )
+    ORDER BY co.id, f.published_at DESC
+  ),
+  begrenset AS (
+    SELECT * FROM kandidater ORDER BY published_at DESC LIMIT greatest(p_limit, 1)
+  ),
+  innsatt AS (
+    INSERT INTO public.user_opportunities (
+      user_id, canonical_opportunity_id, identity_fingerprint, status,
+      card_title, card_company, card_location, card_display_url, card_raw_url,
+      card_source, card_published_at
+    )
+    SELECT v_user, b.id, b.identity_fingerprint, 'new',
+           b.display_title, b.display_company, b.display_location,
+           b.display_url, b.display_url, b.source, b.published_at
+    FROM begrenset b
+    ON CONFLICT (user_id, canonical_opportunity_id) DO NOTHING
+    RETURNING id
+  )
+  SELECT coalesce(array_agg(id), '{}'), count(*)
+    INTO v_new_ids, v_inserted
+  FROM innsatt;
+
+  RETURN jsonb_build_object(
+    'ok', true, 'matched', v_inserted, 'new_ids', to_jsonb(v_new_ids),
+    'cutoff', v_cutoff, 'keywords', to_jsonb(v_keywords), 'locations', to_jsonb(v_locations)
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.match_user_opportunities_from_mirror(text[], integer, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.match_user_opportunities_from_mirror(text[], integer, integer) TO authenticated, service_role;
