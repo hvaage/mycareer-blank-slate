@@ -877,9 +877,8 @@ function JobLeadsPage() {
           </Button>
           <Button
             onClick={handleScorePending}
-            disabled={scoring || sourceFilter === "linkedin"}
+            disabled={scoring}
             variant="outline"
-            title={sourceFilter === "linkedin" ? "Vurdering gjelder NAV/Careerjet" : undefined}
           >
             <Sparkles className={`h-4 w-4 mr-2 ${scoring ? "animate-spin" : ""}`} />
             {scoring ? "Vurderer…" : "Vurder nye og utdaterte"}
