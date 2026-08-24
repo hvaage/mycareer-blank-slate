@@ -610,8 +610,11 @@ function JobLeadsPage() {
   const handleScorePending = async () => {
     setScoring(true);
     try {
-      // score-pending-opportunities aksepterer kun nav | careerjet | all.
-      const source = sourceFilter === "nav" || sourceFilter === "careerjet" ? sourceFilter : "all";
+      // score-pending-opportunities støtter nå alle fire kilder.
+      const source =
+        sourceFilter === "all" || sourceFilter === "other"
+          ? "all"
+          : sourceFilter;
       const { data: rawData, error } = await supabase.functions.invoke("score-pending-opportunities", {
         body: { source, limit: 20, mode: "stale" },
       });
@@ -874,9 +877,8 @@ function JobLeadsPage() {
           </Button>
           <Button
             onClick={handleScorePending}
-            disabled={scoring || sourceFilter === "linkedin"}
+            disabled={scoring}
             variant="outline"
-            title={sourceFilter === "linkedin" ? "Vurdering gjelder NAV/Careerjet" : undefined}
           >
             <Sparkles className={`h-4 w-4 mr-2 ${scoring ? "animate-spin" : ""}`} />
             {scoring ? "Vurderer…" : "Vurder nye og utdaterte"}

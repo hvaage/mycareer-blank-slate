@@ -4063,6 +4063,7 @@ export type Database = {
           ai_match_highlights: string | null
           ai_reasoning: string | null
           ai_score: number | null
+          ai_scored_at: string | null
           application_due: string | null
           company: string | null
           created_at: string
@@ -4071,6 +4072,8 @@ export type Database = {
           imported_job_email_id: string | null
           job_url: string | null
           location: string | null
+          match_score_version: string | null
+          match_scored_model: string | null
           parse_confidence: number | null
           posted_text: string | null
           promoted_application_id: string | null
@@ -4081,7 +4084,11 @@ export type Database = {
           raw_snippet: string | null
           received_at: string | null
           reject_reason: string | null
+          requirement_summary: Json
           salary_text: string | null
+          screening_evaluated_at: string | null
+          screening_reasons: Json
+          screening_status: string | null
           source_email_from: string | null
           source_message_id: string | null
           source_observed_at: string | null
@@ -4099,6 +4106,7 @@ export type Database = {
           ai_match_highlights?: string | null
           ai_reasoning?: string | null
           ai_score?: number | null
+          ai_scored_at?: string | null
           application_due?: string | null
           company?: string | null
           created_at?: string
@@ -4107,6 +4115,8 @@ export type Database = {
           imported_job_email_id?: string | null
           job_url?: string | null
           location?: string | null
+          match_score_version?: string | null
+          match_scored_model?: string | null
           parse_confidence?: number | null
           posted_text?: string | null
           promoted_application_id?: string | null
@@ -4117,7 +4127,11 @@ export type Database = {
           raw_snippet?: string | null
           received_at?: string | null
           reject_reason?: string | null
+          requirement_summary?: Json
           salary_text?: string | null
+          screening_evaluated_at?: string | null
+          screening_reasons?: Json
+          screening_status?: string | null
           source_email_from?: string | null
           source_message_id?: string | null
           source_observed_at?: string | null
@@ -4135,6 +4149,7 @@ export type Database = {
           ai_match_highlights?: string | null
           ai_reasoning?: string | null
           ai_score?: number | null
+          ai_scored_at?: string | null
           application_due?: string | null
           company?: string | null
           created_at?: string
@@ -4143,6 +4158,8 @@ export type Database = {
           imported_job_email_id?: string | null
           job_url?: string | null
           location?: string | null
+          match_score_version?: string | null
+          match_scored_model?: string | null
           parse_confidence?: number | null
           posted_text?: string | null
           promoted_application_id?: string | null
@@ -4153,7 +4170,11 @@ export type Database = {
           raw_snippet?: string | null
           received_at?: string | null
           reject_reason?: string | null
+          requirement_summary?: Json
           salary_text?: string | null
+          screening_evaluated_at?: string | null
+          screening_reasons?: Json
+          screening_status?: string | null
           source_email_from?: string | null
           source_message_id?: string | null
           source_observed_at?: string | null
@@ -4259,6 +4280,7 @@ export type Database = {
           created_at: string
           id: string
           job_input_hash: string | null
+          job_lead_id: string | null
           listing_id: string | null
           listing_status_id: string | null
           match_highlights: string | null
@@ -4281,6 +4303,7 @@ export type Database = {
           created_at?: string
           id?: string
           job_input_hash?: string | null
+          job_lead_id?: string | null
           listing_id?: string | null
           listing_status_id?: string | null
           match_highlights?: string | null
@@ -4303,6 +4326,7 @@ export type Database = {
           created_at?: string
           id?: string
           job_input_hash?: string | null
+          job_lead_id?: string | null
           listing_id?: string | null
           listing_status_id?: string | null
           match_highlights?: string | null
@@ -4325,6 +4349,13 @@ export type Database = {
             columns: ["canonical_opportunity_id"]
             isOneToOne: false
             referencedRelation: "canonical_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_match_evaluations_job_lead_id_fkey"
+            columns: ["job_lead_id"]
+            isOneToOne: false
+            referencedRelation: "job_leads"
             referencedColumns: ["id"]
           },
           {

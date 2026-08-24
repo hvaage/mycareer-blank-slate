@@ -712,8 +712,8 @@ async function runMatching(
     const titleLc = (co.display_title ?? "").toLowerCase();
     const locLc = (co.display_location ?? "").toLowerCase();
     for (const p of parsedProfiles) {
-      const kwMatch = p.kws.length === 0 ? false : p.kws.some((k) => titleLc.includes(k));
-      const locMatch = p.locs.length === 0 ? true : p.locs.some((l) => locLc.includes(l));
+      const kwMatch = p.kws.length === 0 ? false : p.kws.some((k: string) => titleLc.includes(k));
+      const locMatch = p.locs.length === 0 ? true : p.locs.some((l: string) => locLc.includes(l));
       if (!kwMatch || !locMatch) continue;
       const { data: existingUo } = await admin
         .from("user_opportunities")
@@ -737,6 +737,20 @@ async function runMatching(
       if (ins.data) {
         matched_user_opps++;
         usersToScore.push({ userId: p.id, canonicalId: co.id, co });
+        const { data: dedupeKey } = await admin.rpc("normalize_lead_key", {
+          p_url: co.display_url ?? null,
+          p_company: co.display_company ?? null,
+          p_title: co.display_title ?? null,
+          p_location: co.display_location ?? null,
+        });
+        await admin.rpc("register_lead", {
+          p_user_id: p.id,
+          p_source: "nav",
+          p_priority: 1,
+          p_dedupe_key: typeof dedupeKey === "string" ? dedupeKey : "",
+          p_ref_table: "user_opportunities",
+          p_ref_id: ins.data.id,
+        });
       }
     }
   }
@@ -887,7 +901,8 @@ async function runRepairMode(
       }).eq("id", repairRun.id);
       return { errorSummary: `system_error: target id scan: ${idErr.message}`, repair_run_id: repairRun.id };
     }
-    const ids = (idRows ?? []).map((r: any) => r.source_external_id).filter(Boolean);
+    const ids = (idRows ?? []).map((r: any) => r.source_external_id)
+      .filter(Boolean) as string[];
     if (ids.length === 0) {
       // Completed
       await admin.from("nav_repair_runs").update({
