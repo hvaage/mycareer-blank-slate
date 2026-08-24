@@ -1,70 +1,66 @@
-# Sikkerhetsgrunnlag før CASA — verifisert mot vår egen database
+# Sikkerhetsgrunnlag før CASA — oppdatert etter gjennomgang (S1–S7)
 
-Jeg har kjørt kontrollene direkte mot databasen denne appen faktisk bruker (ikke job-buddy-db). Bildet er annerledes enn i instruksen: de to «akutte lekkasjene» finnes ikke her, men fire andre åpne funksjoner gjør det.
+Gjennomgangen din er tatt inn. To ting er nå avklart mot databasen, og to nye detaljer dukket opp i rettighetsuttrekket.
 
-## Hva som IKKE gjelder oss (verifisert)
+## Avklaringer på de åpne punktene
 
-- `cv_dekningsgrad` finnes ikke i denne databasen.
-- `employer_profile` finnes ikke.
-- `seed_default_email_job_sources` finnes ikke.
-- Ingen visning mangler `security_invoker` — det finnes null slike visninger i `public`.
-- `sync_user_opportunity_ai_from_legacy`, `refresh_company_aggregate` og `refresh_company_process_aggregate` er ikke kallbare av verken anonyme eller innloggede brukere i dag.
-- Hemmeligheter: `SUPABASE_SERVICE_ROLE_KEY` leses kun via `process.env` i server-filer, som beskrevet. Ingen endring — bare bekreftelsessøket i byggresultatet.
+**`email_queue_dispatch` — kallstedet er funnet.** Den kalles ikke fra appkoden. Funksjonen er selve kroppen til en dynamisk cron-jobb (`process-email-queue`) som armes av `email_queue_wake` når noe legges i e-postkøen, og som avskilter seg selv når køen er tom. Den POSTer videre til `/lovable/email/queue/process`. Den er altså i aktiv bruk, kalt av databasens egen planlegger — ikke død kode, og ikke noe å fjerne. Innstramming til `service_role` (pluss `postgres`, som cron kjører som) er trygt.
 
-## Funn som faktisk gjelder oss
+**`email_queue_wake` må med i samme runde.** Den er også `anon`- og `authenticated`-kallbar i dag, og er inngangen som armer cron-jobben. Uten den i listen kan en uinnlogget besøkende fortsatt trigge planleggeren. Legges til som sjette funksjon i S1.
 
-### S1 — Åpne skrivefunksjoner uten innloggingskrav (høyest prioritet)
+**`brreg_full_apply_refined_filter` — ikke død kode i drift.** Den har en `GRANT ... TO service_role` i migrasjon `20260815145610`, men rettighetslisten viser at `PUBLIC`, `anon` og `authenticated` fortsatt står der ved siden av. Ingen `REVOKE` ble kjørt. Samme mønster som S7 beskriver.
 
-Fire funksjoner kan kalles av uinnloggede besøkende og gjør skriveoperasjoner uten å sjekke hvem som kaller:
+**`brreg_full_merge` finnes i to varianter.** `(p_run_id bigint)` er allerede korrekt låst til `service_role`. `(p_run_id bigint, p_batch integer)` — den nyere signaturen, som er den koden faktisk kaller — er åpen for `PUBLIC`, `anon` og `authenticated`. Dette er S7-feilklassen svart på hvitt: ny signatur, ny funksjon, standardrettigheter tilbake. Begge signaturer strammes inn.
 
-- `insert_job_lead_dedup(jsonb)` — kan legge inn jobb-leads på en vilkårlig bruker-ID utenfra.
-- `email_queue_dispatch()` — kan trigge utsending fra e-postkøen utenfra.
-- `internal_ai_generation_commit_step(...)` — intern arbeiderfunksjon for KI-generering; skriver innhold til genereringsjobber.
-- `brreg_full_merge(...)` og `brreg_full_apply_refined_filter(...)` — interne registerimport-funksjoner.
+## S1 — Innstramming av åpne funksjoner (utvidet til seks)
 
-Rettelse: trekk tilbake kjøretilgang for `anon`, `authenticated` og `PUBLIC` på alle fem, og gi kun `service_role`. De kalles fra serversiden (edge-funksjoner / serverfunksjoner) med tjenestenøkkel, så appen påvirkes ikke.
+Trekk tilbake `EXECUTE` fra `PUBLIC`, `anon` og `authenticated`, behold/gi `service_role`:
 
-### S2 — `get_user_employers(p_user_id)`: innlogget bruker kan lese andres arbeidsgiverhistorikk
+- `insert_job_lead_dedup(jsonb)` — kalles via tjenestenøkkel i `ingest.ts`.
+- `brreg_full_merge(bigint, integer)` og `brreg_full_merge(bigint)` — kalles via tjenestenøkkel.
+- `brreg_full_apply_refined_filter(bigint)`.
+- `internal_ai_generation_commit_step(...)` — kalles med adminklient fra generatorløperen.
+- `email_queue_dispatch()` og `email_queue_wake()` — kalles av databasens planlegger. Her beholdes også `postgres`.
 
-Funksjonen er `SECURITY DEFINER`, kallbar av innloggede (ikke anonyme), og har ingen `auth.uid()`-sjekk — den stoler på parameteren. En innlogget bruker kan derfor spørre om hvilke selskaper en annen bruker har søkt hos eller vurdert.
+Ingen av disse har et kallsted fra klientsiden, så appen påvirkes ikke.
 
-Rettelse: fjern parameteren og bruk `auth.uid()` direkte, slik at feilklassen blir strukturelt umulig. Kallstedene i koden oppdateres i samme runde.
+## S2 — `get_user_employers`
 
-### S3 — Fire funksjoner mangler fast søkevei
+Bekreftet: kun `authenticated` (ikke `anon`) har tilgang, ingen `auth.uid()`-sjekk, og nøyaktig ett kallsted — `src/lib/queries/companies.ts` linje 111, alltid med brukerens eget ID. Rettelsen: ny parameterløs versjon filtrert på `auth.uid()`, gammel signatur droppes, og kallstedet endres til `supabase.rpc("get_user_employers")`.
 
-`delete_email`, `enqueue_email`, `move_to_dlq`, `read_email_batch` mangler `SET search_path`. Lav risiko, billig å rette: legg til `SET search_path = public, pg_temp`.
+## S3 — Fast søkevei
 
-### S4 — 14 tabeller har radsikkerhet på uten noen regel
+`delete_email`, `enqueue_email`, `move_to_dlq`, `read_email_batch` får `SET search_path = public, pg_temp`. Uendret fra forrige plan, bekreftet i aktiv bruk.
 
-`careerjet_*`-tabellene, `cv_generation_jobs`, `lead_events`, `source_company_resolutions`, skrivelåser m.fl. Dette er ikke en lekkasje — ingen når dem via API-et i dag. De er driftstabeller som kun serversiden bruker, så dette er tilsiktet. Jeg dokumenterer det i sikkerhetsminnet i stedet for å endre noe.
+## S4, S5 — Bevisste valg
 
-### S5 — `pg_trgm` og `vector` ligger i public-skjemaet
+RLS uten policy på driftstabellene beholdes (ingen API-vei dit). `pg_trgm` og `vector` blir liggende i `public` — flyttingen treffer operatorklasser som arbeidsgiversøkets indekser peker på, og gevinsten er marginal. Begge dokumenteres i sikkerhetsminnet framfor å endres.
 
-Anbefalt flyttet til `extensions`. Dette er en risikofylt flytting (indekser og funksjonssignaturer på arbeidsgiversøket peker på operatorklasser derfra) med svært lav gevinst. Forslag: la det stå, noter som bevisst valg.
+## S6 — Sikkerhetsheadere i `src/server.ts`
 
-### S6 — Sikkerhetsheadere (CSP m.m.)
-
-Ingen headere settes i dag. Alt går gjennom `fetch()` i `src/server.ts`, så headerne legges på der — ingen ekstra CDN-lag.
-
-- `Content-Security-Policy-Report-Only` først, satt sammen etter en faktisk gjennomgang av hva appen laster (backend-URL for `connect-src`, skriftkilder, bilder, `frame-ancestors 'none'`). Håndheving først etter at Report-Only har vært stille.
+- `Content-Security-Policy-Report-Only` først, satt sammen etter en gjennomgang av hva appen faktisk laster. Håndheving først når rapporten er stille.
 - `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` som slår av kamera/mikrofon/geolokasjon, `X-Frame-Options: DENY`.
-- Headerne settes ikke på `/api/public/*`-ruter som eksterne tjenester kaller.
+- Ingen headere på `/api/public/*` — de rutene kalles av eksterne tjenester og av cron.
+- `frame-ancestors 'none'` kun på det publiserte domenet, ikke i forhåndsvisning (som kjører i iframe).
 
-Merk: appen kjøres også i en forhåndsvisning inne i en iframe i byggeverktøyet. `frame-ancestors 'none'` slås derfor kun på for det publiserte domenet, ikke i forhåndsvisning.
+## S7 — Fast regel, ikke bare linterkjøring
 
-### S7 — Fast sikkerhetssjekk etter databaseendringer
+Analysen din er riktig og er nå bekreftet av rettighetsuttrekket: `DROP FUNCTION` + ny `CREATE FUNCTION` (eller `CREATE OR REPLACE` med endret parameterliste) gir et nytt funksjonsobjekt med Postgres' standard `EXECUTE` til `PUBLIC`. Både `brreg_full_merge` og `internal_ai_generation_commit_step` havnet tilbake i advisor-skannet på nøyaktig denne måten.
 
-Jeg kjører databaselinteren etter hver migrasjon fra nå av, og rapporterer nye funn i samme svar.
+Regelen som legges i sikkerhetsminnet: enhver migrasjon som endrer signaturen til en `SECURITY DEFINER`-funksjon med innskrenkede rettigheter må inneholde `REVOKE`/`GRANT`-linjene på nytt i samme migrasjon. Linterkjøring etter hver migrasjon beholdes som nett under, ikke som førstelinje.
 
 ## Rekkefølge
 
-1. Én migrasjon som dekker S1, S2 og S3, pluss kodeendring på kallstedene til `get_user_employers`.
-2. Kjør linter og bekreft at funnene er borte.
-3. Sikkerhetsheadere i `src/server.ts` (S6), Report-Only først.
-4. Bekreftelsessøk etter `SERVICE_ROLE` i byggresultatet, og kontroll av at nøkler ikke ligger i versjonshistorikken.
-5. Oppdater sikkerhetsminnet med de bevisste valgene (S4, S5, offentlig arbeidsgiversøk).
+1. Én migrasjon: S1 (seks funksjoner, begge `brreg_full_merge`-signaturer), S2 (ny parameterløs funksjon + drop av gammel), S3 (søkevei).
+2. Kodeendring: `src/lib/queries/companies.ts` linje 111 til parameterløst kall.
+3. Kjør linteren, bekreft at S1/S2/S3-funnene er borte og at ingen nye kom til.
+4. S6 — sikkerhetsheadere i `src/server.ts`, Report-Only først.
+5. Bekreftelsessøk etter `SERVICE_ROLE` i byggresultatet.
+6. Oppdater sikkerhetsminnet: S4, S5, offentlig arbeidsgiversøk, og S7-regelen om signaturendringer.
 
 ## Teknisk
 
-- Migrasjon: `REVOKE ALL ON FUNCTION ... FROM PUBLIC, anon, authenticated; GRANT EXECUTE ... TO service_role;` for de fem funksjonene i S1. `CREATE OR REPLACE FUNCTION public.get_user_employers()` uten parameter, filtrert på `auth.uid()`, gammel signatur droppes. `ALTER FUNCTION ... SET search_path = public, pg_temp` for de fire e-postkøfunksjonene.
-- `src/server.ts`: en `withSecurityHeaders(response)` som klonerer responsen og legger på headerne, brukt på returverdien fra `normalizeCatastrophicSsrResponse`.
+- `REVOKE ALL ON FUNCTION public.<navn>(<args>) FROM PUBLIC, anon, authenticated; GRANT EXECUTE ON FUNCTION public.<navn>(<args>) TO service_role;` per signatur. For de to e-postkøfunksjonene også `GRANT EXECUTE ... TO postgres`.
+- `CREATE OR REPLACE FUNCTION public.get_user_employers()` uten parameter, `WHERE user_id = auth.uid()`, deretter `DROP FUNCTION public.get_user_employers(uuid)`.
+- `ALTER FUNCTION ... SET search_path = public, pg_temp` for de fire e-postkøfunksjonene.
+- `src/server.ts`: `withSecurityHeaders(response)` som legger på headerne, med tidlig retur for stier som starter med `/api/public/`.
