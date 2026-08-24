@@ -24,6 +24,16 @@ Trekk tilbake `EXECUTE` fra `PUBLIC`, `anon` og `authenticated`, behold/gi `serv
 
 Ingen av disse har et kallsted fra klientsiden, så appen påvirkes ikke.
 
+## Runde 2 — nye avklaringer
+
+**`email_queue_wake` er en trigger-funksjon, ikke en RPC.** Live-definisjonen viser `RETURNS trigger`, `SECURITY DEFINER`, og at den fyres inne i innleggingstransaksjonen: den tar et rådgivende lås, planlegger `process-email-queue` (`5 seconds`) hvis jobben ikke finnes, og POSTer straks til `/lovable/email/queue/process`. Arm/disarm-mekanismen er altså reell — «5-second interval» i `email_infra.sql` beskriver intervallet på jobben `wake` oppretter, ikke en statisk jobb. Fordi den kun kjøres av trigger-maskineriet, brytes ingenting av å trekke tilbake `EXECUTE` fra `anon`/`authenticated`.
+
+**Søkevei er allerede satt på begge.** `email_queue_dispatch` og `email_queue_wake` har begge `SET search_path TO ''` i live-definisjonen. Ditt sekundære poeng er dermed dekket — ingen ekstra søkevei-linje for disse to. De fire pgmq-wrapperne i S3 mangler den fortsatt.
+
+**Manglende migrasjonsspor bekreftet.** Ingen `CREATE FUNCTION` for `email_queue_dispatch` eller `email_queue_wake` finnes i `supabase/migrations/` — kun kommentartekst i de sju `email_infra`-filene. Begge er opprettet direkte mot databasen av e-postinfrastrukturen. De legges inn i denne migrasjonen som `CREATE OR REPLACE FUNCTION` med kroppen hentet ordrett fra `pg_get_functiondef`, uendret atferd, kun for å få dem i versjonskontroll — plassert før `REVOKE`/`GRANT`-linjene for de samme to. Forbehold: e-postintegrasjonen eier disse funksjonene og kan regenerere dem ved en senere oppgradering; da gjelder S7-regelen, og innstrammingen må gjentas.
+
+
+
 ## S2 — `get_user_employers`
 
 Bekreftet: kun `authenticated` (ikke `anon`) har tilgang, ingen `auth.uid()`-sjekk, og nøyaktig ett kallsted — `src/lib/queries/companies.ts` linje 111, alltid med brukerens eget ID. Rettelsen: ny parameterløs versjon filtrert på `auth.uid()`, gammel signatur droppes, og kallstedet endres til `supabase.rpc("get_user_employers")`.
@@ -51,7 +61,7 @@ Regelen som legges i sikkerhetsminnet: enhver migrasjon som endrer signaturen ti
 
 ## Rekkefølge
 
-1. Én migrasjon: S1 (seks funksjoner, begge `brreg_full_merge`-signaturer), S2 (ny parameterløs funksjon + drop av gammel), S3 (søkevei).
+1. Én migrasjon, i denne rekkefølgen: `CREATE OR REPLACE` av `email_queue_dispatch()` og `email_queue_wake()` fra live-definisjonen, deretter S1 (seks funksjoner, begge `brreg_full_merge`-signaturer), S2 (ny parameterløs funksjon + drop av gammel) og S3 (søkevei på de fire pgmq-wrapperne).
 2. Kodeendring: `src/lib/queries/companies.ts` linje 111 til parameterløst kall.
 3. Kjør linteren, bekreft at S1/S2/S3-funnene er borte og at ingen nye kom til.
 4. S6 — sikkerhetsheadere i `src/server.ts`, Report-Only først.
