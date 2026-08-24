@@ -61,7 +61,7 @@ Regelen som legges i sikkerhetsminnet: enhver migrasjon som endrer signaturen ti
 
 ## Rekkefølge
 
-1. Én migrasjon: S1 (seks funksjoner, begge `brreg_full_merge`-signaturer), S2 (ny parameterløs funksjon + drop av gammel), S3 (søkevei).
+1. Én migrasjon, i denne rekkefølgen: `CREATE OR REPLACE` av `email_queue_dispatch()` og `email_queue_wake()` fra live-definisjonen, deretter S1 (seks funksjoner, begge `brreg_full_merge`-signaturer), S2 (ny parameterløs funksjon + drop av gammel) og S3 (søkevei på de fire pgmq-wrapperne).
 2. Kodeendring: `src/lib/queries/companies.ts` linje 111 til parameterløst kall.
 3. Kjør linteren, bekreft at S1/S2/S3-funnene er borte og at ingen nye kom til.
 4. S6 — sikkerhetsheadere i `src/server.ts`, Report-Only først.
