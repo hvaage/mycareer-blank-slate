@@ -17,6 +17,7 @@ import { Route as RekruttererundersokelseRouteImport } from './routes/rekruttere
 import { Route as PersonvernRouteImport } from './routes/personvern'
 import { Route as MarkedsinnsiktRouteImport } from './routes/markedsinnsikt'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GlemtPassordRouteImport } from './routes/glemt-passord'
 import { Route as ArbeidsgivereRouteImport } from './routes/arbeidsgivere'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
@@ -164,6 +165,11 @@ const MarkedsinnsiktRoute = MarkedsinnsiktRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GlemtPassordRoute = GlemtPassordRouteImport.update({
+  id: '/glemt-passord',
+  path: '/glemt-passord',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ArbeidsgivereRoute = ArbeidsgivereRouteImport.update({
@@ -786,6 +792,7 @@ const AuthenticatedNettverkKontakterIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/arbeidsgivere': typeof ArbeidsgivereRouteWithChildren
+  '/glemt-passord': typeof GlemtPassordRoute
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
@@ -902,6 +909,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/glemt-passord': typeof GlemtPassordRoute
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
@@ -1018,6 +1026,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/arbeidsgivere': typeof ArbeidsgivereRouteWithChildren
+  '/glemt-passord': typeof GlemtPassordRoute
   '/login': typeof LoginRoute
   '/markedsinnsikt': typeof MarkedsinnsiktRoute
   '/personvern': typeof PersonvernRoute
@@ -1137,6 +1146,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/arbeidsgivere'
+    | '/glemt-passord'
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
@@ -1253,6 +1263,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/glemt-passord'
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
@@ -1368,6 +1379,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/arbeidsgivere'
+    | '/glemt-passord'
     | '/login'
     | '/markedsinnsikt'
     | '/personvern'
@@ -1487,6 +1499,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   ArbeidsgivereRoute: typeof ArbeidsgivereRouteWithChildren
+  GlemtPassordRoute: typeof GlemtPassordRoute
   LoginRoute: typeof LoginRoute
   MarkedsinnsiktRoute: typeof MarkedsinnsiktRoute
   PersonvernRoute: typeof PersonvernRoute
@@ -1576,6 +1589,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/glemt-passord': {
+      id: '/glemt-passord'
+      path: '/glemt-passord'
+      fullPath: '/glemt-passord'
+      preLoaderRoute: typeof GlemtPassordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/arbeidsgivere': {
@@ -2598,6 +2618,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   ArbeidsgivereRoute: ArbeidsgivereRouteWithChildren,
+  GlemtPassordRoute: GlemtPassordRoute,
   LoginRoute: LoginRoute,
   MarkedsinnsiktRoute: MarkedsinnsiktRoute,
   PersonvernRoute: PersonvernRoute,
