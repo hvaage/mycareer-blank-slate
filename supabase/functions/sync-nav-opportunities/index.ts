@@ -712,8 +712,8 @@ async function runMatching(
     const titleLc = (co.display_title ?? "").toLowerCase();
     const locLc = (co.display_location ?? "").toLowerCase();
     for (const p of parsedProfiles) {
-      const kwMatch = p.kws.length === 0 ? false : p.kws.some((k) => titleLc.includes(k));
-      const locMatch = p.locs.length === 0 ? true : p.locs.some((l) => locLc.includes(l));
+      const kwMatch = p.kws.length === 0 ? false : p.kws.some((k: string) => titleLc.includes(k));
+      const locMatch = p.locs.length === 0 ? true : p.locs.some((l: string) => locLc.includes(l));
       if (!kwMatch || !locMatch) continue;
       const { data: existingUo } = await admin
         .from("user_opportunities")
