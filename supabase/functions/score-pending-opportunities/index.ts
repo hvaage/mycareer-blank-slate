@@ -518,7 +518,7 @@ async function loadCandidates(
         "id, source_system, title, company, location, work_type, posted_text, raw_snippet, status, qualification_status, ai_score, ai_scored_at, ai_reasoning, ai_match_highlights, ai_concerns, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model",
       )
       .eq("user_id", userId)
-      .in("status", ["ny", "saved"])
+      .in("status", ["ny"])
       .not("qualification_status", "eq", "rejected")
       .limit(200);
     if (input.source !== "all") {
