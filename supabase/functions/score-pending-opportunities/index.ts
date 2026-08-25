@@ -71,6 +71,7 @@ type Validated = {
   dry_run: boolean;
   user_opportunity_ids: string[];
   listing_status_ids: string[];
+  job_lead_ids: string[];
 };
 
 function validateIds(raw: unknown): string[] | null {
@@ -115,13 +116,19 @@ function validateInput(
   }
   const userOpportunityIds = validateIds(obj.user_opportunity_ids);
   const listingStatusIds = validateIds(obj.listing_status_ids);
+  const jobLeadIds = validateIds(obj.job_lead_ids);
   if (userOpportunityIds === null) {
     return { ok: false, field: "user_opportunity_ids" };
   }
   if (listingStatusIds === null) {
     return { ok: false, field: "listing_status_ids" };
   }
-  if (userOpportunityIds.length + listingStatusIds.length > 20) {
+  if (jobLeadIds === null) {
+    return { ok: false, field: "job_lead_ids" };
+  }
+  if (
+    userOpportunityIds.length + listingStatusIds.length + jobLeadIds.length > 20
+  ) {
     return { ok: false, field: "ids" };
   }
   return {
@@ -133,6 +140,7 @@ function validateInput(
       dry_run: obj.dry_run === true,
       user_opportunity_ids: userOpportunityIds,
       listing_status_ids: listingStatusIds,
+      job_lead_ids: jobLeadIds,
     },
   };
 }
@@ -216,7 +224,7 @@ type Candidate = {
   listing_status_id: string | null;
   canonical_opportunity_id: string | null;
   listing_id: string | null;
-  source: "nav" | "careerjet" | "linkedin" | "finn";
+  source: "nav" | "careerjet" | "linkedin" | "finn" | "manual_url" | "manual_paste";
   title: string | null;
   company: string | null;
   location: string | null;
@@ -302,7 +310,8 @@ async function loadCandidates(
   const candidates: Candidate[] = [];
   const now = Date.now();
   const targeted =
-    input.user_opportunity_ids.length + input.listing_status_ids.length > 0;
+    input.user_opportunity_ids.length + input.listing_status_ids.length +
+      input.job_lead_ids.length > 0;
 
   // Canonical branch: NAV/Careerjet via canonical_opportunities.
   if (
@@ -507,22 +516,31 @@ async function loadCandidates(
     }
   }
 
-  // Job leads branch: LinkedIn/Finn from email intake.
+  // Job leads branch: LinkedIn/Finn from email intake + manual imports.
   if (
     input.source !== "nav" && input.source !== "careerjet" &&
-    candidates.length < input.limit && !targeted
+    candidates.length < input.limit &&
+    (!targeted || input.job_lead_ids.length > 0)
   ) {
     let jobLeadQuery = admin
       .from("job_leads")
       .select(
         "id, source_system, title, company, location, work_type, posted_text, raw_snippet, status, qualification_status, ai_score, ai_scored_at, ai_reasoning, ai_match_highlights, ai_concerns, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model",
       )
-      .eq("user_id", userId)
-      .in("status", ["ny"])
-      .or("qualification_status.is.null,qualification_status.neq.rejected")
-      .limit(200);
-    if (input.source !== "all") {
-      jobLeadQuery = jobLeadQuery.eq("source_system", input.source);
+      .eq("user_id", userId);
+    if (input.job_lead_ids.length > 0) {
+      // Målrettet re-evaluering: eksplisitte id-er velges uten status-/
+      // qualification-filtre, slik at både nye rader og feilklassifiserte
+      // duplikater (f.eks. status 'avvist') kan scores på nytt.
+      jobLeadQuery = jobLeadQuery.in("id", input.job_lead_ids).limit(20);
+    } else {
+      jobLeadQuery = jobLeadQuery
+        .in("status", ["ny"])
+        .or("qualification_status.is.null,qualification_status.neq.rejected")
+        .limit(200);
+      if (input.source !== "all") {
+        jobLeadQuery = jobLeadQuery.eq("source_system", input.source);
+      }
     }
     const { data: jobLeadRows, error: jobLeadError } = await jobLeadQuery;
     if (jobLeadError) {

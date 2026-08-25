@@ -8,8 +8,11 @@ import { toast } from "sonner";
 import {
   Bookmark, X, Send, RefreshCw, ExternalLink, Sparkles,
   Mail, MapPin, Briefcase, Building2, Banknote, ChevronDown,
+  Link2, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,6 +28,7 @@ import { useAuth } from "@/lib/auth-context";
 import { fmtRelative, fmtDateTime } from "@/lib/format";
 import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/careerjet-links";
 import { syncEmailConnection } from "@/lib/job-leads/sync.functions";
+import { importManualJobLead } from "@/lib/job-leads/import.functions";
 
 export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
@@ -43,7 +47,7 @@ const ACCEPTED_MATCH_SCORE_VERSIONS = new Set<string>([
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
-type SourceFilter = "all" | "linkedin" | "careerjet" | "nav" | "finn" | "other";
+type SourceFilter = "all" | "linkedin" | "careerjet" | "nav" | "finn" | "other" | "manual";
 type ExtentFilter = "all" | "full_time" | "part_time" | "unspecified";
 type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim" | "unspecified";
 type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all";
@@ -51,7 +55,7 @@ type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all"
 const HIGH_MATCH_MIN = 70;
 const RELEVANT_MIN = 40;
 
-type LeadSource = "linkedin" | "careerjet" | "nav" | "finn" | "other";
+type LeadSource = "linkedin" | "careerjet" | "nav" | "finn" | "other" | "manual";
 type ScreeningStatus = "eligible" | "excluded" | "needs_review" | null;
 
 type ScreeningReason = {
@@ -85,7 +89,7 @@ function hasEmptyEvidenceBasis(summary: RequirementSummary): boolean {
 
 type Lead = {
   id: string;
-  rowKind: "linkedin" | "careerjet" | "nav" | "finn" | "other";
+  rowKind: "linkedin" | "careerjet" | "nav" | "finn" | "other" | "manual";
   rowId: string;
   cjBackend?: "uo" | "legacy";
   source: LeadSource;
@@ -223,8 +227,12 @@ function JobLeadsPage() {
   /** Optimistisk skjuling: raden forsvinner straks du velger, uten å vente på databasen. */
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [importUrl, setImportUrl] = useState("");
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState<"url" | "text" | null>(null);
 
   const doSyncMailbox = useServerFn(syncEmailConnection);
+  const doImportManual = useServerFn(importManualJobLead);
 
 
   const { data: profile } = useQuery({
@@ -362,9 +370,35 @@ function JobLeadsPage() {
   const rawLeads: Lead[] = useMemo(() => {
     const out: Lead[] = [];
     for (const r of linkedinLeads ?? []) {
-      const rawSource = ((r as any).source_system ?? "linkedin") as LeadSource;
-      const aiEvaluated = rawSource === "linkedin" ? isLinkedInAiEvaluated((r as any).ai_score) : false;
-      const idPrefix = rawSource === "finn" ? "finn" : rawSource === "other" ? "other" : "li";
+      const sourceSystem = ((r as any).source_system ?? "linkedin") as string;
+      // Manuelle importer (URL/limt tekst) er V2-rader: screeningfeltene på
+      // job_leads er fasit — ikke V1 ai_score-logikken for LinkedIn-e-post.
+      const isManual = sourceSystem === "manual_url" || sourceSystem === "manual_paste";
+      const rawSource: LeadSource = isManual ? "manual" : (sourceSystem as LeadSource);
+      const screeningStatus: ScreeningStatus = isManual
+        ? (((r as any).screening_status as ScreeningStatus) ?? null)
+        : null;
+      const matchScoreVersion: string | null = isManual
+        ? ((r as any).match_score_version ?? null)
+        : null;
+      const v2 = isManual && isV2EvaluatedRaw(matchScoreVersion, screeningStatus);
+      const aiEvaluated = isManual
+        ? v2
+        : rawSource === "linkedin"
+          ? isLinkedInAiEvaluated((r as any).ai_score)
+          : false;
+      const idPrefix = isManual
+        ? "man"
+        : rawSource === "finn" ? "finn" : rawSource === "other" ? "other" : "li";
+      let manualScreeningReasons: ScreeningReason[] = [];
+      if (isManual && Array.isArray((r as any).screening_reasons)) {
+        manualScreeningReasons = (r as any).screening_reasons.map((x: any) =>
+          typeof x === "string" ? { code: x } : (x as ScreeningReason)
+        );
+      }
+      // For excluded/needs_review: ikke vis gamle ai_match_highlights som positiv match.
+      const manualExcludedOrNeeds = v2 &&
+        (screeningStatus === "excluded" || screeningStatus === "needs_review");
       out.push({
         id: `${idPrefix}-${(r as any).id}`,
         rowKind: rawSource,
@@ -381,11 +415,19 @@ function JobLeadsPage() {
         aiEvaluated,
         url: (r as any).job_url,
         ai_reasoning: (r as any).ai_reasoning,
-        ai_match_highlights: (r as any).ai_match_highlights,
+        ai_match_highlights: manualExcludedOrNeeds ? null : (r as any).ai_match_highlights,
         ai_concerns: (r as any).ai_concerns,
         raw_snippet: (r as any).raw_snippet,
         source_email_from: (r as any).source_email_from,
         source_subject: (r as any).source_subject,
+        screeningStatus,
+        screeningReasons: manualScreeningReasons,
+        requirementSummary: isManual
+          ? (((r as any).requirement_summary as RequirementSummary) ?? null)
+          : undefined,
+        matchScoreVersion,
+        matchScoredModel: isManual ? ((r as any).match_scored_model ?? null) : undefined,
+        screeningEvaluatedAt: isManual ? ((r as any).screening_evaluated_at ?? null) : undefined,
       });
     }
     for (const row of cjLeads ?? []) {
@@ -617,7 +659,7 @@ function JobLeadsPage() {
     try {
       // score-pending-opportunities støtter nå alle fire kilder.
       const source =
-        sourceFilter === "all" || sourceFilter === "other"
+        sourceFilter === "all" || sourceFilter === "other" || sourceFilter === "manual"
           ? "all"
           : sourceFilter;
       const { data: rawData, error } = await supabase.functions.invoke("score-pending-opportunities", {
@@ -719,6 +761,53 @@ function JobLeadsPage() {
     await handleScorePending();
   };
 
+  /**
+   * Manuell import: frontend kaller kun importManualJobLead. Henting, parsing,
+   * dedup og scoring skjer i én backend-operasjon — ingen ekstra «Vurder»-steg.
+   */
+  const handleManualImport = async (kind: "url" | "text") => {
+    const url = importUrl.trim();
+    const text = importText.trim();
+    if (kind === "url" && !url) {
+      toast.error("Lim inn en URL først");
+      return;
+    }
+    if (kind === "text" && text.length < 80) {
+      toast.error("Lim inn hele annonseteksten (minst 80 tegn)");
+      return;
+    }
+    setImporting(kind);
+    try {
+      const result = await doImportManual({
+        data: kind === "url"
+          ? { inputKind: "url", jobUrl: url }
+          : { inputKind: "text", rawText: text },
+      });
+      if (result?.scoringCompleted) {
+        toast.success(
+          result.wasInserted
+            ? "Annonsen er lagt til og vurdert"
+            : "Annonsen fantes fra før — vurderingen er oppdatert",
+          result.score != null
+            ? { description: `Matchscore: ${result.score}` }
+            : undefined,
+        );
+        if (kind === "url") setImportUrl("");
+        else setImportText("");
+      } else {
+        toast.warning(
+          "Annonsen er lagret, men vurderingen er ikke klar ennå. Den fullføres ved neste «Hent og vurder nye annonser».",
+        );
+      }
+      qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
+    } catch (e: any) {
+      console.error("[job-leads] manual import failed", e);
+      toast.error(e?.message ?? "Kunne ikke legge til annonsen");
+    } finally {
+      setImporting(null);
+    }
+  };
+
 
 
   const tombstoneDedupe = async (lead: Lead, status: "dismissed" | "promoted") => {
@@ -738,7 +827,8 @@ function JobLeadsPage() {
         p_priority: lead.source === "linkedin" ? 2 : 1,
         p_dedupe_key: keyData as unknown as string,
         p_ref_table:
-          lead.rowKind === "linkedin"
+          lead.rowKind === "linkedin" || lead.rowKind === "finn" ||
+              lead.rowKind === "other" || lead.rowKind === "manual"
             ? "job_leads"
             : lead.cjBackend === "uo"
               ? "user_opportunities"
@@ -765,6 +855,7 @@ function JobLeadsPage() {
       lead.source === "nav" ? "NAV" :
       lead.source === "careerjet" ? "Careerjet" :
       lead.source === "finn" ? "Finn.no" :
+      lead.source === "manual" ? "Manuelt lagt inn" :
       "Jobb-e-post";
     // Prioritet: bruk lead.score som allerede er nullstilt ut for ikke-V2 NAV/Careerjet.
     const priority = (lead.score ?? 0) >= 70 ? "høy" : "middels";
@@ -801,7 +892,10 @@ function JobLeadsPage() {
     void tombstoneDedupe(lead, "promoted");
 
 
-    if (lead.source === "linkedin") {
+    if (
+      lead.rowKind === "linkedin" || lead.rowKind === "finn" ||
+      lead.rowKind === "other" || lead.rowKind === "manual"
+    ) {
       await supabase.from("job_leads").delete().eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
       qc.invalidateQueries({ queryKey: ["job-leads"] });
@@ -926,6 +1020,52 @@ function JobLeadsPage() {
         </div>
       </div>
 
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="text-sm font-medium">Legg til annonse selv</div>
+          <p className="text-xs text-muted-foreground">
+            Lim inn en lenke til en stillingsannonse (Finn, LinkedIn eller en
+            bedriftsside), eller hele annonseteksten. Annonsen tolkes, lagres
+            og vurderes mot profilen din i én operasjon.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              placeholder="https://www.finn.no/job/…"
+              disabled={importing !== null}
+              type="url"
+            />
+            <Button
+              variant="outline"
+              className="shrink-0"
+              disabled={importing !== null || !importUrl.trim()}
+              onClick={() => handleManualImport("url")}
+            >
+              <Link2 className={`h-4 w-4 mr-2 ${importing === "url" ? "animate-spin" : ""}`} />
+              {importing === "url" ? "Henter og vurderer…" : "Hent fra URL"}
+            </Button>
+          </div>
+          <Textarea
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            placeholder="…eller lim inn hele annonseteksten her"
+            rows={3}
+            disabled={importing !== null}
+          />
+          {importText.trim().length > 0 && (
+            <Button
+              variant="outline"
+              disabled={importing !== null || importText.trim().length < 80}
+              onClick={() => handleManualImport("text")}
+            >
+              <FileText className={`h-4 w-4 mr-2 ${importing === "text" ? "animate-spin" : ""}`} />
+              {importing === "text" ? "Tolker og vurderer…" : "Legg til fra tekst"}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
         <Select value={sourceFilter} onValueChange={(v: any) => setSourceFilter(v)}>
           <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
@@ -935,6 +1075,7 @@ function JobLeadsPage() {
             <SelectItem value="careerjet">Careerjet</SelectItem>
             <SelectItem value="nav">NAV</SelectItem>
             <SelectItem value="finn">Finn.no</SelectItem>
+            <SelectItem value="manual">Manuelt lagt inn</SelectItem>
             <SelectItem value="other">Annen e-post</SelectItem>
           </SelectContent>
         </Select>
@@ -1137,8 +1278,16 @@ function LeadCard({
   const badge = leadBadge(lead);
   const isLI = lead.source === "linkedin";
   const isNav = lead.source === "nav";
-  const sourceLabel = isLI ? "LinkedIn" : isNav ? "NAV" : "Careerjet";
-  const actionUrl = isLI || isNav ? lead.url : buildCareerjetSearchUrl(lead);
+  const sourceLabel =
+    lead.source === "linkedin" ? "LinkedIn" :
+    lead.source === "nav" ? "NAV" :
+    lead.source === "careerjet" ? "Careerjet" :
+    lead.source === "finn" ? "Finn.no" :
+    lead.source === "manual" ? "Lagt inn manuelt" :
+    "E-post";
+  // Careerjet-rader har ingen stabil annonselenke — de får et søkeoppslag.
+  // Alle job_leads- og NAV-rader bruker sin egen URL.
+  const actionUrl = lead.rowKind === "careerjet" ? buildCareerjetSearchUrl(lead) : lead.url;
   const hasDetails =
     !!(lead.ai_reasoning || lead.ai_match_highlights || lead.ai_concerns || lead.raw_snippet);
   const showPositiveHighlight =
@@ -1226,7 +1375,7 @@ function LeadCard({
                 referrerPolicy="no-referrer-when-downgrade"
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
-                {isLI ? "Se annonse" : isNav ? "Finn hos NAV" : "Finn i Careerjet"}
+                {lead.rowKind === "careerjet" ? "Finn i Careerjet" : isNav ? "Finn hos NAV" : "Se annonse"}
               </a>
             </Button>
           )}
