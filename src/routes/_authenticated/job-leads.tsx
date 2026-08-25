@@ -227,8 +227,12 @@ function JobLeadsPage() {
   /** Optimistisk skjuling: raden forsvinner straks du velger, uten å vente på databasen. */
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [importUrl, setImportUrl] = useState("");
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState<"url" | "text" | null>(null);
 
   const doSyncMailbox = useServerFn(syncEmailConnection);
+  const doImportManual = useServerFn(importManualJobLead);
 
 
   const { data: profile } = useQuery({
@@ -366,9 +370,35 @@ function JobLeadsPage() {
   const rawLeads: Lead[] = useMemo(() => {
     const out: Lead[] = [];
     for (const r of linkedinLeads ?? []) {
-      const rawSource = ((r as any).source_system ?? "linkedin") as LeadSource;
-      const aiEvaluated = rawSource === "linkedin" ? isLinkedInAiEvaluated((r as any).ai_score) : false;
-      const idPrefix = rawSource === "finn" ? "finn" : rawSource === "other" ? "other" : "li";
+      const sourceSystem = ((r as any).source_system ?? "linkedin") as string;
+      // Manuelle importer (URL/limt tekst) er V2-rader: screeningfeltene på
+      // job_leads er fasit — ikke V1 ai_score-logikken for LinkedIn-e-post.
+      const isManual = sourceSystem === "manual_url" || sourceSystem === "manual_paste";
+      const rawSource: LeadSource = isManual ? "manual" : (sourceSystem as LeadSource);
+      const screeningStatus: ScreeningStatus = isManual
+        ? (((r as any).screening_status as ScreeningStatus) ?? null)
+        : null;
+      const matchScoreVersion: string | null = isManual
+        ? ((r as any).match_score_version ?? null)
+        : null;
+      const v2 = isManual && isV2EvaluatedRaw(matchScoreVersion, screeningStatus);
+      const aiEvaluated = isManual
+        ? v2
+        : rawSource === "linkedin"
+          ? isLinkedInAiEvaluated((r as any).ai_score)
+          : false;
+      const idPrefix = isManual
+        ? "man"
+        : rawSource === "finn" ? "finn" : rawSource === "other" ? "other" : "li";
+      let manualScreeningReasons: ScreeningReason[] = [];
+      if (isManual && Array.isArray((r as any).screening_reasons)) {
+        manualScreeningReasons = (r as any).screening_reasons.map((x: any) =>
+          typeof x === "string" ? { code: x } : (x as ScreeningReason)
+        );
+      }
+      // For excluded/needs_review: ikke vis gamle ai_match_highlights som positiv match.
+      const manualExcludedOrNeeds = v2 &&
+        (screeningStatus === "excluded" || screeningStatus === "needs_review");
       out.push({
         id: `${idPrefix}-${(r as any).id}`,
         rowKind: rawSource,
@@ -385,11 +415,19 @@ function JobLeadsPage() {
         aiEvaluated,
         url: (r as any).job_url,
         ai_reasoning: (r as any).ai_reasoning,
-        ai_match_highlights: (r as any).ai_match_highlights,
+        ai_match_highlights: manualExcludedOrNeeds ? null : (r as any).ai_match_highlights,
         ai_concerns: (r as any).ai_concerns,
         raw_snippet: (r as any).raw_snippet,
         source_email_from: (r as any).source_email_from,
         source_subject: (r as any).source_subject,
+        screeningStatus,
+        screeningReasons: manualScreeningReasons,
+        requirementSummary: isManual
+          ? (((r as any).requirement_summary as RequirementSummary) ?? null)
+          : undefined,
+        matchScoreVersion,
+        matchScoredModel: isManual ? ((r as any).match_scored_model ?? null) : undefined,
+        screeningEvaluatedAt: isManual ? ((r as any).screening_evaluated_at ?? null) : undefined,
       });
     }
     for (const row of cjLeads ?? []) {
@@ -621,7 +659,7 @@ function JobLeadsPage() {
     try {
       // score-pending-opportunities støtter nå alle fire kilder.
       const source =
-        sourceFilter === "all" || sourceFilter === "other"
+        sourceFilter === "all" || sourceFilter === "other" || sourceFilter === "manual"
           ? "all"
           : sourceFilter;
       const { data: rawData, error } = await supabase.functions.invoke("score-pending-opportunities", {
@@ -742,7 +780,8 @@ function JobLeadsPage() {
         p_priority: lead.source === "linkedin" ? 2 : 1,
         p_dedupe_key: keyData as unknown as string,
         p_ref_table:
-          lead.rowKind === "linkedin"
+          lead.rowKind === "linkedin" || lead.rowKind === "finn" ||
+              lead.rowKind === "other" || lead.rowKind === "manual"
             ? "job_leads"
             : lead.cjBackend === "uo"
               ? "user_opportunities"
@@ -769,6 +808,7 @@ function JobLeadsPage() {
       lead.source === "nav" ? "NAV" :
       lead.source === "careerjet" ? "Careerjet" :
       lead.source === "finn" ? "Finn.no" :
+      lead.source === "manual" ? "Manuelt lagt inn" :
       "Jobb-e-post";
     // Prioritet: bruk lead.score som allerede er nullstilt ut for ikke-V2 NAV/Careerjet.
     const priority = (lead.score ?? 0) >= 70 ? "høy" : "middels";
@@ -805,7 +845,10 @@ function JobLeadsPage() {
     void tombstoneDedupe(lead, "promoted");
 
 
-    if (lead.source === "linkedin") {
+    if (
+      lead.rowKind === "linkedin" || lead.rowKind === "finn" ||
+      lead.rowKind === "other" || lead.rowKind === "manual"
+    ) {
       await supabase.from("job_leads").delete().eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
       qc.invalidateQueries({ queryKey: ["job-leads"] });
