@@ -710,8 +710,12 @@ export type NetworkOpportunityItem = {
 
 export function buildOpportunities(graph: NetworkGraph): NetworkOpportunityItem[] {
   const activities = buildActivities(graph);
-  return graph.opportunities.map((o) => {
+  const selected = graph.opportunities.filter(
+    (o) => !UNSELECTED_OPPORTUNITY_STATUSES.has(String(o.status ?? "new").toLowerCase()),
+  );
+  return selected.map((o) => {
     const open = !o.status || !CLOSED_OPPORTUNITY_STATUSES.has(String(o.status).toLowerCase());
+
     const next =
       activities
         .filter((a) => a.opportunityId === o.id && a.isOpen)
