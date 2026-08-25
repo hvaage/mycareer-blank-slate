@@ -13,6 +13,27 @@ export type JobLeadDedupPayload = Record<string, unknown> & {
   user_id: string;
 };
 
+function normalizeApplicationDue(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  const candidate = value.trim();
+  if (!candidate) return null;
+
+  // Stillingsannonser bruker ofte tekst i fristfeltet. Dette er ikke en dato,
+  // og skal derfor beholdes i rådataene fremfor å sendes til timestamptz-feltet.
+  if (/^(fortløpende|snarest|løpende|asap|ongoing|open until filled)$/i.test(candidate)) {
+    return null;
+  }
+
+  const norwegianDate = candidate.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  const normalized = norwegianDate
+    ? `${norwegianDate[3]}-${norwegianDate[2].padStart(2, "0")}-${norwegianDate[1].padStart(2, "0")}`
+    : candidate;
+  const parsed = Date.parse(normalized);
+
+  return Number.isNaN(parsed) ? null : new Date(parsed).toISOString();
+}
+
 /**
  * Setter inn en job_leads-rad via SECURITY DEFINER-RPC-en med dedup.
  * Returnerer alltid rad-id når raden finnes etter kallet:
@@ -24,8 +45,12 @@ export async function insertJobLeadDeduped(
   admin: AdminClient,
   payload: JobLeadDedupPayload,
 ): Promise<{ leadId: string | null; wasInserted: boolean }> {
+  const normalizedPayload = {
+    ...payload,
+    application_due: normalizeApplicationDue(payload.application_due),
+  };
   const { data, error } = await admin.rpc("insert_job_lead_dedup", {
-    p_payload: payload,
+    p_payload: normalizedPayload,
   } as never);
   if (error) {
     throw new Error(`insert_job_lead_dedup: ${error.message}`);
