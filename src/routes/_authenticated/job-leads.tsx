@@ -761,6 +761,53 @@ function JobLeadsPage() {
     await handleScorePending();
   };
 
+  /**
+   * Manuell import: frontend kaller kun importManualJobLead. Henting, parsing,
+   * dedup og scoring skjer i én backend-operasjon — ingen ekstra «Vurder»-steg.
+   */
+  const handleManualImport = async (kind: "url" | "text") => {
+    const url = importUrl.trim();
+    const text = importText.trim();
+    if (kind === "url" && !url) {
+      toast.error("Lim inn en URL først");
+      return;
+    }
+    if (kind === "text" && text.length < 80) {
+      toast.error("Lim inn hele annonseteksten (minst 80 tegn)");
+      return;
+    }
+    setImporting(kind);
+    try {
+      const result = await doImportManual({
+        data: kind === "url"
+          ? { inputKind: "url", jobUrl: url }
+          : { inputKind: "text", rawText: text },
+      });
+      if (result?.scoringCompleted) {
+        toast.success(
+          result.wasInserted
+            ? "Annonsen er lagt til og vurdert"
+            : "Annonsen fantes fra før — vurderingen er oppdatert",
+          result.score != null
+            ? { description: `Matchscore: ${result.score}` }
+            : undefined,
+        );
+        if (kind === "url") setImportUrl("");
+        else setImportText("");
+      } else {
+        toast.warning(
+          "Annonsen er lagret, men vurderingen er ikke klar ennå. Den fullføres ved neste «Hent og vurder nye annonser».",
+        );
+      }
+      qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
+    } catch (e: any) {
+      console.error("[job-leads] manual import failed", e);
+      toast.error(e?.message ?? "Kunne ikke legge til annonsen");
+    } finally {
+      setImporting(null);
+    }
+  };
+
 
 
   const tombstoneDedupe = async (lead: Lead, status: "dismissed" | "promoted") => {
@@ -973,6 +1020,52 @@ function JobLeadsPage() {
         </div>
       </div>
 
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="text-sm font-medium">Legg til annonse selv</div>
+          <p className="text-xs text-muted-foreground">
+            Lim inn en lenke til en stillingsannonse (Finn, LinkedIn eller en
+            bedriftsside), eller hele annonseteksten. Annonsen tolkes, lagres
+            og vurderes mot profilen din i én operasjon.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              placeholder="https://www.finn.no/job/…"
+              disabled={importing !== null}
+              type="url"
+            />
+            <Button
+              variant="outline"
+              className="shrink-0"
+              disabled={importing !== null || !importUrl.trim()}
+              onClick={() => handleManualImport("url")}
+            >
+              <Link2 className={`h-4 w-4 mr-2 ${importing === "url" ? "animate-spin" : ""}`} />
+              {importing === "url" ? "Henter og vurderer…" : "Hent fra URL"}
+            </Button>
+          </div>
+          <Textarea
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            placeholder="…eller lim inn hele annonseteksten her"
+            rows={3}
+            disabled={importing !== null}
+          />
+          {importText.trim().length > 0 && (
+            <Button
+              variant="outline"
+              disabled={importing !== null || importText.trim().length < 80}
+              onClick={() => handleManualImport("text")}
+            >
+              <FileText className={`h-4 w-4 mr-2 ${importing === "text" ? "animate-spin" : ""}`} />
+              {importing === "text" ? "Tolker og vurderer…" : "Legg til fra tekst"}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
         <Select value={sourceFilter} onValueChange={(v: any) => setSourceFilter(v)}>
           <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
@@ -982,6 +1075,7 @@ function JobLeadsPage() {
             <SelectItem value="careerjet">Careerjet</SelectItem>
             <SelectItem value="nav">NAV</SelectItem>
             <SelectItem value="finn">Finn.no</SelectItem>
+            <SelectItem value="manual">Manuelt lagt inn</SelectItem>
             <SelectItem value="other">Annen e-post</SelectItem>
           </SelectContent>
         </Select>
@@ -1184,8 +1278,16 @@ function LeadCard({
   const badge = leadBadge(lead);
   const isLI = lead.source === "linkedin";
   const isNav = lead.source === "nav";
-  const sourceLabel = isLI ? "LinkedIn" : isNav ? "NAV" : "Careerjet";
-  const actionUrl = isLI || isNav ? lead.url : buildCareerjetSearchUrl(lead);
+  const sourceLabel =
+    lead.source === "linkedin" ? "LinkedIn" :
+    lead.source === "nav" ? "NAV" :
+    lead.source === "careerjet" ? "Careerjet" :
+    lead.source === "finn" ? "Finn.no" :
+    lead.source === "manual" ? "Lagt inn manuelt" :
+    "E-post";
+  // Careerjet-rader har ingen stabil annonselenke — de får et søkeoppslag.
+  // Alle job_leads- og NAV-rader bruker sin egen URL.
+  const actionUrl = lead.rowKind === "careerjet" ? buildCareerjetSearchUrl(lead) : lead.url;
   const hasDetails =
     !!(lead.ai_reasoning || lead.ai_match_highlights || lead.ai_concerns || lead.raw_snippet);
   const showPositiveHighlight =
@@ -1273,7 +1375,7 @@ function LeadCard({
                 referrerPolicy="no-referrer-when-downgrade"
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
-                {isLI ? "Se annonse" : isNav ? "Finn hos NAV" : "Finn i Careerjet"}
+                {lead.rowKind === "careerjet" ? "Finn i Careerjet" : isNav ? "Finn hos NAV" : "Se annonse"}
               </a>
             </Button>
           )}
