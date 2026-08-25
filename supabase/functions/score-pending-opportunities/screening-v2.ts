@@ -3,9 +3,17 @@
 // Fase 0 (jobb-leads v3): grunnlaget er strammet inn til user_confirmed=true.
 // 2026-08-25: rolleporten forstår nå produktets rollefamilier (f.eks. Salg → CCO),
 // ikke bare eksakte stillingstitler. Semantikken er endret, derfor ny versjon.
-export const MATCH_SCORE_VERSION = "job_match_v5_2026_08_25";
-/** Forrige versjon. Rader med denne er scoret før rollefamilie-taksonomien. */
-export const MATCH_SCORE_VERSION_LEGACY = "job_match_v4_2026_08_23";
+// 2026-08-25 (v6): full CxO-/forkortelsestaksonomi med norske motparter
+// (CEO/«adm. dir.», CFO/«økonomisjef», CMO, CIO, CISO, CDO, CHRO, CRO, CSO,
+// CGO, CLO, EVP/SVP/VP, PM/PO/EM/BA/QA/UX/UI/SRE/ML/AI/BI/CRM/ERP/SEO/SEM/
+// BD/KAM/AE/AM/SDR/BDR/FoU). Familien «Prosjektledelse» manglet og er lagt inn.
+// Normaliseringen translitterer nå æ/ø/å — tidligere ble «Markedsføring» til
+// «markedsf ring» og traff aldri familienøkkelen, og «direktør»-aliaser var døde.
+export const MATCH_SCORE_VERSION = "job_match_v6_2026_08_25";
+/** Forrige versjon. Rader med denne er scoret før forkortelsestaksonomien. */
+export const MATCH_SCORE_VERSION_LEGACY = "job_match_v5_2026_08_25";
+/** Eldre versjon. Rader med denne er scoret før rollefamilie-taksonomien. */
+export const MATCH_SCORE_VERSION_LEGACY_V2 = "job_match_v4_2026_08_23";
 
 export type ScreeningStatus = "eligible" | "excluded" | "needs_review";
 export type ScreeningSeverity = "hard_filter" | "review";
@@ -89,35 +97,102 @@ const REMOTE_RE =
 const REPORTING_RE =
   /\b(report(?:s|ing)?(?: directly)? to|rapporterer(?: direkte)? til|reports directly to|underlagt|tett samarbeid med)\b/i;
 
+// CxO- og tittelforkortelser: hver gruppe samler forkortelsen, engelske
+// fullformer og norske motparter. Gruppene virker begge veier — både når
+// brukeren skriver forkortelsen som målrolle og når annonsen bruker den.
+// VIKTIG: alle strenger må være i normalisert form (små bokstaver, æ→ae,
+// ø→o, å→a), fordi de legges til som aliaser uten ny normalisering.
+// cpo/cso/cdo er flertydige i markedet (product/people/procurement osv.);
+// porten er bevisst raus — presisjonen ivaretas av KI-scoringen etterpå.
 const ROLE_EXPANSIONS: Record<string, string[]> = {
-  coo: ["coo", "chief operating officer", "chief operations officer"],
-  cpo: ["cpo", "chief product officer"],
-  cco: ["cco", "chief commercial officer", "kommersiell leder"],
-  ceo: ["ceo", "chief executive officer", "administrerende direktor"],
-  cfo: ["cfo", "chief financial officer", "finansdirektor"],
-  cto: ["cto", "chief technology officer", "teknologidirektor"],
-  chro: ["chro", "chief human resources officer", "hr direktor"],
+  // — C-suite —
+  ceo: ["ceo", "chief executive officer", "administrerende direktor", "adm dir", "daglig leder", "managing director"],
+  cfo: ["cfo", "chief financial officer", "finansdirektor", "finanssjef", "okonomidirektor", "okonomisjef"],
+  coo: ["coo", "chief operating officer", "chief operations officer", "driftsdirektor", "driftssjef", "operasjonsdirektor"],
+  cto: ["cto", "chief technology officer", "teknologidirektor", "teknologisjef", "teknisk direktor"],
+  cmo: ["cmo", "chief marketing officer", "markedsdirektor", "markedssjef", "markedsforingssjef"],
+  cpo: ["cpo", "chief product officer", "produktdirektor", "produktsjef", "chief people officer", "chief procurement officer"],
+  cco: ["cco", "chief commercial officer", "kommersiell leder", "kommersiell direktor", "chief compliance officer", "chief communications officer"],
+  cro: ["cro", "chief revenue officer", "inntektsdirektor", "chief risk officer", "risikodirektor"],
+  cio: ["cio", "chief information officer", "it direktor", "it sjef"],
+  ciso: ["ciso", "chief information security officer", "informasjonssikkerhetsdirektor", "sikkerhetsdirektor"],
+  cdo: ["cdo", "chief data officer", "chief digital officer", "datadirektor", "digitaliseringsdirektor", "chief design officer"],
+  chro: ["chro", "chief human resources officer", "hr direktor", "personaldirektor", "personalsjef"],
+  cso: ["cso", "chief sales officer", "salgsdirektor", "chief strategy officer", "strategidirektor", "chief sustainability officer", "barekraftsdirektor"],
+  cgo: ["cgo", "chief growth officer", "vekstdirektor"],
+  clo: ["clo", "chief legal officer", "general counsel", "juridisk direktor", "konsernadvokat"],
+  caio: ["caio", "chief ai officer", "chief artificial intelligence officer"],
+  // — Direktør-/VP-nivå —
+  evp: ["evp", "executive vice president", "konserndirektor"],
+  svp: ["svp", "senior vice president"],
+  vp: ["vp", "vice president", "visedirektor"],
+  gm: ["gm", "general manager"],
+  // — Ledelse og leveranse —
+  em: ["em", "engineering manager", "utviklingssjef", "teknisk leder"],
+  pm: ["pm", "project manager", "product manager", "prosjektleder", "produktleder"],
+  po: ["po", "product owner", "produkteier"],
+  // — Fagroller —
+  ba: ["ba", "business analyst", "forretningsanalytiker"],
+  qa: ["qa", "quality assurance", "kvalitetssikring"],
+  ux: ["ux", "user experience", "brukeropplevelse"],
+  ui: ["ui", "user interface", "brukergrensesnitt"],
+  sre: ["sre", "site reliability engineer"],
+  ml: ["ml", "machine learning", "maskinlaring"],
+  ai: ["ai", "artificial intelligence", "kunstig intelligens", "ki"],
+  bi: ["bi", "business intelligence"],
+  erp: ["erp", "enterprise resource planning"],
+  crm: ["crm", "customer relationship management", "kunderelasjoner"],
+  seo: ["seo", "search engine optimization", "sokemotoroptimalisering"],
+  sem: ["sem", "search engine marketing", "sokemotormarkedsforing"],
+  hr: ["hr", "human resources", "personalledelse"],
+  pr: ["pr", "public relations"],
+  bd: ["bd", "business development", "forretningsutvikling"],
+  kam: ["kam", "key account manager", "nokkelkundeansvarlig"],
+  ae: ["ae", "account executive"],
+  am: ["am", "account manager", "kundeansvarlig"],
+  sdr: ["sdr", "sales development representative"],
+  bdr: ["bdr", "business development representative"],
+  fou: ["fou", "forskning og utvikling", "research and development", "r d"],
 };
 
 // Profilsidene lagrer ofte rollefamilier («Salg», «Produkt») fremfor konkrete
 // titler. Listen under brukes kun mot stillingstittelen; at rollen nevnes i
 // annonseteksten eller som rapporteringslinje er fortsatt ikke en rollematch.
+// Nøklene er de normaliserte rollevalgene fra profilen
+// (src/lib/career-profile-ui-constants.ts). «Annet» har bevisst ingen aliaser.
 const ROLE_FAMILY_TITLE_ALIASES: Record<string, string[]> = {
   salg: [
+    "salg",
+    "sales",
     "cco",
+    "cro",
     "chief commercial officer",
+    "chief revenue officer",
     "kommersiell leder",
-    "kommersielle leder",
+    "kommersiell direktor",
     "commercial director",
     "commercial lead",
-    "sales",
     "head of sales",
     "salgsdirektor",
     "salgssjef",
     "salgsleder",
+    "salgskonsulent",
+    "salgsrepresentant",
     "business development",
     "forretningsutvikler",
     "forretningsutviklingsleder",
+    "bd",
+    "kam",
+    "key account manager",
+    "am",
+    "account manager",
+    "ae",
+    "account executive",
+    "kundeansvarlig",
+    "sdr",
+    "bdr",
+    "customer success",
+    "kundesuksess",
   ],
   produkt: [
     "produkt",
@@ -129,40 +204,163 @@ const ROLE_FAMILY_TITLE_ALIASES: Record<string, string[]> = {
     "produktleder",
     "produkteier",
     "produktdirektor",
+    "produktsjef",
+    "po",
+    "pm",
   ],
   "utvikling tech": [
     "utvikler",
     "developer",
     "software engineer",
+    "software developer",
     "engineer",
     "tech lead",
-    "cto",
-    "chief technology officer",
-    "teknologidirektor",
     "arkitekt",
     "devops",
     "data engineer",
+    "cto",
+    "cio",
+    "ciso",
+    "chief technology officer",
+    "teknologidirektor",
+    "em",
+    "engineering manager",
+    "sre",
+    "qa",
+    "ml",
+    "ai",
+    "frontend",
+    "backend",
+    "fullstack",
+    "c++",
+    "c#",
   ],
-  konsulent: ["konsulent", "consultant", "radgiver", "advisor"],
+  prosjektledelse: [
+    "prosjektledelse",
+    "prosjektleder",
+    "prosjektsjef",
+    "project manager",
+    "pm",
+    "programleder",
+    "program manager",
+    "project lead",
+    "scrum master",
+    "leveranseleder",
+    "delivery manager",
+  ],
+  konsulent: [
+    "konsulent",
+    "consultant",
+    "radgiver",
+    "advisor",
+    "ba",
+    "business analyst",
+    "forretningsanalytiker",
+  ],
   markedsforing: [
     "marketing",
     "markedsforing",
     "cmo",
     "chief marketing officer",
     "growth",
+    "markedssjef",
+    "markedsdirektor",
+    "seo",
+    "sem",
+    "pr",
+    "public relations",
+    "kommunikasjonssjef",
+    "kommunikasjonsradgiver",
+    "performance marketing",
+    "digital markedsforing",
+    "innholdsprodusent",
+    "content",
   ],
-  "hr people": ["hr", "human resources", "people", "recruiter", "rekrutterer", "talent"],
-  finans: ["finans", "finance", "cfo", "chief financial officer", "controller", "okonomi"],
+  "hr people": [
+    "hr",
+    "human resources",
+    "people",
+    "recruiter",
+    "rekrutterer",
+    "talent",
+    "chro",
+    "chief human resources officer",
+    "hr direktor",
+    "personaldirektor",
+    "personalsjef",
+    "personalleder",
+    "hr sjef",
+    "talent acquisition",
+    "rekrutteringssjef",
+  ],
+  finans: [
+    "finans",
+    "finance",
+    "cfo",
+    "chief financial officer",
+    "finansdirektor",
+    "finanssjef",
+    "controller",
+    "okonomi",
+    "okonomisjef",
+    "okonomidirektor",
+    "regnskapssjef",
+    "regnskapsforer",
+    "revisor",
+    "revisjon",
+    "bi",
+    "business intelligence",
+  ],
   operasjoner: [
     "operations",
     "coo",
     "chief operating officer",
     "operasjonsleder",
     "driftsleder",
+    "driftssjef",
+    "driftsdirektor",
+    "logistikk",
+    "supply chain",
   ],
-  forskning: ["forskning", "forsker", "research", "researcher", "scientist"],
-  "design ux": ["design", "designer", "ux", "ui", "product designer"],
-  jus: ["jus", "jurist", "advokat", "legal", "lawyer", "legal counsel"],
+  forskning: [
+    "forskning",
+    "forsker",
+    "research",
+    "researcher",
+    "scientist",
+    "fou",
+    "r d",
+    "research and development",
+    "forskning og utvikling",
+    "data scientist",
+  ],
+  "design ux": [
+    "design",
+    "designer",
+    "ux",
+    "ui",
+    "product designer",
+    "user experience",
+    "brukeropplevelse",
+    "user interface",
+    "interaksjonsdesigner",
+    "grafisk designer",
+  ],
+  jus: [
+    "jus",
+    "jurist",
+    "advokat",
+    "advokatfullmektig",
+    "legal",
+    "lawyer",
+    "legal counsel",
+    "clo",
+    "chief legal officer",
+    "general counsel",
+    "juridisk radgiver",
+    "konsernadvokat",
+    "compliance",
+  ],
 };
 
 const REGULATED_ROLE_RULES: Array<{
@@ -194,6 +392,17 @@ const REGULATED_ROLE_RULES: Array<{
 export function normalizeScreeningText(value: unknown): string {
   if (typeof value !== "string") return "";
   return value
+    // æ/ø/å dekomponeres ikke av NFKD — uten translittering ble de til
+    // orddeling («direktør» → «direkt r»), og norske aliaser traff aldri.
+    .replace(/æ/g, "ae")
+    .replace(/Æ/g, "AE")
+    .replace(/ø/g, "o")
+    .replace(/Ø/g, "O")
+    .replace(/å/g, "a")
+    .replace(/Å/g, "A")
+    // Ordfinal punktum fjernes («Adm. dir.» → «adm dir»), mens punktum
+    // inne i ord beholdes («node.js», «.net», «ph.d.»).
+    .replace(/\.(?=\s|$)/g, "")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9+#.]+/g, " ")
@@ -232,7 +441,9 @@ function escapeRegex(value: string): string {
 // «production» utløse aliaset «product».
 function titleContainsAlias(title: string, alias: string): boolean {
   if (!title || !alias) return false;
-  const phrase = escapeRegex(alias).replace(/\s+/g, "\\s+");
+  // Orddeling tolererer både mellomrom og punktum, slik at aliaset
+  // «adm dir» også treffer «Adm. dir.» (normaliseringen beholder punktum).
+  const phrase = escapeRegex(alias).replace(/\s+/g, "[.\\s]+");
   return new RegExp(`(^|\\s)${phrase}(\\s|$)`, "i").test(title);
 }
 
