@@ -432,9 +432,10 @@ export function searchNetwork(graph: NetworkGraph, term: string): NetworkSearchR
     (c) => norm(c.display_name).includes(q) || norm(c.company).includes(q) || norm(c.headline).includes(q),
   );
   const companies = buildCompanies(graph).filter((c) => norm(c.name).includes(q));
-  const opportunities = graph.opportunities
-    .filter((o) => norm(o.card_title).includes(q) || norm(o.card_company).includes(q))
-    .map((o) => ({ id: o.id, title: o.card_title ?? "Uten tittel", company: o.card_company ?? null }));
+  const opportunities = buildOpportunities(graph)
+    .filter((o) => norm(o.title).includes(q) || norm(o.company).includes(q))
+    .map((o) => ({ id: o.id, title: o.title, company: o.company }));
+
   return {
     contacts: contacts.slice(0, 8),
     companies: companies.slice(0, 8),
