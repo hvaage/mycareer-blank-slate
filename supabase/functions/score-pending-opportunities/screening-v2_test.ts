@@ -248,3 +248,91 @@ Deno.test("invalid AI score never becomes eligible", () => {
     throw new Error(JSON.stringify(result));
   }
 });
+
+// — v6: CxO-/forkortelsestaksonomi og æøå-normalisering —
+
+Deno.test("CFO title matches the Finans role family", () => {
+  const result = initialScreening(
+    { ...job, title: "Chief Financial Officer (CFO)" },
+    { ...profile, target_roles: ["Finans"] },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+});
+
+Deno.test("CMO title matches the Markedsføring family after æøå normalization", () => {
+  const result = initialScreening(
+    { ...job, title: "CMO" },
+    { ...profile, target_roles: ["Markedsføring"] },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+});
+
+Deno.test("Adm. dir. matches a CEO target role", () => {
+  const result = initialScreening(
+    { ...job, title: "Adm. dir." },
+    { ...profile, target_roles: ["CEO"] },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+});
+
+Deno.test("Administrerende direktør title matches a CEO target role", () => {
+  const result = initialScreening(
+    { ...job, title: "Administrerende direktør" },
+    { ...profile, target_roles: ["CEO"] },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+});
+
+Deno.test("PM abbreviation matches the Prosjektledelse family", () => {
+  const result = initialScreening(
+    { ...job, title: "Senior PM" },
+    { ...profile, target_roles: ["Prosjektledelse"] },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+});
+
+Deno.test("CHRO matches the HR / People family", () => {
+  const result = initialScreening(
+    { ...job, title: "CHRO" },
+    { ...profile, target_roles: ["HR / People"] },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+});
+
+Deno.test("CISO matches the Utvikling / tech family", () => {
+  const result = initialScreening(
+    { ...job, title: "CISO" },
+    { ...profile, target_roles: ["Utvikling / tech"] },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+});
+
+Deno.test("EVP matches a konserndirektør target role", () => {
+  const result = initialScreening(
+    { ...job, title: "EVP Commercial" },
+    { ...profile, target_roles: ["Konserndirektør"] },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+});
+
+Deno.test("word boundary still prevents Produksjonssjef from matching Produkt", () => {
+  const result = initialScreening(
+    { ...job, title: "Produksjonssjef" },
+    { ...profile, target_roles: ["Produkt"] },
+    evidence,
+  );
+  if (result.status !== "excluded") throw new Error(JSON.stringify(result));
+  if (
+    !result.reasons.some((reason) => reason.code === "target_role_mismatch")
+  ) {
+    throw new Error("expected target_role_mismatch");
+  }
+});
