@@ -16,7 +16,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, FileText, Building2, MapPin, ExternalLink, Copy, Save, Wand2, Loader2, Globe, User as UserIcon, X, CheckCircle2, AlertCircle, FileSearch, Megaphone } from "lucide-react";
+import { Sparkles, FileText, Building2, MapPin, ExternalLink, Copy, Save, Wand2, Loader2, Globe, User as UserIcon, X, CheckCircle2, AlertCircle, FileSearch, Megaphone, CalendarClock } from "lucide-react";
+import { fmtDate } from "@/lib/format";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -67,6 +68,7 @@ type Source = {
   ai_concerns?: string | null;
   ai_reasoning?: string | null;
   raw_snippet?: string | null;
+  application_due?: string | null;
 };
 
 const LETTER_TYPES = [
@@ -342,10 +344,12 @@ function CoverLettersPage() {
         ai_concerns: a.ai_concerns ?? null,
         ai_reasoning: a.ai_reasoning ?? null,
         raw_snippet: a.raw_snippet ?? null,
+        application_due: a.application_due ?? null,
       }));
   }, [appsQ.data]);
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [expandedSnippets, setExpandedSnippets] = useState<Record<string, boolean>>({});
   // Preselect from search param (?application=...)
   useEffect(() => {
     if (selectedKey) return;
@@ -709,8 +713,10 @@ function CoverLettersPage() {
                 const key = `${s.kind}:${s.id}`;
                 const active = key === selectedKey;
                 return (
-                  <button
+                  <div
                     key={key}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       setSelectedKey(key);
                       requestAnimationFrame(() => {
@@ -719,7 +725,13 @@ function CoverLettersPage() {
                           ?.scrollIntoView({ behavior: "smooth", block: "start" });
                       });
                     }}
-                    className={`w-full text-left rounded-md border p-3 transition-colors ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedKey(key);
+                      }
+                    }}
+                    className={`w-full text-left rounded-md border p-3 transition-colors cursor-pointer ${
                       active ? "border-primary bg-primary/5" : "hover:bg-accent/30"
                     }`}
                   >
@@ -738,7 +750,12 @@ function CoverLettersPage() {
                           )}
                           {s.work_type && <span>{s.work_type}</span>}
                           {s.salary_text && <span>{s.salary_text}</span>}
-                          {s.posted_text && <span>{s.posted_text}</span>}
+                          {s.posted_text && s.posted_text.length < 160 && <span>{s.posted_text}</span>}
+                          {s.application_due && (
+                            <span className="flex items-center gap-1 font-medium text-foreground/80">
+                              <CalendarClock className="h-3 w-3" /> Søknadsfrist: {fmtDate(s.application_due)}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
@@ -752,6 +769,27 @@ function CoverLettersPage() {
                         )}
                       </div>
                     </div>
+                    {s.raw_snippet && (
+                      <div className="mt-2">
+                        <p
+                          className={`text-[11px] text-muted-foreground whitespace-pre-line break-words ${
+                            expandedSnippets[key] ? "" : "line-clamp-3"
+                          }`}
+                        >
+                          {s.raw_snippet}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedSnippets((prev) => ({ ...prev, [key]: !prev[key] }));
+                          }}
+                          className="text-[11px] text-primary hover:underline mt-0.5"
+                        >
+                          {expandedSnippets[key] ? "Vis mindre" : "Vis mer"}
+                        </button>
+                      </div>
+                    )}
                     {s.ai_match_highlights && (
                       <div className="mt-2 text-[11px] rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-100 p-1.5">
                         <span className="font-medium">Match: </span>{s.ai_match_highlights}
@@ -762,7 +800,7 @@ function CoverLettersPage() {
                         <span className="font-medium">Bekymringer: </span>{s.ai_concerns}
                       </div>
                     )}
-                  </button>
+                  </div>
                 );
               })
             )}
