@@ -14,6 +14,22 @@ const searchSchema = z.object({
   tilstand: z.enum(["apen", "alle"]).default("apen"),
 });
 
+const STATUS_LABELS: Record<string, string> = {
+  new: "ny",
+  dismissed: "fjernet",
+  applied: "søkt",
+  saved: "lagret",
+  closed: "avsluttet",
+  rejected: "avslag",
+  withdrawn: "trukket",
+  archived: "arkivert",
+};
+
+function statusLabel(status: string) {
+  return STATUS_LABELS[status.toLowerCase()] ?? status;
+}
+
+
 export const Route = createFileRoute("/_authenticated/nettverk/muligheter/")({
   validateSearch: (search) => searchSchema.parse(search),
   component: OpportunitiesPage,
@@ -87,7 +103,7 @@ function OpportunitiesPage() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {o.status ? <Badge variant="outline">{o.status}</Badge> : null}
+                  {o.status ? <Badge variant="outline">{statusLabel(o.status)}</Badge> : null}
                   {o.url ? (
                     <a href={o.url} target="_blank" rel="noreferrer" aria-label="Åpne annonse">
                       <ExternalLink className="h-4 w-4 text-muted-foreground" />
