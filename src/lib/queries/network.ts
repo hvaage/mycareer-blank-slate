@@ -681,7 +681,17 @@ const CLOSED_OPPORTUNITY_STATUSES = new Set([
   "arkivert",
   "archived",
   "declined",
+  "dismissed",
+  "fjernet",
 ]);
+
+/**
+ * Muligheter er kun det du selv har valgt fra Jobb-leads. Rader med status
+ * `new` er maskinelt matchede annonser som ennå ikke er gjennomgått, og hører
+ * hjemme i Jobb-leads — ikke her.
+ */
+const UNSELECTED_OPPORTUNITY_STATUSES = new Set(["new", "ny", "pending", "ikke_vurdert"]);
+
 
 export type NetworkOpportunityItem = {
   id: string;
