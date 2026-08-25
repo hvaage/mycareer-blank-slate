@@ -8,23 +8,23 @@ import {
   registerLeadForUser,
 } from "@/lib/job-leads/insert-job-lead.server";
 
-const inputSchema = z.object({
-  inputKind: z.enum(["url", "text"]),
-  jobUrl: z.string().url("Ugyldig URL").max(2000).optional().nullable(),
-  rawText: z.string().min(80, "Lim inn hele annonseteksten").max(60_000)
-    .optional().nullable(),
-});
-
 type ExtractedJobAd = {
-  title?: string | null;
-  description?: string | null;
-  companyName?: string | null;
+  role_title?: string | null;
+  company_name?: string | null;
   location?: string | null;
-  url?: string | null;
-  workType?: string | null;
-  salary?: string | null;
-  applicationDue?: string | null;
-  requirements?: unknown;
+  work_type?: string | null;
+  salary_range_min?: number | null;
+  salary_range_max?: number | null;
+  salary_currency?: string | null;
+  application_deadline?: string | null;
+  key_requirements?: unknown;
+  must_have_keywords?: unknown;
+  nice_to_have?: unknown;
+  summary?: string | null;
+  about_role?: string | null;
+  about_company?: string | null;
+  ideal_candidate?: string | null;
+  ad_markdown?: string | null;
 };
 
 type ScoringResultRow = {
@@ -64,7 +64,14 @@ export type ImportManualJobLeadResult = {
 
 export const importManualJobLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => inputSchema.parse(data))
+  .inputValidator((data: unknown) =>
+    z.object({
+      inputKind: z.enum(["url", "text", "pdf"]),
+      jobUrl: z.string().url("Ugyldig URL").max(2000).optional().nullable(),
+      rawText: z.string().min(80, "Fant ikke nok tekst i annonsen").max(60_000)
+        .optional().nullable(),
+    }).parse(data)
+  )
   .handler(async ({ data, context }): Promise<ImportManualJobLeadResult> => {
     const { userId } = context;
     const authHeader = getRequestHeader("authorization");
@@ -73,11 +80,11 @@ export const importManualJobLead = createServerFn({ method: "POST" })
     }
 
     const jobUrl = data.inputKind === "url" ? data.jobUrl?.trim() : null;
-    const rawText = data.inputKind === "text" ? data.rawText?.trim() : null;
+    const rawText = data.inputKind !== "url" ? data.rawText?.trim() : null;
     if (data.inputKind === "url" && !jobUrl) {
       throw new Error("Lim inn en URL til stillingsannonsen");
     }
-    if (data.inputKind === "text" && !rawText) {
+    if (data.inputKind !== "url" && !rawText) {
       throw new Error("Lim inn annonseteksten");
     }
 
@@ -95,7 +102,8 @@ export const importManualJobLead = createServerFn({ method: "POST" })
           apikey: publishableKey,
           Authorization: `Bearer ${publishableKey}`,
         },
-        body: JSON.stringify(jobUrl ? { jobUrl } : { rawText }),
+        // extract-job-ad sin etablerte kontrakt er { url, text }.
+        body: JSON.stringify(jobUrl ? { url: jobUrl } : { text: rawText }),
         signal: AbortSignal.timeout(120_000),
       },
     );
@@ -109,14 +117,16 @@ export const importManualJobLead = createServerFn({ method: "POST" })
       );
     }
     const extractBody = await extractRes.json() as {
-      success?: boolean;
-      data?: ExtractedJobAd;
+      extracted?: ExtractedJobAd;
+      raw_text?: string;
     };
-    if (!extractBody.success || !extractBody.data) {
+    if (!extractBody.extracted) {
       throw new Error("Kunne ikke tolke annonsen — prøv å lime inn teksten");
     }
-    const extracted = extractBody.data;
-    const description = extracted.description?.trim() ?? "";
+    const extracted = extractBody.extracted;
+    const description = (
+      extracted.ad_markdown?.trim() || extractBody.raw_text?.trim() || rawText || ""
+    );
     if (description.length < 50) {
       throw new Error(
         "Fant ikke nok annonsetekst — lim inn hele annonseteksten manuelt",
@@ -124,7 +134,14 @@ export const importManualJobLead = createServerFn({ method: "POST" })
     }
 
     const sourceSystem = jobUrl ? "manual_url" : "manual_paste";
-    const resolvedUrl = jobUrl ?? (extracted.url?.trim() || null);
+    const resolvedUrl = jobUrl;
+    const salaryParts = [
+      extracted.salary_range_min,
+      extracted.salary_range_max,
+    ].filter((value): value is number => typeof value === "number");
+    const salary = salaryParts.length > 0
+      ? `${salaryParts.join("–")} ${extracted.salary_currency ?? ""}`.trim()
+      : null;
 
     // Trinn 3: lagre eller dedupliser. RPC-en returnerer alltid rad-id:
     // enten den nye raden eller den deterministisk funne duplikaten.
@@ -134,11 +151,11 @@ export const importManualJobLead = createServerFn({ method: "POST" })
     const now = new Date().toISOString();
     const { leadId, wasInserted } = await insertJobLeadDeduped(supabaseAdmin, {
       user_id: userId,
-      title: extracted.title ?? null,
-      company: extracted.companyName ?? null,
+      title: extracted.role_title ?? null,
+      company: extracted.company_name ?? null,
       location: extracted.location ?? null,
-      work_type: extracted.workType ?? null,
-      salary_text: extracted.salary ?? null,
+      work_type: extracted.work_type ?? null,
+      salary_text: salary,
       job_url: resolvedUrl,
       posted_text: description,
       raw_snippet: description.slice(0, 2000),
@@ -146,7 +163,7 @@ export const importManualJobLead = createServerFn({ method: "POST" })
       source_url_hash: hashLeadUrl(resolvedUrl),
       source_observed_at: now,
       received_at: now,
-      application_due: extracted.applicationDue ?? null,
+      application_due: extracted.application_deadline ?? null,
       status: "ny",
       qualification_status: "pending",
       raw_payload: {
@@ -166,8 +183,8 @@ export const importManualJobLead = createServerFn({ method: "POST" })
         source: sourceSystem,
         priority: 1,
         jobUrl: resolvedUrl,
-        title: extracted.title ?? null,
-        company: extracted.companyName ?? null,
+        title: extracted.role_title ?? null,
+        company: extracted.company_name ?? null,
         location: extracted.location ?? null,
         refId: leadId,
       });

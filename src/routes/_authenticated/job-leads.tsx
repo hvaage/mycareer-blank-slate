@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   Bookmark, X, Send, RefreshCw, ExternalLink, Sparkles,
   Mail, MapPin, Briefcase, Building2, Banknote, ChevronDown,
-  Link2, FileText,
+  Link2, FileText, Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -229,7 +229,8 @@ function JobLeadsPage() {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [importUrl, setImportUrl] = useState("");
   const [importText, setImportText] = useState("");
-  const [importing, setImporting] = useState<"url" | "text" | null>(null);
+  const [importing, setImporting] = useState<"url" | "text" | "pdf" | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const doSyncMailbox = useServerFn(syncEmailConnection);
   const doImportManual = useServerFn(importManualJobLead);
@@ -765,9 +766,9 @@ function JobLeadsPage() {
    * Manuell import: frontend kaller kun importManualJobLead. Henting, parsing,
    * dedup og scoring skjer i én backend-operasjon — ingen ekstra «Vurder»-steg.
    */
-  const handleManualImport = async (kind: "url" | "text") => {
+  const handleManualImport = async (kind: "url" | "text" | "pdf", pdfText?: string) => {
     const url = importUrl.trim();
-    const text = importText.trim();
+    const text = (pdfText ?? importText).trim();
     if (kind === "url" && !url) {
       toast.error("Lim inn en URL først");
       return;
@@ -781,7 +782,7 @@ function JobLeadsPage() {
       const result = await doImportManual({
         data: kind === "url"
           ? { inputKind: "url", jobUrl: url }
-          : { inputKind: "text", rawText: text },
+          : { inputKind: kind, rawText: text },
       });
       if (result?.scoringCompleted) {
         toast.success(
@@ -805,6 +806,36 @@ function JobLeadsPage() {
       toast.error(e?.message ?? "Kunne ikke legge til annonsen");
     } finally {
       setImporting(null);
+    }
+  };
+
+  const handlePdfImport = async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("PDF-filen er for stor (maks 10 MB)");
+      return;
+    }
+    setPdfLoading(true);
+    try {
+      const pdfjs: any = await import("pdfjs-dist/build/pdf.mjs");
+      const workerMod: any = await import("pdfjs-dist/build/pdf.worker.mjs?url");
+      pdfjs.GlobalWorkerOptions.workerSrc = workerMod.default;
+      const document = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      let text = "";
+      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+        const page = await document.getPage(pageNumber);
+        const content = await page.getTextContent();
+        text += content.items.map((item: any) => item.str).join(" ") + "\n\n";
+      }
+      const extractedText = text.trim();
+      if (extractedText.length < 80) {
+        throw new Error("Fant ikke nok lesbar tekst i PDF-filen");
+      }
+      setImportText(extractedText);
+      await handleManualImport("pdf", extractedText);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Kunne ikke lese PDF-filen");
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -1025,8 +1056,8 @@ function JobLeadsPage() {
           <div className="text-sm font-medium">Legg til annonse selv</div>
           <p className="text-xs text-muted-foreground">
             Lim inn en lenke til en stillingsannonse (Finn, LinkedIn eller en
-            bedriftsside), eller hele annonseteksten. Annonsen tolkes, lagres
-            og vurderes mot profilen din i én operasjon.
+            bedriftsside), last opp PDF eller lim inn hele annonseteksten.
+            Annonsen tolkes, lagres og vurderes mot profilen din i én operasjon.
           </p>
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
@@ -1045,6 +1076,24 @@ function JobLeadsPage() {
               <Link2 className={`h-4 w-4 mr-2 ${importing === "url" ? "animate-spin" : ""}`} />
               {importing === "url" ? "Henter og vurderer…" : "Hent fra URL"}
             </Button>
+          </div>
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
+            <label className="inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50">
+              <Upload className={`mr-2 h-4 w-4 ${pdfLoading || importing === "pdf" ? "animate-pulse" : ""}`} />
+              {pdfLoading ? "Leser PDF…" : importing === "pdf" ? "Tolker og vurderer…" : "Last opp PDF"}
+              <input
+                className="sr-only"
+                type="file"
+                accept="application/pdf,.pdf"
+                disabled={importing !== null || pdfLoading}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) void handlePdfImport(file);
+                }}
+              />
+            </label>
+            <span className="text-xs text-muted-foreground">Maks 10 MB</span>
           </div>
           <Textarea
             value={importText}
