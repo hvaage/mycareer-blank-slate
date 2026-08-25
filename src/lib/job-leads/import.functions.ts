@@ -67,7 +67,11 @@ export const importManualJobLead = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
     z.object({
       inputKind: z.enum(["url", "text", "pdf"]),
-      jobUrl: z.string().url("Ugyldig URL").max(2000).optional().nullable(),
+      jobUrl: z.preprocess(
+        (value) =>
+          typeof value === "string" && value.trim() === "" ? null : value,
+        z.string().trim().url("Ugyldig URL").max(2000).optional().nullable(),
+      ),
       rawText: z.string().min(80, "Fant ikke nok tekst i annonsen").max(60_000)
         .optional().nullable(),
     }).parse(data)
