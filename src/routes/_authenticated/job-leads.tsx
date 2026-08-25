@@ -8,8 +8,11 @@ import { toast } from "sonner";
 import {
   Bookmark, X, Send, RefreshCw, ExternalLink, Sparkles,
   Mail, MapPin, Briefcase, Building2, Banknote, ChevronDown,
+  Link2, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,6 +28,7 @@ import { useAuth } from "@/lib/auth-context";
 import { fmtRelative, fmtDateTime } from "@/lib/format";
 import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/careerjet-links";
 import { syncEmailConnection } from "@/lib/job-leads/sync.functions";
+import { importManualJobLead } from "@/lib/job-leads/import.functions";
 
 export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
@@ -43,7 +47,7 @@ const ACCEPTED_MATCH_SCORE_VERSIONS = new Set<string>([
 
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
-type SourceFilter = "all" | "linkedin" | "careerjet" | "nav" | "finn" | "other";
+type SourceFilter = "all" | "linkedin" | "careerjet" | "nav" | "finn" | "other" | "manual";
 type ExtentFilter = "all" | "full_time" | "part_time" | "unspecified";
 type EngagementFilter = "all" | "permanent" | "temporary" | "project" | "interim" | "unspecified";
 type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all";
@@ -51,7 +55,7 @@ type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all"
 const HIGH_MATCH_MIN = 70;
 const RELEVANT_MIN = 40;
 
-type LeadSource = "linkedin" | "careerjet" | "nav" | "finn" | "other";
+type LeadSource = "linkedin" | "careerjet" | "nav" | "finn" | "other" | "manual";
 type ScreeningStatus = "eligible" | "excluded" | "needs_review" | null;
 
 type ScreeningReason = {
@@ -85,7 +89,7 @@ function hasEmptyEvidenceBasis(summary: RequirementSummary): boolean {
 
 type Lead = {
   id: string;
-  rowKind: "linkedin" | "careerjet" | "nav" | "finn" | "other";
+  rowKind: "linkedin" | "careerjet" | "nav" | "finn" | "other" | "manual";
   rowId: string;
   cjBackend?: "uo" | "legacy";
   source: LeadSource;
