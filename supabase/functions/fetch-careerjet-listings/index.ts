@@ -73,31 +73,34 @@ Deno.serve(async (req) => {
   const matched = Number(result.matched ?? 0);
   const newIds = Array.isArray(result.new_ids) ? (result.new_ids as string[]) : [];
 
-  // 2) KI-scoring: nye rader først, ellers eldre uscorede rader. Maks SCORE_LIMIT per klikk.
+  // 2) KI-scoring via den kanoniske V2-screeningen (score-pending-opportunities).
+  // Den skriver screening_status + match_score_version, som er det Jobb-leads krever
+  // for å vise en vurdering. Maks SCORE_LIMIT per klikk, i batcher på 20.
   let aiScored = 0;
   try {
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (lovableKey && profile) {
-      let q = serviceClient
-        .from("user_opportunities")
-        .select("id, card_title, card_company, card_location, card_salary, card_display_url")
-        .eq("user_id", user.id)
-        .is("ai_scored_at", null)
-        .order("card_published_at", { ascending: false, nullsFirst: false })
-        .limit(SCORE_LIMIT);
-      if (newIds.length > 0) q = q.in("id", newIds.slice(0, SCORE_LIMIT));
-      const { data: needScoring } = await q;
-
-
-
-      if (needScoring && needScoring.length > 0) {
-        aiScored = await scoreUserOpportunitiesWithAi(
-          serviceClient,
-          lovableKey,
-          profile as Record<string, unknown>,
-          needScoring as any,
+    const batches = Math.max(1, Math.ceil(SCORE_LIMIT / 20));
+    for (let i = 0; i < batches; i++) {
+      const res = await fetch(`${supabaseUrl}/functions/v1/score-pending-opportunities`, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          apikey: anonKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ source: "all", mode: "pending", limit: 20 }),
+      });
+      if (!res.ok) {
+        console.error(
+          "[fetch-careerjet] score-pending-opportunities",
+          res.status,
+          await res.text(),
         );
+        break;
       }
+      const body = await res.json() as Record<string, unknown>;
+      const evaluated = Number(body.evaluated ?? 0);
+      aiScored += evaluated;
+      if (evaluated < 20) break;
     }
   } catch (e) {
     console.error("[fetch-careerjet] AI scoring error:", e);
