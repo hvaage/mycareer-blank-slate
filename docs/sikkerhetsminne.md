@@ -31,6 +31,7 @@ Karriereplattform (norsk, bokmål) for jobbsøkere. All brukerdata er personlig 
 4. **Funksjoner opprettes via migrasjon.** Alle nye funksjoner i `public`-skjemaet opprettes via migrasjon, aldri direkte mot databasen. Om verktøy utenfor migrasjonssporet må opprette en funksjon direkte, skal definisjonen legges inn som `CREATE OR REPLACE FUNCTION` i en migrasjon i etterkant, samme økt. Dette er årsaken til at `email_queue_dispatch`/`email_queue_wake` manglet fra migrasjonssporet.
 5. **Eksplisitt søkevei.** Enhver ny SECURITY DEFINER-funksjon skal ha eksplisitt `SET search_path` — tomt (`''`) der funksjonen fullt kvalifiserer alle objektreferanser, ellers `public, pg_temp`. Ingen ny SECURITY DEFINER-funksjon uten denne linjen skal merges.
 6. **Sikkerhetsminnet er versjonert.** Enhver oppdatering av sikkerhetsminnet committes samtidig til `docs/sikkerhetsminne.md`.
+7. **Fasit er live `pg_proc.proacl`.** Unntakslister over kallbare funksjoner bygges alltid fra `has_function_privilege` mot databasen, aldri utledet fra migrasjonshistorikken.
 
 ## Aksepterte risikoer og unntak
 
