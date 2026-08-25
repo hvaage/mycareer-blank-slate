@@ -87,7 +87,7 @@ function OpportunitiesPage() {
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {o.status ? <Badge variant="outline">{o.status}</Badge> : null}
+                  {o.status ? <Badge variant="outline">{statusLabel(o.status)}</Badge> : null}
                   {o.url ? (
                     <a href={o.url} target="_blank" rel="noreferrer" aria-label="Åpne annonse">
                       <ExternalLink className="h-4 w-4 text-muted-foreground" />
