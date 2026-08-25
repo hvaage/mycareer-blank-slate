@@ -80,7 +80,9 @@ Deno.serve(async (req) => {
           apikey: anonKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ source: "all", mode: "pending", limit: 20 }),
+        // "stale" fanger både nye rader og rader som mangler gjeldende
+        // match_score_version (f.eks. gamle V1-score).
+        body: JSON.stringify({ source: "all", mode: "stale", limit: 20 }),
       });
       if (!res.ok) {
         console.error(
