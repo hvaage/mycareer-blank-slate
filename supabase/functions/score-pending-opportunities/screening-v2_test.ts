@@ -78,6 +78,29 @@ Deno.test("remote job bypasses the location gate", () => {
   if (result.status !== "eligible") throw new Error(JSON.stringify(result));
 });
 
+Deno.test("CCO title matches the saved Sales role family", () => {
+  const result = initialScreening(
+    {
+      ...job,
+      title: "Chief Commercial Officer (CCO)",
+      description:
+        "Som CCO får du ansvaret for kommersiell strategi og salg.",
+    },
+    { ...profile, target_roles: ["Salg"] },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+});
+
+Deno.test("Commercial Manager does not satisfy a narrow CCO target", () => {
+  const result = initialScreening(
+    { ...job, title: "Commercial Manager" },
+    profile,
+    evidence,
+  );
+  if (result.status !== "excluded") throw new Error(JSON.stringify(result));
+});
+
 Deno.test("reporting to COO is not a COO title match", () => {
   const result = initialScreening(
     {

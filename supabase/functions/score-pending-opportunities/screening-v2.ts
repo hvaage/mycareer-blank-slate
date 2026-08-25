@@ -1,9 +1,11 @@
 // Karriereontologi v4, fase 2.1: evidensgrunnlaget byttet fra user_evidence_atoms
-// til career_atoms. Scoringer mot ulike grunnlag kan ikke sammenlignes, derfor ny versjon.
-// Fase 0 (jobb-leads v3): grunnlaget er strammet inn til user_confirmed=true — ny versjon igjen.
-export const MATCH_SCORE_VERSION = "job_match_v4_2026_08_23";
-/** Forrige versjon. Rader med denne er scoret mot et annet evidensgrunnlag. */
-export const MATCH_SCORE_VERSION_LEGACY = "job_match_v3_2026_08_15";
+// til career_atoms. Scoringer mot ulike grunnlag kan ikke sammenlignes.
+// Fase 0 (jobb-leads v3): grunnlaget er strammet inn til user_confirmed=true.
+// 2026-08-25: rolleporten forstår nå produktets rollefamilier (f.eks. Salg → CCO),
+// ikke bare eksakte stillingstitler. Semantikken er endret, derfor ny versjon.
+export const MATCH_SCORE_VERSION = "job_match_v5_2026_08_25";
+/** Forrige versjon. Rader med denne er scoret før rollefamilie-taksonomien. */
+export const MATCH_SCORE_VERSION_LEGACY = "job_match_v4_2026_08_23";
 
 export type ScreeningStatus = "eligible" | "excluded" | "needs_review";
 export type ScreeningSeverity = "hard_filter" | "review";
@@ -89,12 +91,78 @@ const REPORTING_RE =
 
 const ROLE_EXPANSIONS: Record<string, string[]> = {
   coo: ["coo", "chief operating officer", "chief operations officer"],
-  cpo: ["cpo"],
-  cco: ["cco"],
+  cpo: ["cpo", "chief product officer"],
+  cco: ["cco", "chief commercial officer", "kommersiell leder"],
   ceo: ["ceo", "chief executive officer", "administrerende direktor"],
   cfo: ["cfo", "chief financial officer", "finansdirektor"],
   cto: ["cto", "chief technology officer", "teknologidirektor"],
   chro: ["chro", "chief human resources officer", "hr direktor"],
+};
+
+// Profilsidene lagrer ofte rollefamilier («Salg», «Produkt») fremfor konkrete
+// titler. Listen under brukes kun mot stillingstittelen; at rollen nevnes i
+// annonseteksten eller som rapporteringslinje er fortsatt ikke en rollematch.
+const ROLE_FAMILY_TITLE_ALIASES: Record<string, string[]> = {
+  salg: [
+    "cco",
+    "chief commercial officer",
+    "kommersiell leder",
+    "kommersielle leder",
+    "commercial director",
+    "commercial lead",
+    "sales",
+    "head of sales",
+    "salgsdirektor",
+    "salgssjef",
+    "salgsleder",
+    "business development",
+    "forretningsutvikler",
+    "forretningsutviklingsleder",
+  ],
+  produkt: [
+    "produkt",
+    "product",
+    "cpo",
+    "chief product officer",
+    "product manager",
+    "product owner",
+    "produktleder",
+    "produkteier",
+    "produktdirektor",
+  ],
+  "utvikling tech": [
+    "utvikler",
+    "developer",
+    "software engineer",
+    "engineer",
+    "tech lead",
+    "cto",
+    "chief technology officer",
+    "teknologidirektor",
+    "arkitekt",
+    "devops",
+    "data engineer",
+  ],
+  konsulent: ["konsulent", "consultant", "radgiver", "advisor"],
+  markedsforing: [
+    "marketing",
+    "markedsforing",
+    "cmo",
+    "chief marketing officer",
+    "growth",
+  ],
+  "hr people": ["hr", "human resources", "people", "recruiter", "rekrutterer", "talent"],
+  finans: ["finans", "finance", "cfo", "chief financial officer", "controller", "okonomi"],
+  operasjoner: [
+    "operations",
+    "coo",
+    "chief operating officer",
+    "operasjonsleder",
+    "driftsleder",
+  ],
+  forskning: ["forskning", "forsker", "research", "researcher", "scientist"],
+  "design ux": ["design", "designer", "ux", "ui", "product designer"],
+  jus: ["jus", "jurist", "advokat", "legal", "lawyer", "legal counsel"],
 };
 
 const REGULATED_ROLE_RULES: Array<{
@@ -149,8 +217,23 @@ function roleAliases(targetRoles: string[]): string[] {
       if (!hasAcronym && !hasExpansion) continue;
       for (const expansion of expansions) aliases.add(expansion);
     }
+    for (const familyAlias of ROLE_FAMILY_TITLE_ALIASES[role] ?? []) {
+      aliases.add(familyAlias);
+    }
   }
   return [...aliases];
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Titler må treffes som hele ord/fraser. Vanlig substring ville f.eks. latt
+// «production» utløse aliaset «product».
+function titleContainsAlias(title: string, alias: string): boolean {
+  if (!title || !alias) return false;
+  const phrase = escapeRegex(alias).replace(/\s+/g, "\\s+");
+  return new RegExp(`(^|\\s)${phrase}(\\s|$)`, "i").test(title);
 }
 
 function containsPhrase(text: string, phrase: string): boolean {
@@ -220,10 +303,10 @@ export function initialScreening(
 
   const aliases = roleAliases(profile.target_roles ?? []);
   if (aliases.length > 0) {
-    const titleMatch = aliases.some((alias) => containsPhrase(title, alias));
+    const titleMatch = aliases.some((alias) => titleContainsAlias(title, alias));
     if (!titleMatch) {
       const reportingOnly = REPORTING_RE.test(description) &&
-        aliases.some((alias) => containsPhrase(description, alias));
+        aliases.some((alias) => titleContainsAlias(description, alias));
       reasons.push({
         code: reportingOnly
           ? "target_role_only_in_reporting_line"
