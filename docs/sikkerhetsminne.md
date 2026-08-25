@@ -2,7 +2,7 @@
 
 Denne filen er den versjonerte kopien av prosjektets sikkerhetsminne. Innholdet her og innholdet i byggeverktøyets sikkerhetsminne skal til enhver tid være identisk. Hver gang sikkerhetsminnet oppdateres, skal samme endring committes til denne filen i samme migrasjon eller PR.
 
-Sist oppdatert: 2026-08-24.
+Sist oppdatert: 2026-08-25.
 
 ## Appen og tilgangsmodellen
 
