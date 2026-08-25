@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 interface Props {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   title: string;
   description: string;
-  features: string[];
+  features?: string[];
 }
 
-export function ComingSoonStub({ icon: Icon, title, description, features }: Props) {
+export function ComingSoonStub({ icon: Icon = Bell, title, description, features = [] }: Props) {
   return (
     <div className="p-6 lg:p-8 max-w-2xl mx-auto">
       <div className="flex flex-col items-center text-center space-y-6 py-12">
