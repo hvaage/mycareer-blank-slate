@@ -236,10 +236,100 @@ function OpportunityDetail() {
           companyId={companyItem?.companyId ?? null}
           companyName={opp.card_company ?? null}
         />
+
+        <ApplicationWorkPanel opportunity={opp} graph={graph} userId={userId} />
       </div>
     </div>
   );
 }
+
+/**
+ * Broen fra mulighet til faktisk søknadsarbeid. Finnes det allerede en søknad
+ * på samme stilling og selskap, lenkes den — ellers oppretter du den her.
+ * Ingenting opprettes automatisk.
+ */
+function ApplicationWorkPanel({ opportunity, graph, userId }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const existing = useMemo(() => {
+    const title = (opportunity.card_title ?? "").trim().toLowerCase();
+    const company = (opportunity.card_company ?? "").trim().toLowerCase();
+    return (
+      (graph?.applications ?? []).find(
+        (a) =>
+          (a.company_name ?? "").trim().toLowerCase() === company &&
+          (a.role_title ?? "").trim().toLowerCase() === title,
+      ) ?? null
+    );
+  }, [graph, opportunity]);
+
+  const create = useMutation({
+    mutationFn: async () => {
+      const { supabase } = await import("@/lib/supabase");
+      const { data, error } = await supabase
+        .from("applications")
+        .insert({
+          user_id: userId,
+          company_name: opportunity.card_company ?? "Ukjent",
+          role_title: opportunity.card_title ?? null,
+          location: opportunity.card_location ?? null,
+          job_url: opportunity.card_display_url ?? null,
+          source: opportunity.card_source ?? "Nettverksarbeid",
+          status: "identifisert",
+          priority: "middels",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id as string;
+    },
+    onSuccess: (id) => {
+      queryClient.invalidateQueries({ queryKey: ["network"] });
+      toast.success("Søknaden er opprettet. Du kan nå jobbe med CV og søknadstekst.");
+      navigate({ to: "/applications/$id", params: { id } });
+    },
+    onError: (e) => toast.error(`Kunne ikke opprette søknaden: ${e?.message ?? "ukjent feil"}`),
+  });
+
+  return (
+    <NetworkPanel title="Søknadsarbeid">
+      {existing ? (
+        <div className="space-y-2 text-sm">
+          <p className="text-muted-foreground">
+            Du har allerede en søknad på denne stillingen (status: {existing.status ?? "ukjent"}).
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" asChild>
+              <Link to="/applications/$id" params={{ id: existing.id }}>
+                Åpne søknaden
+              </Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/cover-letters" search={{ application: existing.id }}>
+                Skriv søknadstekst
+              </Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/cv-builder">Utform CV</Link>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2 text-sm">
+          <p className="text-muted-foreground">
+            Klar for å søke? Opprett søknaden, så får du tilgang til CV-utforming og søknadstekst
+            for denne stillingen.
+          </p>
+          <Button size="sm" disabled={create.isPending} onClick={() => create.mutate()}>
+            {create.isPending ? "Oppretter…" : "Start søknad og CV"}
+          </Button>
+        </div>
+      )}
+    </NetworkPanel>
+  );
+}
+
 
 /**
  * Kontaktperson i annonsen. Navn, rolle og kontaktinformasjon leses av serveren
