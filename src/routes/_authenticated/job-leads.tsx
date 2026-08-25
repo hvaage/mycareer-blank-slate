@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   Bookmark, X, Send, RefreshCw, ExternalLink, Sparkles,
   Mail, MapPin, Briefcase, Building2, Banknote, ChevronDown,
-  Link2, FileText, Upload,
+  Link2, FileText, Upload, CalendarClock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/collapsible";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
-import { fmtRelative, fmtDateTime } from "@/lib/format";
+import { fmtRelative, fmtDateTime, fmtDate } from "@/lib/format";
 import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/careerjet-links";
 import { syncEmailConnection } from "@/lib/job-leads/sync.functions";
 import { importManualJobLead } from "@/lib/job-leads/import.functions";
@@ -106,6 +106,7 @@ type Lead = {
   salary: string | null;
   posted_at: string | null;
   posted_text: string | null;
+  applicationDue?: string | null;
   /** LinkedIn: V1 ai_score. NAV/Careerjet: kun satt når V2-vurdert (versjon + screeningStatus). */
   score: number | null;
   /** LinkedIn: V1 evaluert. NAV/Careerjet: ekvivalent til isV2Evaluated (avledet). */
@@ -421,6 +422,7 @@ function JobLeadsPage() {
         salary: (r as any).salary_text,
         posted_at: (r as any).received_at,
         posted_text: (r as any).posted_text,
+        applicationDue: (r as any).application_due ?? null,
         score: aiEvaluated ? ((r as any).ai_score as number) : null,
         aiEvaluated,
         url: (r as any).job_url,
@@ -917,6 +919,7 @@ function JobLeadsPage() {
         ai_concerns: lead.ai_concerns ?? null,
         salary_text: lead.salary ?? null,
         posted_text: lead.posted_text ?? null,
+        application_due: lead.applicationDue ?? null,
         raw_snippet: lead.raw_snippet ?? null,
         source_subject: lead.source_subject ?? null,
         source_email_from: lead.source_email_from ?? null,
@@ -1380,8 +1383,13 @@ function LeadCard({
         )}
       </div>
 
-      <div className="text-xs text-muted-foreground">
-        {lead.posted_text ?? (lead.posted_at ? fmtRelative(lead.posted_at) : "—")}
+      <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
+        <span>{lead.posted_text ?? (lead.posted_at ? fmtRelative(lead.posted_at) : "—")}</span>
+        {lead.applicationDue && (
+          <span className="flex items-center gap-1 font-medium text-foreground/80">
+            <CalendarClock className="h-3 w-3" />Søknadsfrist: {fmtDate(lead.applicationDue)}
+          </span>
+        )}
       </div>
 
       {showPositiveHighlight && (
