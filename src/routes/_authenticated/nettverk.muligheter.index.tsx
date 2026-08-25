@@ -14,6 +14,22 @@ const searchSchema = z.object({
   tilstand: z.enum(["apen", "alle"]).default("apen"),
 });
 
+const STATUS_LABELS: Record<string, string> = {
+  new: "ny",
+  dismissed: "fjernet",
+  applied: "søkt",
+  saved: "lagret",
+  closed: "avsluttet",
+  rejected: "avslag",
+  withdrawn: "trukket",
+  archived: "arkivert",
+};
+
+function statusLabel(status: string) {
+  return STATUS_LABELS[status.toLowerCase()] ?? status;
+}
+
+
 export const Route = createFileRoute("/_authenticated/nettverk/muligheter/")({
   validateSearch: (search) => searchSchema.parse(search),
   component: OpportunitiesPage,
