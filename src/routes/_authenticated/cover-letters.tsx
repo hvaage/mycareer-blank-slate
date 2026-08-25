@@ -321,34 +321,11 @@ function CoverLettersPage() {
       return data ?? [];
     },
   });
-  const leadsQ = useQuery({
-    queryKey: ["job-leads", "all-active"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("job_leads")
-        .select("*")
-        .neq("status", "avvist")
-        .order("ai_score", { ascending: false, nullsFirst: false })
-        .limit(200);
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-  const cjQ = useQuery({
-    queryKey: ["job-leads-careerjet", "all-active", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase.rpc("list_user_careerjet_leads", {
-        p_status: "all",
-      });
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
-  });
-
+  // Søknader-siden viser kun annonser brukeren selv har flyttet hit
+  // («Flytt til søknader» på Jobb-leads oppretter applications-raden og
+  // sletter lead-raden). Uvalgte jobb-leads og speilrader skal aldri listes her.
   const sources: Source[] = useMemo(() => {
-    const apps = (appsQ.data ?? [])
+    return (appsQ.data ?? [])
       .filter((a: any) => a.status === "identifisert")
       .map((a: any) => ({
         kind: "application" as const,
@@ -366,59 +343,15 @@ function CoverLettersPage() {
         ai_reasoning: a.ai_reasoning ?? null,
         raw_snippet: a.raw_snippet ?? null,
       }));
-    const leads = (leadsQ.data ?? []).map((l: any) => ({
-      kind: "lead" as const,
-      id: l.id,
-      company: l.company ?? "Ukjent",
-      role: l.title,
-      location: l.location,
-      job_url: l.job_url,
-      ai_score: l.ai_score,
-      work_type: l.work_type,
-      salary_text: l.salary_text,
-      posted_text: l.posted_text,
-      ai_match_highlights: l.ai_match_highlights,
-      ai_concerns: l.ai_concerns,
-      ai_reasoning: l.ai_reasoning,
-      raw_snippet: l.raw_snippet,
-    }));
-    const cj = (cjQ.data ?? [])
-      .filter((r: any) => r.user_opportunity_id || r.listing_status_id)
-      .filter((r: any) => r.status !== "dismissed")
-      .map((r: any) => {
-        const isCanonical =
-          String(r.row_kind ?? "").toLowerCase() === "canonical" && r.user_opportunity_id;
-        const id = isCanonical ? r.user_opportunity_id : r.listing_status_id;
-        return {
-          kind: "careerjet" as const,
-          id,
-          company: r.employer ?? "Ukjent",
-          role: r.title,
-          location: r.location,
-          job_url: effectiveCareerjetCardUrl({
-            raw_url: r.raw_url ?? r.source_url,
-            display_url: r.display_url,
-            title: r.title,
-            company: r.employer,
-            location: r.location,
-          }),
-          ai_score: r.relevance_score ?? null,
-        };
-      });
-    return [...apps, ...leads, ...cj];
-  }, [appsQ.data, leadsQ.data, cjQ.data]);
+  }, [appsQ.data]);
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  // Preselect from search param (?lead=... or ?application=...)
+  // Preselect from search param (?application=...)
   useEffect(() => {
     if (selectedKey) return;
-    const targetId = search.application ?? search.lead;
+    const targetId = search.application;
     if (!targetId) return;
-    const match = search.application
-      ? sources.find((s) => s.kind === "application" && s.id === targetId)
-      : sources.find(
-          (s) => (s.kind === "lead" || s.kind === "careerjet") && s.id === targetId,
-        );
+    const match = sources.find((s) => s.id === targetId);
     if (match) {
       setSelectedKey(`${match.kind}:${match.id}`);
       requestAnimationFrame(() => {
@@ -427,7 +360,7 @@ function CoverLettersPage() {
           ?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
-  }, [search.lead, search.application, sources, selectedKey]);
+  }, [search.application, sources, selectedKey]);
   const selected = sources.find((s) => `${s.kind}:${s.id}` === selectedKey) ?? null;
 
   const [language, setLanguage] = useState<"no" | "en">("no");
@@ -745,7 +678,7 @@ function CoverLettersPage() {
     }
   };
 
-  const isLoading = appsQ.isLoading || leadsQ.isLoading;
+  const isLoading = appsQ.isLoading;
 
   return (
     <div className="p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 min-w-0">
