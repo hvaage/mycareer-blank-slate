@@ -5,7 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MAX_AGE_DAYS = 60;
 const MATCH_LIMIT = 200;
 const SCORE_LIMIT = 40;
@@ -13,7 +12,8 @@ const SCORE_LIMIT = 40;
 // Per-bruker henting mot speilet. Ingen eksterne API-kall og ingen skriving til
 // source_postings / canonical_opportunities — speil-jobbene forblir eneste skriver
 // mot identitetslaget. Denne funksjonen kobler kun ferske, aktive muligheter
-// (Careerjet + NAV, publisert siste 60 dager) til brukeren og KI-scorer nye rader.
+// (Careerjet + NAV, publisert siste 60 dager) til brukeren og KI-scorer nye rader
+// gjennom den kanoniske V2-screeningen.
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -49,12 +49,6 @@ Deno.serve(async (req) => {
   const filtered = requested.filter((s) => s === "careerjet" || s === "nav");
   const sources = filtered.length > 0 ? filtered : ["careerjet", "nav"];
 
-  const { data: profile } = await serviceClient
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
   // 1) Match mot speilet (SECURITY DEFINER, scoped til auth.uid())
   const { data: matchResult, error: matchErr } = await userClient.rpc(
     "match_user_opportunities_from_mirror",
@@ -71,33 +65,37 @@ Deno.serve(async (req) => {
 
   const result = (matchResult ?? {}) as Record<string, unknown>;
   const matched = Number(result.matched ?? 0);
-  const newIds = Array.isArray(result.new_ids) ? (result.new_ids as string[]) : [];
 
-  // 2) KI-scoring: nye rader først, ellers eldre uscorede rader. Maks SCORE_LIMIT per klikk.
+  // 2) KI-scoring via den kanoniske V2-screeningen (score-pending-opportunities).
+  // Den skriver screening_status + match_score_version, som er det Jobb-leads
+  // krever for å vise en vurdering. Maks SCORE_LIMIT per klikk, batcher på 20.
   let aiScored = 0;
   try {
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (lovableKey && profile) {
-      let q = serviceClient
-        .from("user_opportunities")
-        .select("id, card_title, card_company, card_location, card_salary, card_display_url")
-        .eq("user_id", user.id)
-        .is("ai_scored_at", null)
-        .order("card_published_at", { ascending: false, nullsFirst: false })
-        .limit(SCORE_LIMIT);
-      if (newIds.length > 0) q = q.in("id", newIds.slice(0, SCORE_LIMIT));
-      const { data: needScoring } = await q;
-
-
-
-      if (needScoring && needScoring.length > 0) {
-        aiScored = await scoreUserOpportunitiesWithAi(
-          serviceClient,
-          lovableKey,
-          profile as Record<string, unknown>,
-          needScoring as any,
+    const batches = Math.max(1, Math.ceil(SCORE_LIMIT / 20));
+    for (let i = 0; i < batches; i++) {
+      const res = await fetch(`${supabaseUrl}/functions/v1/score-pending-opportunities`, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          apikey: anonKey,
+          "Content-Type": "application/json",
+        },
+        // "stale" fanger både nye rader og rader som mangler gjeldende
+        // match_score_version (f.eks. gamle V1-score).
+        body: JSON.stringify({ source: "all", mode: "stale", limit: 20 }),
+      });
+      if (!res.ok) {
+        console.error(
+          "[fetch-careerjet] score-pending-opportunities",
+          res.status,
+          await res.text(),
         );
+        break;
       }
+      const scoreBody = await res.json() as Record<string, unknown>;
+      const evaluated = Number(scoreBody.evaluated ?? 0);
+      aiScored += evaluated;
+      if (evaluated < 20) break;
     }
   } catch (e) {
     console.error("[fetch-careerjet] AI scoring error:", e);
@@ -124,112 +122,3 @@ Deno.serve(async (req) => {
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 });
-
-async function scoreUserOpportunitiesWithAi(
-  client: ReturnType<typeof createClient>,
-  apiKey: string,
-  profile: Record<string, unknown>,
-  rows: Array<{
-    id: string;
-    card_title: string | null;
-    card_company: string | null;
-    card_location: string | null;
-    card_salary: string | null;
-    card_display_url: string | null;
-  }>,
-): Promise<number> {
-  const items = rows.map((r, i) => ({
-    idx: i,
-    row_id: r.id,
-    title: r.card_title ?? "",
-    company: r.card_company ?? "",
-    location: r.card_location ?? "",
-    salary: r.card_salary ?? "",
-    description: "",
-  }));
-  if (items.length === 0) return 0;
-
-  const profileSlim = {
-    target_roles: (profile as any).target_roles,
-    target_seniority: (profile as any).target_seniority,
-    target_industries: (profile as any).target_industries,
-    target_country: (profile as any).target_country,
-    target_region: (profile as any).target_region,
-    target_city: (profile as any).target_city,
-    work_types: (profile as any).work_types,
-    skills: (profile as any).skills,
-    languages: (profile as any).languages,
-    salary_expectation_min: (profile as any).salary_expectation_min,
-    salary_expectation_max: (profile as any).salary_expectation_max,
-    salary_currency: (profile as any).salary_currency,
-    motivation: (profile as any).motivation,
-    strengths: (profile as any).strengths,
-    deal_breakers: (profile as any).deal_breakers,
-    years_experience: (profile as any).years_experience,
-  };
-
-  const prompt = `Du scorer jobbannonser mot en kandidatprofil.
-
-KANDIDATPROFIL:
-${JSON.stringify(profileSlim, null, 2)}
-
-ANNONSER (idx, tittel, selskap, sted, lønn):
-${JSON.stringify(items, null, 2)}
-
-Returner KUN gyldig JSON (ingen markdown):
-{
-  "scores": [
-    { "idx": <number>, "row_id": "<string>", "ai_score": <0-100>,
-      "ai_reasoning": "<1-2 setninger på norsk>",
-      "ai_match_highlights": "<kort: hva passer (norsk)>",
-      "ai_concerns": "<kort: hva passer dårlig (norsk, kan være tom)>" }
-  ]
-}
-
-Scoring:
-- 80-100: sterk match på rolle/seniority + lokasjon/work_type
-- 60-79: god match på rolle og 1-2 andre faktorer
-- 40-59: delvis match
-- 0-39: lite relevant`;
-
-  const res = await fetch(LOVABLE_AI_URL, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-    }),
-  });
-  if (!res.ok) {
-    console.error("[fetch-careerjet] AI gateway", res.status, await res.text());
-    return 0;
-  }
-  const json = await res.json() as { choices?: { message?: { content?: string } }[] };
-  const content = json.choices?.[0]?.message?.content ?? "";
-  let parsed: { scores?: Array<{ row_id: string; ai_score: number; ai_reasoning?: string; ai_match_highlights?: string; ai_concerns?: string }> };
-  try { parsed = JSON.parse(content); } catch {
-    console.error("[fetch-careerjet] AI non-JSON:", content.slice(0, 500));
-    return 0;
-  }
-  const scores = Array.isArray(parsed.scores) ? parsed.scores : [];
-  const nowIso = new Date().toISOString();
-  let n = 0;
-  for (const s of scores) {
-    if (!s?.row_id) continue;
-    const aiScore = typeof s.ai_score === "number" ? Math.max(0, Math.min(100, Math.round(s.ai_score))) : null;
-    const { error } = await (client.from("user_opportunities") as any)
-      .update({
-        ai_score: aiScore,
-        ai_reasoning: s.ai_reasoning ?? null,
-        ai_match_highlights: s.ai_match_highlights ?? null,
-        ai_concerns: s.ai_concerns ?? null,
-        ai_scored_at: nowIso,
-        relevance_score: aiScore ?? undefined,
-        updated_at: nowIso,
-      })
-      .eq("id", s.row_id);
-    if (!error) n++;
-  }
-  return n;
-}
