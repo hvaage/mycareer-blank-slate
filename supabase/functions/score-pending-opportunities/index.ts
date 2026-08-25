@@ -746,8 +746,10 @@ Regler:
 4. Trekk ut alle uttrykkelige obligatoriske og foretrukne krav. Hvert krav må ha et ordrett sitat fra annonseteksten.
 5. Brukeren oppfyller et krav bare når matched_evidence_refs peker på en av de oppgitte evidensradene. Ikke anta grad, autorisasjon, sertifikat, språk, bransje eller erfaring.
 6. Obligatorisk utdanning, autorisasjon eller sertifikat uten dokumentert evidens skal ha met=false.
-7. Score gjelder bare faglig/erfaringsmessig samsvar blant kvalifiserte kandidater. 100 krever svært sterk, dokumentert dekning. Ikke belønn nøkkelord alene.
-8. Maks 450 tegn i hvert tekstfelt. Score må være et endelig tall 0-100.`;
+7. Score gjelder bare faglig/erfaringsmessig samsvar blant kvalifiserte søkere. 100 krever svært sterk, dokumentert dekning. Ikke belønn nøkkelord alene.
+8. Maks 450 tegn i hvert tekstfelt. Score må være et endelig tall 0-100.
+9. All tekst i reasoning, match_highlights og concerns skrives på norsk og henvender seg direkte til brukeren i du-form («du har», «du mangler»). Skriv aldri «kandidaten», «søkeren» eller annen tredjeperson om brukeren.`;
+
   const response = await fetch(
     "https://ai.gateway.lovable.dev/v1/chat/completions",
     {

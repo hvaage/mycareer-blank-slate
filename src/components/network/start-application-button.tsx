@@ -43,7 +43,9 @@ export function StartApplicationButton({
       variant="secondary"
       size="sm"
       className={className ?? "h-9"}
+      title="Oppretter en mulighet under Nettverksarbeid der du kan planlegge kontakt, dokumenter og aktiviteter — og starte søknad og CV."
       disabled={mutation.isPending}
+
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();

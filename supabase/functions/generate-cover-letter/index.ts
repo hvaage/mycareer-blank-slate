@@ -88,7 +88,7 @@ Punktliste — hvert punkt knytter en konkret CV/profil-styrke til et konkret kr
 Punktliste over reelle gap, manglende kvalifikasjoner eller røde flagg.
 
 ## Tiltak og posisjonering
-Punktliste — hvordan kandidaten bør håndtere gapene og hva som bør løftes frem i søknad og intervju.
+Punktliste — hvordan du bør håndtere gapene og hva du bør løfte frem i søknad og intervju.
 
 ## Anbefaling
 Én tydelig anbefaling: Søk / Søk med forbehold / Ikke søk — med kort begrunnelse.

@@ -220,6 +220,10 @@ function JobLeadsPage() {
   const [fetching, setFetching] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [syncingMailbox, setSyncingMailbox] = useState(false);
+  /** Optimistisk skjuling: raden forsvinner straks du velger, uten å vente på databasen. */
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
   const doSyncMailbox = useServerFn(syncEmailConnection);
 
 
@@ -567,8 +571,9 @@ function JobLeadsPage() {
       return new Date(b.posted_at ?? 0).getTime() - new Date(a.posted_at ?? 0).getTime();
     });
 
-    return sorted;
-  }, [rawLeads, sourceFilter, timeFilter, relevanceView, extentFilter, engagementFilter]);
+    return sorted.filter((lead) => !hiddenIds.includes(lead.id));
+  }, [rawLeads, sourceFilter, timeFilter, relevanceView, extentFilter, engagementFilter, hiddenIds]);
+
 
   // supabase.functions.invoke kaster bort responskroppen ved ikke-2xx. Uten dette
   // ville 503 (manglende konfigurasjon / midlertidig avslått) og 500 (feilet
@@ -704,6 +709,18 @@ function JobLeadsPage() {
     }
   };
 
+  /**
+   * Én handling for brukeren: hent nye annonser og vurder dem i samme operasjon.
+   * Hentingen scorer det den selv henter; vurderingen etterpå fanger opp
+   * e-postleads og rader med utdatert vurdering.
+   */
+  const handleFetchAndScore = async () => {
+    await handleFetch();
+    await handleScorePending();
+  };
+
+
+
   const tombstoneDedupe = async (lead: Lead, status: "dismissed" | "promoted") => {
     if (!user) return;
     try {
@@ -780,7 +797,9 @@ function JobLeadsPage() {
       return null;
     }
 
-    await tombstoneDedupe(lead, "promoted");
+    // Dedupe-merket er ren opprydding — det skal aldri forsinke brukerens handling.
+    void tombstoneDedupe(lead, "promoted");
+
 
     if (lead.source === "linkedin") {
       await supabase.from("job_leads").delete().eq("id", lead.rowId);
@@ -804,39 +823,63 @@ function JobLeadsPage() {
   };
 
   const updateStatus = async (lead: Lead, action: "save" | "dismiss" | "apply") => {
-    if (action === "save") {
-      const id = await promoteToApplication(lead);
-      if (id) toast.success("Lagret som søknad");
-      return;
-    }
-    if (action === "apply") {
-      const id = await promoteToApplication(lead);
-      if (!id) return;
-      navigate({
-        to: "/cover-letters",
-        search: { application: id } as any,
-      });
-      return;
-    }
-    // dismiss
-    await tombstoneDedupe(lead, "dismissed");
-    if (lead.source === "nav" || (lead.rowKind === "careerjet" && lead.cjBackend === "uo")) {
-      await (supabase.from("user_opportunities") as any)
-        .update({ status: "dismissed", updated_at: new Date().toISOString() })
-        .eq("id", lead.rowId);
-      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
-    } else if (lead.rowKind === "careerjet") {
-      await (supabase.from("user_job_listing_status") as any)
-        .update({ status: "dismissed", updated_at: new Date().toISOString() })
-        .eq("id", lead.rowId);
-      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
-    } else {
-      await (supabase.from("job_leads") as any)
-        .update({ status: "avvist", updated_at: new Date().toISOString() })
-        .eq("id", lead.rowId);
-      qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
+    // Raden forsvinner straks. Feiler skrivingen, legges den tilbake.
+    const hide = () => setHiddenIds((ids) => [...ids, lead.id]);
+    const unhide = () => setHiddenIds((ids) => ids.filter((x) => x !== lead.id));
+    setPendingId(lead.id);
+    hide();
+    try {
+      if (action === "save" || action === "apply") {
+        const id = await promoteToApplication(lead);
+        if (!id) {
+          unhide();
+          return;
+        }
+        if (action === "apply") {
+          navigate({ to: "/cover-letters", search: { application: id } as any });
+          return;
+        }
+        toast.success(`Flyttet til Søknader: ${lead.title ?? "stillingen"}`, {
+          description: "Du finner den under Søknader med status «identifisert».",
+          action: {
+            label: "Åpne søknaden",
+            onClick: () => navigate({ to: "/applications/$id", params: { id } }),
+          },
+        });
+        return;
+      }
+
+      // dismiss
+      void tombstoneDedupe(lead, "dismissed");
+      let error: unknown = null;
+      if (lead.source === "nav" || (lead.rowKind === "careerjet" && lead.cjBackend === "uo")) {
+        ({ error } = await (supabase.from("user_opportunities") as any)
+          .update({ status: "dismissed", updated_at: new Date().toISOString() })
+          .eq("id", lead.rowId));
+        qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
+      } else if (lead.rowKind === "careerjet") {
+        ({ error } = await (supabase.from("user_job_listing_status") as any)
+          .update({ status: "dismissed", updated_at: new Date().toISOString() })
+          .eq("id", lead.rowId));
+        qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
+      } else {
+        ({ error } = await (supabase.from("job_leads") as any)
+          .update({ status: "avvist", updated_at: new Date().toISOString() })
+          .eq("id", lead.rowId));
+        qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
+      }
+      if (error) {
+        unhide();
+        toast.error(`Kunne ikke avvise annonsen: ${(error as any)?.message ?? "ukjent feil"}`);
+        return;
+      }
+      toast.success("Avvist — du får den ikke opp igjen.");
+    } finally {
+      setPendingId((current) => (current === lead.id ? null : current));
     }
   };
+
+
 
   const hasPrefs =
     !!profile?.job_search_keywords?.trim() ||
@@ -875,18 +918,11 @@ function JobLeadsPage() {
             <Mail className={`h-4 w-4 mr-2 ${syncingMailbox ? "animate-spin" : ""}`} />
             {syncingMailbox ? "Synker e-post…" : "Synk e-post"}
           </Button>
-          <Button
-            onClick={handleScorePending}
-            disabled={scoring}
-            variant="outline"
-          >
-            <Sparkles className={`h-4 w-4 mr-2 ${scoring ? "animate-spin" : ""}`} />
-            {scoring ? "Vurderer…" : "Vurder nye og utdaterte"}
+          <Button onClick={handleFetchAndScore} disabled={fetching || scoring || !hasPrefs}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${fetching || scoring ? "animate-spin" : ""}`} />
+            {fetching ? "Henter…" : scoring ? "Vurderer…" : "Hent og vurder nye annonser"}
           </Button>
-          <Button onClick={handleFetch} disabled={fetching || !hasPrefs}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${fetching ? "animate-spin" : ""}`} />
-            {fetching ? "Henter…" : "Hent fra Careerjet + NAV"}
-          </Button>
+
         </div>
       </div>
 
@@ -997,9 +1033,11 @@ function JobLeadsPage() {
             <LeadCard
               key={lead.id}
               lead={lead}
+              busy={pendingId === lead.id}
               onSave={() => updateStatus(lead, "save")}
               onDismiss={() => updateStatus(lead, "dismiss")}
               onApply={() => updateStatus(lead, "apply")}
+
             />
           ))}
         </div>
@@ -1086,13 +1124,15 @@ function ScreeningReasonsBlock({ lead }: { lead: Lead }) {
 }
 
 function LeadCard({
-  lead, onSave, onDismiss, onApply,
+  lead, busy, onSave, onDismiss, onApply,
 }: {
   lead: Lead;
+  busy?: boolean;
   onSave: () => void;
   onDismiss: () => void;
   onApply: () => void;
 }) {
+
   const [open, setOpen] = useState(false);
   const badge = leadBadge(lead);
   const isLI = lead.source === "linkedin";
@@ -1190,17 +1230,39 @@ function LeadCard({
               </a>
             </Button>
           )}
-          <Button variant="ghost" size="sm" className="h-9" onClick={onSave}>
-            <Bookmark className="h-4 w-4 mr-1" /> Lagre
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9"
+            disabled={busy}
+            onClick={onSave}
+            title="Flytter annonsen til Søknader med status «identifisert», slik at du kan jobbe videre med den senere."
+          >
+            <Bookmark className="h-4 w-4 mr-1" /> Flytt til søknader
           </Button>
-          <Button variant="ghost" size="sm" className="h-9" onClick={onDismiss}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9"
+            disabled={busy}
+            onClick={onDismiss}
+            title="Skjuler annonsen for deg og hindrer at den dukker opp igjen."
+          >
             <X className="h-4 w-4 mr-1" /> Avvis
           </Button>
           <StartApplicationButton canonicalOpportunityId={lead.canonicalOpportunityId} />
 
-          <Button variant="default" size="sm" className="h-9 ml-auto" onClick={onApply}>
-            <Send className="h-4 w-4 mr-1" /> Søk
+          <Button
+            variant="default"
+            size="sm"
+            className="h-9 ml-auto"
+            disabled={busy}
+            onClick={onApply}
+            title="Oppretter søknaden og tar deg rett til søknadsteksten."
+          >
+            <Send className="h-4 w-4 mr-1" /> Skriv søknad
           </Button>
+
         </div>
 
         {hasDetails && (
