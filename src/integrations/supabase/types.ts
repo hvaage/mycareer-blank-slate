@@ -65,6 +65,7 @@ export type Database = {
           ai_match_highlights: string | null
           ai_reasoning: string | null
           ai_score: number | null
+          application_due: string | null
           applied_date: string | null
           available_from: string | null
           company_id: string | null
@@ -117,6 +118,7 @@ export type Database = {
           ai_match_highlights?: string | null
           ai_reasoning?: string | null
           ai_score?: number | null
+          application_due?: string | null
           applied_date?: string | null
           available_from?: string | null
           company_id?: string | null
@@ -169,6 +171,7 @@ export type Database = {
           ai_match_highlights?: string | null
           ai_reasoning?: string | null
           ai_score?: number | null
+          application_due?: string | null
           applied_date?: string | null
           available_from?: string | null
           company_id?: string | null

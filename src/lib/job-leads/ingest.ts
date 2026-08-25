@@ -125,7 +125,8 @@ export async function ingestParsedEmail(params: {
       source_email_from: fromAddress,
       source_subject: subject,
       received_at: receivedAt,
-      posted_text: parsed.raw_text,
+      // posted_text er en kort etikett (f.eks. «Publisert for 2 dager siden») — aldri hele annonseteksten. Den ligger i raw_snippet.
+      posted_text: null,
       title: parsed.title,
       company: parsed.company,
       location: parsed.location,
