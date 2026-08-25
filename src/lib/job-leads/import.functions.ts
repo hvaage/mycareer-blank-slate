@@ -261,7 +261,9 @@ export const importManualJobLead = createServerFn({ method: "POST" })
       score: resultRow?.score ?? row?.ai_score ?? null,
       screeningStatus: resultRow?.screening_status ?? row?.screening_status ??
         null,
-      screeningReasons: (row?.screening_reasons ?? null) as ImportManualJobLeadResult["screeningReasons"],
+      screeningReasons: Array.isArray(row?.screening_reasons)
+        ? (row!.screening_reasons as ImportManualJobLeadResult["screeningReasons"])
+        : null,
       aiReasoning: row?.ai_reasoning ?? null,
       aiMatchHighlights: row?.ai_match_highlights ?? null,
       aiConcerns: row?.ai_concerns ?? null,
