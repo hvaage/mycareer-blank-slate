@@ -6,16 +6,24 @@ Verifisert mot live DB og kode før planlegging:
 
 - `job_leads` har alle nødvendige kolonner (`source_system`, `source_url_hash`, `raw_payload`, `posted_text`, `screening_status`, `match_score_version`, `ai_score`, m.fl.) og `job_leads_source_url_hash_idx` er `UNIQUE (user_id, source_system, source_url_hash) WHERE source_url_hash IS NOT NULL`.
 - Lokal generert type (`types.ts`) dekker alle disse kolonnene — ingen regenerering nødvendig (punkt 3).
-- `insert_job_lead_dedup`-RPC er `service_role`-only → serverfunksjon må gå via admin-klient (lastes inne i handler).
+- `insert_job_lead_dedup(jsonb)` er `service_role`-only, og returnerer i dag `(NULL, false)` ved duplikat — eksisterende rad-id returneres ikke (verifisert i migrasjon `20260823220302`).
+- `insert_job_lead_dedup`s dedup-kontrakt er `ON CONFLICT (user_id, COALESCE(job_url,''), COALESCE(title,''), COALESCE(company,'')) DO NOTHING`; i tillegg finnes `job_leads_source_url_hash_idx UNIQUE (user_id, source_system, source_url_hash) WHERE source_url_hash IS NOT NULL`.
+- `register_lead(p_user_id, p_source text, ...)` har ingen kilde-begrensning — `p_source` er fri tekst (verifisert i migrasjon `20260529130422`), så `manual_url`/`manual_paste` kan brukes direkte.
+- `validateIds` i `score-pending-opportunities` avviser allerede id-lister over 20 — den grensen beholdes uendret (justering 1).
 - `record_job_match_evaluation` støtter allerede `job_leads` (migration `20260824081559`).
-- `score-pending-opportunities` utleder `userId` fra `Authorization`-headeren — serverfunksjonen må videresende brukerens bearer-token (punkt 2).
+- `score-pending-opportunities` utleder `userId` fra `Authorization`-headeren — serverfunksjonen må videresende brukerens bearer-token.
 - `src/start.ts` registrerer prosjektets `attachSupabaseAuth` som `functionMiddleware` — bearer legges ved automatisk.
-- `src/lib/job-leads/ingest.ts` eier i dag in settings-mønsteret via `insert_job_lead_dedup` + `register_lead` — trekkes ut til delt helper uten logikkendring.
+- `src/lib/job-leads/ingest.ts` eier i dag innsettings-mønsteret via `insert_job_lead_dedup` + `register_lead` — trekkes ut til delt helper uten logikkendring.
 
 ## Endringer
 
-### 1. `supabase/functions/score-pending-opportunities/index.ts` — målrettet `job_leads`-scoring (punkt 5)
-- `Validated` får `job_lead_ids: string[]`; `validateInput` parser dem med samme `validateIds` og total-grense på 500.
+### 1. Migrasjon: `insert_job_lead_dedup` returnerer eksisterende rad ved duplikat (justering 2)
+- `CREATE OR REPLACE FUNCTION public.insert_job_lead_dedup(jsonb)`: ved konflikt hentes den eksisterende radens id med **samme predikat som konflikt-klausulen** (`user_id` + `COALESCE(job_url,'')`/`title`/`company` mot payload-verdiene, `LIMIT 1`) og returneres som `(lead_id, false)`. Ny rad returnerer som i dag `(id, true)`.
+- Signaturen (jsonb inn, samme returkolonner) er uendret, men per sikkerhetsregel 1 inkluderer migrasjonen likevel `REVOKE ALL ... FROM PUBLIC` + `GRANT EXECUTE ... TO service_role` på nytt i samme migrasjon. `SET search_path = public` beholdes.
+- Ingen app-side gjetting av duplikat-rad: serverfunksjonen bruker alltid den returnerte id-en, og henter eksisterende rads status/screeningfelt deterministisk med `eq(user_id)` + `eq(id)`.
+
+### 2. `supabase/functions/score-pending-opportunities/index.ts` — målrettet `job_leads`-scoring
+- `Validated` får `job_lead_ids: string[]`; `validateInput` parser dem med samme `validateIds` (**uendret grense: maks 20 id-er per liste**, kombinert total-guard uendret). `importManualJobLead` sender alltid nøyaktig én id.
 - `targeted` utvides til å inkludere `job_lead_ids.length > 0`.
 - `job_leads`-bransjen i `loadCandidates`: når `job_lead_ids` er satt, velges rader med `.in("id", job_lead_ids)` **uten** status-/qualification-filtre, slik at både nye rader (`status = 'ny'`) og eksisterende duplikatrader med annen status kan scores målrettet. Uten `job_lead_ids` er dagens filtre uendret.
 - `Candidate["source"]`-typen utvides med `manual_url | manual_paste`.
