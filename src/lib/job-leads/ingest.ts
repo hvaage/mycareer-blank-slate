@@ -1,6 +1,11 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { ParsedLead } from "@/lib/job-leads/parse";
+import {
+  hashLeadUrl,
+  insertJobLeadDeduped,
+  registerLeadForUser,
+} from "@/lib/job-leads/insert-job-lead.server";
 
 export type EmailSourceRow = {
   id: string;
@@ -20,11 +25,6 @@ export type IngestResult = {
 
 const CONFIDENCE_THRESHOLD_REVIEW = 0.5;
 const CONFIDENCE_THRESHOLD_REJECT = 0.2;
-
-function hashUrl(url: string | null): string | null {
-  if (!url) return null;
-  return createHash("sha256").update(url).digest("hex");
-}
 
 export async function ingestParsedEmail(params: {
   userId: string;
@@ -109,73 +109,61 @@ export async function ingestParsedEmail(params: {
     );
   }
 
-  // Insert into job_leads via RPC: the dedupe index is expression-based
-  // (COALESCE(...)), which PostgREST's on_conflict cannot target.
-  const urlHash = hashUrl(parsed.job_url);
+  // Insert into job_leads via RPC: dedup håndteres deterministisk i databasen
+  // (source_url_hash-indeks + COALESCE-kontrakt på job_url/title/company).
+  const urlHash = hashLeadUrl(parsed.job_url);
 
   let leadsCreated = 0;
   let leadsDeduped = 0;
 
-  const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
-    "insert_job_lead_dedup",
+  const { leadId: insertedId, wasInserted } = await insertJobLeadDeduped(
+    supabaseAdmin,
     {
-      p_payload: {
-        user_id: userId,
-        email_connection_id: emailConnectionId ?? null,
-        source_message_id: providerMessageId,
-        source_email_from: fromAddress,
-        source_subject: subject,
-        received_at: receivedAt,
-        posted_text: parsed.raw_text,
-        title: parsed.title,
-        company: parsed.company,
-        location: parsed.location,
-        work_type: parsed.work_type,
-        salary_text: parsed.salary,
-        job_url: parsed.job_url,
-        raw_snippet: parsed.raw_text.slice(0, 2000),
-        source_system: parsed.source_system,
-        source_url_hash: urlHash,
-        source_observed_at: receivedAt,
-        qualification_status: qualificationStatus,
-        qualification_score: Math.round(parseConfidence * 100),
-        qualification_reason: parsed.reason,
-        application_due: parsed.application_due,
-        raw_payload: parsed as unknown as Record<string, unknown>,
-        parse_confidence: parseConfidence,
-        reject_reason: rejectReason,
-        imported_job_email_id: importedEmail.id,
-      },
-    } as never,
+      user_id: userId,
+      email_connection_id: emailConnectionId ?? null,
+      source_message_id: providerMessageId,
+      source_email_from: fromAddress,
+      source_subject: subject,
+      received_at: receivedAt,
+      posted_text: parsed.raw_text,
+      title: parsed.title,
+      company: parsed.company,
+      location: parsed.location,
+      work_type: parsed.work_type,
+      salary_text: parsed.salary,
+      job_url: parsed.job_url,
+      raw_snippet: parsed.raw_text.slice(0, 2000),
+      source_system: parsed.source_system,
+      source_url_hash: urlHash,
+      source_observed_at: receivedAt,
+      qualification_status: qualificationStatus,
+      qualification_score: Math.round(parseConfidence * 100),
+      qualification_reason: parsed.reason,
+      application_due: parsed.application_due,
+      raw_payload: parsed as unknown as Record<string, unknown>,
+      parse_confidence: parseConfidence,
+      reject_reason: rejectReason,
+      imported_job_email_id: importedEmail.id,
+    },
   );
 
-  if (rpcError) {
-    throw new Error(`Failed to insert job_lead: ${rpcError.message}`);
-  }
-
-  const row = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
-  let leadId: string | null = null;
-  if (row && (row as { was_inserted?: boolean }).was_inserted) {
+  const leadId = wasInserted ? insertedId : null;
+  if (wasInserted) {
     leadsCreated = 1;
-    leadId = (row as { lead_id?: string }).lead_id ?? null;
   } else {
     leadsDeduped = 1;
   }
 
   if (leadId) {
-    const { data: dedupeKey } = await supabaseAdmin.rpc("normalize_lead_key", {
-      p_url: parsed.job_url ?? null,
-      p_company: parsed.company ?? null,
-      p_title: parsed.title ?? null,
-      p_location: parsed.location ?? null,
-    });
-    await supabaseAdmin.rpc("register_lead", {
-      p_user_id: userId,
-      p_source: parsed.source_system,
-      p_priority: 1,
-      p_dedupe_key: typeof dedupeKey === "string" ? dedupeKey : "",
-      p_ref_table: "job_leads",
-      p_ref_id: leadId,
+    await registerLeadForUser(supabaseAdmin, {
+      userId,
+      source: parsed.source_system,
+      priority: 1,
+      jobUrl: parsed.job_url,
+      title: parsed.title,
+      company: parsed.company,
+      location: parsed.location,
+      refId: leadId,
     });
   }
 
