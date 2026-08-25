@@ -776,7 +776,7 @@ function CoverLettersPage() {
                             expandedSnippets[key] ? "" : "line-clamp-3"
                           }`}
                         >
-                          {s.raw_snippet}
+                          {s.raw_snippet.replace(/^#{1,6}\s*/gm, "").replace(/\*\*/g, "")}
                         </p>
                         <button
                           type="button"
