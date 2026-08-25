@@ -1,4 +1,5 @@
-import { createServerFn, getRequestHeader } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
@@ -50,7 +51,9 @@ export type ImportManualJobLeadResult = {
   scoringCompleted: boolean;
   score: number | null;
   screeningStatus: string | null;
-  screeningReasons: unknown;
+  screeningReasons: Array<
+    string | { code?: string; label?: string; detail?: string }
+  > | null;
   aiReasoning: string | null;
   aiMatchHighlights: string | null;
   aiConcerns: string | null;
