@@ -549,12 +549,12 @@ async function loadCandidates(
     for (const row of jobLeadRows ?? []) {
       if (candidates.length >= input.limit) break;
       if (!modeMatches(row, input.mode)) continue;
-      const descriptionRaw = typeof row.posted_text === "string" &&
-          row.posted_text.trim().length > 0
-        ? row.posted_text
-        : (typeof row.raw_snippet === "string" ? row.raw_snippet : "");
-      const descriptionComplete = typeof row.posted_text === "string" &&
-        row.posted_text.trim().length > 0;
+      // Annonseteksten kan ligge tre steder. posted_text er kun en kort
+      // etikett (maks ~300 tegn) og kan aldri alene regnes som full tekst.
+      const descriptionRaw = jobLeadDescription(row);
+      // «Komplett» avgjøres av faktisk tekstmengde, ikke av hvilket felt den
+      // ligger i: en annonsetekst på 400+ tegn kan kravsjekkes.
+      const descriptionComplete = descriptionRaw.trim().length >= 400;
       candidates.push({
         row_kind: "job_leads",
         row_id: row.id,
