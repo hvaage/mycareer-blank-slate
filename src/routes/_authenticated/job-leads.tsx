@@ -250,9 +250,22 @@ function JobLeadsPage() {
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState<"url" | "text" | "pdf" | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  /** Uklart selskapstreff avgjøres av deg, aldri av gjetting. */
+  const [pendingMatch, setPendingMatch] = useState<PendingCompanyMatch | null>(null);
 
   const doSyncMailbox = useServerFn(syncEmailConnection);
   const doImportManual = useServerFn(importManualJobLead);
+  const doAttachJobAd = useServerFn(attachJobAdAndCompany);
+  const doPromoteToOpportunity = useServerFn(promoteJobLeadToOpportunity);
+  const doMarkOpportunity = useServerFn(markOpportunitySelected);
+
+  /** Koblet automatisk = ingen dialog. Alt annet spør deg. */
+  const handleMatch = (match: unknown, contextLabel: string) => {
+    const m = match as PendingCompanyMatch["match"] | null;
+    if (!m || !m.reconciliationId) return;
+    if (m.status === "confirmed" || m.status === "already_confirmed") return;
+    setPendingMatch({ match: m, contextLabel });
+  };
 
 
   const { data: profile } = useQuery({
