@@ -956,11 +956,24 @@ function JobLeadsPage() {
     // Dedupe-merket er ren opprydding — det skal aldri forsinke brukerens handling.
     void tombstoneDedupe(lead, "promoted");
 
-
-    if (
+    const isJobLeadRow =
       lead.rowKind === "linkedin" || lead.rowKind === "finn" ||
-      lead.rowKind === "other" || lead.rowKind === "manual"
-    ) {
+      lead.rowKind === "other" || lead.rowKind === "manual";
+
+    // Annonseteksten og selskapsavstemmingen må skje før leadet slettes.
+    try {
+      const res = await doAttachJobAd({
+        data: {
+          applicationId: app.id,
+          jobLeadId: isJobLeadRow ? lead.rowId : null,
+        },
+      });
+      handleMatch(res?.match, `${lead.title ?? "stillingen"} → Søknader`);
+    } catch (e) {
+      console.warn("[job-leads] annonse/selskapskobling feilet", e);
+    }
+
+    if (isJobLeadRow) {
       await supabase.from("job_leads").delete().eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
       qc.invalidateQueries({ queryKey: ["job-leads"] });
@@ -978,8 +991,49 @@ function JobLeadsPage() {
       qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
     }
     qc.invalidateQueries({ queryKey: ["applications"] });
+    qc.invalidateQueries({ queryKey: ["network"] });
     return app.id;
   };
+
+  /**
+   * «Flytt til muligheter»: Careerjet/NAV-rader ER allerede muligheter og får
+   * bare ny status. Øvrige leads får opprettet kanonisk mulighet + mulighetsrad.
+   */
+  const promoteToOpportunity = async (lead: Lead): Promise<boolean> => {
+    const isJobLeadRow =
+      lead.rowKind === "linkedin" || lead.rowKind === "finn" ||
+      lead.rowKind === "other" || lead.rowKind === "manual";
+    const label = `${lead.title ?? "stillingen"} → Muligheter`;
+
+    if (isJobLeadRow) {
+      const res = await doPromoteToOpportunity({ data: { jobLeadId: lead.rowId } });
+      if (!res?.ok) {
+        toast.error("Kunne ikke flytte til muligheter.");
+        return false;
+      }
+      handleMatch(res.match, label);
+      qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
+      qc.invalidateQueries({ queryKey: ["job-leads"] });
+    } else if (lead.cjBackend === "uo" || lead.source === "nav") {
+      const res = await doMarkOpportunity({
+        data: { opportunityId: lead.rowId, companyName: lead.company ?? "Ukjent" },
+      });
+      if (!res?.ok) {
+        toast.error("Kunne ikke flytte til muligheter.");
+        return false;
+      }
+      handleMatch(res.match, label);
+      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
+    } else {
+      toast.error("Denne annonsen kan ikke flyttes til muligheter.");
+      return false;
+    }
+
+    void tombstoneDedupe(lead, "promoted");
+    qc.invalidateQueries({ queryKey: ["network"] });
+    return true;
+  };
+
 
   const updateStatus = async (lead: Lead, action: "save" | "dismiss" | "apply") => {
     // Raden forsvinner straks. Feiler skrivingen, legges den tilbake.
