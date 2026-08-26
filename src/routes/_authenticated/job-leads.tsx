@@ -29,6 +29,15 @@ import { fmtRelative, fmtDateTime, fmtDate } from "@/lib/format";
 import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/careerjet-links";
 import { syncEmailConnection } from "@/lib/job-leads/sync.functions";
 import { importManualJobLead } from "@/lib/job-leads/import.functions";
+import {
+  attachJobAdAndCompany,
+  markOpportunitySelected,
+  promoteJobLeadToOpportunity,
+} from "@/lib/job-leads/promote.functions";
+import {
+  CompanyMatchDialog,
+  type PendingCompanyMatch,
+} from "@/components/job-leads/company-match-dialog";
 
 export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
