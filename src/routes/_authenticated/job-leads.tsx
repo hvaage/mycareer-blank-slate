@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   Bookmark, X, Send, RefreshCw, ExternalLink, Sparkles,
   Mail, MapPin, Briefcase, Building2, Banknote, ChevronDown,
-  Link2, FileText, Upload, CalendarClock,
+  Link2, FileText, Upload, CalendarClock, Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
