@@ -1422,11 +1422,12 @@ function ScreeningReasonsBlock({ lead }: { lead: Lead }) {
 }
 
 function LeadCard({
-  lead, busy, onSave, onDismiss, onApply,
+  lead, busy, onSave, onOpportunity, onDismiss, onApply,
 }: {
   lead: Lead;
   busy?: boolean;
   onSave: () => void;
+  onOpportunity: () => void;
   onDismiss: () => void;
   onApply: () => void;
 }) {
