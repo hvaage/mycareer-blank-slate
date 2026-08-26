@@ -29,7 +29,7 @@ Knapperaden blir: **Flytt til søknader**, **Flytt til muligheter**, **Avvis** (
 Når et lead flyttes til søknader eller muligheter:
 - selskapsnavnet avstemmes mot registerspeilet via den eksisterende avstemmingsmotoren,
 - ved sikkert treff settes `company_id` på søknaden/mulighetsraden og selskapet legges til brukerens aktive selskaper (`user_company_relationships`), slik at det vises under Nettverksarbeid → Selskaper med kontakter og aktiviteter,
-- ved flere eller ingen treff legges saken i kø på siden «Selskapsavstemming» i stedet for å gjette.
+- ved flere eller ingen treff får brukeren opp en liten dialog der søkenavnet kan justeres (f.eks. fjerne avdeling, suffiks eller land), med treffliste fra registeret som oppdateres mens navnet endres, og valg av riktig selskap derfra. Alternativet i samme dialog er «Opprett uten matching», med en kort forklaring av hva det innebærer: søknaden/muligheten lagres med selskapsnavnet som tekst, uten organisasjonsnummer, uten registerdata og uten kobling til Nettverksarbeid → Selskaper; koblingen kan gjøres senere.
 
 Avstemmingsmotoren utvides til også å lese `applications` som observasjonskilde, slik at søknader får samme selskapsidentitet som muligheter.
 
