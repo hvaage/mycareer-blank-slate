@@ -1035,13 +1035,32 @@ function JobLeadsPage() {
   };
 
 
-  const updateStatus = async (lead: Lead, action: "save" | "dismiss" | "apply") => {
+  const updateStatus = async (
+    lead: Lead,
+    action: "save" | "dismiss" | "apply" | "opportunity",
+  ) => {
     // Raden forsvinner straks. Feiler skrivingen, legges den tilbake.
     const hide = () => setHiddenIds((ids) => [...ids, lead.id]);
     const unhide = () => setHiddenIds((ids) => ids.filter((x) => x !== lead.id));
     setPendingId(lead.id);
     hide();
     try {
+      if (action === "opportunity") {
+        const ok = await promoteToOpportunity(lead);
+        if (!ok) {
+          unhide();
+          return;
+        }
+        toast.success(`Flyttet til Muligheter: ${lead.title ?? "stillingen"}`, {
+          description: "Du finner den under Nettverksarbeid → Muligheter.",
+          action: {
+            label: "Åpne muligheter",
+            onClick: () => navigate({ to: "/nettverk/muligheter" }),
+          },
+        });
+        return;
+      }
+
       if (action === "save" || action === "apply") {
         const id = await promoteToApplication(lead);
         if (!id) {
