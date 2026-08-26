@@ -9,9 +9,9 @@
 // BD/KAM/AE/AM/SDR/BDR/FoU). Familien «Prosjektledelse» manglet og er lagt inn.
 // Normaliseringen translitterer nå æ/ø/å — tidligere ble «Markedsføring» til
 // «markedsf ring» og traff aldri familienøkkelen, og «direktør»-aliaser var døde.
-export const MATCH_SCORE_VERSION = "job_match_v6_2026_08_25";
+export const MATCH_SCORE_VERSION = "job_match_v7_2026_08_26";
 /** Forrige versjon. Rader med denne er scoret før forkortelsestaksonomien. */
-export const MATCH_SCORE_VERSION_LEGACY = "job_match_v5_2026_08_25";
+export const MATCH_SCORE_VERSION_LEGACY = "job_match_v6_2026_08_25";
 /** Eldre versjon. Rader med denne er scoret før rollefamilie-taksonomien. */
 export const MATCH_SCORE_VERSION_LEGACY_V2 = "job_match_v4_2026_08_23";
 
