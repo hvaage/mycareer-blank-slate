@@ -525,7 +525,7 @@ async function loadCandidates(
     let jobLeadQuery = admin
       .from("job_leads")
       .select(
-        "id, source_system, title, company, location, work_type, posted_text, raw_snippet, status, qualification_status, ai_score, ai_scored_at, ai_reasoning, ai_match_highlights, ai_concerns, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model",
+        "id, source_system, title, company, location, work_type, posted_text, raw_snippet, raw_payload, status, qualification_status, ai_score, ai_scored_at, ai_reasoning, ai_match_highlights, ai_concerns, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model",
       )
       .eq("user_id", userId);
     if (input.job_lead_ids.length > 0) {
@@ -549,12 +549,12 @@ async function loadCandidates(
     for (const row of jobLeadRows ?? []) {
       if (candidates.length >= input.limit) break;
       if (!modeMatches(row, input.mode)) continue;
-      const descriptionRaw = typeof row.posted_text === "string" &&
-          row.posted_text.trim().length > 0
-        ? row.posted_text
-        : (typeof row.raw_snippet === "string" ? row.raw_snippet : "");
-      const descriptionComplete = typeof row.posted_text === "string" &&
-        row.posted_text.trim().length > 0;
+      // Annonseteksten kan ligge tre steder. posted_text er kun en kort
+      // etikett (maks ~300 tegn) og kan aldri alene regnes som full tekst.
+      const descriptionRaw = jobLeadDescription(row);
+      // «Komplett» avgjøres av faktisk tekstmengde, ikke av hvilket felt den
+      // ligger i: en annonsetekst på 400+ tegn kan kravsjekkes.
+      const descriptionComplete = descriptionRaw.trim().length >= 400;
       candidates.push({
         row_kind: "job_leads",
         row_id: row.id,
@@ -578,6 +578,50 @@ async function loadCandidates(
 
   return candidates;
 }
+
+/**
+ * Setter sammen annonseteksten for et job_lead. Rekkefølge: strukturert
+ * uttrekk fra importen (ad_markdown/seksjoner), deretter raw_snippet, og til
+ * slutt posted_text som siste utvei.
+ */
+function jobLeadDescription(row: Record<string, unknown>): string {
+  const payload = row.raw_payload as Record<string, unknown> | null;
+  const extracted = (payload?.extracted ?? null) as
+    | Record<string, unknown>
+    | null;
+  const str = (value: unknown): string =>
+    typeof value === "string" ? value.trim() : "";
+
+  if (extracted) {
+    const adMarkdown = str(extracted.ad_markdown);
+    if (adMarkdown.length >= 200) return adMarkdown;
+    const sections = [
+      str(extracted.about_role),
+      str(extracted.ideal_candidate),
+      str(extracted.about_company),
+      str(extracted.summary),
+      adMarkdown,
+    ].filter((part) => part.length > 0);
+    const listItems = (value: unknown): string =>
+      Array.isArray(value)
+        ? value.filter((v) => typeof v === "string").map((v) => `- ${v}`).join(
+          "\n",
+        )
+        : "";
+    const requirements = [
+      listItems(extracted.key_requirements),
+      listItems(extracted.must_have_keywords),
+      listItems(extracted.nice_to_have),
+    ].filter((part) => part.length > 0);
+    const combined = [...sections, ...requirements].join("\n\n").trim();
+    if (combined.length >= 200) return combined;
+  }
+
+  const snippet = str(row.raw_snippet);
+  if (snippet.length > 0) return snippet;
+  return str(row.posted_text);
+}
+
 
 function uniqueStrings(values: unknown[]): string[] {
   return [

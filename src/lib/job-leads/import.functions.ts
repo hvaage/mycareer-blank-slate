@@ -162,7 +162,7 @@ export const importManualJobLead = createServerFn({ method: "POST" })
       salary_text: salary,
       job_url: resolvedUrl,
       posted_text: null, // kort etikettfelt — hele annonsen ligger i raw_snippet
-      raw_snippet: description.slice(0, 2000),
+      raw_snippet: description.slice(0, 20000),
       source_system: sourceSystem,
       source_url_hash: hashLeadUrl(resolvedUrl),
       source_observed_at: now,
