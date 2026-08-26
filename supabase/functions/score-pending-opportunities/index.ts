@@ -525,7 +525,7 @@ async function loadCandidates(
     let jobLeadQuery = admin
       .from("job_leads")
       .select(
-        "id, source_system, title, company, location, work_type, posted_text, raw_snippet, status, qualification_status, ai_score, ai_scored_at, ai_reasoning, ai_match_highlights, ai_concerns, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model",
+        "id, source_system, title, company, location, work_type, posted_text, raw_snippet, raw_payload, status, qualification_status, ai_score, ai_scored_at, ai_reasoning, ai_match_highlights, ai_concerns, screening_status, screening_reasons, requirement_summary, match_score_version, match_scored_model",
       )
       .eq("user_id", userId);
     if (input.job_lead_ids.length > 0) {
