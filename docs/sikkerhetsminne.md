@@ -2,7 +2,7 @@
 
 Denne filen er den versjonerte kopien av prosjektets sikkerhetsminne. Innholdet her og innholdet i byggeverktøyets sikkerhetsminne skal til enhver tid være identisk. Hver gang sikkerhetsminnet oppdateres, skal samme endring committes til denne filen i samme migrasjon eller PR.
 
-Sist oppdatert: 2026-08-25.
+Sist oppdatert: 2026-08-26.
 
 ## Appen og tilgangsmodellen
 
@@ -57,7 +57,7 @@ Kallbare av `authenticated`, ikke av `anon` — brukerens egne operasjoner, alle
 
 `has_role` må være kallbar av `anon` og `authenticated` fordi den evalueres inne i RLS-policyer.
 
-**Rettet S1-regresjon 2026-08-25.** Åtte funksjoner (`delete_all_my_data`, `cv_atomization_job_cancel`, `cv_atomization_job_resume`, `cv_review_set_role_choice`, `cv_review_promote_result`, `network_company_reconciliation_scan`, `network_company_reconcile_one`, `network_company_reconciliation_confirm`, `network_company_reconciliation_set_state`) var faktisk `anon`-kallbare i `pg_proc.proacl` selv om migrasjonene deres hadde korrekt `REVOKE ... FROM PUBLIC` + `GRANT ... TO authenticated`. De er nå strammet inn via migrasjon til `authenticated` + `service_role`. Læring: unntakslister skal alltid bygges fra live `pg_proc.proacl`, aldri fra migrasjonshistorikken alene.
+**Rettet S1-regresjon 2026-08-25.** Åtte funksjoner (`delete_all_my_data`, `cv_atomization_job_cancel`, `cv_atomization_job_resume`, `cv_review_set_role_choice`, `cv_review_promote_result`, `network_company_reconciliation_scan`, `network_company_reconciliation_confirm`, `network_company_reconciliation_set_state`) var faktisk `anon`-kallbare i `pg_proc.proacl` selv om migrasjonene deres hadde korrekt `REVOKE ... FROM PUBLIC` + `GRANT ... TO authenticated`. De er nå strammet inn via migrasjon til `authenticated` + `service_role`. Læring: unntakslister skal alltid bygges fra live `pg_proc.proacl`, aldri fra migrasjonshistorikken alene.
 
 ### CSP
 
