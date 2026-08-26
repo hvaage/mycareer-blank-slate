@@ -128,7 +128,7 @@ const primaryGroups: GroupNode[] = [
     title: "Søknader",
     icon: Send,
     items: [
-      { label: "Nye leads", to: "/applications" },
+      { label: "Leads for søknadsarbeid", to: "/applications" },
       { label: "Lag søknadsdokumenter", to: "/soknadsdokumenter" },
       { label: "Generell CV", to: "/cv-builder", search: { type: "general" }, indent: true },
       { label: "Stillingstilpasset CV", to: "/cv-builder", search: { type: "tailored" }, indent: true },
