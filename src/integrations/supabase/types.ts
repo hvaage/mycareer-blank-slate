@@ -10111,6 +10111,10 @@ export type Database = {
         Args: { p_job_id: string; p_owner: string }
         Returns: boolean
       }
+      job_lead_promote_to_opportunity: {
+        Args: { p_job_lead_id: string }
+        Returns: Json
+      }
       link_canonical_to_source: {
         Args: {
           p_canonical: string
@@ -10495,6 +10499,14 @@ export type Database = {
         Returns: string
       }
       network_company_norm_name: { Args: { p_name: string }; Returns: string }
+      network_company_reconcile_one: {
+        Args: {
+          p_observed_name: string
+          p_source_record_id: string
+          p_source_system: string
+        }
+        Returns: Json
+      }
       network_company_reconciliation_confirm: {
         Args: {
           p_from_register_search?: boolean

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   Bookmark, X, Send, RefreshCw, ExternalLink, Sparkles,
   Mail, MapPin, Briefcase, Building2, Banknote, ChevronDown,
-  Link2, FileText, Upload, CalendarClock,
+  Link2, FileText, Upload, CalendarClock, Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,15 @@ import { fmtRelative, fmtDateTime, fmtDate } from "@/lib/format";
 import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/careerjet-links";
 import { syncEmailConnection } from "@/lib/job-leads/sync.functions";
 import { importManualJobLead } from "@/lib/job-leads/import.functions";
+import {
+  attachJobAdAndCompany,
+  markOpportunitySelected,
+  promoteJobLeadToOpportunity,
+} from "@/lib/job-leads/promote.functions";
+import {
+  CompanyMatchDialog,
+  type PendingCompanyMatch,
+} from "@/components/job-leads/company-match-dialog";
 
 export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
@@ -241,9 +250,22 @@ function JobLeadsPage() {
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState<"url" | "text" | "pdf" | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  /** Uklart selskapstreff avgjøres av deg, aldri av gjetting. */
+  const [pendingMatch, setPendingMatch] = useState<PendingCompanyMatch | null>(null);
 
   const doSyncMailbox = useServerFn(syncEmailConnection);
   const doImportManual = useServerFn(importManualJobLead);
+  const doAttachJobAd = useServerFn(attachJobAdAndCompany);
+  const doPromoteToOpportunity = useServerFn(promoteJobLeadToOpportunity);
+  const doMarkOpportunity = useServerFn(markOpportunitySelected);
+
+  /** Koblet automatisk = ingen dialog. Alt annet spør deg. */
+  const handleMatch = (match: unknown, contextLabel: string) => {
+    const m = match as PendingCompanyMatch["match"] | null;
+    if (!m || !m.reconciliationId) return;
+    if (m.status === "confirmed" || m.status === "already_confirmed") return;
+    setPendingMatch({ match: m, contextLabel });
+  };
 
 
   const { data: profile } = useQuery({
@@ -934,11 +956,24 @@ function JobLeadsPage() {
     // Dedupe-merket er ren opprydding — det skal aldri forsinke brukerens handling.
     void tombstoneDedupe(lead, "promoted");
 
-
-    if (
+    const isJobLeadRow =
       lead.rowKind === "linkedin" || lead.rowKind === "finn" ||
-      lead.rowKind === "other" || lead.rowKind === "manual"
-    ) {
+      lead.rowKind === "other" || lead.rowKind === "manual";
+
+    // Annonseteksten og selskapsavstemmingen må skje før leadet slettes.
+    try {
+      const res = await doAttachJobAd({
+        data: {
+          applicationId: app.id,
+          jobLeadId: isJobLeadRow ? lead.rowId : null,
+        },
+      });
+      handleMatch(res?.match, `${lead.title ?? "stillingen"} → Søknader`);
+    } catch (e) {
+      console.warn("[job-leads] annonse/selskapskobling feilet", e);
+    }
+
+    if (isJobLeadRow) {
       await supabase.from("job_leads").delete().eq("id", lead.rowId);
       qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
       qc.invalidateQueries({ queryKey: ["job-leads"] });
@@ -956,16 +991,76 @@ function JobLeadsPage() {
       qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
     }
     qc.invalidateQueries({ queryKey: ["applications"] });
+    qc.invalidateQueries({ queryKey: ["network"] });
     return app.id;
   };
 
-  const updateStatus = async (lead: Lead, action: "save" | "dismiss" | "apply") => {
+  /**
+   * «Flytt til muligheter»: Careerjet/NAV-rader ER allerede muligheter og får
+   * bare ny status. Øvrige leads får opprettet kanonisk mulighet + mulighetsrad.
+   */
+  const promoteToOpportunity = async (lead: Lead): Promise<boolean> => {
+    const isJobLeadRow =
+      lead.rowKind === "linkedin" || lead.rowKind === "finn" ||
+      lead.rowKind === "other" || lead.rowKind === "manual";
+    const label = `${lead.title ?? "stillingen"} → Muligheter`;
+
+    if (isJobLeadRow) {
+      const res = await doPromoteToOpportunity({ data: { jobLeadId: lead.rowId } });
+      if (!res?.ok) {
+        toast.error("Kunne ikke flytte til muligheter.");
+        return false;
+      }
+      handleMatch(res.match, label);
+      qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
+      qc.invalidateQueries({ queryKey: ["job-leads"] });
+    } else if (lead.cjBackend === "uo" || lead.source === "nav") {
+      const res = await doMarkOpportunity({
+        data: { opportunityId: lead.rowId, companyName: lead.company ?? "Ukjent" },
+      });
+      if (!res?.ok) {
+        toast.error("Kunne ikke flytte til muligheter.");
+        return false;
+      }
+      handleMatch(res.match, label);
+      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
+    } else {
+      toast.error("Denne annonsen kan ikke flyttes til muligheter.");
+      return false;
+    }
+
+    void tombstoneDedupe(lead, "promoted");
+    qc.invalidateQueries({ queryKey: ["network"] });
+    return true;
+  };
+
+
+  const updateStatus = async (
+    lead: Lead,
+    action: "save" | "dismiss" | "apply" | "opportunity",
+  ) => {
     // Raden forsvinner straks. Feiler skrivingen, legges den tilbake.
     const hide = () => setHiddenIds((ids) => [...ids, lead.id]);
     const unhide = () => setHiddenIds((ids) => ids.filter((x) => x !== lead.id));
     setPendingId(lead.id);
     hide();
     try {
+      if (action === "opportunity") {
+        const ok = await promoteToOpportunity(lead);
+        if (!ok) {
+          unhide();
+          return;
+        }
+        toast.success(`Flyttet til Muligheter: ${lead.title ?? "stillingen"}`, {
+          description: "Du finner den under Nettverksarbeid → Muligheter.",
+          action: {
+            label: "Åpne muligheter",
+            onClick: () => navigate({ to: "/nettverk/muligheter" }),
+          },
+        });
+        return;
+      }
+
       if (action === "save" || action === "apply") {
         const id = await promoteToApplication(lead);
         if (!id) {
@@ -1237,6 +1332,7 @@ function JobLeadsPage() {
               lead={lead}
               busy={pendingId === lead.id}
               onSave={() => updateStatus(lead, "save")}
+              onOpportunity={() => updateStatus(lead, "opportunity")}
               onDismiss={() => updateStatus(lead, "dismiss")}
               onApply={() => updateStatus(lead, "apply")}
 
@@ -1244,6 +1340,8 @@ function JobLeadsPage() {
           ))}
         </div>
       )}
+
+      <CompanyMatchDialog pending={pendingMatch} onClose={() => setPendingMatch(null)} />
     </div>
   );
 }
@@ -1326,11 +1424,12 @@ function ScreeningReasonsBlock({ lead }: { lead: Lead }) {
 }
 
 function LeadCard({
-  lead, busy, onSave, onDismiss, onApply,
+  lead, busy, onSave, onOpportunity, onDismiss, onApply,
 }: {
   lead: Lead;
   busy?: boolean;
   onSave: () => void;
+  onOpportunity: () => void;
   onDismiss: () => void;
   onApply: () => void;
 }) {
@@ -1454,6 +1553,16 @@ function LeadCard({
             title="Flytter annonsen til Søknader med status «identifisert», slik at du kan jobbe videre med den senere."
           >
             <Bookmark className="h-4 w-4 mr-1" /> Flytt til søknader
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9"
+            disabled={busy}
+            onClick={onOpportunity}
+            title="Flytter annonsen til Nettverksarbeid → Muligheter, slik at du kan jobbe med selskap og kontakter før du skriver søknad."
+          >
+            <Target className="h-4 w-4 mr-1" /> Flytt til muligheter
           </Button>
           <Button
             variant="ghost"
