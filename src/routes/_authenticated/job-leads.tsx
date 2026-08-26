@@ -1332,6 +1332,7 @@ function JobLeadsPage() {
               lead={lead}
               busy={pendingId === lead.id}
               onSave={() => updateStatus(lead, "save")}
+              onOpportunity={() => updateStatus(lead, "opportunity")}
               onDismiss={() => updateStatus(lead, "dismiss")}
               onApply={() => updateStatus(lead, "apply")}
 
