@@ -579,6 +579,50 @@ async function loadCandidates(
   return candidates;
 }
 
+/**
+ * Setter sammen annonseteksten for et job_lead. Rekkefølge: strukturert
+ * uttrekk fra importen (ad_markdown/seksjoner), deretter raw_snippet, og til
+ * slutt posted_text som siste utvei.
+ */
+function jobLeadDescription(row: Record<string, unknown>): string {
+  const payload = row.raw_payload as Record<string, unknown> | null;
+  const extracted = (payload?.extracted ?? null) as
+    | Record<string, unknown>
+    | null;
+  const str = (value: unknown): string =>
+    typeof value === "string" ? value.trim() : "";
+
+  if (extracted) {
+    const adMarkdown = str(extracted.ad_markdown);
+    if (adMarkdown.length >= 200) return adMarkdown;
+    const sections = [
+      str(extracted.about_role),
+      str(extracted.ideal_candidate),
+      str(extracted.about_company),
+      str(extracted.summary),
+      adMarkdown,
+    ].filter((part) => part.length > 0);
+    const listItems = (value: unknown): string =>
+      Array.isArray(value)
+        ? value.filter((v) => typeof v === "string").map((v) => `- ${v}`).join(
+          "\n",
+        )
+        : "";
+    const requirements = [
+      listItems(extracted.key_requirements),
+      listItems(extracted.must_have_keywords),
+      listItems(extracted.nice_to_have),
+    ].filter((part) => part.length > 0);
+    const combined = [...sections, ...requirements].join("\n\n").trim();
+    if (combined.length >= 200) return combined;
+  }
+
+  const snippet = str(row.raw_snippet);
+  if (snippet.length > 0) return snippet;
+  return str(row.posted_text);
+}
+
+
 function uniqueStrings(values: unknown[]): string[] {
   return [
     ...new Set(
