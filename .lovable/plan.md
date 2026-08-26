@@ -1,70 +1,44 @@
-# Jobb-Leads Trinn E2 — URL/tekst/PDF-import med samlet import-/parse-/match-kontrakt
+# Jobb-leads: tre valg, annonsetekst inn i søknaden og selskapsmatching
 
-Brukeren kan legge inn en stillingsannonse (URL, limt tekst eller PDF) direkte på Jobb-Leads-siden. Frontend kaller **kun** `importManualJobLead` — én sammenhengende operasjon som internt henter/leser, parser, lagrer/dedupliserer og scorer, og returnerer et samlet resultat. Ingen egen «Vurder»-knapp etterpå. `extract-job-ad` kalles aldri fra klienten.
+## Bakgrunn (verifisert nå)
 
-Verifisert mot live DB og kode før planlegging:
+- Søknadssiden viser «Stillingsannonse» fra tabellen `job_ads`, koblet til søknaden. Spørring mot databasen: GlobalConnect har én `job_ads`-rad (importert manuelt via «Importer annonse»), mens Medbric, People Oslo Vest og ALT LEGALT har null. Promotering fra Jobb-leads oppretter aldri `job_ads` — derfor mangler annonseteksten for alle unntatt GlobalConnect. Dette er ikke en parse-feil.
+- Ingen av søknadene har `company_id` satt. Promotering kobler ikke mot arbeidsgiverregisteret i dag.
+- Avstemmingsmotoren (`network_company_reconciliation_scan`) leser allerede observasjoner fra `user_opportunities` og kontaktrelasjoner, men **ikke** fra `applications`.
+- Jobb-leads-kortet har i dag: «Flytt til søknader», «Avvis» og «Skriv søknad». Det finnes ingen «Flytt til muligheter».
+- `user_opportunities` krever `canonical_opportunity_id` (NOT NULL) og `identity_fingerprint`, så et lead fra e-post/manuell/LinkedIn/Finn må få en kanonisk mulighet opprettet før det kan vises under Muligheter. Funksjonen `opportunity_fingerprint(company, title, location)` finnes allerede.
 
-- `job_leads` har alle nødvendige kolonner (`source_system`, `source_url_hash`, `raw_payload`, `posted_text`, `screening_status`, `match_score_version`, `ai_score`, m.fl.) og `job_leads_source_url_hash_idx` er `UNIQUE (user_id, source_system, source_url_hash) WHERE source_url_hash IS NOT NULL`.
-- Lokal generert type (`types.ts`) dekker alle disse kolonnene — ingen regenerering nødvendig (punkt 3).
-- `insert_job_lead_dedup(jsonb)` er `service_role`-only, og returnerer i dag `(NULL, false)` ved duplikat — eksisterende rad-id returneres ikke (verifisert i migrasjon `20260823220302`).
-- `insert_job_lead_dedup`s dedup-kontrakt er `ON CONFLICT (user_id, COALESCE(job_url,''), COALESCE(title,''), COALESCE(company,'')) DO NOTHING`; i tillegg finnes `job_leads_source_url_hash_idx UNIQUE (user_id, source_system, source_url_hash) WHERE source_url_hash IS NOT NULL`.
-- `register_lead(p_user_id, p_source text, ...)` har ingen kilde-begrensning — `p_source` er fri tekst (verifisert i migrasjon `20260529130422`), så `manual_url`/`manual_paste` kan brukes direkte.
-- `validateIds` i `score-pending-opportunities` avviser allerede id-lister over 20 — den grensen beholdes uendret (justering 1).
-- `record_job_match_evaluation` støtter allerede `job_leads` (migration `20260824081559`).
-- `score-pending-opportunities` utleder `userId` fra `Authorization`-headeren — serverfunksjonen må videresende brukerens bearer-token.
-- `src/start.ts` registrerer prosjektets `attachSupabaseAuth` som `functionMiddleware` — bearer legges ved automatisk.
-- `src/lib/job-leads/ingest.ts` eier i dag innsettings-mønsteret via `insert_job_lead_dedup` + `register_lead` — trekkes ut til delt helper uten logikkendring.
+## Det som skal bygges
 
-## Endringer
+### 1. Annonseteksten følger med til Søknader
+Ved promotering opprettes en `job_ads`-rad for søknaden, med beste tilgjengelige kilde i denne rekkefølgen:
+1. `raw_payload.extracted` (manuelle importer: `ad_markdown`, `about_role`, `about_company`, `ideal_candidate`, `must_have_keywords`, `key_requirements`, `nice_to_have`, frist),
+2. full annonsetekst fra `job_leads.raw_snippet` / e-postens lagrede tekst,
+3. ingen rad hvis det ikke finnes reell annonsetekst (da vises dagens tomtilstand med importknappen).
 
-### 1. Migrasjon: `insert_job_lead_dedup` returnerer eksisterende rad ved duplikat (justering 2)
-- `CREATE OR REPLACE FUNCTION public.insert_job_lead_dedup(jsonb)`: ved konflikt hentes den eksisterende radens id med **samme predikat som konflikt-klausulen** (`user_id` + `COALESCE(job_url,'')`/`title`/`company` mot payload-verdiene, `LIMIT 1`) og returneres som `(lead_id, false)`. Ny rad returnerer som i dag `(id, true)`.
-- Signaturen (jsonb inn, samme returkolonner) er uendret, men per sikkerhetsregel 1 inkluderer migrasjonen likevel `REVOKE ALL ... FROM PUBLIC` + `GRANT EXECUTE ... TO service_role` på nytt i samme migrasjon. `SET search_path = public` beholdes.
-- Ingen app-side gjetting av duplikat-rad: serverfunksjonen bruker alltid den returnerte id-en, og henter eksisterende rads status/screeningfelt deterministisk med `eq(user_id)` + `eq(id)`.
+Frist, URL, selskap, rolle, sted og arbeidsform speiles inn i `parsed_*`-feltene. Eksisterende manuell import overskrives aldri.
 
-### 2. `supabase/functions/score-pending-opportunities/index.ts` — målrettet `job_leads`-scoring
-- `Validated` får `job_lead_ids: string[]`; `validateInput` parser dem med samme `validateIds` (**uendret grense: maks 20 id-er per liste**, kombinert total-guard uendret). `importManualJobLead` sender alltid nøyaktig én id.
-- `targeted` utvides til å inkludere `job_lead_ids.length > 0`.
-- `job_leads`-bransjen i `loadCandidates`: når `job_lead_ids` er satt, velges rader med `.in("id", job_lead_ids)` **uten** status-/qualification-filtre, slik at både nye rader (`status = 'ny'`) og eksisterende duplikatrader med annen status kan scores målrettet. Uten `job_lead_ids` er dagens filtre uendret.
-- `Candidate["source"]`-typen utvides med `manual_url | manual_paste`.
+Etterfylling: for de tre søknadene som allerede er flyttet uten annonse (Medbric ×2, People Oslo Vest, ALT LEGALT) opprettes `job_ads` fra teksten som fortsatt ligger på søknaden/leadet, der tekst finnes.
 
-### 3. `src/lib/job-leads/insert-job-lead.server.ts` (ny) + refaktor av `ingest.ts`
-- Delt helper `insertJobLeadDeduped(admin, payload)` (RPC-kall, returnerer `{ leadId, wasInserted }` — ved duplikat nå med faktisk id fra RPC-en) og `registerLeadForUser(admin, ...)` (`normalize_lead_key` + `register_lead`).
-- `registerLeadForUser` tar eksplisitt `source`-parameter (justering 3): e-postinntak beholder dagens verdier (`linkedin`/`other`), mens manuell import registrerer med **`manual_url`/`manual_paste`** — samme verdi som `source_system` på raden. Ingen blanding av UI-kategorien `other` med backend-kilde.
-- `ingest.ts` bruker helperen — identisk oppførsel for e-postinntak (forgrener seg på `wasInserted`, ikke på om id finnes, slik at utvidet RPC-retur ikke endrer e-postflyten).
+### 2. Tre valg på hvert jobb-lead
+Knapperaden blir: **Flytt til søknader**, **Flytt til muligheter**, **Avvis** (og «Skriv søknad» beholdes som primærhandling helt til høyre, siden den er en snarvei til samme flyt pluss søknadsteksten).
 
-### 4. `src/lib/job-leads/import.functions.ts` (ny) — `importManualJobLead`
-`createServerFn` + `requireSupabaseAuth`. Input: `{ jobUrl, rawText, inputKind: 'url' | 'pdf_text' | 'paste' }` (Zod `.strict()`).
+«Flytt til muligheter» oppretter/gjenbruker en kanonisk mulighet og en `user_opportunities`-rad med en valgt status (ikke `new`), slik at den dukker opp under Nettverksarbeid → Muligheter og ikke lenger ligger i Jobb-leads. Score, screening-status, begrunnelse og frist følger med. For Careerjet/NAV-leads, som allerede *er* `user_opportunities`, settes bare status til valgt — ingen duplikater.
 
-Handler-flyt:
-1. Leser `SUPABASE_URL`/`SUPABASE_PUBLISHABLE_KEY` inne i handleren.
-2. Kaller `extract-job-ad` internt med `apikey`-header (`{ url }` eller `{ text }`) — aldri et `extracted`-objekt fra klienten. Feiler parsingen, kastes feil med norsk melding. Mangler stillingstittel i resultatet, avvises importen.
-3. Bygger payload (`source_system = 'manual_url'` når `jobUrl` finnes, ellers `'manual_paste'`; `source_url_hash` settes for URL-importer med samme normalisering som e-postinntaket; `raw_payload` inneholder `extraction_method: 'manual'`, `input_kind`, `url`; `raw_snippet` fra `raw_text.slice(0, 400)`).
-4. Lagrer via `insertJobLeadDeduped` (admin inne i handler). Svaret gir alltid rad-id — enten ny (`wasInserted: true`) eller eksisterende duplikatrad (`wasInserted: false`) — ingen app-side duplikat-gjetting (justering 2).
-5. Ved ny rad: `registerLeadForUser` med `source = source_system` (`manual_url`/`manual_paste`), prioritet 1 (justering 3). Ved duplikat: eksisterende rads status/screeningfelt hentes med `eq(user_id)` + `eq(id)`.
-6. Scoring: leser `Authorization`-headeren fra innkommende request (`getRequestHeader`) — finnes den ikke, returneres `scoringCompleted: false` med eksplisitt feil. Kaller `score-pending-opportunities` med `{ source: "all", mode: "stale", limit: 1, job_lead_ids: [leadId] }` og brukerens bearer + `apikey`.
-7. Resultatvurdering: finner radens resultat i `results`. Returneres `selected = 0`/`evaluated = 0` eller raden er i `failures`, settes `scoringCompleted: false` med `scoringError` — aldri stille suksess. Unntak: duplikat som allerede har V2-screening returnerer eksisterende `screening_status`/`ai_score`.
-8. Returnerer DTO: `{ leadId, wasInserted, duplicateStatus, scoringCompleted, screeningStatus, score, scoringError }`.
+### 3. Selskapsmatching mot arbeidsgiverregisteret ved begge flyttinger
+Når et lead flyttes til søknader eller muligheter:
+- selskapsnavnet avstemmes mot registerspeilet via den eksisterende avstemmingsmotoren,
+- ved sikkert treff settes `company_id` på søknaden/mulighetsraden og selskapet legges til brukerens aktive selskaper (`user_company_relationships`), slik at det vises under Nettverksarbeid → Selskaper med kontakter og aktiviteter,
+- ved flere eller ingen treff legges saken i kø på siden «Selskapsavstemming» i stedet for å gjette.
 
-### 4. `src/routes/_authenticated/job-leads.tsx` — UI + eksplisitt leseside (punkt 4)
-- Ny lukkbar seksjon «Legg til annonse selv» under sidetittelen: URL-felt, PDF-opplasting (klient-side tekstuttrekk med `pdfjs-dist`, dynamisk import — samme mønster som `applications/new.tsx`), tekstområde og én knapp «Legg til og vurder». Knappen kaller kun `importManualJobLead` og viser én samlet toast («Lagt til og vurdert: Relevant (78)» / «Ligger allerede i listen (status: ny)» / lagret-men-scoring-feilet med `scoringError`).
-- `rawLeads`-mapping utvides eksplisitt: `source_system = 'manual_url'|'manual_paste'` skilles fra LinkedIn-rader, mappes til `finn` (når `job_url`-host er finn.no) ellers `other`, og behandles som **V2-rader** med `screening_status`, `screening_reasons`, `requirement_summary`, `match_score_version` og `ai_score` fra raden. LinkedIn V1-logikk (`isLinkedInAiEvaluated`) brukes kun på LinkedIn-rader.
-- `Lead`-typen får `fromJobLeads: boolean` og `manual?: boolean`; alle rader fra `job_leads`-spørringen får `fromJobLeads: true`.
-- Skriveveier korrigeres til å bruke `fromJobLeads` i stedet for kilde-sjekk: `tombstoneDedupe` (`p_ref_table = "job_leads"`) og promotering (sletting fra `job_leads`) treffer da også finn/other/manuelle rader — i dag havner e-post-finn/other-rader feilaktig i Careerjet-grenen.
-- Kilde-filteret: «Annen e-post» omdøpes til «Annet / manuelt» (Finn.no finnes allerede). Kort-visningen får etikett «Lagt inn manuelt» for manuelle rader.
-- Etter import: `invalidateQueries` på `["job-leads-linkedin"]` (job_leads-feeden).
+Avstemmingsmotoren utvides til også å lese `applications` som observasjonskilde, slik at søknader får samme selskapsidentitet som muligheter.
 
-### 5. Verifisering (punkt 5)
-- Deploy av edge-funksjonen.
-- Test av `importManualJobLead` ende-til-ende: ny rad (`status = 'ny'`) og gjentatt import av samme annonse (duplikat med endret status) — begge skal gi `scoringCompleted: true` eller eksplisitt feil.
-- Byggsjekk via build-loggen.
+### 4. Kvalitetssjekk før og etter
+Før-tilstand er allerede målt (antall søknader, `job_ads`-rader, `company_id`-dekning, antall muligheter per status). Etter endringen kjøres nøyaktig samme spørringer på nytt, pluss en gjennomgang i appen av: Jobb-leads (tre valg virker, raden forsvinner umiddelbart), Søknader (annonsetekst synlig), Muligheter (kun valgte rader), Nettverksarbeid → Selskaper (nytt selskap koblet). Alt utenfor disse fire områdene skal være uendret; det bekreftes ved at ingen andre spørringer/tellinger endrer seg.
 
-## Tekniske detaljer
-- `importManualJobLead` er en tynn wrapper: modul-scope kun imports, typer og selve deklarasjonen; Zod-skjema i `inputValidator`; admin-klient og helper lastes med dynamisk import inne i handleren.
-- Én migrasjon (seksjon 1): kun `CREATE OR REPLACE` av `insert_job_lead_dedup` med fornyet REVOKE/GRANT. Ingen nye tabeller. RLS uendret: skriving går via `service_role`-RPC etter autentisering; lesing i UI bruker eksisterende RLS-policyer.
-- `supabase/functions/` brukes fordi `score-pending-opportunities` og `extract-job-ad` allerede er edge functions; endringen er minimal og bakoverkompatibel (`job_lead_ids` er valgfritt, maks 20 id-er).
+## Teknisk
 
-## Eksplisitt utenfor scope (punkt 8)
-- NAV-speil, Enhetsregister/Regnskapsregister-speil og ESCO-speil: ingen endringer i speil, sync-jobber, repair/backfill, lifecycle eller databevaring.
-- Ingen endring i e-postinntakets oppførsel (kun intern helper-uttrekking).
-- Automatisk promotering til Søknader er ikke del av denne runden.
+- Skriveveiene legges i en server-funksjon per handling (`promoteJobLeadToApplication`, `promoteJobLeadToOpportunity`) med `requireSupabaseAuth`, slik at klienten ikke setter `user_id` og all logikk (job_ads, kanonisk mulighet, selskapskobling, dedupe-merking) skjer i én operasjon.
+- Ny/endret databasefunksjonalitet leveres som migrasjon: utvidet `network_company_reconciliation_scan` med `application`-observasjoner, og en SECURITY DEFINER-funksjon for å opprette kanonisk mulighet + `user_opportunities`-rad fra et `job_leads`-id. Begge med eksplisitt `search_path` og REVOKE/GRANT etter gjeldende sikkerhetsregler.
+- `applications` får `company_id` satt der det ikke allerede er i bruk; kolonnen finnes.
+- Frontend-endringer begrenses til `src/routes/_authenticated/job-leads.tsx` (knapperad + handlinger) og invalidering av berørte query-nøkler.
