@@ -1557,6 +1557,16 @@ function LeadCard({
             size="sm"
             className="h-9"
             disabled={busy}
+            onClick={onOpportunity}
+            title="Flytter annonsen til Nettverksarbeid → Muligheter, slik at du kan jobbe med selskap og kontakter før du skriver søknad."
+          >
+            <Target className="h-4 w-4 mr-1" /> Flytt til muligheter
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9"
+            disabled={busy}
             onClick={onDismiss}
             title="Skjuler annonsen for deg og hindrer at den dukker opp igjen."
           >
