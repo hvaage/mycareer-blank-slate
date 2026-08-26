@@ -1340,6 +1340,8 @@ function JobLeadsPage() {
           ))}
         </div>
       )}
+
+      <CompanyMatchDialog pending={pendingMatch} onClose={() => setPendingMatch(null)} />
     </div>
   );
 }
