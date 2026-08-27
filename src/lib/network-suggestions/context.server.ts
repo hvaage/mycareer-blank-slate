@@ -165,10 +165,11 @@ export async function buildSuggestionContext(input: {
   const signatureBase = JSON.stringify({
     scope,
     scopeObjectId,
+    focus,
     refs: evidence
       .map((e) => `${e.ref}@${e.updatedAt ?? ""}`)
       .sort(),
   });
 
-  return { scope, scopeObjectId, evidence, signatureBase };
+  return { scope, scopeObjectId, focus, evidence, signatureBase };
 }
