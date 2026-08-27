@@ -30,6 +30,16 @@ import { ACTIVITY_TYPE_LABEL } from "@/lib/queries/network";
 
 export type SuggestionScope = "overview" | "company" | "contact" | "opportunity";
 
+/** Fokusvalget avgjør hva forslagene skal handle om. Nettverksarbeid er standard. */
+type SuggestionFocus = "nettverk" | "oppfolging" | "soknad" | "alle";
+
+const FOCUS_OPTIONS: { code: SuggestionFocus; label: string }[] = [
+  { code: "nettverk", label: "Nettverksarbeid" },
+  { code: "oppfolging", label: "Oppfølging" },
+  { code: "soknad", label: "Søknadsarbeid" },
+  { code: "alle", label: "Alt" },
+];
+
 const ERROR_TEXT: Record<string, string> = {
   rate_limited: "Du har bedt om forslag mange ganger den siste timen. Prøv igjen senere.",
   too_many_active: "En forslagskjøring pågår allerede. Vent til den er ferdig.",
