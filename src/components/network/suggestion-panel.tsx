@@ -78,6 +78,7 @@ export function SuggestionPanel({
   const qc = useQueryClient();
   const key = scopeKey(scope, scopeObjectId);
   const [accepting, setAccepting] = useState<any | null>(null);
+  const [focus, setFocus] = useState<SuggestionFocus>("nettverk");
 
   const runQuery = useQuery({
     queryKey: ["network-suggestion-run", userId, key],
