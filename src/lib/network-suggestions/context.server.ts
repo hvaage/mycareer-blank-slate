@@ -9,6 +9,13 @@
 
 export type SuggestionScope = "overview" | "company" | "contact" | "opportunity";
 
+/**
+ * Fokus styrer hvor tungt jobbannonser (muligheter) vektes i kildelisten.
+ * Nettverksarbeid skal ikke drukne i annonser, så muligheter nedvektes med
+ * mindre brukeren eksplisitt ber om søknadsarbeid.
+ */
+export type SuggestionFocus = "nettverk" | "oppfolging" | "soknad" | "alle";
+
 export type EvidenceRef = {
   ref: string;
   kind: "company" | "contact" | "opportunity" | "activity";
@@ -21,6 +28,7 @@ export type EvidenceRef = {
 export type SuggestionContext = {
   scope: SuggestionScope;
   scopeObjectId: string | null;
+  focus: SuggestionFocus;
   evidence: EvidenceRef[];
   signatureBase: string;
 };
@@ -28,6 +36,8 @@ export type SuggestionContext = {
 type Admin = { from: (t: string) => any };
 
 const MAX_PER_KIND = 25;
+/** Nedvekting: annonser skal ikke dominere nettverksforslagene. */
+const MAX_OPPORTUNITIES_NETWORK = 5;
 
 function text(value: unknown, max = 200): string | null {
   if (typeof value !== "string") return null;
@@ -41,8 +51,10 @@ export async function buildSuggestionContext(input: {
   userId: string;
   scope: SuggestionScope;
   scopeObjectId: string | null;
+  focus?: SuggestionFocus;
 }): Promise<SuggestionContext> {
   const { adminClient, userId, scope, scopeObjectId } = input;
+  const focus: SuggestionFocus = input.focus ?? "nettverk";
   const evidence: EvidenceRef[] = [];
 
   // --- selskaper ---------------------------------------------------------
@@ -95,12 +107,18 @@ export async function buildSuggestionContext(input: {
   }
 
   // --- muligheter --------------------------------------------------------
+  // Nedvektet med mindre brukeren ber om søknadsarbeid eller står på en
+  // mulighet: ellers overdøver annonsemengden nettverksarbeidet.
+  const opportunityLimit =
+    scope === "opportunity" || focus === "soknad" || focus === "alle"
+      ? MAX_PER_KIND
+      : MAX_OPPORTUNITIES_NETWORK;
   let opportunityQuery = adminClient
     .from("user_opportunities")
     .select("id, card_title, card_company, status, screening_status, updated_at")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false })
-    .limit(MAX_PER_KIND);
+    .limit(opportunityLimit);
   if (scope === "opportunity" && scopeObjectId) opportunityQuery = opportunityQuery.eq("id", scopeObjectId);
   const { data: opportunities } = await opportunityQuery;
 
@@ -147,10 +165,11 @@ export async function buildSuggestionContext(input: {
   const signatureBase = JSON.stringify({
     scope,
     scopeObjectId,
+    focus,
     refs: evidence
       .map((e) => `${e.ref}@${e.updatedAt ?? ""}`)
       .sort(),
   });
 
-  return { scope, scopeObjectId, evidence, signatureBase };
+  return { scope, scopeObjectId, focus, evidence, signatureBase };
 }

@@ -83,6 +83,7 @@ export const Route = createFileRoute("/api/public/jobs/network-suggestions")({
             scope: run.scope,
             scopeObjectId: run.scope_object_id ?? null,
             correlationId: run.correlation_id,
+            focus: run.focus ?? null,
           });
 
           await admin.rpc("network_finish_suggestion_run", {

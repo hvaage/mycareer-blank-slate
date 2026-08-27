@@ -8,7 +8,12 @@
 //   - forslag oppretter aldri aktiviteter, sender aldri meldinger
 
 import type { ModelProfile } from "../../../supabase/functions/_shared/claude/client.ts";
-import { buildSuggestionContext, type EvidenceRef, type SuggestionScope } from "./context.server";
+import {
+  buildSuggestionContext,
+  type EvidenceRef,
+  type SuggestionFocus,
+  type SuggestionScope,
+} from "./context.server";
 import { getCareerLifePhase } from "../career-life-phase";
 
 const TASK_KEY = "network_activity_suggestions";
@@ -24,6 +29,24 @@ const ACTIVITY_TYPES = [
   "annet",
 ] as const;
 const PRIORITIES = ["low", "medium", "high"] as const;
+
+/** Fokusvalget avgrenser hvilke aktivitetstyper modellen får foreslå. */
+const FOCUS_TYPES: Record<SuggestionFocus, readonly string[]> = {
+  nettverk: ["moete", "samtale", "e_post", "oppfolging"],
+  oppfolging: ["oppfolging", "e_post", "samtale", "moete"],
+  soknad: ["soknad", "intervju", "oppfolging", "e_post"],
+  alle: ACTIVITY_TYPES,
+};
+
+const FOCUS_GUIDANCE: Record<SuggestionFocus, string> = {
+  nettverk:
+    "Fokus: nettverksarbeid. Foreslå å bygge og aktivere relasjoner — møter, samtaler og henvendelser til kontakter og selskaper. Ikke foreslå å sende søknader eller forberede intervjuer.",
+  oppfolging:
+    "Fokus: oppfølging. Foreslå å følge opp kontakter, selskaper og påbegynte tråder som har ligget stille. Ikke foreslå å sende nye søknader.",
+  soknad:
+    "Fokus: søknadsarbeid. Foreslå konkrete steg knyttet til aktuelle muligheter og søknader, inkludert forberedelser til intervju.",
+  alle: "Fokus: alt. Prioriter fritt mellom nettverksarbeid og søknadsarbeid.",
+};
 
 export type ValidatedSuggestion = {
   activityType: string;
@@ -82,12 +105,16 @@ function buildUserMessage(
   scope: SuggestionScope,
   evidence: EvidenceRef[],
   lifePhaseGuidance: string | null,
+  focus: SuggestionFocus,
 ): string {
   const lines = evidence.map(
     (e) => `- ${e.ref} | ${e.kind} | ${e.label}${e.detail ? ` | ${e.detail}` : ""}`,
   );
   return [
     `Arbeidsflate: ${scope}`,
+    "",
+    FOCUS_GUIDANCE[focus],
+    `Tillatte activityType-verdier: ${FOCUS_TYPES[focus].join(", ")}. Bruk ingen andre.`,
     ...(lifePhaseGuidance ? ["", `Karrierefase: ${lifePhaseGuidance}`] : []),
     "",
     "Tillatte kilder:",
@@ -113,7 +140,13 @@ async function loadLifePhaseGuidance(adminClient: Admin, userId: string): Promis
 }
 
 
-function parseSuggestions(raw: string, allowed: Map<string, EvidenceRef>, scope: SuggestionScope, scopeObjectId: string | null): ValidatedSuggestion[] {
+function parseSuggestions(
+  raw: string,
+  allowed: Map<string, EvidenceRef>,
+  scope: SuggestionScope,
+  scopeObjectId: string | null,
+  focus: SuggestionFocus,
+): ValidatedSuggestion[] {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) return [];
@@ -126,10 +159,12 @@ function parseSuggestions(raw: string, allowed: Map<string, EvidenceRef>, scope:
   const items = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
   const out: ValidatedSuggestion[] = [];
 
+  const allowedTypes = FOCUS_TYPES[focus] ?? ACTIVITY_TYPES;
+
   for (const item of items.slice(0, 5)) {
-    const activityType = (ACTIVITY_TYPES as readonly string[]).includes(item?.activityType)
-      ? item.activityType
-      : "annet";
+    // Type utenfor fokuset forkastes: brukeren har valgt hva forslagene skal handle om.
+    if (!allowedTypes.includes(item?.activityType)) continue;
+    const activityType = item.activityType;
     const priority = (PRIORITIES as readonly string[]).includes(item?.priority) ? item.priority : "medium";
     const title = typeof item?.title === "string" ? item.title.trim().slice(0, 200) : "";
     const rationale = typeof item?.rationale === "string" ? item.rationale.trim().slice(0, 1200) : "";
@@ -169,15 +204,18 @@ export async function runSuggestionJob(input: {
   scope: SuggestionScope;
   scopeObjectId: string | null;
   correlationId: string;
+  focus?: SuggestionFocus | null;
 }): Promise<RunOutcome> {
   const { adminClient, apiKey, userId, scope, scopeObjectId, correlationId } = input;
+  const focus: SuggestionFocus =
+    input.focus && input.focus in FOCUS_TYPES ? (input.focus as SuggestionFocus) : "nettverk";
 
   const profile = await loadProfile(adminClient);
   if (!profile) {
     return { status: "failed", errorCode: "missing_model_profile", modelRunId: null, modelName: null };
   }
 
-  const context = await buildSuggestionContext({ adminClient, userId, scope, scopeObjectId });
+  const context = await buildSuggestionContext({ adminClient, userId, scope, scopeObjectId, focus });
   const lifePhaseGuidance = await loadLifePhaseGuidance(adminClient, userId);
   if (context.evidence.length === 0) {
     return { status: "succeeded", items: [], modelRunId: null, modelName: profile.modelId };
@@ -194,6 +232,7 @@ export async function runSuggestionJob(input: {
       max_tokens: profile.maxTokens,
       request_options: profile.requestOptions,
       scope,
+      focus,
       evidence_count: context.evidence.length,
     },
     p_api_version: "2023-06-01",
@@ -204,7 +243,7 @@ export async function runSuggestionJob(input: {
   const result = await callClaude({
     profile,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence, lifePhaseGuidance) }],
+    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence, lifePhaseGuidance, focus) }],
     correlationId,
     runtime: { apiKey },
   });
@@ -241,7 +280,7 @@ export async function runSuggestionJob(input: {
   }
 
   const allowed = new Map(context.evidence.map((e) => [e.ref, e]));
-  const items = parseSuggestions(result.text, allowed, scope, scopeObjectId);
+  const items = parseSuggestions(result.text, allowed, scope, scopeObjectId, focus);
   if (items.length === 0) {
     await finish("failed", "invalid_model_output", "invalid_output");
     return { status: "failed", errorCode: "invalid_model_output", modelRunId: runId, modelName: profile.modelId };
