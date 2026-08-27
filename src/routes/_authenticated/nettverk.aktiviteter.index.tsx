@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { CalendarClock, Plus } from "lucide-react";
@@ -48,11 +48,17 @@ function ActivitiesPage() {
     [list],
   );
 
-  const firstContext = useMemo(() => {
+  const newContext = useMemo(() => {
     if (search.kontakt) return { contactId: search.kontakt };
     if (search.mulighet) return { opportunityId: search.mulighet };
-    return null;
+    return {};
   }, [search]);
+
+  const [openId, setOpenId] = useState<string | null>(null);
+  const openActivity = useMemo(
+    () => sorted.find((a) => a.id === openId) ?? null,
+    [sorted, openId],
+  );
 
   if (isError) return <NetworkErrorState onRetry={() => refetch()} />;
   return (
@@ -72,16 +78,14 @@ function ActivitiesPage() {
           active={search.forfall === "kommende"}
           to={{ tilstand: "apen", forfall: "kommende" }}
         />
-        {firstContext ? (
-          <ActivityDialog
-            context={firstContext}
-            trigger={
-              <Button size="sm" className="ml-auto">
-                <Plus className="mr-1 h-4 w-4" /> Ny aktivitet
-              </Button>
-            }
-          />
-        ) : null}
+        <ActivityDialog
+          context={newContext}
+          trigger={
+            <Button size="sm" className="ml-auto">
+              <Plus className="mr-1 h-4 w-4" /> Ny aktivitet
+            </Button>
+          }
+        />
       </div>
 
       <NetworkPanel title={`Aktiviteter (${sorted.length.toLocaleString("nb-NO")})`}>
@@ -89,14 +93,18 @@ function ActivitiesPage() {
           <PanelEmpty>Laster aktiviteter…</PanelEmpty>
         ) : sorted.length === 0 ? (
           <PanelEmpty>
-            Ingen aktiviteter i dette utvalget. Aktiviteter opprettes fra en kontakt, et selskap, en
-            mulighet eller en søknad.
+            Ingen aktiviteter i dette utvalget. Bruk «Ny aktivitet» for å legge inn en aktivitet
+            manuelt, eller opprett den fra en kontakt, et selskap, en mulighet eller en søknad.
           </PanelEmpty>
         ) : (
           <ul className="divide-y divide-border">
             {sorted.map((a) => (
               <li key={a.id} className="flex flex-wrap items-start gap-2 py-2">
-                <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => setOpenId(a.id)}
+                  className="min-w-0 flex-1 rounded-md px-1 text-left transition-colors hover:bg-muted/60"
+                >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate font-medium">{a.title}</span>
                     <Badge variant="outline">{ACTIVITY_TYPE_LABEL[a.activity_type] ?? a.activity_type}</Badge>
@@ -138,29 +146,35 @@ function ActivitiesPage() {
                   {a.result_note ? (
                     <p className="mt-1 text-xs text-muted-foreground">Resultat: {a.result_note}</p>
                   ) : null}
-                </div>
+                </button>
                 <div className="flex shrink-0 items-center gap-1">
                   <ActivityStatusButton activityId={a.id} status={a.status} />
-                  <ActivityDialog
-                    context={{
-                      contactId: a.contactId,
-                      companyId: a.companyKey && a.companyKey.includes("-") ? a.companyKey : null,
-                      opportunityId: a.opportunityId,
-                      applicationId: a.applicationId,
-                    }}
-                    activity={a}
-                    trigger={
-                      <Button size="sm" variant="ghost">
-                        Rediger
-                      </Button>
-                    }
-                  />
                 </div>
               </li>
             ))}
           </ul>
         )}
       </NetworkPanel>
+
+      {openActivity ? (
+        <ActivityDialog
+          key={openActivity.id}
+          open
+          onOpenChange={(next) => {
+            if (!next) setOpenId(null);
+          }}
+          context={{
+            contactId: openActivity.contactId,
+            companyId:
+              openActivity.companyKey && openActivity.companyKey.includes("-")
+                ? openActivity.companyKey
+                : null,
+            opportunityId: openActivity.opportunityId,
+            applicationId: openActivity.applicationId,
+          }}
+          activity={openActivity}
+        />
+      ) : null}
 
       <SuggestionPanel scope="overview" />
     </div>
