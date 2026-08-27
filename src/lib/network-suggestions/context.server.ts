@@ -107,12 +107,18 @@ export async function buildSuggestionContext(input: {
   }
 
   // --- muligheter --------------------------------------------------------
+  // Nedvektet med mindre brukeren ber om søknadsarbeid eller står på en
+  // mulighet: ellers overdøver annonsemengden nettverksarbeidet.
+  const opportunityLimit =
+    scope === "opportunity" || focus === "soknad" || focus === "alle"
+      ? MAX_PER_KIND
+      : MAX_OPPORTUNITIES_NETWORK;
   let opportunityQuery = adminClient
     .from("user_opportunities")
     .select("id, card_title, card_company, status, screening_status, updated_at")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false })
-    .limit(MAX_PER_KIND);
+    .limit(opportunityLimit);
   if (scope === "opportunity" && scopeObjectId) opportunityQuery = opportunityQuery.eq("id", scopeObjectId);
   const { data: opportunities } = await opportunityQuery;
 
