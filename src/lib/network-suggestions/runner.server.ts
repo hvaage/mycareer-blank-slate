@@ -9,6 +9,7 @@
 
 import type { ModelProfile } from "../../../supabase/functions/_shared/claude/client.ts";
 import { buildSuggestionContext, type EvidenceRef, type SuggestionScope } from "./context.server";
+import { getCareerLifePhase } from "../career-life-phase";
 
 const TASK_KEY = "network_activity_suggestions";
 const OUTPUT_CONTRACT_VERSION = "1";
@@ -77,12 +78,17 @@ Svar KUN med gyldig JSON på formen:
 
 Maks 5 forslag. Hvert forslag må ha minst én gyldig ref i evidence.`;
 
-function buildUserMessage(scope: SuggestionScope, evidence: EvidenceRef[]): string {
+function buildUserMessage(
+  scope: SuggestionScope,
+  evidence: EvidenceRef[],
+  lifePhaseGuidance: string | null,
+): string {
   const lines = evidence.map(
     (e) => `- ${e.ref} | ${e.kind} | ${e.label}${e.detail ? ` | ${e.detail}` : ""}`,
   );
   return [
     `Arbeidsflate: ${scope}`,
+    ...(lifePhaseGuidance ? ["", `Karrierefase: ${lifePhaseGuidance}`] : []),
     "",
     "Tillatte kilder:",
     ...(lines.length ? lines : ["(ingen)"]),
@@ -90,6 +96,22 @@ function buildUserMessage(scope: SuggestionScope, evidence: EvidenceRef[]): stri
     "Foreslå de viktigste neste stegene basert kun på kildene over.",
   ].join("\n");
 }
+
+/**
+ * Karrierefasen er valgfri kontekst. Er den ikke satt, bygges prompten
+ * nøyaktig som før. Fasen styrer type og tone på forslag, aldri utvalget.
+ */
+async function loadLifePhaseGuidance(adminClient: Admin, userId: string): Promise<string | null> {
+  const { data } = await adminClient
+    .from("user_career_profiles")
+    .select("career_life_phase")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const phase = getCareerLifePhase((data as any)?.career_life_phase ?? null);
+  if (!phase) return null;
+  return `${phase.labelNb} (${phase.ageRangeNb}). ${phase.suggestionGuidanceNb}`;
+}
+
 
 function parseSuggestions(raw: string, allowed: Map<string, EvidenceRef>, scope: SuggestionScope, scopeObjectId: string | null): ValidatedSuggestion[] {
   const start = raw.indexOf("{");
@@ -156,6 +178,7 @@ export async function runSuggestionJob(input: {
   }
 
   const context = await buildSuggestionContext({ adminClient, userId, scope, scopeObjectId });
+  const lifePhaseGuidance = await loadLifePhaseGuidance(adminClient, userId);
   if (context.evidence.length === 0) {
     return { status: "succeeded", items: [], modelRunId: null, modelName: profile.modelId };
   }
@@ -181,7 +204,7 @@ export async function runSuggestionJob(input: {
   const result = await callClaude({
     profile,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence) }],
+    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence, lifePhaseGuidance) }],
     correlationId,
     runtime: { apiKey },
   });

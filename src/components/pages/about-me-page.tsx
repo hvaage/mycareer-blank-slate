@@ -15,6 +15,7 @@ import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { JobSearchPrefs } from "@/components/job-search-prefs";
 import { getCareerStage } from "@/lib/career-stage";
+import { getCareerLifePhase } from "@/lib/career-life-phase";
 import { FormSection, sectionStatus } from "@/components/form/form-section";
 import { PageSectionNav } from "@/components/layout/page-section-nav";
 import { usePersistedCollapse } from "@/hooks/use-persisted-collapse";
@@ -43,7 +44,7 @@ function CareerStageContext({ userId }: { userId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_career_profiles")
-        .select("career_stage")
+        .select("career_stage, career_life_phase")
         .eq("user_id", userId)
         .maybeSingle();
       if (error) throw error;
@@ -51,14 +52,27 @@ function CareerStageContext({ userId }: { userId: string }) {
     },
   });
   const stage = data?.career_stage ? getCareerStage(data.career_stage) : null;
-  if (!stage) return null;
+  const phase = data?.career_life_phase ? getCareerLifePhase(data.career_life_phase) : null;
+  if (!stage && !phase) return null;
   return (
-    <p className="text-[11px] text-muted-foreground mb-1">
-      Karrierestadium i dag: <span className="text-foreground/80 font-medium">{stage.labelNb}</span>{" "}
-      <Link to="/preferences" className="text-primary hover:underline">
-        endre
-      </Link>
-    </p>
+    <div className="mb-1 space-y-0.5">
+      {phase && (
+        <p className="text-[11px] text-muted-foreground">
+          Karrierefase: <span className="text-foreground/80 font-medium">{phase.labelNb}</span>{" "}
+          <Link to="/min-profil/karriereretning" className="text-primary hover:underline">
+            endre
+          </Link>
+        </p>
+      )}
+      {stage && (
+        <p className="text-[11px] text-muted-foreground">
+          Karrierestadium i dag: <span className="text-foreground/80 font-medium">{stage.labelNb}</span>{" "}
+          <Link to="/preferences" className="text-primary hover:underline">
+            endre
+          </Link>
+        </p>
+      )}
+    </div>
   );
 }
 

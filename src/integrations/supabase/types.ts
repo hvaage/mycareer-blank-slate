@@ -8434,6 +8434,7 @@ export type Database = {
       }
       user_career_profiles: {
         Row: {
+          career_life_phase: string | null
           career_stage: string | null
           compensation_importance: number | null
           completeness_score: number | null
@@ -8464,6 +8465,7 @@ export type Database = {
           years_experience: number | null
         }
         Insert: {
+          career_life_phase?: string | null
           career_stage?: string | null
           compensation_importance?: number | null
           completeness_score?: number | null
@@ -8494,6 +8496,7 @@ export type Database = {
           years_experience?: number | null
         }
         Update: {
+          career_life_phase?: string | null
           career_stage?: string | null
           compensation_importance?: number | null
           completeness_score?: number | null

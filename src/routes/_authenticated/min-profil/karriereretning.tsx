@@ -7,6 +7,12 @@ import { ArrowLeft, Loader2, Pencil, Save, Target } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { CAREER_STAGES, getCareerStage, type CareerStageId } from "@/lib/career-stage";
+import {
+  CAREER_LIFE_PHASES,
+  getCareerLifePhase,
+  suggestCareerLifePhase,
+  type CareerLifePhaseCode,
+} from "@/lib/career-life-phase";
 import { userCareerProfileQuery, type UserCareerProfileRow } from "@/lib/queries/user-career-profile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,14 +33,15 @@ export const Route = createFileRoute("/_authenticated/min-profil/karriereretning
 });
 
 /**
- * Karriereprofil eier bare karrierestadium. Alt annet i jobbønskene ligger i
- * `profiles` og redigeres under Om meg — det er kolonnene jobbsøket leser.
- * Motivasjonsskalaene er skjult inntil scoringen faktisk vekter dem;
- * kolonnene i basen står urørt (se docs/backend-gaps.md).
+ * Karriereprofil eier bare karrierestadium og karrierefase. Alt annet i
+ * jobbønskene ligger i `profiles` og redigeres under Om meg — det er kolonnene
+ * jobbsøket leser. Motivasjonsskalaene er skjult inntil scoringen faktisk
+ * vekter dem; kolonnene i basen står urørt (se docs/backend-gaps.md).
  */
 function rowToForm(r: UserCareerProfileRow | null) {
   return {
     career_stage: (r?.career_stage as CareerStageId | null) ?? "",
+    career_life_phase: (r?.career_life_phase as CareerLifePhaseCode | null) ?? "",
   };
 }
 
@@ -76,6 +83,18 @@ function CareerPreferencesPage() {
   }, [row]);
 
   const stageDef = useMemo(() => getCareerStage(form.career_stage), [form.career_stage]);
+  const lifePhaseDef = useMemo(() => getCareerLifePhase(form.career_life_phase), [form.career_life_phase]);
+
+  /**
+   * Forslag basert på erfaring. Vises kun som tekst med egen handling —
+   * feltet forblir tomt, og lagres som null, til brukeren aktivt velger.
+   */
+  const suggestedPhase = useMemo(() => {
+    if (form.career_life_phase) return null;
+    const years = profile?.years_experience;
+    if (years == null) return null;
+    return getCareerLifePhase(suggestCareerLifePhase(Number(years)));
+  }, [form.career_life_phase, profile?.years_experience]);
 
   const set = useCallback(<K extends keyof FormState>(key: K, v: FormState[K]) => {
     setForm((s) => ({ ...s, [key]: v }));
@@ -84,9 +103,14 @@ function CareerPreferencesPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!uid) throw new Error("Ikke innlogget");
-      const { error } = await supabase
-        .from("user_career_profiles")
-        .upsert({ user_id: uid, career_stage: form.career_stage || null }, { onConflict: "user_id" });
+      const { error } = await supabase.from("user_career_profiles").upsert(
+        {
+          user_id: uid,
+          career_stage: form.career_stage || null,
+          career_life_phase: form.career_life_phase || null,
+        },
+        { onConflict: "user_id" },
+      );
       if (error) throw error;
     },
     onSuccess: () => {
@@ -147,6 +171,53 @@ function CareerPreferencesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Karrierefasen styrer hvilke nettverksaktiviteter som foreslås. Karrierestadiet styrer
+                hvordan stillinger vektes. Begge er valgfrie.
+              </p>
+
+              <div className="space-y-2">
+                <Label htmlFor="career_life_phase">Karrierefase</Label>
+                <Select
+                  value={form.career_life_phase || "__empty"}
+                  onValueChange={(v) =>
+                    set("career_life_phase", v === "__empty" ? "" : (v as CareerLifePhaseCode))
+                  }
+                >
+                  <SelectTrigger id="career_life_phase" className="w-full">
+                    <SelectValue placeholder="Velg karrierefase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__empty">Ikke valgt</SelectItem>
+                    {CAREER_LIFE_PHASES.map((p) => (
+                      <SelectItem key={p.code} value={p.code}>
+                        {p.labelNb} ({p.ageRangeNb})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {suggestedPhase && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>
+                      Foreslått ut fra din erfaring: {suggestedPhase.labelNb} ({suggestedPhase.ageRangeNb})
+                      — bekreft eller velg selv.
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7"
+                      onClick={() => set("career_life_phase", suggestedPhase.code)}
+                    >
+                      Bruk forslag
+                    </Button>
+                  </div>
+                )}
+                {lifePhaseDef && (
+                  <p className="text-xs text-muted-foreground">{lifePhaseDef.suggestionGuidanceNb}</p>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="career_stage">Karrierestadium i dag</Label>
                 <Select
