@@ -25,13 +25,32 @@ export type EvidenceRef = {
   updatedAt: string | null;
 };
 
+/** Tidligere forslag brukeren har avvist eller godtatt. Skal ikke gjentas. */
+export type SuggestionHistoryItem = {
+  status: "dismissed" | "accepted";
+  activityType: string;
+  title: string;
+  refs: string[];
+};
+
 export type SuggestionContext = {
   scope: SuggestionScope;
   scopeObjectId: string | null;
   focus: SuggestionFocus;
   evidence: EvidenceRef[];
+  history: SuggestionHistoryItem[];
   signatureBase: string;
 };
+
+/** Normalisert nøkkel for «samme forslag»: type + tittel + kilder. */
+export function suggestionKey(activityType: string, title: string, refs: string[]): string {
+  const normTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9æøå ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `${activityType}|${normTitle}|${[...refs].sort().join(",")}`;
+}
 
 type Admin = { from: (t: string) => any };
 
