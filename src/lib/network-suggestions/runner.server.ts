@@ -178,6 +178,7 @@ export async function runSuggestionJob(input: {
   }
 
   const context = await buildSuggestionContext({ adminClient, userId, scope, scopeObjectId });
+  const lifePhaseGuidance = await loadLifePhaseGuidance(adminClient, userId);
   if (context.evidence.length === 0) {
     return { status: "succeeded", items: [], modelRunId: null, modelName: profile.modelId };
   }
@@ -203,7 +204,7 @@ export async function runSuggestionJob(input: {
   const result = await callClaude({
     profile,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence) }],
+    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence, lifePhaseGuidance) }],
     correlationId,
     runtime: { apiKey },
   });
