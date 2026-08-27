@@ -83,6 +83,18 @@ function CareerPreferencesPage() {
   }, [row]);
 
   const stageDef = useMemo(() => getCareerStage(form.career_stage), [form.career_stage]);
+  const lifePhaseDef = useMemo(() => getCareerLifePhase(form.career_life_phase), [form.career_life_phase]);
+
+  /**
+   * Forslag basert på erfaring. Vises kun som tekst med egen handling —
+   * feltet forblir tomt, og lagres som null, til brukeren aktivt velger.
+   */
+  const suggestedPhase = useMemo(() => {
+    if (form.career_life_phase) return null;
+    const years = profile?.years_experience;
+    if (years == null) return null;
+    return getCareerLifePhase(suggestCareerLifePhase(Number(years)));
+  }, [form.career_life_phase, profile?.years_experience]);
 
   const set = useCallback(<K extends keyof FormState>(key: K, v: FormState[K]) => {
     setForm((s) => ({ ...s, [key]: v }));
@@ -91,9 +103,14 @@ function CareerPreferencesPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!uid) throw new Error("Ikke innlogget");
-      const { error } = await supabase
-        .from("user_career_profiles")
-        .upsert({ user_id: uid, career_stage: form.career_stage || null }, { onConflict: "user_id" });
+      const { error } = await supabase.from("user_career_profiles").upsert(
+        {
+          user_id: uid,
+          career_stage: form.career_stage || null,
+          career_life_phase: form.career_life_phase || null,
+        },
+        { onConflict: "user_id" },
+      );
       if (error) throw error;
     },
     onSuccess: () => {
