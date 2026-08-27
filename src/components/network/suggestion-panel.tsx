@@ -122,7 +122,7 @@ export function SuggestionPanel({
 
   const start = useMutation({
     mutationFn: (regenerate: boolean) =>
-      startActivitySuggestionRun({ data: { scope, scopeObjectId, regenerate } }),
+      startActivitySuggestionRun({ data: { scope, scopeObjectId, regenerate, focus } }),
     onSuccess: (res: any) => {
       if (!res?.ok) {
         toast.error(ERROR_TEXT[res?.errorCode ?? "enqueue_failed"] ?? ERROR_TEXT.enqueue_failed);
