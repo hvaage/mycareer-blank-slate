@@ -6557,6 +6557,7 @@ export type Database = {
           created_at: string
           error_code: string | null
           finished_at: string | null
+          focus: string | null
           generation_epoch: number
           heartbeat_at: string | null
           id: string
@@ -6582,6 +6583,7 @@ export type Database = {
           created_at?: string
           error_code?: string | null
           finished_at?: string | null
+          focus?: string | null
           generation_epoch?: number
           heartbeat_at?: string | null
           id?: string
@@ -6607,6 +6609,7 @@ export type Database = {
           created_at?: string
           error_code?: string | null
           finished_at?: string | null
+          focus?: string | null
           generation_epoch?: number
           heartbeat_at?: string | null
           id?: string
@@ -10547,6 +10550,7 @@ export type Database = {
       }
       network_enqueue_suggestion_run: {
         Args: {
+          p_focus?: string
           p_model_profile: string
           p_prompt_version: string
           p_regenerate: boolean
