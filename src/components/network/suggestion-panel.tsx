@@ -206,7 +206,7 @@ export function SuggestionPanel({
         <PanelEmpty>
           {runStatus === "failed"
             ? "Forrige vurdering ble ikke fullført. Prøv igjen."
-            : "Ingen forslag til vurdering. Trykk «Få aktivitetsforslag»."}
+            : "Ingen forslag til vurdering. Trykk «Få nye aktivitetsforslag»."}
         </PanelEmpty>
       ) : (
         <ul className="divide-y divide-border">
