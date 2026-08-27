@@ -8,7 +8,12 @@
 //   - forslag oppretter aldri aktiviteter, sender aldri meldinger
 
 import type { ModelProfile } from "../../../supabase/functions/_shared/claude/client.ts";
-import { buildSuggestionContext, type EvidenceRef, type SuggestionScope } from "./context.server";
+import {
+  buildSuggestionContext,
+  type EvidenceRef,
+  type SuggestionFocus,
+  type SuggestionScope,
+} from "./context.server";
 import { getCareerLifePhase } from "../career-life-phase";
 
 const TASK_KEY = "network_activity_suggestions";
