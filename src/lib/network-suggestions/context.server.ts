@@ -28,6 +28,7 @@ export type EvidenceRef = {
 export type SuggestionContext = {
   scope: SuggestionScope;
   scopeObjectId: string | null;
+  focus: SuggestionFocus;
   evidence: EvidenceRef[];
   signatureBase: string;
 };
@@ -35,6 +36,8 @@ export type SuggestionContext = {
 type Admin = { from: (t: string) => any };
 
 const MAX_PER_KIND = 25;
+/** Nedvekting: annonser skal ikke dominere nettverksforslagene. */
+const MAX_OPPORTUNITIES_NETWORK = 5;
 
 function text(value: unknown, max = 200): string | null {
   if (typeof value !== "string") return null;
