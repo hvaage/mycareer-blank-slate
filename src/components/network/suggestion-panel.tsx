@@ -5,7 +5,7 @@
 // brukeren må godta et forslag og selv bekrefte frist før aktiviteten lagres.
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -128,7 +128,7 @@ export function SuggestionPanel({
         toast.error(ERROR_TEXT[res?.errorCode ?? "enqueue_failed"] ?? ERROR_TEXT.enqueue_failed);
         return;
       }
-      toast.success(res.reused ? "Bruker eksisterende vurdering." : "Forslagskjøringen er startet.");
+      toast.success("Forslagskjøringen er startet.");
       void qc.invalidateQueries({ queryKey: ["network-suggestion-run", userId, key] });
       void qc.invalidateQueries({ queryKey: ["network-suggestions", userId, key] });
     },
