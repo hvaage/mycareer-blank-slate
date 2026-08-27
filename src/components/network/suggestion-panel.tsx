@@ -30,6 +30,16 @@ import { ACTIVITY_TYPE_LABEL } from "@/lib/queries/network";
 
 export type SuggestionScope = "overview" | "company" | "contact" | "opportunity";
 
+/** Fokusvalget avgjør hva forslagene skal handle om. Nettverksarbeid er standard. */
+type SuggestionFocus = "nettverk" | "oppfolging" | "soknad" | "alle";
+
+const FOCUS_OPTIONS: { code: SuggestionFocus; label: string }[] = [
+  { code: "nettverk", label: "Nettverksarbeid" },
+  { code: "oppfolging", label: "Oppfølging" },
+  { code: "soknad", label: "Søknadsarbeid" },
+  { code: "alle", label: "Alt" },
+];
+
 const ERROR_TEXT: Record<string, string> = {
   rate_limited: "Du har bedt om forslag mange ganger den siste timen. Prøv igjen senere.",
   too_many_active: "En forslagskjøring pågår allerede. Vent til den er ferdig.",
@@ -68,6 +78,7 @@ export function SuggestionPanel({
   const qc = useQueryClient();
   const key = scopeKey(scope, scopeObjectId);
   const [accepting, setAccepting] = useState<any | null>(null);
+  const [focus, setFocus] = useState<SuggestionFocus>("nettverk");
 
   const runQuery = useQuery({
     queryKey: ["network-suggestion-run", userId, key],
@@ -111,7 +122,7 @@ export function SuggestionPanel({
 
   const start = useMutation({
     mutationFn: (regenerate: boolean) =>
-      startActivitySuggestionRun({ data: { scope, scopeObjectId, regenerate } }),
+      startActivitySuggestionRun({ data: { scope, scopeObjectId, regenerate, focus } }),
     onSuccess: (res: any) => {
       if (!res?.ok) {
         toast.error(ERROR_TEXT[res?.errorCode ?? "enqueue_failed"] ?? ERROR_TEXT.enqueue_failed);
@@ -150,7 +161,24 @@ export function SuggestionPanel({
     <NetworkPanel
       title="Aktivitetsforslag"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1" role="group" aria-label="Hva skal forslagene handle om?">
+            {FOCUS_OPTIONS.map((o) => (
+              <button
+                key={o.code}
+                type="button"
+                onClick={() => setFocus(o.code)}
+                aria-pressed={focus === o.code}
+                className={
+                  focus === o.code
+                    ? "rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground"
+                    : "rounded-md border border-border px-2 py-1 text-xs text-muted-foreground"
+                }
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
           <Button
             size="sm"
             variant="outline"
@@ -173,8 +201,9 @@ export function SuggestionPanel({
       }
     >
       <p className="mb-2 text-xs text-muted-foreground">
-        Forslagene er KI-generert og basert på dine egne selskaper, kontakter, muligheter og åpne
-        aktiviteter. Ingenting opprettes eller sendes uten at du godtar det.
+        Velg først hva forslagene skal handle om. Forslagene er KI-genererte og bygger på dine egne
+        selskaper, kontakter, muligheter og åpne aktiviteter. Ingenting opprettes eller sendes uten
+        at du godtar det.
       </p>
 
       {isAuthPending ? (
