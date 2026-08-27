@@ -161,7 +161,24 @@ export function SuggestionPanel({
     <NetworkPanel
       title="Aktivitetsforslag"
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1" role="group" aria-label="Hva skal forslagene handle om?">
+            {FOCUS_OPTIONS.map((o) => (
+              <button
+                key={o.code}
+                type="button"
+                onClick={() => setFocus(o.code)}
+                aria-pressed={focus === o.code}
+                className={
+                  focus === o.code
+                    ? "rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground"
+                    : "rounded-md border border-border px-2 py-1 text-xs text-muted-foreground"
+                }
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
           <Button
             size="sm"
             variant="outline"
