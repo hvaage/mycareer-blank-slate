@@ -171,6 +171,53 @@ function CareerPreferencesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Karrierefasen styrer hvilke nettverksaktiviteter som foreslås. Karrierestadiet styrer
+                hvordan stillinger vektes. Begge er valgfrie.
+              </p>
+
+              <div className="space-y-2">
+                <Label htmlFor="career_life_phase">Karrierefase</Label>
+                <Select
+                  value={form.career_life_phase || "__empty"}
+                  onValueChange={(v) =>
+                    set("career_life_phase", v === "__empty" ? "" : (v as CareerLifePhaseCode))
+                  }
+                >
+                  <SelectTrigger id="career_life_phase" className="w-full">
+                    <SelectValue placeholder="Velg karrierefase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__empty">Ikke valgt</SelectItem>
+                    {CAREER_LIFE_PHASES.map((p) => (
+                      <SelectItem key={p.code} value={p.code}>
+                        {p.labelNb} ({p.ageRangeNb})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {suggestedPhase && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>
+                      Foreslått ut fra din erfaring: {suggestedPhase.labelNb} ({suggestedPhase.ageRangeNb})
+                      — bekreft eller velg selv.
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7"
+                      onClick={() => set("career_life_phase", suggestedPhase.code)}
+                    >
+                      Bruk forslag
+                    </Button>
+                  </div>
+                )}
+                {lifePhaseDef && (
+                  <p className="text-xs text-muted-foreground">{lifePhaseDef.suggestionGuidanceNb}</p>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="career_stage">Karrierestadium i dag</Label>
                 <Select
