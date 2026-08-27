@@ -9,6 +9,7 @@
 
 import type { ModelProfile } from "../../../supabase/functions/_shared/claude/client.ts";
 import { buildSuggestionContext, type EvidenceRef, type SuggestionScope } from "./context.server";
+import { getCareerLifePhase } from "../career-life-phase";
 
 const TASK_KEY = "network_activity_suggestions";
 const OUTPUT_CONTRACT_VERSION = "1";
