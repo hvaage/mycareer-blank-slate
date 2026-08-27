@@ -201,8 +201,9 @@ export function SuggestionPanel({
       }
     >
       <p className="mb-2 text-xs text-muted-foreground">
-        Forslagene er KI-generert og basert på dine egne selskaper, kontakter, muligheter og åpne
-        aktiviteter. Ingenting opprettes eller sendes uten at du godtar det.
+        Velg først hva forslagene skal handle om. Forslagene er KI-genererte og bygger på dine egne
+        selskaper, kontakter, muligheter og åpne aktiviteter. Ingenting opprettes eller sendes uten
+        at du godtar det.
       </p>
 
       {isAuthPending ? (
