@@ -195,9 +195,13 @@ function parseSuggestions(
     if (refs.length === 0) continue;
 
     // Samme forslag som brukeren allerede har avvist eller godtatt forkastes.
-    const key = suggestionKey(activityType, title, refs.map((r) => r.ref));
-    if (blocked.has(key)) continue;
+    const refKeys = refs.map((r) => r.ref);
+    const key = suggestionKey(activityType, title, refKeys);
+    const targetKey = suggestionTargetKey(activityType, refKeys);
+    if (blocked.has(key) || blocked.has(targetKey)) continue;
     blocked.add(key);
+    blocked.add(targetKey);
+
 
     const horizon = Number(item?.suggestedTiming?.horizonDays);
     out.push({
