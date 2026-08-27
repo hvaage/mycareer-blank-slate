@@ -159,10 +159,12 @@ function parseSuggestions(
   const items = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
   const out: ValidatedSuggestion[] = [];
 
+  const allowedTypes = FOCUS_TYPES[focus] ?? ACTIVITY_TYPES;
+
   for (const item of items.slice(0, 5)) {
-    const activityType = (ACTIVITY_TYPES as readonly string[]).includes(item?.activityType)
-      ? item.activityType
-      : "annet";
+    // Type utenfor fokuset forkastes: brukeren har valgt hva forslagene skal handle om.
+    if (!allowedTypes.includes(item?.activityType)) continue;
+    const activityType = item.activityType;
     const priority = (PRIORITIES as readonly string[]).includes(item?.priority) ? item.priority : "medium";
     const title = typeof item?.title === "string" ? item.title.trim().slice(0, 200) : "";
     const rationale = typeof item?.rationale === "string" ? item.rationale.trim().slice(0, 1200) : "";
