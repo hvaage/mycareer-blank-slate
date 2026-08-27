@@ -169,6 +169,7 @@ function isV2EvaluatedRaw(version: string | null | undefined, status: ScreeningS
 
 function isLegacyScoreVersion(version: string | null | undefined): boolean {
   return (
+    version === MATCH_SCORE_VERSION_LEGACY_V0 ||
     version === MATCH_SCORE_VERSION_LEGACY ||
     version === MATCH_SCORE_VERSION_LEGACY_V2 ||
     version === MATCH_SCORE_VERSION_LEGACY_V3 ||
