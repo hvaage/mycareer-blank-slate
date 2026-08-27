@@ -234,15 +234,13 @@ export function ActivityDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Avbryt
+            Lukk
           </Button>
-          <Button
-            onClick={() => save.mutate()}
-            disabled={!title.trim() || !hasContext || save.isPending}
-          >
+          <Button onClick={() => save.mutate(undefined)} disabled={!title.trim() || save.isPending}>
             {save.isPending ? "Lagrer…" : "Lagre"}
           </Button>
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );
