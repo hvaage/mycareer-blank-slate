@@ -105,12 +105,16 @@ function buildUserMessage(
   scope: SuggestionScope,
   evidence: EvidenceRef[],
   lifePhaseGuidance: string | null,
+  focus: SuggestionFocus,
 ): string {
   const lines = evidence.map(
     (e) => `- ${e.ref} | ${e.kind} | ${e.label}${e.detail ? ` | ${e.detail}` : ""}`,
   );
   return [
     `Arbeidsflate: ${scope}`,
+    "",
+    FOCUS_GUIDANCE[focus],
+    `Tillatte activityType-verdier: ${FOCUS_TYPES[focus].join(", ")}. Bruk ingen andre.`,
     ...(lifePhaseGuidance ? ["", `Karrierefase: ${lifePhaseGuidance}`] : []),
     "",
     "Tillatte kilder:",
