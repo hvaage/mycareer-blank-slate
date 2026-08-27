@@ -25,13 +25,32 @@ export type EvidenceRef = {
   updatedAt: string | null;
 };
 
+/** Tidligere forslag brukeren har avvist eller godtatt. Skal ikke gjentas. */
+export type SuggestionHistoryItem = {
+  status: "dismissed" | "accepted";
+  activityType: string;
+  title: string;
+  refs: string[];
+};
+
 export type SuggestionContext = {
   scope: SuggestionScope;
   scopeObjectId: string | null;
   focus: SuggestionFocus;
   evidence: EvidenceRef[];
+  history: SuggestionHistoryItem[];
   signatureBase: string;
 };
+
+/** Normalisert nøkkel for «samme forslag»: type + tittel + kilder. */
+export function suggestionKey(activityType: string, title: string, refs: string[]): string {
+  const normTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9æøå ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `${activityType}|${normTitle}|${[...refs].sort().join(",")}`;
+}
 
 type Admin = { from: (t: string) => any };
 
@@ -162,6 +181,35 @@ export async function buildSuggestionContext(input: {
     });
   }
 
+  // --- tidligere avviste/godtatte forslag --------------------------------
+  // Avviste forslag skal ikke komme tilbake som «nye» ved neste kjøring.
+  const since = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: prior } = await adminClient
+    .from("network_activity_suggestions")
+    .select("status, activity_type, title, evidence, decided_at, created_at")
+    .eq("user_id", userId)
+    .in("status", ["dismissed", "accepted"])
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(120);
+
+  const history: SuggestionHistoryItem[] = [];
+  for (const row of (prior ?? []) as any[]) {
+    const title = text(row?.title);
+    if (!title || typeof row?.activity_type !== "string") continue;
+    const refs = Array.isArray(row?.evidence)
+      ? row.evidence
+          .map((e: any) => (typeof e === "string" ? e : typeof e?.ref === "string" ? e.ref : null))
+          .filter((r: string | null): r is string => Boolean(r))
+      : [];
+    history.push({
+      status: row.status === "accepted" ? "accepted" : "dismissed",
+      activityType: row.activity_type,
+      title,
+      refs,
+    });
+  }
+
   const signatureBase = JSON.stringify({
     scope,
     scopeObjectId,
@@ -169,7 +217,8 @@ export async function buildSuggestionContext(input: {
     refs: evidence
       .map((e) => `${e.ref}@${e.updatedAt ?? ""}`)
       .sort(),
+    history: history.map((h) => `${h.status}:${suggestionKey(h.activityType, h.title, h.refs)}`).sort(),
   });
 
-  return { scope, scopeObjectId, focus, evidence, signatureBase };
+  return { scope, scopeObjectId, focus, evidence, history, signatureBase };
 }

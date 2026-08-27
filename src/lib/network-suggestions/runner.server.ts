@@ -10,7 +10,9 @@
 import type { ModelProfile } from "../../../supabase/functions/_shared/claude/client.ts";
 import {
   buildSuggestionContext,
+  suggestionKey,
   type EvidenceRef,
+  type SuggestionHistoryItem,
   type SuggestionFocus,
   type SuggestionScope,
 } from "./context.server";
@@ -106,6 +108,7 @@ function buildUserMessage(
   evidence: EvidenceRef[],
   lifePhaseGuidance: string | null,
   focus: SuggestionFocus,
+  history: SuggestionHistoryItem[],
 ): string {
   const lines = evidence.map(
     (e) => `- ${e.ref} | ${e.kind} | ${e.label}${e.detail ? ` | ${e.detail}` : ""}`,
@@ -119,6 +122,19 @@ function buildUserMessage(
     "",
     "Tillatte kilder:",
     ...(lines.length ? lines : ["(ingen)"]),
+    ...(history.length
+      ? [
+          "",
+          "Tidligere forslag — IKKE gjenta disse eller nære varianter av dem:",
+          ...history
+            .slice(0, 40)
+            .map(
+              (h) =>
+                `- [${h.status === "dismissed" ? "avvist" : "allerede godtatt"}] ${h.activityType} | ${h.title}${h.refs.length ? ` | ${h.refs.join(", ")}` : ""}`,
+            ),
+          "Avviste forslag er vurdert og forkastet av brukeren. Foreslå noe annet — annen kontakt, annet selskap eller en annen type steg.",
+        ]
+      : []),
     "",
     "Foreslå de viktigste neste stegene basert kun på kildene over.",
   ].join("\n");
@@ -146,6 +162,7 @@ function parseSuggestions(
   scope: SuggestionScope,
   scopeObjectId: string | null,
   focus: SuggestionFocus,
+  blocked: Set<string>,
 ): ValidatedSuggestion[] {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
@@ -176,6 +193,11 @@ function parseSuggestions(
       if (hit && !refs.some((r) => r.ref === hit.ref)) refs.push(hit);
     }
     if (refs.length === 0) continue;
+
+    // Samme forslag som brukeren allerede har avvist eller godtatt forkastes.
+    const key = suggestionKey(activityType, title, refs.map((r) => r.ref));
+    if (blocked.has(key)) continue;
+    blocked.add(key);
 
     const horizon = Number(item?.suggestedTiming?.horizonDays);
     out.push({
@@ -243,7 +265,7 @@ export async function runSuggestionJob(input: {
   const result = await callClaude({
     profile,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence, lifePhaseGuidance, focus) }],
+    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence, lifePhaseGuidance, focus, context.history) }],
     correlationId,
     runtime: { apiKey },
   });
@@ -280,7 +302,10 @@ export async function runSuggestionJob(input: {
   }
 
   const allowed = new Map(context.evidence.map((e) => [e.ref, e]));
-  const items = parseSuggestions(result.text, allowed, scope, scopeObjectId, focus);
+  const blocked = new Set(
+    context.history.map((h) => suggestionKey(h.activityType, h.title, h.refs)),
+  );
+  const items = parseSuggestions(result.text, allowed, scope, scopeObjectId, focus, blocked);
   if (items.length === 0) {
     await finish("failed", "invalid_model_output", "invalid_output");
     return { status: "failed", errorCode: "invalid_model_output", modelRunId: runId, modelName: profile.modelId };
