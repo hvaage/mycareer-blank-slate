@@ -7,6 +7,12 @@ import { ArrowLeft, Loader2, Pencil, Save, Target } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { CAREER_STAGES, getCareerStage, type CareerStageId } from "@/lib/career-stage";
+import {
+  CAREER_LIFE_PHASES,
+  getCareerLifePhase,
+  suggestCareerLifePhase,
+  type CareerLifePhaseCode,
+} from "@/lib/career-life-phase";
 import { userCareerProfileQuery, type UserCareerProfileRow } from "@/lib/queries/user-career-profile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,14 +33,15 @@ export const Route = createFileRoute("/_authenticated/min-profil/karriereretning
 });
 
 /**
- * Karriereprofil eier bare karrierestadium. Alt annet i jobbønskene ligger i
- * `profiles` og redigeres under Om meg — det er kolonnene jobbsøket leser.
- * Motivasjonsskalaene er skjult inntil scoringen faktisk vekter dem;
- * kolonnene i basen står urørt (se docs/backend-gaps.md).
+ * Karriereprofil eier bare karrierestadium og karrierefase. Alt annet i
+ * jobbønskene ligger i `profiles` og redigeres under Om meg — det er kolonnene
+ * jobbsøket leser. Motivasjonsskalaene er skjult inntil scoringen faktisk
+ * vekter dem; kolonnene i basen står urørt (se docs/backend-gaps.md).
  */
 function rowToForm(r: UserCareerProfileRow | null) {
   return {
     career_stage: (r?.career_stage as CareerStageId | null) ?? "",
+    career_life_phase: (r?.career_life_phase as CareerLifePhaseCode | null) ?? "",
   };
 }
 
