@@ -44,7 +44,9 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
 });
 
 /** Locked contract: only NAV/Careerjet rows with an accepted version + non-null screening_status are V2-evaluated. */
-const MATCH_SCORE_VERSION = "job_match_v6_2026_08_25";
+const MATCH_SCORE_VERSION = "job_match_v7_2026_08_26";
+/** Eldre scoringer før full annonsetekst ble lest fra uttrekket. Vises, men merkes. */
+const MATCH_SCORE_VERSION_LEGACY_V0 = "job_match_v6_2026_08_25";
 /** Eldre scoringer før CxO-/forkortelsestaksonomien. Vises, men merkes. */
 const MATCH_SCORE_VERSION_LEGACY = "job_match_v5_2026_08_25";
 /** Eldre scoringer før rollefamilie-taksonomien. Vises, men merkes. */
@@ -54,6 +56,7 @@ const MATCH_SCORE_VERSION_LEGACY_V3 = "job_match_v3_2026_08_15";
 const MATCH_SCORE_VERSION_LEGACY_V4 = "job_match_v2_2026_06_24";
 const ACCEPTED_MATCH_SCORE_VERSIONS = new Set<string>([
   MATCH_SCORE_VERSION,
+  MATCH_SCORE_VERSION_LEGACY_V0,
   MATCH_SCORE_VERSION_LEGACY,
   MATCH_SCORE_VERSION_LEGACY_V2,
   MATCH_SCORE_VERSION_LEGACY_V3,
