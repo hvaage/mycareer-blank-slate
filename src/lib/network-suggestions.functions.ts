@@ -15,6 +15,8 @@ const startSchema = z.object({
   scope: z.enum(["overview", "company", "contact", "opportunity"]),
   scopeObjectId: z.string().uuid().nullable().optional(),
   regenerate: z.boolean().optional(),
+  /** Fokus styrer kildevekting og tillatte aktivitetstyper. Standard: nettverk. */
+  focus: z.enum(["nettverk", "oppfolging", "soknad", "alle"]).optional(),
 });
 
 export const startActivitySuggestionRun = createServerFn({ method: "POST" })
