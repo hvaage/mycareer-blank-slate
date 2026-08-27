@@ -30,6 +30,24 @@ const ACTIVITY_TYPES = [
 ] as const;
 const PRIORITIES = ["low", "medium", "high"] as const;
 
+/** Fokusvalget avgrenser hvilke aktivitetstyper modellen får foreslå. */
+const FOCUS_TYPES: Record<SuggestionFocus, readonly string[]> = {
+  nettverk: ["moete", "samtale", "e_post", "oppfolging"],
+  oppfolging: ["oppfolging", "e_post", "samtale", "moete"],
+  soknad: ["soknad", "intervju", "oppfolging", "e_post"],
+  alle: ACTIVITY_TYPES,
+};
+
+const FOCUS_GUIDANCE: Record<SuggestionFocus, string> = {
+  nettverk:
+    "Fokus: nettverksarbeid. Foreslå å bygge og aktivere relasjoner — møter, samtaler og henvendelser til kontakter og selskaper. Ikke foreslå å sende søknader eller forberede intervjuer.",
+  oppfolging:
+    "Fokus: oppfølging. Foreslå å følge opp kontakter, selskaper og påbegynte tråder som har ligget stille. Ikke foreslå å sende nye søknader.",
+  soknad:
+    "Fokus: søknadsarbeid. Foreslå konkrete steg knyttet til aktuelle muligheter og søknader, inkludert forberedelser til intervju.",
+  alle: "Fokus: alt. Prioriter fritt mellom nettverksarbeid og søknadsarbeid.",
+};
+
 export type ValidatedSuggestion = {
   activityType: string;
   title: string;
