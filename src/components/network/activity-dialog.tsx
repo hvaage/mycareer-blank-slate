@@ -183,20 +183,19 @@ export function ActivityDialog({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Label>Prioritet</Label>
+              <Select value={priority} onValueChange={setPriority}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(ACTIVITY_STATUS_LABEL).map(([v, l]) => (
-                    <SelectItem key={v} value={v}>
-                      {l}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="høy">Høy</SelectItem>
+                  <SelectItem value="middels">Middels</SelectItem>
+                  <SelectItem value="lav">Lav</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-1">
               <Label>Prioritet</Label>
               <Select value={priority} onValueChange={setPriority}>
