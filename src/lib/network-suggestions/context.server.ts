@@ -9,6 +9,13 @@
 
 export type SuggestionScope = "overview" | "company" | "contact" | "opportunity";
 
+/**
+ * Fokus styrer hvor tungt jobbannonser (muligheter) vektes i kildelisten.
+ * Nettverksarbeid skal ikke drukne i annonser, så muligheter nedvektes med
+ * mindre brukeren eksplisitt ber om søknadsarbeid.
+ */
+export type SuggestionFocus = "nettverk" | "oppfolging" | "soknad" | "alle";
+
 export type EvidenceRef = {
   ref: string;
   kind: "company" | "contact" | "opportunity" | "activity";
