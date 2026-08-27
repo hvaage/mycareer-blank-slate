@@ -52,6 +52,15 @@ export function suggestionKey(activityType: string, title: string, refs: string[
   return `${activityType}|${normTitle}|${[...refs].sort().join(",")}`;
 }
 
+/**
+ * Tittelfri nøkkel: samme aktivitetstype mot samme objekter er samme arbeid,
+ * selv om KI-en formulerer tittelen litt annerledes.
+ */
+export function suggestionTargetKey(activityType: string, refs: string[]): string {
+  return `${activityType}|${[...refs].sort().join(",")}`;
+}
+
+
 type Admin = { from: (t: string) => any };
 
 const MAX_PER_KIND = 25;

@@ -5,7 +5,7 @@
 // brukeren må godta et forslag og selv bekrefte frist før aktiviteten lagres.
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -128,7 +128,7 @@ export function SuggestionPanel({
         toast.error(ERROR_TEXT[res?.errorCode ?? "enqueue_failed"] ?? ERROR_TEXT.enqueue_failed);
         return;
       }
-      toast.success(res.reused ? "Bruker eksisterende vurdering." : "Forslagskjøringen er startet.");
+      toast.success("Forslagskjøringen er startet.");
       void qc.invalidateQueries({ queryKey: ["network-suggestion-run", userId, key] });
       void qc.invalidateQueries({ queryKey: ["network-suggestions", userId, key] });
     },
@@ -183,20 +183,12 @@ export function SuggestionPanel({
             size="sm"
             variant="outline"
             disabled={isAuthPending || isRunning || start.isPending}
-            onClick={() => start.mutate(false)}
-          >
-            <Sparkles className="mr-1 h-4 w-4" />
-            Få aktivitetsforslag
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={isAuthPending || isRunning || start.isPending}
             onClick={() => start.mutate(true)}
           >
-            <RefreshCw className="mr-1 h-4 w-4" />
-            Generer på nytt
+            <Sparkles className="mr-1 h-4 w-4" />
+            Få nye aktivitetsforslag
           </Button>
+
         </div>
       }
     >
@@ -214,7 +206,7 @@ export function SuggestionPanel({
         <PanelEmpty>
           {runStatus === "failed"
             ? "Forrige vurdering ble ikke fullført. Prøv igjen."
-            : "Ingen forslag til vurdering. Trykk «Få aktivitetsforslag»."}
+            : "Ingen forslag til vurdering. Trykk «Få nye aktivitetsforslag»."}
         </PanelEmpty>
       ) : (
         <ul className="divide-y divide-border">

@@ -69,7 +69,7 @@ function OverviewPage() {
         title="KI-forslag"
         actions={
           <Button size="sm" variant="outline" disabled>
-            <Sparkles className="mr-1 h-4 w-4" /> Få aktivitetsforslag — kommer snart
+            <Sparkles className="mr-1 h-4 w-4" /> Få nye aktivitetsforslag — kommer snart
           </Button>
         }
       >
