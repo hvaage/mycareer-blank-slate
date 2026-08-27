@@ -34,12 +34,15 @@ export const startActivitySuggestionRun = createServerFn({ method: "POST" })
       from: (t: string) => any;
     };
 
+    const focus = data.focus ?? "nettverk";
+
     const { buildSuggestionContext } = await import("@/lib/network-suggestions/context.server");
     const built = await buildSuggestionContext({
       adminClient: admin,
       userId: context.userId,
       scope: data.scope,
       scopeObjectId,
+      focus,
     });
 
     const { data: result, error } = await admin.rpc("network_enqueue_suggestion_run", {
@@ -50,6 +53,7 @@ export const startActivitySuggestionRun = createServerFn({ method: "POST" })
       p_regenerate: data.regenerate === true,
       p_model_profile: MODEL_PROFILE,
       p_prompt_version: PROMPT_VERSION,
+      p_focus: focus,
     });
 
     const payload = (result ?? null) as {
