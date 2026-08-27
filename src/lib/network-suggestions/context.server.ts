@@ -51,8 +51,10 @@ export async function buildSuggestionContext(input: {
   userId: string;
   scope: SuggestionScope;
   scopeObjectId: string | null;
+  focus?: SuggestionFocus;
 }): Promise<SuggestionContext> {
   const { adminClient, userId, scope, scopeObjectId } = input;
+  const focus: SuggestionFocus = input.focus ?? "nettverk";
   const evidence: EvidenceRef[] = [];
 
   // --- selskaper ---------------------------------------------------------
