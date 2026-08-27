@@ -44,12 +44,15 @@ const ERROR_TEXT: Record<string, string> = {
 /**
  * Kanonisk skjema for aktiviteter. Klienten sender aldri `user_id`; all
  * skriving går via serverhandlingene som validerer eierskap og kobling.
+ * Uten kobling lagres aktiviteten som en personlig aktivitet.
  */
 export function ActivityDialog({
   context,
   activity,
   trigger,
   contextLabel,
+  open: openProp,
+  onOpenChange,
 }: {
   context: ActivityContext;
   activity?: {
@@ -62,11 +65,18 @@ export function ActivityDialog({
     status: string;
     result_note: string | null;
   } | null;
-  trigger: React.ReactNode;
+  trigger?: React.ReactNode;
   contextLabel?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (next: boolean) => {
+    if (onOpenChange) onOpenChange(next);
+    else setOpenState(next);
+  };
   const [title, setTitle] = useState(activity?.title ?? "");
   const [description, setDescription] = useState(activity?.description ?? "");
   const [dueDate, setDueDate] = useState(activity?.due_date ?? "");
@@ -79,7 +89,7 @@ export function ActivityDialog({
     !!context.contactId || !!context.companyId || !!context.opportunityId || !!context.applicationId;
 
   const save = useMutation({
-    mutationFn: async () =>
+    mutationFn: async (override?: { status?: string }) =>
       upsertActivity({
         data: {
           activityId: activity?.id ?? null,
@@ -88,9 +98,9 @@ export function ActivityDialog({
           dueDate: dueDate || null,
           priority,
           activityType: type,
-          status,
+          status: override?.status ?? status,
           resultNote: resultNote.trim() || null,
-          activityScope: "context",
+          activityScope: hasContext ? "context" : "personal",
           contactId: context.contactId ?? null,
           companyId: context.companyId ?? null,
           opportunityId: context.opportunityId ?? null,
@@ -111,18 +121,38 @@ export function ActivityDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{activity ? "Rediger aktivitet" : "Ny aktivitet"}</DialogTitle>
+          <DialogTitle>{activity ? "Aktivitet" : "Ny aktivitet"}</DialogTitle>
           <DialogDescription>
             {contextLabel
               ? `Knyttes til ${contextLabel}.`
-              : "Aktiviteten må knyttes til en kontakt, et selskap, en mulighet eller en søknad."}
+              : hasContext
+                ? "Aktiviteten er knyttet til et objekt i nettverksarbeidet."
+                : "Personlig aktivitet uten kobling til kontakt, selskap eller mulighet."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
+          <div className="flex flex-wrap gap-1">
+            {Object.entries(ACTIVITY_STATUS_LABEL).map(([v, l]) => (
+              <Button
+                key={v}
+                type="button"
+                size="sm"
+                variant={status === v ? "default" : "outline"}
+                onClick={() => {
+                  setStatus(v);
+                  if (activity) save.mutate({ status: v });
+                }}
+                disabled={save.isPending}
+              >
+                {l}
+              </Button>
+            ))}
+          </div>
+
           <div className="space-y-1">
             <Label htmlFor="act-title">Tittel</Label>
             <Input id="act-title" value={title} onChange={(e) => setTitle(e.target.value)} />
