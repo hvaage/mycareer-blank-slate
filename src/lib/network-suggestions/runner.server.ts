@@ -204,15 +204,18 @@ export async function runSuggestionJob(input: {
   scope: SuggestionScope;
   scopeObjectId: string | null;
   correlationId: string;
+  focus?: SuggestionFocus | null;
 }): Promise<RunOutcome> {
   const { adminClient, apiKey, userId, scope, scopeObjectId, correlationId } = input;
+  const focus: SuggestionFocus =
+    input.focus && input.focus in FOCUS_TYPES ? (input.focus as SuggestionFocus) : "nettverk";
 
   const profile = await loadProfile(adminClient);
   if (!profile) {
     return { status: "failed", errorCode: "missing_model_profile", modelRunId: null, modelName: null };
   }
 
-  const context = await buildSuggestionContext({ adminClient, userId, scope, scopeObjectId });
+  const context = await buildSuggestionContext({ adminClient, userId, scope, scopeObjectId, focus });
   const lifePhaseGuidance = await loadLifePhaseGuidance(adminClient, userId);
   if (context.evidence.length === 0) {
     return { status: "succeeded", items: [], modelRunId: null, modelName: profile.modelId };
