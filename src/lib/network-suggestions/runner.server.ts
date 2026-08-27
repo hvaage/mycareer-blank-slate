@@ -140,7 +140,13 @@ async function loadLifePhaseGuidance(adminClient: Admin, userId: string): Promis
 }
 
 
-function parseSuggestions(raw: string, allowed: Map<string, EvidenceRef>, scope: SuggestionScope, scopeObjectId: string | null): ValidatedSuggestion[] {
+function parseSuggestions(
+  raw: string,
+  allowed: Map<string, EvidenceRef>,
+  scope: SuggestionScope,
+  scopeObjectId: string | null,
+  focus: SuggestionFocus,
+): ValidatedSuggestion[] {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) return [];
