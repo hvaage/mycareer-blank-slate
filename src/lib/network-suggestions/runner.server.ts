@@ -232,6 +232,7 @@ export async function runSuggestionJob(input: {
       max_tokens: profile.maxTokens,
       request_options: profile.requestOptions,
       scope,
+      focus,
       evidence_count: context.evidence.length,
     },
     p_api_version: "2023-06-01",
@@ -242,7 +243,7 @@ export async function runSuggestionJob(input: {
   const result = await callClaude({
     profile,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence, lifePhaseGuidance) }],
+    messages: [{ role: "user", content: buildUserMessage(scope, context.evidence, lifePhaseGuidance, focus) }],
     correlationId,
     runtime: { apiKey },
   });
@@ -279,7 +280,7 @@ export async function runSuggestionJob(input: {
   }
 
   const allowed = new Map(context.evidence.map((e) => [e.ref, e]));
-  const items = parseSuggestions(result.text, allowed, scope, scopeObjectId);
+  const items = parseSuggestions(result.text, allowed, scope, scopeObjectId, focus);
   if (items.length === 0) {
     await finish("failed", "invalid_model_output", "invalid_output");
     return { status: "failed", errorCode: "invalid_model_output", modelRunId: runId, modelName: profile.modelId };
