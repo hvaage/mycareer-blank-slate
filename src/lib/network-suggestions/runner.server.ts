@@ -11,6 +11,8 @@ import type { ModelProfile } from "../../../supabase/functions/_shared/claude/cl
 import {
   buildSuggestionContext,
   suggestionKey,
+  suggestionTargetKey,
+
   type EvidenceRef,
   type SuggestionHistoryItem,
   type SuggestionFocus,
@@ -307,8 +309,12 @@ export async function runSuggestionJob(input: {
 
   const allowed = new Map(context.evidence.map((e) => [e.ref, e]));
   const blocked = new Set(
-    context.history.map((h) => suggestionKey(h.activityType, h.title, h.refs)),
+    context.history.flatMap((h) => [
+      suggestionKey(h.activityType, h.title, h.refs),
+      suggestionTargetKey(h.activityType, h.refs),
+    ]),
   );
+
   const items = parseSuggestions(result.text, allowed, scope, scopeObjectId, focus, blocked);
   if (items.length === 0) {
     await finish("failed", "invalid_model_output", "invalid_output");

@@ -183,20 +183,12 @@ export function SuggestionPanel({
             size="sm"
             variant="outline"
             disabled={isAuthPending || isRunning || start.isPending}
-            onClick={() => start.mutate(false)}
-          >
-            <Sparkles className="mr-1 h-4 w-4" />
-            Få aktivitetsforslag
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={isAuthPending || isRunning || start.isPending}
             onClick={() => start.mutate(true)}
           >
-            <RefreshCw className="mr-1 h-4 w-4" />
-            Generer på nytt
+            <Sparkles className="mr-1 h-4 w-4" />
+            Få nye aktivitetsforslag
           </Button>
+
         </div>
       }
     >
