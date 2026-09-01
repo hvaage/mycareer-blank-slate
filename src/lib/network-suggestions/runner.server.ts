@@ -321,8 +321,15 @@ export async function runSuggestionJob(input: {
     ]),
   );
 
-  const items = parseSuggestions(result.text, allowed, scope, scopeObjectId, focus, blocked);
+  const { items, hadCandidates } = parseSuggestions(result.text, allowed, scope, scopeObjectId, focus, blocked);
   if (items.length === 0) {
+    // Modellen leverte brukbare forslag, men alle var tidligere avvist/godtatt
+    // eller utenfor valgt fokus. Det er ikke en feil — kjøringen lykkes med
+    // null nye forslag i stedet for å vises som «ikke fullført».
+    if (hadCandidates) {
+      await finish("succeeded", null, "no_new_suggestions");
+      return { status: "succeeded", items: [], modelRunId: runId, modelName: profile.modelId };
+    }
     await finish("failed", "invalid_model_output", "invalid_output");
     return { status: "failed", errorCode: "invalid_model_output", modelRunId: runId, modelName: profile.modelId };
   }
