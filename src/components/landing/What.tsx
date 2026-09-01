@@ -1,98 +1,64 @@
-import { FileText, BarChart3, ClipboardCheck, Compass } from "lucide-react";
-import { SectionHeading } from "./SectionHeading";
-import { FeatureCard } from "./FeatureCard";
+import { Activity, Compass, Target, Users } from "lucide-react";
 
-const steps = [
+const features = [
   {
-    num: "01",
-    title: "Profilering og oppsett",
+    icon: Activity,
+    title: "Dokumenter kontinuerlig",
     description:
-      "Forstå deg selv: ønsker, mål, erfaringer, kompetanser og det du mangler. Sett opp integrasjoner og legg grunnlaget for at løsningen er tilpasset deg og din karriere.",
-  },
-  {
-    num: "02",
-    title: "Karrierelogging",
-    description:
-      "Hold kompetanser, erfaringer og resultater kontinuerlig oppdatert — planlegg og få innspill på videre kompetansebygging der det trengs eller der det kan gi deg nye muligheter.",
-  },
-  {
-    num: "03",
-    title: "Nettverk og synlighet",
-    description:
-      "Networking, LinkedIn-optimalisering, profilering og strukturert CRM mot nettverket ditt, rekrutterere og headhuntere.",
-  },
-  {
-    num: "04",
-    title: "Marked og arbeidsgiverinnsikt",
-    description:
-      "Analyser markedet og evaluer dagens og fremtidige potensielle arbeidsgivere, match mot egne kompetanser, verdier, ønsker og mål.",
-  },
-  {
-    num: "05",
-    title: "Søknadsprosessen",
-    description:
-      "Jobbannonser, CV, søknadsbrev, intervju, prioritering, matching, utvelgelse og oppfølging — samlet på ett sted.",
-  },
-  {
-    num: "06",
-    title: "Evaluering, forhandling og videreutvikling",
-    description:
-      "Hjelp til å vurdere oppgaver, jobbtilbud og kontrakter, og forberede 1:1-samtaler med din sjef. Hjelp til hva du kan gjøre for å lykkes bedre i din eksisterende jobb. Definer nye karrieremuligheter og legg opp et løp for å komme dit.",
-  },
-];
-
-const items = [
-  {
-    icon: FileText,
-    title: "Karriereprofil",
-    description: "Samle erfaring, resultater og kompetanse i én strukturert profil.",
-  },
-  {
-    icon: BarChart3,
-    title: "Markedsinnsikt",
-    description: "Forstå arbeidsmarkedet basert på NAV, SSB og analyser av stillinger.",
-  },
-  {
-    icon: ClipboardCheck,
-    title: "Dokumentasjon",
-    description: "Valg og vurderinger lagres og kan etterprøves.",
+      "Registrer det du oppnår og gjør fortløpende — ikke bare når du skal søke jobb neste gang.",
   },
   {
     icon: Compass,
-    title: "Beslutningsstøtte",
-    description: "Ta beslutninger basert på strukturert informasjon.",
+    title: "Definer retning",
+    description:
+      "Sett mål for hvor du vil i karrieren, og la systemet vise deg veien dit.",
+  },
+  {
+    icon: Target,
+    title: "Match mot jobbannonser",
+    description:
+      "Få annonser vurdert opp mot dine faktiske kvalifikasjoner og ønsker — ikke bare søkeord.",
+  },
+  {
+    icon: Users,
+    title: "Bygg nettverk og profil",
+    description:
+      "Få hjelp med nettverksarbeid og profilering mot arbeidsgiverne du vil nå.",
   },
 ];
 
 export function What() {
   return (
-    <section id="hva" className="border-b border-border">
-      <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <SectionHeading eyebrow="Hva dette er" title="Et system for hele karrieren" />
-
-        {/* Seks steg gjennom karriereløpet */}
-        <div className="mt-16">
-          <h3 className="text-xl font-semibold text-foreground md:text-2xl">
-            Seks steg gjennom karriereløpet
-          </h3>
-          <div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-2 lg:grid-cols-3">
-            {steps.map((step) => (
-              <div key={step.num} className="flex flex-col gap-4 bg-card p-8">
-                <span className="font-serif text-3xl text-accent">{step.num}</span>
-                <div>
-                  <h4 className="text-base font-semibold text-foreground">{step.title}</h4>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {step.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+    <section id="hva">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
+        <div className="text-center">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[var(--km-blue)]">
+            Fire funksjoner, ett system
+          </p>
+          <h2 className="mt-3 text-[28px] font-semibold leading-[1.25] text-[var(--km-ink)]">
+            Et system for hele karrieren
+          </h2>
         </div>
-
-        <div className="mt-16 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {items.map((item) => (
-            <FeatureCard key={item.title} {...item} />
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="rounded-[10px] border border-[var(--km-rule)] bg-white p-6 shadow-[0_8px_24px_rgba(26,31,43,0.06)]"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--km-blue-soft)]">
+                <feature.icon
+                  className="h-4.5 w-4.5 text-[var(--km-blue-deep)]"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+              </div>
+              <h3 className="mt-4 text-[15px] font-semibold text-[var(--km-ink)]">
+                {feature.title}
+              </h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--km-ink-soft)]">
+                {feature.description}
+              </p>
+            </div>
           ))}
         </div>
       </div>
