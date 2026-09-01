@@ -12,19 +12,12 @@ import { Logo } from "./Logo";
 
 type NavItem =
   | { label: string; to: "/"; hash?: string }
-  | { label: string; to: "/signup" }
-  | { label: string; to: "/markedsinnsikt" }
-  | { label: string; to: "/arbeidsgivere" }
-  | { label: string; to: "/selskapsanalyse" }
-  | { label: string; to: "/selskapsanalyse/analysedatabase" };
+  | { label: string; to: "/markedsinnsikt" };
 
 const navItems: NavItem[] = [
   { label: "Hva", to: "/", hash: "hva" },
   { label: "Annerledes", to: "/", hash: "annerledes" },
-  
   { label: "Markedsinnsikt", to: "/markedsinnsikt" },
-  { label: "Arbeidsgivere", to: "/arbeidsgivere" },
-  { label: "Kom i gang", to: "/signup" },
 ];
 
 export function Header() {
