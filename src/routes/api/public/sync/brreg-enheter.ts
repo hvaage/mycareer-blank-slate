@@ -67,12 +67,14 @@ interface RunRow {
   actual_bytes: number | null;
   integrity_ok: boolean | null;
   row_cursor: number;
+  char_cursor: number;
   rows_seen: number;
   rows_staged: number;
   rows_excluded: number;
   parse_complete: boolean;
   strict_gate: boolean;
 }
+
 
 // ---------------------------------------------------------------------------
 // Fase 1 — nedlasting til Storage med integritetskontroll
