@@ -195,20 +195,6 @@ export function ActivityDialog({
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-1">
-              <Label>Prioritet</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="høy">Høy</SelectItem>
-                  <SelectItem value="middels">Middels</SelectItem>
-                  <SelectItem value="lav">Lav</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <div className="space-y-1">
             <Label htmlFor="act-desc">Notat</Label>

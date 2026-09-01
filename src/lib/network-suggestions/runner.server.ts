@@ -165,18 +165,22 @@ function parseSuggestions(
   scopeObjectId: string | null,
   focus: SuggestionFocus,
   blocked: Set<string>,
-): ValidatedSuggestion[] {
+): { items: ValidatedSuggestion[]; hadCandidates: boolean } {
+  const none = { items: [], hadCandidates: false };
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) return [];
+  if (start < 0 || end <= start) return none;
   let parsed: any;
   try {
     parsed = JSON.parse(raw.slice(start, end + 1));
   } catch {
-    return [];
+    return none;
   }
   const items = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
   const out: ValidatedSuggestion[] = [];
+  // hadCandidates = modellen leverte minst ett brukbart forslag som ble filtrert
+  // bort (fokus eller tidligere avvist/godtatt). Da er dette ingen modellfeil.
+  let hadCandidates = false;
 
   const allowedTypes = FOCUS_TYPES[focus] ?? ACTIVITY_TYPES;
 
@@ -195,6 +199,8 @@ function parseSuggestions(
       if (hit && !refs.some((r) => r.ref === hit.ref)) refs.push(hit);
     }
     if (refs.length === 0) continue;
+
+    hadCandidates = true;
 
     // Samme forslag som brukeren allerede har avvist eller godtatt forkastes.
     const refKeys = refs.map((r) => r.ref);
@@ -222,7 +228,7 @@ function parseSuggestions(
       evidence: refs,
     });
   }
-  return out;
+  return { items: out, hadCandidates };
 }
 
 export async function runSuggestionJob(input: {
@@ -315,8 +321,15 @@ export async function runSuggestionJob(input: {
     ]),
   );
 
-  const items = parseSuggestions(result.text, allowed, scope, scopeObjectId, focus, blocked);
+  const { items, hadCandidates } = parseSuggestions(result.text, allowed, scope, scopeObjectId, focus, blocked);
   if (items.length === 0) {
+    // Modellen leverte brukbare forslag, men alle var tidligere avvist/godtatt
+    // eller utenfor valgt fokus. Det er ikke en feil — kjøringen lykkes med
+    // null nye forslag i stedet for å vises som «ikke fullført».
+    if (hadCandidates) {
+      await finish("succeeded", null, "no_new_suggestions");
+      return { status: "succeeded", items: [], modelRunId: runId, modelName: profile.modelId };
+    }
     await finish("failed", "invalid_model_output", "invalid_output");
     return { status: "failed", errorCode: "invalid_model_output", modelRunId: runId, modelName: profile.modelId };
   }
