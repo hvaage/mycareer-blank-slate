@@ -39,12 +39,16 @@ export const SOURCES: SourceConfig[] = [
   {
     key: 'brreg_enheter',
     navn: 'Enhetsimport (BRREG fullfil)',
-    intervall: '14 dager',
-    stilleGrenseMin: 16 * 24 * 60,
+    // Kjøres 1. og 15.: lengste normale opphold er 17 døgn (15. → 1. i lang måned),
+    // og selve importen tar timer. Grensen må ligge over det, ellers varsles det
+    // hver måned på en frisk kjøring.
+    intervall: '1. og 15. i måneden',
+    stilleGrenseMin: 20 * 24 * 60,
     forventetVarighetMin: 6 * 60,
     kanRyddes: true,
     adminSti: '/admin/ingestion',
   },
+
   {
     key: 'regnskap',
     navn: 'regnskap-sync-15min',
