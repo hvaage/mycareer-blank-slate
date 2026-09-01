@@ -175,9 +175,20 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
 
   const scanner = createJsonArrayScanner();
 
-  const skip = Number(run.row_cursor ?? 0);
-  const stopAt = maxRows && maxRows > 0 ? skip + maxRows : null;
-  let seen = 0;
+  /**
+   * GJENOPPTAKING SKJER PÅ TEGNPOSISJON, IKKE PÅ RADNUMMER.
+   *
+   * Tidligere ble filen skannet fra rad null hver gang og radene før markøren
+   * ble kastet. Kostnaden var kvadratisk: mot slutten av filen brukte kallet
+   * hele tidsbudsjettet på å hoppe over rader det allerede hadde behandlet, og
+   * gatewayen drepte kallet (502) før noe nytt ble mellomlagret. Nå hoppes det
+   * over ferdige tegn uten å skanne dem: bare dekomprimering og telling.
+   */
+  const skipChars = Number(run.char_cursor ?? 0);
+  let consumed = 0;
+  let seen = Number(run.row_cursor ?? 0);
+  const startSeen = seen;
+  const stopAt = maxRows && maxRows > 0 ? seen + maxRows : null;
   let processed = 0;
   let rows: Record<string, unknown>[] = [];
   let excluded: { organisasjonsnummer: string; reason: string }[] = [];
@@ -195,21 +206,35 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       p_row_cursor: seen,
       p_rows_seen: seen,
     });
+    // Tegnmarkøren settes i samme flyt som radene lagres, aldri før.
+    await rpc(admin, "brreg_full_patch_run", {
+      p_run_id: runId,
+      p_patch: { char_cursor: consumed },
+    });
     rows = [];
     excluded = [];
   };
 
   try {
-    outer: while (true) {
+    while (true) {
       const { value, done: rdone } = await reader.read();
       if (rdone) {
         done = true;
         stopReason = "done";
         break;
       }
-      for (const raw of scanner.push(value)) {
+      let text = value;
+      if (consumed + text.length <= skipChars) {
+        // Hele biten ligger bak markøren: tell den og gå videre uten skanning.
+        consumed += text.length;
+        continue;
+      }
+      if (consumed < skipChars) {
+        text = text.slice(skipChars - consumed);
+        consumed = skipChars;
+      }
+      for (const raw of scanner.push(text)) {
         seen++;
-        if (seen <= skip) continue;
         let rec: BrregFullRecord;
         try {
           rec = JSON.parse(raw) as BrregFullRecord;
@@ -224,19 +249,16 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
             reason: decision.reason ?? "unknown",
           });
         processed++;
-
-        if (stopAt !== null && seen >= stopAt) {
-          stopReason = "max_rows";
-          break outer;
-        }
-        if (rows.length + excluded.length >= BATCH_ROWS && Date.now() - t0 > PHASE2_BUDGET_MS) {
-          stopReason = "budget";
-          break outer;
-        }
-        if (rows.length + excluded.length >= BATCH_ROWS) await flush();
       }
-      // Tidsbudsjettet sjekkes også mellom bitene, ikke bare på hel batch,
-      // slik at et parti med bare hoppede rader også avsluttes kontrollert.
+      consumed += text.length;
+
+      // Stopp bare på bitgrense: da er tegnmarkøren entydig, og en gjenopptaking
+      // kan ikke havne midt inne i et objekt.
+      if (rows.length + excluded.length >= BATCH_ROWS) await flush();
+      if (stopAt !== null && seen >= stopAt) {
+        stopReason = "max_rows";
+        break;
+      }
       if (Date.now() - t0 > PHASE2_BUDGET_MS) {
         stopReason = "budget";
         break;
@@ -264,6 +286,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       parse_complete: done,
       row_cursor: seen,
       rows_seen: seen,
+      char_cursor: consumed,
       error: null,
     },
   });
@@ -275,15 +298,18 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
     stop_reason: stopReason,
     progress: {
       row_cursor: patched.row_cursor,
+      char_cursor: patched.char_cursor,
       rows_staged: patched.rows_staged,
       rows_excluded: patched.rows_excluded,
       rows_this_call: processed,
+      rows_skipped: startSeen,
       elapsed_ms: elapsed,
       rows_per_s: processed > 0 ? Math.round((processed / elapsed) * 1000) : 0,
     },
     run: patched,
   });
 }
+
 
 
 
