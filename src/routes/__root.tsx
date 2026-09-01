@@ -133,7 +133,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "Organization",
           name: "Karrierenmin",
-          url: "https://mycareer-blank-slate.lovable.app/",
+          url: "https://karrierenmin.no/",
           description:
             "Et system for å forstå, dokumentere og styre egen karriere over tid.",
         }),
@@ -144,7 +144,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "WebSite",
           name: "Karrierenmin",
-          url: "https://mycareer-blank-slate.lovable.app/",
+          url: "https://karrierenmin.no/",
         }),
       },
     ],
