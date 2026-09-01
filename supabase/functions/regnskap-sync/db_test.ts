@@ -2,6 +2,7 @@ import {
   retryBackoffMinutes,
   unsupportedRegnskapApiReason,
 } from "./db.ts";
+import { isDeferredUpstreamRetry } from "./runner.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -75,5 +76,24 @@ Deno.test("ordinary organisation forms are not preclassified unsupported", () =>
       naeringskode1Beskrivelse: "Andre sosialtjenester uten botilbud ellers",
     }) === null,
     "association 500s need further upstream diagnosis, not blanket exclusion",
+  );
+});
+
+Deno.test("only persisted upstream 5xx retries are deferred from batch failure", () => {
+  assert(
+    isDeferredUpstreamRetry("retry", 500),
+    "500 retry should be a deferred upstream outcome",
+  );
+  assert(
+    isDeferredUpstreamRetry("retry", 503),
+    "503 retry should be a deferred upstream outcome",
+  );
+  assert(
+    !isDeferredUpstreamRetry("retry", 429),
+    "rate limiting remains a partial batch failure",
+  );
+  assert(
+    !isDeferredUpstreamRetry("client_error", 400),
+    "client errors are never deferred upstream outcomes",
   );
 });

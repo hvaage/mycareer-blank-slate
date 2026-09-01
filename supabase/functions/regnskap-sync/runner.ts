@@ -56,6 +56,7 @@ export type RunSyncResult = {
   withRegnskap: number;
   noRegnskap: number;
   failed: number;
+  deferredUpstream: number;
   skipped: number;
   recordsLagret: number;
   http429: number;
@@ -65,6 +66,13 @@ export type RunSyncResult = {
   stoppedReason: "done" | "time_budget" | "error" | "already_running";
   items: RunSyncItem[];
 };
+
+export function isDeferredUpstreamRetry(
+  status: FinalStatus,
+  httpStatus: number | null,
+): boolean {
+  return status === "retry" && httpStatus !== null && httpStatus >= 500;
+}
 
 export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
   const t0 = Date.now();
@@ -85,6 +93,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
     withRegnskap: 0,
     noRegnskap: 0,
     failed: 0,
+    deferredUpstream: 0,
     skipped: 0,
     recordsLagret: 0,
     http429: 0,
@@ -341,6 +350,11 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
               finalStatus === "no_regnskap" || finalStatus === "not_found"
             ) {
               result.noRegnskap++;
+            } else if (isDeferredUpstreamRetry(finalStatus, httpStatus)) {
+              // A persisted 5xx retry is an upstream deferral, not a failed
+              // batch. The status row still keeps the error and backoff.
+              result.deferredUpstream++;
+              result.skipped++;
             } else result.failed++;
 
             result.items.push({
@@ -401,6 +415,7 @@ export async function runSync(input: RunSyncInput): Promise<RunSyncResult> {
                   stoppedReason: result.stoppedReason,
                   includePdfYears,
                   candidateCount: candidates.length,
+                  deferredUpstream: result.deferredUpstream,
                 },
               }));
             result.status = runStatus;
