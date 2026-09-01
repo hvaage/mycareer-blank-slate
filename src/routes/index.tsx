@@ -3,12 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Header } from "@/components/landing/Header";
 import { AnnouncementBar } from "@/components/landing/AnnouncementBar";
 import { Hero } from "@/components/landing/Hero";
-import { What } from "@/components/landing/What";
 import { Different } from "@/components/landing/Different";
-import { Problem } from "@/components/landing/Problem";
-
-import { UseCases } from "@/components/landing/UseCases";
-import { BeforeStart } from "@/components/landing/BeforeStart";
+import { What } from "@/components/landing/What";
+import { Teaser } from "@/components/landing/Teaser";
 import { CTA } from "@/components/landing/CTA";
 import { Footer } from "@/components/landing/Footer";
 
@@ -16,23 +13,24 @@ export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
     meta: [
-      { title: "Karrierenmin — Ta kontroll over karrieren din" },
+      { title: "Karrierenmin — Systemet som dokumenterer karrieren din" },
       {
         name: "description",
         content:
-          "Et system for å forstå, dokumentere og styre egen karriere over tid – fra første jobb til styreverv.",
+          "Ikke bare et CV-verktøy. KarrierenMin dokumenterer erfaringene og resultatene dine kontinuerlig, og matcher deg mot jobber som faktisk passer.",
       },
-      { property: "og:title", content: "Karrierenmin — Ta kontroll over karrieren din" },
+      {
+        property: "og:title",
+        content: "Karrierenmin — Systemet som dokumenterer karrieren din",
+      },
       {
         property: "og:description",
         content:
-          "Samle erfaring, forstå markedet, dokumenter valg og ta bedre beslutninger gjennom hele karrieren.",
+          "Dokumenter karrieren din fortløpende, definer retning, match mot reelle jobbannonser og bygg nettverk — samlet i ett system.",
       },
-      { property: "og:url", content: "https://mycareer-blank-slate.lovable.app/" },
+      { property: "og:url", content: "https://karrierenmin.no/" },
     ],
-    links: [
-      { rel: "canonical", href: "https://mycareer-blank-slate.lovable.app/" },
-    ],
+    links: [{ rel: "canonical", href: "https://karrierenmin.no/" }],
   }),
 });
 
@@ -43,12 +41,9 @@ function Index() {
       <Header />
       <main>
         <Hero />
-        <What />
         <Different />
-        <Problem />
-        
-        <UseCases />
-        <BeforeStart />
+        <What />
+        <Teaser />
         <CTA />
       </main>
       <Footer />
