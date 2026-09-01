@@ -209,7 +209,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
     // Tegnmarkøren settes i samme flyt som radene lagres, aldri før.
     await rpc(admin, "brreg_full_patch_run", {
       p_run_id: runId,
-      p_patch: { char_cursor: consumed },
+      p_patch: { char_cursor: Math.max(consumed, skipChars) },
     });
     rows = [];
     excluded = [];
@@ -227,6 +227,11 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       if (consumed + text.length <= skipChars) {
         // Hele biten ligger bak markøren: tell den og gå videre uten skanning.
         consumed += text.length;
+        if (Date.now() - t0 > PHASE2_BUDGET_MS) {
+          throw new Error(
+            `tidsbudsjettet ble brukt opp før markøren (${skipChars} tegn) ble nådd — filen må leses raskere eller deles opp`,
+          );
+        }
         continue;
       }
       if (consumed < skipChars) {
@@ -286,7 +291,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       parse_complete: done,
       row_cursor: seen,
       rows_seen: seen,
-      char_cursor: consumed,
+      char_cursor: Math.max(consumed, skipChars),
       error: null,
     },
   });
