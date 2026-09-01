@@ -178,6 +178,9 @@ function parseSuggestions(
   }
   const items = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
   const out: ValidatedSuggestion[] = [];
+  // hadCandidates = modellen leverte minst ett brukbart forslag som ble filtrert
+  // bort (fokus eller tidligere avvist/godtatt). Da er dette ingen modellfeil.
+  let hadCandidates = false;
 
   const allowedTypes = FOCUS_TYPES[focus] ?? ACTIVITY_TYPES;
 
@@ -196,6 +199,8 @@ function parseSuggestions(
       if (hit && !refs.some((r) => r.ref === hit.ref)) refs.push(hit);
     }
     if (refs.length === 0) continue;
+
+    hadCandidates = true;
 
     // Samme forslag som brukeren allerede har avvist eller godtatt forkastes.
     const refKeys = refs.map((r) => r.ref);
@@ -223,7 +228,7 @@ function parseSuggestions(
       evidence: refs,
     });
   }
-  return out;
+  return { items: out, hadCandidates };
 }
 
 export async function runSuggestionJob(input: {
