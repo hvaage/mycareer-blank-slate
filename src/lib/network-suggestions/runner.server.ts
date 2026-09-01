@@ -165,15 +165,16 @@ function parseSuggestions(
   scopeObjectId: string | null,
   focus: SuggestionFocus,
   blocked: Set<string>,
-): ValidatedSuggestion[] {
+): { items: ValidatedSuggestion[]; hadCandidates: boolean } {
+  const none = { items: [], hadCandidates: false };
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) return [];
+  if (start < 0 || end <= start) return none;
   let parsed: any;
   try {
     parsed = JSON.parse(raw.slice(start, end + 1));
   } catch {
-    return [];
+    return none;
   }
   const items = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
   const out: ValidatedSuggestion[] = [];
