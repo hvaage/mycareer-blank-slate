@@ -93,7 +93,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Samle erfaring, forstå markedet, dokumenter valg og ta bedre beslutninger gjennom hele karrieren.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://mycareer-blank-slate.lovable.app/" },
+      { property: "og:url", content: "https://karrierenmin.no/" },
       { name: "theme-color", content: "#1a1f2b" },
       { name: "apple-mobile-web-app-title", content: "Karrierenmin" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
