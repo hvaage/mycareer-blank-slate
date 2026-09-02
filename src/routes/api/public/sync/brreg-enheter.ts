@@ -38,7 +38,6 @@ const BATCH_ROWS = 1000;
  * eget, enda strammere budsjett.
  */
 const PHASE2_BUDGET_MS = 20_000;
-const SKIP_BUDGET_MS = 12_000;
 
 
 
@@ -200,7 +199,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
   const t0 = Date.now();
   let done = false;
   /** "done" = filen er lest ut. Alt annet = kontrollert stopp. */
-  let stopReason: "done" | "budget" | "max_rows" | "skip_budget" = "done";
+  let stopReason: "done" | "budget" | "max_rows" = "done";
 
   /**
    * Tegnmarkøren skal alltid peke på en objektgrense. Bitgrensen gjør det
@@ -241,13 +240,11 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       let text = value;
       if (consumed + text.length <= skipChars) {
         // Hele biten ligger bak markøren: tell den og gå videre uten skanning.
+        // Vi kan ikke stoppe her på tid: markøren ville stått stille, og alle
+        // senere kall ville gjentatt nøyaktig samme arbeid. Fortsett derfor til
+        // gjenopptakingspunktet og behandle minst én ny bit før budsjettet kan
+        // avslutte kallet kontrollert.
         consumed += text.length;
-        if (Date.now() - t0 > SKIP_BUDGET_MS) {
-          // Kontrollert stopp, ikke feil: markøren står stille, men kjøringen
-          // beholdes slik at neste kall kan fortsette.
-          stopReason = "skip_budget";
-          break;
-        }
         continue;
       }
 
@@ -280,7 +277,9 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
         stopReason = "max_rows";
         break;
       }
-      if (Date.now() - t0 > PHASE2_BUDGET_MS) {
+      // Tidsstopp er bare lov etter reell fremdrift. Ellers kan en dyp markør
+      // gjøre kjøringen permanent fastlåst i hurtigspolingen.
+      if (processed > 0 && Date.now() - t0 > PHASE2_BUDGET_MS) {
         stopReason = "budget";
         break;
       }
