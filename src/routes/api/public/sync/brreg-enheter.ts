@@ -237,13 +237,15 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       if (consumed + text.length <= skipChars) {
         // Hele biten ligger bak markøren: tell den og gå videre uten skanning.
         consumed += text.length;
-        if (Date.now() - t0 > PHASE2_BUDGET_MS) {
-          throw new Error(
-            `tidsbudsjettet ble brukt opp før markøren (${skipChars} tegn) ble nådd — filen må leses raskere eller deles opp`,
-          );
+        if (Date.now() - t0 > SKIP_BUDGET_MS) {
+          // Kontrollert stopp, ikke feil: markøren står stille, men kjøringen
+          // beholdes slik at neste kall kan fortsette.
+          stopReason = "skip_budget";
+          break;
         }
         continue;
       }
+
       if (consumed < skipChars) {
         text = text.slice(skipChars - consumed);
         consumed = skipChars;
