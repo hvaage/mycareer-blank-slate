@@ -12,11 +12,13 @@ import { Logo } from "./Logo";
 
 type NavItem =
   | { label: string; to: "/"; hash?: string }
+  | { label: string; to: "/arbeidsgivere" }
   | { label: string; to: "/markedsinnsikt" };
 
 const navItems: NavItem[] = [
-  { label: "Hva", to: "/", hash: "hva" },
-  { label: "Annerledes", to: "/", hash: "annerledes" },
+  { label: "Funksjoner", to: "/", hash: "hva" },
+  { label: "Hva dette er", to: "/", hash: "annerledes" },
+  { label: "Arbeidsgiverinnsikten", to: "/arbeidsgivere" },
   { label: "Markedsinnsikt", to: "/markedsinnsikt" },
 ];
 
