@@ -269,8 +269,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       }
       consumed += text.length;
 
-      // Stopp bare på bitgrense: da er tegnmarkøren entydig, og en gjenopptaking
-      // kan ikke havne midt inne i et objekt.
+      // Markøren følger skanneren, ikke bitgrensen: se safeCursor().
       if (rows.length + excluded.length >= BATCH_ROWS) await flush();
       if (stopAt !== null && seen >= stopAt) {
         stopReason = "max_rows";
@@ -282,6 +281,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       }
     }
     await flush();
+
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await rpc(admin, "brreg_full_patch_run", {
