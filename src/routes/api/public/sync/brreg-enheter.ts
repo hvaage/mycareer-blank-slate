@@ -194,8 +194,17 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
   let excluded: { organisasjonsnummer: string; reason: string }[] = [];
   const t0 = Date.now();
   let done = false;
-  /** "done" = filen er lest ut. "budget"/"max_rows" = kontrollert stopp. */
-  let stopReason: "done" | "budget" | "max_rows" = "done";
+  /** "done" = filen er lest ut. Alt annet = kontrollert stopp. */
+  let stopReason: "done" | "budget" | "max_rows" | "skip_budget" = "done";
+
+  /**
+   * Tegnmarkøren skal alltid peke på en objektgrense. Bitgrensen gjør det
+   * ikke: skanneren beholder et halvlest objekt i bufferet sitt, og en
+   * gjenopptaking midt inne i et objekt ville fått resten av filen til å
+   * forsvinne stille. Derfor spørres skanneren om hvor langt den faktisk er
+   * ferdig.
+   */
+  const safeCursor = () => skipChars + scanner.committedChars();
 
   const flush = async () => {
     if (!rows.length && !excluded.length) return;
@@ -209,11 +218,12 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
     // Tegnmarkøren settes i samme flyt som radene lagres, aldri før.
     await rpc(admin, "brreg_full_patch_run", {
       p_run_id: runId,
-      p_patch: { char_cursor: Math.max(consumed, skipChars) },
+      p_patch: { char_cursor: safeCursor() },
     });
     rows = [];
     excluded = [];
   };
+
 
   try {
     while (true) {
