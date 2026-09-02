@@ -28,13 +28,18 @@ import { createJsonArrayScanner } from "@/lib/brreg/json-array-stream";
 const BUCKET = "brreg-full";
 const BRREG_URL = "https://data.brreg.no/enhetsregisteret/api/enheter/lastned";
 const BRREG_ACCEPT = "application/vnd.brreg.enhetsregisteret.enhet.v2+gzip";
-const BATCH_ROWS = 2000;
+const BATCH_ROWS = 1000;
 /**
- * Hvert fase 2-kall stopper her og returnerer markøren, slik at neste kall
- * fortsetter. Godt under plattformens 150 sekunder: en kontrollert stopp er
- * normal drift, en drept prosess er en feil, og de to må kunne skilles.
+ * Grensen som drepte kallet var ikke veggklokken (150 s), men CPU-tiden i
+ * arbeideren: dekomprimering, teksttolking og JSON-parsing er ren CPU. Med
+ * 110 sekunder ble prosessen drept før den kontrollerte stoppen rakk å lagre
+ * markøren, og cron gjentok samme arbeid i det uendelige (502). Budsjettet er
+ * derfor satt godt under CPU-taket, og hoppingen fram til markøren har sitt
+ * eget, enda strammere budsjett.
  */
-const PHASE2_BUDGET_MS = 110_000;
+const PHASE2_BUDGET_MS = 20_000;
+const SKIP_BUDGET_MS = 12_000;
+
 
 
 const json = (b: unknown, status = 200) =>
