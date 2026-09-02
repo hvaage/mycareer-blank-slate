@@ -21,13 +21,26 @@ export function createJsonArrayScanner() {
   let inString = false;
   let escaped = false;
   let started = false;
+  /** Totalt antall tegn matet inn. */
+  let fed = 0;
 
   return {
+    /**
+     * Antall tegn som trygt kan regnes som ferdig lest: alt som er matet inn
+     * minus halen som fortsatt ligger i bufferet. Halen kan være et halvlest
+     * objekt, så en gjenopptaking MÅ skje på denne posisjonen — ikke på
+     * bitgrensen, som nesten alltid ligger midt inne i et objekt.
+     */
+    committedChars(): number {
+      return fed - buf.length;
+    },
     /** Mater inn en tekstbit og returnerer de komplette objektene den ga. */
     push(chunk: string): string[] {
+      fed += chunk.length;
       buf += chunk;
       const out: string[] = [];
       for (let i = pos; i < buf.length; i++) {
+
         const c = buf[i];
         if (inString) {
           if (escaped) escaped = false;

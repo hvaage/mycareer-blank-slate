@@ -28,13 +28,18 @@ import { createJsonArrayScanner } from "@/lib/brreg/json-array-stream";
 const BUCKET = "brreg-full";
 const BRREG_URL = "https://data.brreg.no/enhetsregisteret/api/enheter/lastned";
 const BRREG_ACCEPT = "application/vnd.brreg.enhetsregisteret.enhet.v2+gzip";
-const BATCH_ROWS = 2000;
+const BATCH_ROWS = 1000;
 /**
- * Hvert fase 2-kall stopper her og returnerer markøren, slik at neste kall
- * fortsetter. Godt under plattformens 150 sekunder: en kontrollert stopp er
- * normal drift, en drept prosess er en feil, og de to må kunne skilles.
+ * Grensen som drepte kallet var ikke veggklokken (150 s), men CPU-tiden i
+ * arbeideren: dekomprimering, teksttolking og JSON-parsing er ren CPU. Med
+ * 110 sekunder ble prosessen drept før den kontrollerte stoppen rakk å lagre
+ * markøren, og cron gjentok samme arbeid i det uendelige (502). Budsjettet er
+ * derfor satt godt under CPU-taket, og hoppingen fram til markøren har sitt
+ * eget, enda strammere budsjett.
  */
-const PHASE2_BUDGET_MS = 110_000;
+const PHASE2_BUDGET_MS = 20_000;
+const SKIP_BUDGET_MS = 12_000;
+
 
 
 const json = (b: unknown, status = 200) =>
@@ -194,8 +199,17 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
   let excluded: { organisasjonsnummer: string; reason: string }[] = [];
   const t0 = Date.now();
   let done = false;
-  /** "done" = filen er lest ut. "budget"/"max_rows" = kontrollert stopp. */
-  let stopReason: "done" | "budget" | "max_rows" = "done";
+  /** "done" = filen er lest ut. Alt annet = kontrollert stopp. */
+  let stopReason: "done" | "budget" | "max_rows" | "skip_budget" = "done";
+
+  /**
+   * Tegnmarkøren skal alltid peke på en objektgrense. Bitgrensen gjør det
+   * ikke: skanneren beholder et halvlest objekt i bufferet sitt, og en
+   * gjenopptaking midt inne i et objekt ville fått resten av filen til å
+   * forsvinne stille. Derfor spørres skanneren om hvor langt den faktisk er
+   * ferdig.
+   */
+  const safeCursor = () => skipChars + scanner.committedChars();
 
   const flush = async () => {
     if (!rows.length && !excluded.length) return;
@@ -209,11 +223,12 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
     // Tegnmarkøren settes i samme flyt som radene lagres, aldri før.
     await rpc(admin, "brreg_full_patch_run", {
       p_run_id: runId,
-      p_patch: { char_cursor: Math.max(consumed, skipChars) },
+      p_patch: { char_cursor: safeCursor() },
     });
     rows = [];
     excluded = [];
   };
+
 
   try {
     while (true) {
@@ -227,13 +242,15 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       if (consumed + text.length <= skipChars) {
         // Hele biten ligger bak markøren: tell den og gå videre uten skanning.
         consumed += text.length;
-        if (Date.now() - t0 > PHASE2_BUDGET_MS) {
-          throw new Error(
-            `tidsbudsjettet ble brukt opp før markøren (${skipChars} tegn) ble nådd — filen må leses raskere eller deles opp`,
-          );
+        if (Date.now() - t0 > SKIP_BUDGET_MS) {
+          // Kontrollert stopp, ikke feil: markøren står stille, men kjøringen
+          // beholdes slik at neste kall kan fortsette.
+          stopReason = "skip_budget";
+          break;
         }
         continue;
       }
+
       if (consumed < skipChars) {
         text = text.slice(skipChars - consumed);
         consumed = skipChars;
@@ -257,8 +274,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       }
       consumed += text.length;
 
-      // Stopp bare på bitgrense: da er tegnmarkøren entydig, og en gjenopptaking
-      // kan ikke havne midt inne i et objekt.
+      // Markøren følger skanneren, ikke bitgrensen: se safeCursor().
       if (rows.length + excluded.length >= BATCH_ROWS) await flush();
       if (stopAt !== null && seen >= stopAt) {
         stopReason = "max_rows";
@@ -270,6 +286,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       }
     }
     await flush();
+
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     await rpc(admin, "brreg_full_patch_run", {
@@ -291,7 +308,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       parse_complete: done,
       row_cursor: seen,
       rows_seen: seen,
-      char_cursor: Math.max(consumed, skipChars),
+      char_cursor: Math.max(safeCursor(), skipChars),
       error: null,
     },
   });
