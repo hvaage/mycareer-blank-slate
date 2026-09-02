@@ -303,7 +303,7 @@ async function phase2(admin: Admin, runId: number, maxRows: number | null) {
       parse_complete: done,
       row_cursor: seen,
       rows_seen: seen,
-      char_cursor: Math.max(consumed, skipChars),
+      char_cursor: Math.max(safeCursor(), skipChars),
       error: null,
     },
   });
