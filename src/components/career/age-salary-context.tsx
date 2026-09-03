@@ -74,10 +74,12 @@ export function AgeSalaryContext({
   const industries = useMemo(() => industriesQuery.data ?? [], [industriesQuery.data]);
 
   useEffect(() => {
-    if (slug || industries.length === 0 || !preferredIndustryName) return;
+    // Forhåndsvalg gjelder kun når komponenten holder valget selv. Er valget
+    // lagret på brukeren, er det brukerens eget valg som gjelder.
+    if (controlled || localSlug || industries.length === 0 || !preferredIndustryName) return;
     const hit = industries.find((i) => normalize(i.name_no) === normalize(preferredIndustryName));
-    if (hit) setSlug(hit.slug);
-  }, [slug, industries, preferredIndustryName]);
+    if (hit) setLocalSlug(hit.slug);
+  }, [controlled, localSlug, industries, preferredIndustryName]);
 
   const query = useQuery({
     enabled: !!def && !!slug,
