@@ -64,6 +64,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/selskapsanalyse.analysedatabase.$id'
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
 import { Route as ApiLinkedinImportsRouteImport } from './routes/api/linkedin/imports'
 import { Route as ApiInternalLinkedinReconciliationWorkerRouteImport } from './routes/api/internal/linkedin-reconciliation-worker'
@@ -428,6 +429,11 @@ const RekruttererundersokelseResultaterFullRoute =
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   id: '/lovable/email/suppression',
   path: '/lovable/email/suppression',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LovableEmailEventsRoute = LovableEmailEventsRouteImport.update({
+  id: '/lovable/email/events',
+  path: '/lovable/email/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
@@ -887,6 +893,7 @@ export interface FileRoutesByFullPath {
   '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
+  '/lovable/email/events': typeof LovableEmailEventsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
@@ -1004,6 +1011,7 @@ export interface FileRoutesByTo {
   '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
+  '/lovable/email/events': typeof LovableEmailEventsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
@@ -1127,6 +1135,7 @@ export interface FileRoutesById {
   '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
+  '/lovable/email/events': typeof LovableEmailEventsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
@@ -1250,6 +1259,7 @@ export interface FileRouteTypes {
     | '/api/internal/linkedin-reconciliation-worker'
     | '/api/linkedin/imports'
     | '/api/public/ingest-report'
+    | '/lovable/email/events'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
@@ -1367,6 +1377,7 @@ export interface FileRouteTypes {
     | '/api/internal/linkedin-reconciliation-worker'
     | '/api/linkedin/imports'
     | '/api/public/ingest-report'
+    | '/lovable/email/events'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
@@ -1489,6 +1500,7 @@ export interface FileRouteTypes {
     | '/api/internal/linkedin-reconciliation-worker'
     | '/api/linkedin/imports'
     | '/api/public/ingest-report'
+    | '/lovable/email/events'
     | '/lovable/email/suppression'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
@@ -1558,6 +1570,7 @@ export interface RootRouteChildren {
   ApiInternalLinkedinReconciliationWorkerRoute: typeof ApiInternalLinkedinReconciliationWorkerRoute
   ApiLinkedinImportsRoute: typeof ApiLinkedinImportsRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
+  LovableEmailEventsRoute: typeof LovableEmailEventsRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
   ApiPublicInboundJobEmailRoute: typeof ApiPublicInboundJobEmailRoute
@@ -1957,6 +1970,13 @@ declare module '@tanstack/react-router' {
       path: '/lovable/email/suppression'
       fullPath: '/lovable/email/suppression'
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/events': {
+      id: '/lovable/email/events'
+      path: '/lovable/email/events'
+      fullPath: '/lovable/email/events'
+      preLoaderRoute: typeof LovableEmailEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/ingest-report': {
@@ -2705,6 +2725,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiInternalLinkedinReconciliationWorkerRoute,
   ApiLinkedinImportsRoute: ApiLinkedinImportsRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
+  LovableEmailEventsRoute: LovableEmailEventsRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
   ApiPublicInboundJobEmailRoute: ApiPublicInboundJobEmailRoute,
