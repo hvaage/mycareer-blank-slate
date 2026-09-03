@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { lovable } from "@/integrations/lovable";
+import { Logo } from "@/components/landing/Logo";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -84,8 +85,8 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-6 py-16">
       <div className="w-full max-w-md">
-        <Link to="/" className="block text-center font-serif text-2xl text-foreground">
-          Karrierenmin
+        <Link to="/" aria-label="karrierenmin.no" className="flex justify-center">
+          <Logo className="block h-10 w-auto" />
         </Link>
         <div className="mt-10 rounded-lg border border-border bg-card p-8 shadow-sm">
           <h1 className="text-2xl text-foreground">Logg inn</h1>
