@@ -34,9 +34,14 @@ const MARKET_FALLBACK_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjYXFmdXBqYXRuandiZ2F0emp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MzY3OTcsImV4cCI6MjA5NTMxMjc5N30.6A869EjBHgXhEBAIkO6r3ojuYiHSpabUjXnsMHJPEoU";
 
 async function searchEsco(query: string): Promise<{ uri: string; title: string }[]> {
-  const url = process.env["MARKET_SUPABASE_URL"] || MARKET_FALLBACK_URL;
-  const key = process.env["MARKET_SUPABASE_ANON_KEY"] || MARKET_FALLBACK_KEY;
-  if (!key) return [];
+  // URL og nøkkel må høre sammen. Er nøkkelen i miljøet ugyldig eller
+  // mangler, brukes det kjente publiserbare paret.
+  const envKey = process.env["MARKET_SUPABASE_ANON_KEY"] ?? "";
+  const envUrl = process.env["MARKET_SUPABASE_URL"] ?? "";
+  const useEnv = envKey.includes(".eyJpc3MiOiJzdXBh") && envUrl.length > 0;
+  const url = useEnv ? envUrl : MARKET_FALLBACK_URL;
+  const key = useEnv ? envKey : MARKET_FALLBACK_KEY;
+
 
   const res = await fetch(`${url}/rest/v1/rpc/search_esco_occupations`, {
     method: "POST",
