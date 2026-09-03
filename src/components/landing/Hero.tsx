@@ -73,7 +73,7 @@ export function Hero() {
             <div className="mt-6 max-w-[520px] space-y-2 rounded-[10px] border border-[var(--km-rule)] bg-white/70 p-5 text-[13px] leading-relaxed text-[var(--km-ink-soft)]">
               <p>
                 <span className="font-semibold text-[var(--km-ink)]">Ingen interessekonflikt.</span>{" "}
-                Vi er ikke et rekrutteringsbyrå og tjener ingenting på hvor du havner.
+                Vi er ikke et rekrutteringsbyrå og tjener ingenting på hvilken jobb du velger.
               </p>
               <p>
                 <span className="font-semibold text-[var(--km-ink)]">Dine data er dine.</span>{" "}
@@ -86,8 +86,9 @@ export function Hero() {
             </div>
           </div>
 
-          {/* Høyre kolonne — bildet vises i sin helhet, aldri beskåret */}
-          <div>
+          {/* Høyre kolonne — bildet vises i sin helhet, aldri beskåret.
+              Logg-boksen overlapper nedre høyre hjørne av bildet. */}
+          <div className="relative pb-6 lg:pb-10 lg:pr-6">
             <img
               src={heroImage.url}
               alt="Kvinne i dongeriskjorte ved skrivebordet, ser ut av vinduet med et rolig smil"
@@ -96,7 +97,7 @@ export function Hero() {
               height={1024}
               fetchPriority="high"
             />
-            <div className="mt-4 rounded-xl border border-[var(--km-rule)] bg-white p-5 shadow-[0_8px_24px_rgba(26,31,43,0.06)]">
+            <div className="relative z-10 -mt-14 ml-auto w-[94%] rounded-xl border border-[var(--km-rule)] bg-white p-5 shadow-[0_16px_40px_rgba(26,31,43,0.14)] sm:-mt-20 sm:w-[85%] lg:-mt-24 lg:-mr-2">
               <div className="flex items-center justify-between">
                 <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--km-ink-faint)]">
                   Din karrierelogg
