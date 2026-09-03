@@ -10,22 +10,77 @@ export const Route = createFileRoute("/lovable/email/events")({
           console.error('Missing required environment variables')
           return Response.json({ error: 'Server configuration error' }, { status: 500 })
         }
+        const record = async (
+          eventId: string,
+          recipient: string,
+          reason: 'bounce' | 'complaint' | 'unsubscribe',
+          status: 'bounced' | 'complained' | 'suppressed',
+          message: string,
+        ) => {
+          const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+          const normalized = recipient.toLowerCase()
+
+          const { error: suppressError } = await supabaseAdmin
+            .from('suppressed_emails')
+            .upsert({ email: normalized, reason, metadata: null }, { onConflict: 'email' })
+          if (suppressError) {
+            console.error('Failed to upsert suppressed email', {
+              event_id: eventId,
+              error: { code: suppressError.code, message: suppressError.message },
+            })
+            throw new Error('Failed to write suppression')
+          }
+
+          const { error: logError } = await supabaseAdmin.from('email_send_log').insert({
+            message_id: null,
+            template_name: 'system',
+            recipient_email: normalized,
+            status,
+            error_message: message,
+            metadata: null,
+          })
+          if (logError) {
+            console.error('Failed to insert email_send_log', {
+              event_id: eventId,
+              error: { code: logError.code, message: logError.message },
+            })
+            throw new Error('Failed to write send log')
+          }
+        }
+
         const handler = createEmailWebhookHandler({
           apiKey,
           on: {
-            // Placeholder handlers — replace each log with the feature's reaction.
-            // Throw on failure so the delivery is retried.
             'email.bounced': async (event) => {
-              console.log('Email bounced', { event_id: event.event_id })
+              await record(
+                event.event_id,
+                event.data.recipient,
+                'bounce',
+                'bounced',
+                'Permanent bounce — email address is invalid or rejected',
+              )
             },
             'email.complaint': async (event) => {
-              console.log('Email complaint', { event_id: event.event_id })
+              await record(
+                event.event_id,
+                event.data.recipient,
+                'complaint',
+                'complained',
+                'Spam complaint — recipient marked email as spam',
+              )
             },
             'email.unsubscribed': async (event) => {
-              console.log('Email unsubscribed', { event_id: event.event_id })
+              await record(
+                event.event_id,
+                event.data.recipient,
+                'unsubscribe',
+                'suppressed',
+                'Recipient unsubscribed',
+              )
             },
           },
         })
+
         return handler(request)
       },
     },
