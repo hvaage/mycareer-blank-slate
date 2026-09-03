@@ -83,6 +83,21 @@ export const suggestOccupationMatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => schema.parse(input ?? {}))
   .handler(async ({ data }): Promise<{ ok: boolean; errorCode?: string; items: OccupationSuggestion[] }> => {
+    // Eksakte CxO-forkortelser slås opp direkte, uten KI.
+    const cxo = lookupCxO(data.freeText);
+    if (cxo) {
+      return {
+        ok: true,
+        items: [
+          {
+            uri: cxo.escoUri,
+            title: cxo.norwegianTitle,
+            reasonNb: `${cxo.abbreviation} = ${cxo.expanded}. ${cxo.reasonNb}`,
+          },
+        ],
+      };
+    }
+
     // Kun brukerens egne ord i søket. Bransje er kontekst til modellen,
     // ikke en del av søkestrengen — det gir null treff i ESCO-søket.
     const candidates = await searchEsco(data.freeText);
