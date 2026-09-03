@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SelskapsanalyseRouteImport } from './routes/selskapsanalyse'
@@ -127,11 +126,6 @@ import { Route as AuthenticatedNettverkMuligheterIdRouteImport } from './routes/
 import { Route as AuthenticatedNettverkKontakterImportRouteImport } from './routes/_authenticated/nettverk.kontakter.import'
 import { Route as AuthenticatedNettverkKontakterIdRouteImport } from './routes/_authenticated/nettverk.kontakter.$id'
 
-const UnsubscribeRoute = UnsubscribeRouteImport.update({
-  id: '/unsubscribe',
-  path: '/unsubscribe',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -800,7 +794,6 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/unsubscribe': typeof UnsubscribeRoute
   '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -915,7 +908,6 @@ export interface FileRoutesByTo {
   '/personvern': typeof PersonvernRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/unsubscribe': typeof UnsubscribeRoute
   '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -1034,7 +1026,6 @@ export interface FileRoutesById {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/unsubscribe': typeof UnsubscribeRoute
   '/_authenticated/about-me': typeof AuthenticatedAboutMeRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -1154,7 +1145,6 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
-    | '/unsubscribe'
     | '/about-me'
     | '/app'
     | '/cover-letters'
@@ -1269,7 +1259,6 @@ export interface FileRouteTypes {
     | '/personvern'
     | '/signup'
     | '/sitemap.xml'
-    | '/unsubscribe'
     | '/about-me'
     | '/app'
     | '/cover-letters'
@@ -1387,7 +1376,6 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
-    | '/unsubscribe'
     | '/_authenticated/about-me'
     | '/_authenticated/app'
     | '/_authenticated/cover-letters'
@@ -1507,7 +1495,6 @@ export interface RootRouteChildren {
   SelskapsanalyseRoute: typeof SelskapsanalyseRouteWithChildren
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  UnsubscribeRoute: typeof UnsubscribeRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   AuthNyttPassordRoute: typeof AuthNyttPassordRoute
@@ -1533,13 +1520,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/unsubscribe': {
-      id: '/unsubscribe'
-      path: '/unsubscribe'
-      fullPath: '/unsubscribe'
-      preLoaderRoute: typeof UnsubscribeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -2629,7 +2609,6 @@ const rootRouteChildren: RootRouteChildren = {
   SelskapsanalyseRoute: SelskapsanalyseRouteWithChildren,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  UnsubscribeRoute: UnsubscribeRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   AuthNyttPassordRoute: AuthNyttPassordRoute,
