@@ -240,8 +240,8 @@ export function computeTargetRoleGap(input: {
 
   const requirements: RequirementAssessment[] = [];
   for (const req of byKey.values()) {
-    const reqNorm = normalizeTerm(req.label);
-    const reqTokens = tokens(req.label);
+    const reqNorm = canonicalize(req.label);
+    const reqTokens = requirementTokens(req.label);
     const matches = atoms
       .filter((a) => matchesAtom(reqTokens, reqNorm, `${a.label} ${a.description ?? ""}`))
       .slice(0, 5)
