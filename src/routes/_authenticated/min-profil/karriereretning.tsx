@@ -108,34 +108,27 @@ function CareerPreferencesPage() {
     };
   }, [form.career_life_phase, form.age_group, profile?.years_experience]);
 
-  const set = useCallback(<K extends keyof FormState>(key: K, v: FormState[K]) => {
-    setForm((s) => ({ ...s, [key]: v }));
+  const autosave = useCareerProfileAutosave(uid);
+
+  const columnsFor = useCallback((key: keyof FormState, v: FormState[keyof FormState]) => {
+    if (key === "occupation") {
+      const occ = v as FormState["occupation"];
+      return {
+        current_occupation_esco_uri: occ?.uri ?? null,
+        current_occupation_title: occ?.title ?? null,
+        current_occupation_source: occ?.source ?? null,
+      };
+    }
+    return { [key]: (v as string) || null };
   }, []);
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!uid) throw new Error("Ikke innlogget");
-      const { error } = await supabase.from("user_career_profiles").upsert(
-        {
-          user_id: uid,
-          career_stage: form.career_stage || null,
-          career_life_phase: form.career_life_phase || null,
-          age_group: form.age_group || null,
-          current_occupation_esco_uri: form.occupation?.uri ?? null,
-          current_occupation_title: form.occupation?.title ?? null,
-          current_occupation_source: form.occupation?.source ?? null,
-        },
-        { onConflict: "user_id" },
-      );
-      if (error) throw error;
+  const set = useCallback(
+    <K extends keyof FormState>(key: K, v: FormState[K]) => {
+      setForm((s) => ({ ...s, [key]: v }));
+      void autosave.save(columnsFor(key, v as FormState[keyof FormState]));
     },
-
-    onSuccess: () => {
-      toast.success("Lagret");
-      qc.invalidateQueries({ queryKey: ["user-career-profile", uid] });
-    },
-    onError: (e: Error) => toast.error(e.message ?? "Kunne ikke lagre"),
-  });
+    [autosave, columnsFor],
+  );
 
   if (!user) return null;
 
