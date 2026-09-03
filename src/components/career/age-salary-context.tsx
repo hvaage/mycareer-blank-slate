@@ -27,6 +27,10 @@ type Props = {
   ageGroup: string | null;
   /** Bransjenavn fra profilen. Brukes til å forhåndsvelge riktig næring. */
   preferredIndustryName?: string | null;
+  /** Lagret bransjevalg (slug). Når satt, styres valget utenfra. */
+  industrySlug?: string | null;
+  /** Kalles når brukeren velger bransje, slik at valget kan lagres. */
+  onIndustryChange?: (slug: string | null) => void;
 };
 
 function kr(v: number | null | undefined): string | null {
