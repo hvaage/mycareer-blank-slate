@@ -115,21 +115,41 @@ const MAPPINGS: CxoMapping[] = [
 
 const BY_ABBREVIATION = new Map(MAPPINGS.map((m) => [m.abbreviation, m]));
 
-function normalizeInput(input: string): string {
+function normalizeAbbreviation(input: string): string {
   return input
     .trim()
     .toUpperCase()
     .replace(/[.\s]+/g, "");
 }
 
+function normalizePhrase(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
 /**
- * Sjekk om teksten er en kjent CxO-forkortelse (f.eks. "CCO").
+ * Sjekk om teksten er en kjent CxO-forkortelse (f.eks. "CCO")
+ * eller inneholder den fulle engelske tittelen.
  * Returnerer mappingen hvis den finnes, ellers null.
  */
 export function lookupCxO(input: string): CxoMapping | null {
-  const key = normalizeInput(input);
-  if (!key) return null;
-  return BY_ABBREVIATION.get(key) ?? null;
+  const abbr = normalizeAbbreviation(input);
+  if (abbr) {
+    const hit = BY_ABBREVIATION.get(abbr);
+    if (hit) return hit;
+  }
+
+  const phrase = normalizePhrase(input);
+  if (!phrase) return null;
+  for (const m of MAPPINGS) {
+    if (phrase.includes(normalizePhrase(m.expanded))) {
+      return m;
+    }
+  }
+  return null;
 }
 
 /**
