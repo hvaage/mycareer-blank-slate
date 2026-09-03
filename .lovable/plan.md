@@ -31,9 +31,18 @@
 - Tallene vises alltid med kilde og periode, i tråd med regelen om at markedstall aldri vises uten kilde.
 - Der lønnstjenesten ikke har dekning for kombinasjonen, vises det tydelig i stedet for et estimat.
 
+## Presiseringer fra gjennomgangen
+
+1. **Plassering av stillingsvelgeren.** Komponenten legges i `src/components/career/occupation-picker.tsx` og tar kun inn verdi + callback. Den bruker eksisterende markedsklient og eksisterende UI-komponenter, og importerer ingenting fra profilsidene. Dermed kan «Gap mot målrolle» ta den i bruk senere uten opprydding.
+2. **KI-forslaget gjenbruker eksisterende infrastruktur.** Samme oppsett som aktivitetsforslagene: modellprofil hentes fra `internal_ai_get_active_profile`, kallet går gjennom den eksisterende Claude-klienten med prosjektets eksisterende nøkkel, og kjøringen logges i modellkjøringsloggen. Ny profil registreres for oppgaven med `max_tokens` satt lavt (rundt 600), tilpasset tre korte forslag med begrunnelse. Ingen ny leverandør og ingen ny nøkkel.
+3. **RLS verifiseres etter migrasjon.** Etter at migrasjonen er kjørt listes faktiske policyer på `user_career_profiles` fra databasen og gjengis i byggerapporten. Ingen antakelser.
+4. **Regresjon på `profiles.current_role_title`.** Feltet beholdes som eneste sannhet for fritekst-tittelen. Etter bygging verifiseres Om meg, søknadsgenerering og selskapsanalyse med feltet satt fra den nye velgeren.
+5. **Regresjon på karrierefase.** Aldersgruppe gir kun et *forslag* til fase, vist som en knapp brukeren må trykke. En allerede lagret fase overskrives aldri, og ingen eksisterende brukere får endret fase av migrasjonen eller av å velge aldersgruppe.
+6. **Tydelig «ingen dekning».** Mangler lønnstjenesten data for kombinasjonen aldersgruppe/bransje, vises en eksplisitt melding om manglende dekning. Aldri tomt tall, aldri estimat.
+
 ## Teknisk
 
-- Migrasjon: legg til `age_group text`, `current_occupation_esco_uri text`, `current_occupation_title text`, `current_occupation_source text` på `user_career_profiles`. Ingen nye tabeller, ingen endring i RLS-modellen (tabellen er allerede eierbeskyttet).
+- Migrasjon: legg til `age_group text`, `current_occupation_esco_uri text`, `current_occupation_title text`, `current_occupation_source text` på `user_career_profiles`. Ingen nye tabeller, ingen endring i RLS-modellen (tabellen er allerede eierbeskyttet) — verifiseres etter kjøring.
 - Ny `src/lib/age-group.ts` med SSB-intervallene, etiketter og mapping aldersgruppe → foreslått karrierefase. `career-life-phase.ts` endres ikke i logikk.
 - ESCO-søk går mot den eksisterende markedsklienten (`search_esco_occupations`), som i dag brukes av Markedsinnsikt.
 - KI-forslaget kjøres som autentisert server-funksjon som først henter ESCO-kandidater og deretter lar modellen rangere dem. Modellen kan bare velge blant faktiske ESCO-treff, aldri finne på en betegnelse.
@@ -43,3 +52,8 @@
 ## Avgrensning
 
 Ønsket stilling (målrolle) berøres ikke i denne runden. Samme stillingsvelger kan senere gjenbrukes i «Gap mot målrolle».
+
+## Byggerapport
+
+Rapporten etter bygging inneholder: endrede filer, testresultat for punkt 4–6, og faktisk policyliste for `user_career_profiles`.
+
