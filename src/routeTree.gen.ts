@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SelskapsanalyseRouteImport } from './routes/selskapsanalyse'
@@ -26,7 +25,6 @@ import { Route as RekruttererundersokelseIndexRouteImport } from './routes/rekru
 import { Route as ArbeidsgivereIndexRouteImport } from './routes/arbeidsgivere.index'
 import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
 import { Route as RekruttererundersokelseTakkRouteImport } from './routes/rekruttererundersokelse.takk'
-import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthNyttPassordRouteImport } from './routes/auth.nytt-passord'
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -63,7 +61,7 @@ import { Route as AuthenticatedApplicationsIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/selskapsanalyse.analysedatabase.$id'
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
-import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
 import { Route as ApiLinkedinImportsRouteImport } from './routes/api/linkedin/imports'
 import { Route as ApiInternalLinkedinReconciliationWorkerRouteImport } from './routes/api/internal/linkedin-reconciliation-worker'
@@ -111,9 +109,7 @@ import { Route as AuthenticatedNettverkSelskaperIndexRouteImport } from './route
 import { Route as AuthenticatedNettverkMuligheterIndexRouteImport } from './routes/_authenticated/nettverk.muligheter.index'
 import { Route as AuthenticatedNettverkKontakterIndexRouteImport } from './routes/_authenticated/nettverk.kontakter.index'
 import { Route as AuthenticatedNettverkAktiviteterIndexRouteImport } from './routes/_authenticated/nettverk.aktiviteter.index'
-import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
-import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicSyncBrregEnheterRouteImport } from './routes/api/public/sync/brreg-enheter'
 import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './routes/api/public/selskapsanalyse/preview-email'
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
@@ -130,11 +126,6 @@ import { Route as AuthenticatedNettverkMuligheterIdRouteImport } from './routes/
 import { Route as AuthenticatedNettverkKontakterImportRouteImport } from './routes/_authenticated/nettverk.kontakter.import'
 import { Route as AuthenticatedNettverkKontakterIdRouteImport } from './routes/_authenticated/nettverk.kontakter.$id'
 
-const UnsubscribeRoute = UnsubscribeRouteImport.update({
-  id: '/unsubscribe',
-  path: '/unsubscribe',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -216,11 +207,6 @@ const RekruttererundersokelseTakkRoute =
     path: '/takk',
     getParentRoute: () => RekruttererundersokelseRoute,
   } as any)
-const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
-  id: '/email/unsubscribe',
-  path: '/email/unsubscribe',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthNyttPassordRoute = AuthNyttPassordRouteImport.update({
   id: '/auth/nytt-passord',
   path: '/auth/nytt-passord',
@@ -425,9 +411,9 @@ const RekruttererundersokelseResultaterFullRoute =
     path: '/resultater/full',
     getParentRoute: () => RekruttererundersokelseRoute,
   } as any)
-const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
-  id: '/lovable/email/suppression',
-  path: '/lovable/email/suppression',
+const LovableEmailEventsRoute = LovableEmailEventsRouteImport.update({
+  id: '/lovable/email/events',
+  path: '/lovable/email/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
@@ -703,22 +689,10 @@ const AuthenticatedNettverkAktiviteterIndexRoute =
     path: '/aktiviteter/',
     getParentRoute: () => AuthenticatedNettverkRoute,
   } as any)
-const LovableEmailTransactionalSendRoute =
-  LovableEmailTransactionalSendRouteImport.update({
-    id: '/lovable/email/transactional/send',
-    path: '/lovable/email/transactional/send',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const LovableEmailTransactionalPreviewRoute =
   LovableEmailTransactionalPreviewRouteImport.update({
     id: '/lovable/email/transactional/preview',
     path: '/lovable/email/transactional/preview',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const LovableEmailQueueProcessRoute =
-  LovableEmailQueueProcessRouteImport.update({
-    id: '/lovable/email/queue/process',
-    path: '/lovable/email/queue/process',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicSyncBrregEnheterRoute =
@@ -820,7 +794,6 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/unsubscribe': typeof UnsubscribeRoute
   '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -838,7 +811,6 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/auth/nytt-passord': typeof AuthNyttPassordRoute
-  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/arbeidsgivere/': typeof ArbeidsgivereIndexRoute
@@ -887,7 +859,7 @@ export interface FileRoutesByFullPath {
   '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
-  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/lovable/email/events': typeof LovableEmailEventsRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -922,9 +894,7 @@ export interface FileRoutesByFullPath {
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/api/public/sync/brreg-enheter': typeof ApiPublicSyncBrregEnheterRoute
-  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
-  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/nettverk/aktiviteter/': typeof AuthenticatedNettverkAktiviteterIndexRoute
   '/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
   '/nettverk/muligheter/': typeof AuthenticatedNettverkMuligheterIndexRoute
@@ -938,7 +908,6 @@ export interface FileRoutesByTo {
   '/personvern': typeof PersonvernRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/unsubscribe': typeof UnsubscribeRoute
   '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -955,7 +924,6 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/auth/nytt-passord': typeof AuthNyttPassordRoute
-  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/arbeidsgivere': typeof ArbeidsgivereIndexRoute
@@ -1004,7 +972,7 @@ export interface FileRoutesByTo {
   '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
-  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/lovable/email/events': typeof LovableEmailEventsRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -1039,9 +1007,7 @@ export interface FileRoutesByTo {
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/api/public/sync/brreg-enheter': typeof ApiPublicSyncBrregEnheterRoute
-  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
-  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/nettverk/aktiviteter': typeof AuthenticatedNettverkAktiviteterIndexRoute
   '/nettverk/kontakter': typeof AuthenticatedNettverkKontakterIndexRoute
   '/nettverk/muligheter': typeof AuthenticatedNettverkMuligheterIndexRoute
@@ -1060,7 +1026,6 @@ export interface FileRoutesById {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/unsubscribe': typeof UnsubscribeRoute
   '/_authenticated/about-me': typeof AuthenticatedAboutMeRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -1078,7 +1043,6 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/auth/nytt-passord': typeof AuthNyttPassordRoute
-  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/arbeidsgivere/': typeof ArbeidsgivereIndexRoute
@@ -1127,7 +1091,7 @@ export interface FileRoutesById {
   '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
-  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/lovable/email/events': typeof LovableEmailEventsRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -1162,9 +1126,7 @@ export interface FileRoutesById {
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
   '/api/public/sync/brreg-enheter': typeof ApiPublicSyncBrregEnheterRoute
-  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
-  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/_authenticated/nettverk/aktiviteter/': typeof AuthenticatedNettverkAktiviteterIndexRoute
   '/_authenticated/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
   '/_authenticated/nettverk/muligheter/': typeof AuthenticatedNettverkMuligheterIndexRoute
@@ -1183,7 +1145,6 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
-    | '/unsubscribe'
     | '/about-me'
     | '/app'
     | '/cover-letters'
@@ -1201,7 +1162,6 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/auth/nytt-passord'
-    | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
     | '/arbeidsgivere/'
@@ -1250,7 +1210,7 @@ export interface FileRouteTypes {
     | '/api/internal/linkedin-reconciliation-worker'
     | '/api/linkedin/imports'
     | '/api/public/ingest-report'
-    | '/lovable/email/suppression'
+    | '/lovable/email/events'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin/'
@@ -1285,9 +1245,7 @@ export interface FileRouteTypes {
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
     | '/api/public/sync/brreg-enheter'
-    | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
-    | '/lovable/email/transactional/send'
     | '/nettverk/aktiviteter/'
     | '/nettverk/kontakter/'
     | '/nettverk/muligheter/'
@@ -1301,7 +1259,6 @@ export interface FileRouteTypes {
     | '/personvern'
     | '/signup'
     | '/sitemap.xml'
-    | '/unsubscribe'
     | '/about-me'
     | '/app'
     | '/cover-letters'
@@ -1318,7 +1275,6 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/auth/nytt-passord'
-    | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
     | '/arbeidsgivere'
@@ -1367,7 +1323,7 @@ export interface FileRouteTypes {
     | '/api/internal/linkedin-reconciliation-worker'
     | '/api/linkedin/imports'
     | '/api/public/ingest-report'
-    | '/lovable/email/suppression'
+    | '/lovable/email/events'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin'
@@ -1402,9 +1358,7 @@ export interface FileRouteTypes {
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
     | '/api/public/sync/brreg-enheter'
-    | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
-    | '/lovable/email/transactional/send'
     | '/nettverk/aktiviteter'
     | '/nettverk/kontakter'
     | '/nettverk/muligheter'
@@ -1422,7 +1376,6 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
-    | '/unsubscribe'
     | '/_authenticated/about-me'
     | '/_authenticated/app'
     | '/_authenticated/cover-letters'
@@ -1440,7 +1393,6 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/auth/nytt-passord'
-    | '/email/unsubscribe'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
     | '/arbeidsgivere/'
@@ -1489,7 +1441,7 @@ export interface FileRouteTypes {
     | '/api/internal/linkedin-reconciliation-worker'
     | '/api/linkedin/imports'
     | '/api/public/ingest-report'
-    | '/lovable/email/suppression'
+    | '/lovable/email/events'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/_authenticated/admin/'
@@ -1524,9 +1476,7 @@ export interface FileRouteTypes {
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
     | '/api/public/sync/brreg-enheter'
-    | '/lovable/email/queue/process'
     | '/lovable/email/transactional/preview'
-    | '/lovable/email/transactional/send'
     | '/_authenticated/nettverk/aktiviteter/'
     | '/_authenticated/nettverk/kontakter/'
     | '/_authenticated/nettverk/muligheter/'
@@ -1545,11 +1495,9 @@ export interface RootRouteChildren {
   SelskapsanalyseRoute: typeof SelskapsanalyseRouteWithChildren
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  UnsubscribeRoute: typeof UnsubscribeRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   AuthNyttPassordRoute: typeof AuthNyttPassordRoute
-  EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRouteWithChildren
   ApiCvGenerationsRoute: typeof ApiCvGenerationsRouteWithChildren
   ApiCvProposeCvAtomsRoute: typeof ApiCvProposeCvAtomsRoute
@@ -1558,7 +1506,7 @@ export interface RootRouteChildren {
   ApiInternalLinkedinReconciliationWorkerRoute: typeof ApiInternalLinkedinReconciliationWorkerRoute
   ApiLinkedinImportsRoute: typeof ApiLinkedinImportsRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
-  LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
+  LovableEmailEventsRoute: typeof LovableEmailEventsRoute
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
   ApiPublicInboundJobEmailRoute: typeof ApiPublicInboundJobEmailRoute
   ApiPublicJobsNetworkSuggestionsRoute: typeof ApiPublicJobsNetworkSuggestionsRoute
@@ -1567,20 +1515,11 @@ export interface RootRouteChildren {
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
   ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
   ApiPublicSyncBrregEnheterRoute: typeof ApiPublicSyncBrregEnheterRoute
-  LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
-  LovableEmailTransactionalSendRoute: typeof LovableEmailTransactionalSendRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/unsubscribe': {
-      id: '/unsubscribe'
-      path: '/unsubscribe'
-      fullPath: '/unsubscribe'
-      preLoaderRoute: typeof UnsubscribeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -1692,13 +1631,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/rekruttererundersokelse/takk'
       preLoaderRoute: typeof RekruttererundersokelseTakkRouteImport
       parentRoute: typeof RekruttererundersokelseRoute
-    }
-    '/email/unsubscribe': {
-      id: '/email/unsubscribe'
-      path: '/email/unsubscribe'
-      fullPath: '/email/unsubscribe'
-      preLoaderRoute: typeof EmailUnsubscribeRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/auth/nytt-passord': {
       id: '/auth/nytt-passord'
@@ -1952,11 +1884,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RekruttererundersokelseResultaterFullRouteImport
       parentRoute: typeof RekruttererundersokelseRoute
     }
-    '/lovable/email/suppression': {
-      id: '/lovable/email/suppression'
-      path: '/lovable/email/suppression'
-      fullPath: '/lovable/email/suppression'
-      preLoaderRoute: typeof LovableEmailSuppressionRouteImport
+    '/lovable/email/events': {
+      id: '/lovable/email/events'
+      path: '/lovable/email/events'
+      fullPath: '/lovable/email/events'
+      preLoaderRoute: typeof LovableEmailEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/ingest-report': {
@@ -2288,25 +2220,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNettverkAktiviteterIndexRouteImport
       parentRoute: typeof AuthenticatedNettverkRoute
     }
-    '/lovable/email/transactional/send': {
-      id: '/lovable/email/transactional/send'
-      path: '/lovable/email/transactional/send'
-      fullPath: '/lovable/email/transactional/send'
-      preLoaderRoute: typeof LovableEmailTransactionalSendRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/lovable/email/transactional/preview': {
       id: '/lovable/email/transactional/preview'
       path: '/lovable/email/transactional/preview'
       fullPath: '/lovable/email/transactional/preview'
       preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lovable/email/queue/process': {
-      id: '/lovable/email/queue/process'
-      path: '/lovable/email/queue/process'
-      fullPath: '/lovable/email/queue/process'
-      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/sync/brreg-enheter': {
@@ -2691,11 +2609,9 @@ const rootRouteChildren: RootRouteChildren = {
   SelskapsanalyseRoute: SelskapsanalyseRouteWithChildren,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  UnsubscribeRoute: UnsubscribeRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   AuthNyttPassordRoute: AuthNyttPassordRoute,
-  EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRouteWithChildren,
   ApiCvGenerationsRoute: ApiCvGenerationsRouteWithChildren,
   ApiCvProposeCvAtomsRoute: ApiCvProposeCvAtomsRoute,
@@ -2705,7 +2621,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiInternalLinkedinReconciliationWorkerRoute,
   ApiLinkedinImportsRoute: ApiLinkedinImportsRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
-  LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
+  LovableEmailEventsRoute: LovableEmailEventsRoute,
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
   ApiPublicInboundJobEmailRoute: ApiPublicInboundJobEmailRoute,
   ApiPublicJobsNetworkSuggestionsRoute: ApiPublicJobsNetworkSuggestionsRoute,
@@ -2715,9 +2631,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSelskapsanalysePreviewEmailRoute:
     ApiPublicSelskapsanalysePreviewEmailRoute,
   ApiPublicSyncBrregEnheterRoute: ApiPublicSyncBrregEnheterRoute,
-  LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
-  LovableEmailTransactionalSendRoute: LovableEmailTransactionalSendRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
