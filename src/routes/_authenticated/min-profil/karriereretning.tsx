@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Save, Target } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Target } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { CAREER_STAGES, getCareerStage, type CareerStageId } from "@/lib/career-stage";
@@ -135,7 +135,7 @@ function CareerPreferencesPage() {
   if (!user) return null;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6 pb-24">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="sm" className="shrink-0 -ml-2">
           <Link to="/min-profil">
