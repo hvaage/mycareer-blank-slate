@@ -88,7 +88,7 @@ export function Hero() {
 
           {/* Høyre kolonne — bildet vises i sin helhet, aldri beskåret.
               Logg-boksen overlapper nedre høyre hjørne av bildet. */}
-          <div className="relative pb-6 lg:pb-10 lg:pr-6">
+          <div className="relative pb-10 lg:pb-16">
             <img
               src={heroImage.url}
               alt="Kvinne i dongeriskjorte ved skrivebordet, ser ut av vinduet med et rolig smil"
@@ -97,7 +97,7 @@ export function Hero() {
               height={1024}
               fetchPriority="high"
             />
-            <div className="relative z-10 -mt-14 ml-auto w-[94%] rounded-xl border border-[var(--km-rule)] bg-white p-5 shadow-[0_16px_40px_rgba(26,31,43,0.14)] sm:-mt-20 sm:w-[85%] lg:-mt-24 lg:-mr-2">
+            <div className="relative z-10 -mt-16 ml-auto w-[96%] rounded-xl border border-[var(--km-rule)] bg-white p-5 shadow-[0_16px_40px_rgba(26,31,43,0.14)] sm:-mt-24 sm:w-[88%] lg:-mt-28 lg:-mr-8">
               <div className="flex items-center justify-between">
                 <p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--km-ink-faint)]">
                   Din karrierelogg
