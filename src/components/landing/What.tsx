@@ -1,6 +1,5 @@
 import { Activity, Compass, Target, Users } from "lucide-react";
 import writingImage from "@/assets/woman-writing.png.asset.json";
-import colleaguesImage from "@/assets/colleagues-standing.png.asset.json";
 
 const features = [
   {
@@ -33,13 +32,25 @@ export function What() {
   return (
     <section id="hva">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-        <div className="text-center">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[var(--km-blue)]">
-            Fire funksjoner, ett system
-          </p>
-          <h2 className="mt-3 text-[28px] font-semibold leading-[1.25] text-[var(--km-ink)]">
-            Et system for hele karrieren
-          </h2>
+        <div className="grid items-center gap-10 lg:grid-cols-[1fr_0.9fr] lg:gap-14">
+          <div>
+            <p className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[var(--km-blue)]">
+              Fire funksjoner, ett system
+            </p>
+            <h2 className="mt-3 text-[28px] font-semibold leading-[1.25] text-[var(--km-ink)]">
+              Et system for hele karrieren
+            </h2>
+            <p className="mt-4 max-w-[520px] text-[16px] leading-[1.6] text-[var(--km-ink-soft)]">
+              Logg det du gjør, se retningen fremover, og la systemet matche
+              deg mot det markedet faktisk etterspør.
+            </p>
+          </div>
+          <img
+            src={writingImage.url}
+            alt="Kvinne i lyseblå skjorte som skriver konsentrert på en bærbar PC"
+            className="w-full rounded-[10px] shadow-[0_8px_24px_rgba(26,31,43,0.10)]"
+            loading="lazy"
+          />
         </div>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((feature) => (
@@ -62,20 +73,6 @@ export function What() {
               </p>
             </div>
           ))}
-        </div>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
-          <img
-            src={writingImage.url}
-            alt="Kvinne i lyseblå skjorte som skriver konsentrert på en bærbar PC"
-            className="h-full w-full rounded-[10px] object-cover shadow-[0_8px_24px_rgba(26,31,43,0.10)]"
-            loading="lazy"
-          />
-          <img
-            src={colleaguesImage.url}
-            alt="To kolleger som ser sammen på en skjerm ved et ståbord"
-            className="h-full w-full rounded-[10px] object-cover shadow-[0_8px_24px_rgba(26,31,43,0.10)]"
-            loading="lazy"
-          />
         </div>
       </div>
     </section>
