@@ -299,29 +299,21 @@ function CareerPreferencesPage() {
 
 
 
-          <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:left-64 z-40">
-            <div className="max-w-2xl mx-auto flex justify-end gap-2">
-              <Button
-                type="button"
-                size="lg"
-                className="w-full sm:w-auto min-h-[48px]"
-                disabled={saveMutation.isPending}
-                onClick={() => saveMutation.mutate()}
-              >
-                {saveMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Lagrer…
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Lagre
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
+          <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
+            {autosave.saving ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                Lagrer …
+              </>
+            ) : autosave.savedAt ? (
+              <>
+                <Check className="h-3.5 w-3.5" aria-hidden />
+                Endringene lagres automatisk
+              </>
+            ) : (
+              "Endringene lagres automatisk."
+            )}
+          </p>
         </>
       )}
 
