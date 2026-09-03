@@ -2,23 +2,18 @@
  * DRIFTSVARSLING — ENESTE TRANSPORTPUNKT
  * ======================================
  * All utsending av driftsvarsler går gjennom `sendDriftsvarsel`. Ingen annen
- * kode skal vite hvordan e-post sendes. Skal transporten byttes (spor B),
+ * kode skal vite hvordan e-post sendes. Skal transporten byttes,
  * er det denne filen som endres — ingen andre.
  *
- * KRITISK REGEL: driftsvarsler sjekker ALDRI undertrykkelseslisten
- * (`suppressed_emails`). Et varsel om at synken har stoppet må frem selv om
- * adressen har meldt seg av noe annet. Derfor kaller vi `enqueue_email`
- * direkte i stedet for `sendTransactionalInternal`, som gjør
- * undertrykkelsessjekk og krever et registrert malnavn.
- *
- * Det legges heller ikke ved avmeldingslenke: dette er driftstelemetri til én
- * fast, konfigurert adresse, ikke e-post til en sluttbruker.
+ * Varselet har egen emnelinje og håndskrevet HTML, og sendes derfor direkte
+ * gjennom Lovables håndterte e-post-API i stedet for malregisteret.
+ * Undertrykkelse og avmelding håndteres på plattformsiden.
  */
+import { EmailAPIError, sendLovableEmail } from '@lovable.dev/email-js'
 import { supabaseAdmin } from '@/integrations/supabase/client.server'
 
 export type DriftSeverity = 'info' | 'warning' | 'critical'
 
-const QUEUE = 'transactional_emails'
 const SENDER_DOMAIN = 'notify.karrierenmin.no'
 const FROM_DOMAIN = 'karrierenmin.no'
 const FROM_NAME = 'Karrierenmin drift'
@@ -72,62 +67,57 @@ export async function sendDriftsvarsel(
     `<div style="margin-top:24px;color:#6b7280;font-size:12px;">Driftsvarsel fra karrierenmin. Denne adressen er konfigurert for overvåking og kan ikke meldes av.</div>` +
     `</div></body></html>`
 
-  // Avmeldingstoken kreves av e-post-API-et. Vi henter eller oppretter det, men
-  // sjekker ALDRI suppressed_emails: en avmelding skal ikke slå av driftsovervåking.
-  const normalized = mottaker.toLowerCase()
-  let unsubscribeToken: string | null = null
-  const { data: eksisterende } = await supabaseAdmin
-    .from('email_unsubscribe_tokens')
-    .select('token')
-    .eq('email', normalized)
-    .maybeSingle()
-  if (eksisterende?.token) {
-    unsubscribeToken = eksisterende.token
-  } else {
-    const nytt = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-    await supabaseAdmin
-      .from('email_unsubscribe_tokens')
-      .upsert({ token: nytt, email: normalized }, { onConflict: 'email', ignoreDuplicates: true })
-    const { data: lagret } = await supabaseAdmin
-      .from('email_unsubscribe_tokens')
-      .select('token')
-      .eq('email', normalized)
-      .maybeSingle()
-    unsubscribeToken = lagret?.token ?? nytt
-  }
-
-  const { error } = await supabaseAdmin.rpc('enqueue_email', {
-    queue_name: QUEUE,
-    payload: {
+  async function loggFørsøk(status: 'sent' | 'suppressed' | 'failed', feil?: string) {
+    const { error: loggFeil } = await supabaseAdmin.from('email_send_log').insert({
       message_id: messageId,
-      to: mottaker,
-      from: `${FROM_NAME} <noreply@${FROM_DOMAIN}>`,
-      sender_domain: SENDER_DOMAIN,
-      subject,
-      html,
-      text,
-      purpose: 'transactional',
-      label: opts.label ?? 'drift-varsel',
-      idempotency_key: opts.idempotencyKey ?? messageId,
-      unsubscribe_token: unsubscribeToken,
-      queued_at: new Date().toISOString(),
-    } as never,
-  } as never)
-
-  if (error) {
-    console.error('[drift] klarte ikke å legge varsel i kø', { subject, error: error.message })
-    return { ok: false, error: error.message }
+      template_name: opts.label ?? 'drift-varsel',
+      recipient_email: mottaker,
+      status,
+      ...(feil ? { error_message: feil.slice(0, 1000) } : {}),
+    })
+    if (loggFeil) {
+      console.error('[drift] klarte ikke å logge varsel', {
+        error: { code: loggFeil.code, message: loggFeil.message },
+      })
+    }
   }
 
-  await supabaseAdmin.from('email_send_log').insert({
-    message_id: messageId,
-    template_name: 'drift-varsel',
-    recipient_email: mottaker,
-    status: 'pending',
-  })
+  const apiKey = process.env['LOVABLE_API_KEY']
+  if (!apiKey) {
+    const error = 'LOVABLE_API_KEY mangler — driftsvarsler kan ikke sendes'
+    console.error('[drift]', error)
+    return { ok: false, error }
+  }
 
-  console.log('[drift] varsel lagt i kø', { subject, message_id: messageId })
+  try {
+    await sendLovableEmail(
+      {
+        to: mottaker,
+        from: `${FROM_NAME} <noreply@${FROM_DOMAIN}>`,
+        sender_domain: SENDER_DOMAIN,
+        subject,
+        html,
+        text,
+        purpose: 'transactional',
+        label: opts.label ?? 'drift-varsel',
+        idempotency_key: opts.idempotencyKey ?? messageId,
+      },
+      { apiKey, sendUrl: process.env['LOVABLE_SEND_URL'] },
+    )
+  } catch (error) {
+    if (error instanceof EmailAPIError && error.code === 'recipient_suppressed') {
+      await loggFørsøk('suppressed')
+      console.warn('[drift] varsel ble stoppet av undertrykkelse', { subject })
+      return { ok: false, error: 'recipient_suppressed' }
+    }
+    const melding = error instanceof Error ? error.message : String(error)
+    await loggFørsøk('failed', melding)
+    console.error('[drift] klarte ikke å sende varsel', { subject, error: melding })
+    return { ok: false, error: melding }
+  }
+
+  await loggFørsøk('sent')
+
+  console.log('[drift] varsel sendt', { subject, message_id: messageId })
   return { ok: true, messageId }
 }
