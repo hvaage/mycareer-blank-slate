@@ -1,4 +1,6 @@
 import { Activity, Compass, Target, Users } from "lucide-react";
+import writingImage from "@/assets/woman-writing.png.asset.json";
+import colleaguesImage from "@/assets/colleagues-standing.png.asset.json";
 
 const features = [
   {
@@ -60,6 +62,20 @@ export function What() {
               </p>
             </div>
           ))}
+        </div>
+        <div className="mt-10 grid gap-5 sm:grid-cols-2">
+          <img
+            src={writingImage.url}
+            alt="Kvinne i lyseblå skjorte som skriver konsentrert på en bærbar PC"
+            className="h-full w-full rounded-[10px] object-cover shadow-[0_8px_24px_rgba(26,31,43,0.10)]"
+            loading="lazy"
+          />
+          <img
+            src={colleaguesImage.url}
+            alt="To kolleger som ser sammen på en skjerm ved et ståbord"
+            className="h-full w-full rounded-[10px] object-cover shadow-[0_8px_24px_rgba(26,31,43,0.10)]"
+            loading="lazy"
+          />
         </div>
       </div>
     </section>
