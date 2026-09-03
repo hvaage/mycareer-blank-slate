@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileConflictResolver } from "@/components/career/ProfileConflictResolver";
 import { OccupationPicker, type OccupationSelection } from "@/components/career/occupation-picker";
 import { AgeSalaryContext } from "@/components/career/age-salary-context";
+import { useCareerProfileAutosave } from "@/lib/career-profile-save";
 
 
 export const Route = createFileRoute("/_authenticated/min-profil/karriereretning")({
@@ -46,6 +47,7 @@ function rowToForm(r: UserCareerProfileRow | null) {
     career_stage: (r?.career_stage as CareerStageId | null) ?? "",
     career_life_phase: (r?.career_life_phase as CareerLifePhaseCode | null) ?? "",
     age_group: ((r as any)?.age_group as string | null) ?? "",
+    primary_industry: ((r as any)?.primary_industry as string | null) ?? "",
     occupation:
       (r as any)?.current_occupation_esco_uri && (r as any)?.current_occupation_title
         ? ({
@@ -286,6 +288,8 @@ function CareerPreferencesPage() {
           {form.age_group ? (
             <AgeSalaryContext
               ageGroup={form.age_group}
+              industrySlug={form.primary_industry || null}
+              onIndustryChange={(slug) => set("primary_industry", slug ?? "")}
               preferredIndustryName={
                 Array.isArray(profile?.target_industries) ? profile.target_industries[0] ?? null : null
               }
