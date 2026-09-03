@@ -23,6 +23,10 @@ import { getAgeGroup } from "@/lib/age-group";
 import { foundationStatusQuery } from "@/lib/queries/dashboard-status";
 import { useReviewInboxCounts } from "@/lib/queries/review-inbox";
 import { AgeSalaryContext } from "@/components/career/age-salary-context";
+import { useCareerProfileAutosave } from "@/lib/career-profile-save";
+import { AGE_GROUPS } from "@/lib/age-group";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const destinations = [
   { title: "Profilopplysninger", description: "Bakgrunn, jobbønsker og lønnsønske", to: "/min-profil/opplysninger", icon: Pencil },
@@ -49,6 +53,7 @@ export function ProfileDashboardPage() {
   const { user } = useAuth();
   const uid = user?.id ?? "";
   const review = useReviewInboxCounts(user?.id);
+  const autosave = useCareerProfileAutosave(uid);
   const foundation = useQuery({ ...foundationStatusQuery(uid), enabled: !!uid });
   const overview = useQuery({
     queryKey: ["profile-dashboard", uid],
@@ -115,14 +120,36 @@ export function ProfileDashboardPage() {
         </div>
       </section>
 
-      {career?.age_group ? (
-        <section aria-label="Lønnssammenligning" className="max-w-2xl">
+      <section aria-label="Lønnssammenligning" className="max-w-2xl space-y-3">
+        <div className="space-y-2">
+          <Label htmlFor="dashboard_age_group">Aldersgruppe</Label>
+          <Select
+            value={career?.age_group || "__empty"}
+            onValueChange={(v) => autosave.save({ age_group: v === "__empty" ? null : v })}
+          >
+            <SelectTrigger id="dashboard_age_group" className="w-full">
+              <SelectValue placeholder="Velg aldersgruppe" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__empty">Ikke valgt</SelectItem>
+              {AGE_GROUPS.map((a) => (
+                <SelectItem key={a.code} value={a.code}>{a.labelNb}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {autosave.saving ? "Lagrer …" : "Valgene her lagres automatisk."}
+          </p>
+        </div>
+        {career?.age_group ? (
           <AgeSalaryContext
             ageGroup={career.age_group}
+            industrySlug={career?.primary_industry ?? null}
+            onIndustryChange={(slug) => autosave.save({ primary_industry: slug })}
             preferredIndustryName={(profile?.industries ?? profile?.target_industries ?? [])[0] ?? null}
           />
-        </section>
-      ) : null}
+        ) : null}
+      </section>
 
       {suggestions.length > 0 && <section aria-labelledby="profile-next" className="border-y py-5"><h2 id="profile-next" className="mb-3 text-lg font-semibold">Foreslåtte oppdateringer</h2><div className="grid gap-2 md:grid-cols-3">{suggestions.map((item) => <Link key={item.label} to={item.to} className="flex items-center justify-between border-l-2 border-primary py-2 pl-3 text-sm font-medium hover:text-primary">{item.label}<ArrowRight className="h-4 w-4" /></Link>)}</div></section>}
 

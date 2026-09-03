@@ -27,6 +27,10 @@ type Props = {
   ageGroup: string | null;
   /** Bransjenavn fra profilen. Brukes til å forhåndsvelge riktig næring. */
   preferredIndustryName?: string | null;
+  /** Lagret bransjevalg (slug). Når satt, styres valget utenfra. */
+  industrySlug?: string | null;
+  /** Kalles når brukeren velger bransje, slik at valget kan lagres. */
+  onIndustryChange?: (slug: string | null) => void;
 };
 
 function kr(v: number | null | undefined): string | null {
@@ -38,9 +42,20 @@ function normalize(s: string): string {
   return s.trim().toLowerCase();
 }
 
-export function AgeSalaryContext({ ageGroup, preferredIndustryName = null }: Props) {
+export function AgeSalaryContext({
+  ageGroup,
+  preferredIndustryName = null,
+  industrySlug,
+  onIndustryChange,
+}: Props) {
   const def = getAgeGroup(ageGroup);
-  const [slug, setSlug] = useState<string>("");
+  const [localSlug, setLocalSlug] = useState<string>("");
+  const controlled = industrySlug !== undefined;
+  const slug = controlled ? industrySlug ?? "" : localSlug;
+  const setSlug = (next: string) => {
+    if (!controlled) setLocalSlug(next);
+    onIndustryChange?.(next || null);
+  };
 
   const industriesQuery = useQuery({
     queryKey: ["career-age-salary-industries"],
@@ -59,10 +74,12 @@ export function AgeSalaryContext({ ageGroup, preferredIndustryName = null }: Pro
   const industries = useMemo(() => industriesQuery.data ?? [], [industriesQuery.data]);
 
   useEffect(() => {
-    if (slug || industries.length === 0 || !preferredIndustryName) return;
+    // Forhåndsvalg gjelder kun når komponenten holder valget selv. Er valget
+    // lagret på brukeren, er det brukerens eget valg som gjelder.
+    if (controlled || localSlug || industries.length === 0 || !preferredIndustryName) return;
     const hit = industries.find((i) => normalize(i.name_no) === normalize(preferredIndustryName));
-    if (hit) setSlug(hit.slug);
-  }, [slug, industries, preferredIndustryName]);
+    if (hit) setLocalSlug(hit.slug);
+  }, [controlled, localSlug, industries, preferredIndustryName]);
 
   const query = useQuery({
     enabled: !!def && !!slug,

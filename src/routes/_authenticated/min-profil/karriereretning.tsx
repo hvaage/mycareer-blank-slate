@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Save, Target } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Target } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { CAREER_STAGES, getCareerStage, type CareerStageId } from "@/lib/career-stage";
@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileConflictResolver } from "@/components/career/ProfileConflictResolver";
 import { OccupationPicker, type OccupationSelection } from "@/components/career/occupation-picker";
 import { AgeSalaryContext } from "@/components/career/age-salary-context";
+import { useCareerProfileAutosave } from "@/lib/career-profile-save";
 
 
 export const Route = createFileRoute("/_authenticated/min-profil/karriereretning")({
@@ -46,6 +47,7 @@ function rowToForm(r: UserCareerProfileRow | null) {
     career_stage: (r?.career_stage as CareerStageId | null) ?? "",
     career_life_phase: (r?.career_life_phase as CareerLifePhaseCode | null) ?? "",
     age_group: ((r as any)?.age_group as string | null) ?? "",
+    primary_industry: ((r as any)?.primary_industry as string | null) ?? "",
     occupation:
       (r as any)?.current_occupation_esco_uri && (r as any)?.current_occupation_title
         ? ({
@@ -108,39 +110,32 @@ function CareerPreferencesPage() {
     };
   }, [form.career_life_phase, form.age_group, profile?.years_experience]);
 
-  const set = useCallback(<K extends keyof FormState>(key: K, v: FormState[K]) => {
-    setForm((s) => ({ ...s, [key]: v }));
+  const autosave = useCareerProfileAutosave(uid);
+
+  const columnsFor = useCallback((key: keyof FormState, v: FormState[keyof FormState]) => {
+    if (key === "occupation") {
+      const occ = v as FormState["occupation"];
+      return {
+        current_occupation_esco_uri: occ?.uri ?? null,
+        current_occupation_title: occ?.title ?? null,
+        current_occupation_source: occ?.source ?? null,
+      };
+    }
+    return { [key]: (v as string) || null };
   }, []);
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!uid) throw new Error("Ikke innlogget");
-      const { error } = await supabase.from("user_career_profiles").upsert(
-        {
-          user_id: uid,
-          career_stage: form.career_stage || null,
-          career_life_phase: form.career_life_phase || null,
-          age_group: form.age_group || null,
-          current_occupation_esco_uri: form.occupation?.uri ?? null,
-          current_occupation_title: form.occupation?.title ?? null,
-          current_occupation_source: form.occupation?.source ?? null,
-        },
-        { onConflict: "user_id" },
-      );
-      if (error) throw error;
+  const set = useCallback(
+    <K extends keyof FormState>(key: K, v: FormState[K]) => {
+      setForm((s) => ({ ...s, [key]: v }));
+      void autosave.save(columnsFor(key, v as FormState[keyof FormState]));
     },
-
-    onSuccess: () => {
-      toast.success("Lagret");
-      qc.invalidateQueries({ queryKey: ["user-career-profile", uid] });
-    },
-    onError: (e: Error) => toast.error(e.message ?? "Kunne ikke lagre"),
-  });
+    [autosave, columnsFor],
+  );
 
   if (!user) return null;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6 pb-24">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="sm" className="shrink-0 -ml-2">
           <Link to="/min-profil">
@@ -293,6 +288,8 @@ function CareerPreferencesPage() {
           {form.age_group ? (
             <AgeSalaryContext
               ageGroup={form.age_group}
+              industrySlug={form.primary_industry || null}
+              onIndustryChange={(slug) => set("primary_industry", slug ?? "")}
               preferredIndustryName={
                 Array.isArray(profile?.target_industries) ? profile.target_industries[0] ?? null : null
               }
@@ -302,29 +299,21 @@ function CareerPreferencesPage() {
 
 
 
-          <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:left-64 z-40">
-            <div className="max-w-2xl mx-auto flex justify-end gap-2">
-              <Button
-                type="button"
-                size="lg"
-                className="w-full sm:w-auto min-h-[48px]"
-                disabled={saveMutation.isPending}
-                onClick={() => saveMutation.mutate()}
-              >
-                {saveMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Lagrer…
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Lagre
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
+          <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
+            {autosave.saving ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                Lagrer …
+              </>
+            ) : autosave.savedAt ? (
+              <>
+                <Check className="h-3.5 w-3.5" aria-hidden />
+                Endringene lagres automatisk
+              </>
+            ) : (
+              "Endringene lagres automatisk."
+            )}
+          </p>
         </>
       )}
 
