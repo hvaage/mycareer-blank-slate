@@ -5,6 +5,7 @@ import { AnnouncementBar } from "@/components/landing/AnnouncementBar";
 import { Hero } from "@/components/landing/Hero";
 import { Different } from "@/components/landing/Different";
 import { What } from "@/components/landing/What";
+import { Inside } from "@/components/landing/Inside";
 import { Teaser } from "@/components/landing/Teaser";
 import { CTA } from "@/components/landing/CTA";
 import { Footer } from "@/components/landing/Footer";
@@ -43,6 +44,7 @@ function Index() {
         <Hero />
         <Different />
         <What />
+        <Inside />
         <Teaser />
         <CTA />
       </main>
