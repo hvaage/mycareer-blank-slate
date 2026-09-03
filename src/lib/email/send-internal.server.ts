@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/integrations/supabase/client.server'
 import { sendTemplateEmail } from '@/lib/email-templates/send-email'
+import { TEMPLATES } from '@/lib/email-templates/registry'
 
 /**
  * Server-internal transactional email sender for public/unauthenticated
@@ -14,6 +15,16 @@ export async function sendTransactionalInternal(params: {
   templateData?: Record<string, any>
 }): Promise<{ success: boolean; reason?: string; error?: string }> {
   const { templateName, recipientEmail, templateData = {} } = params
+
+  const template = TEMPLATES[templateName]
+  if (!template) {
+    return { success: false, error: `Template '${templateName}' not found` }
+  }
+
+  const effectiveRecipient = template.to || recipientEmail
+  if (!effectiveRecipient) {
+    return { success: false, error: 'recipientEmail is required' }
+  }
 
   async function logSend(
     status: 'sent' | 'suppressed' | 'failed',
@@ -37,21 +48,21 @@ export async function sendTransactionalInternal(params: {
   }
 
   try {
-    const result = await sendTemplateEmail(templateName, recipientEmail ?? '', {
+    const result = await sendTemplateEmail(templateName, effectiveRecipient, {
       templateData,
       ...(params.idempotencyKey ? { idempotencyKey: params.idempotencyKey } : {}),
     })
 
     if (!result.sent) {
-      await logSend('suppressed', recipientEmail ?? '')
+      await logSend('suppressed', effectiveRecipient)
       return { success: false, reason: 'email_suppressed' }
     }
 
-    await logSend('sent', recipientEmail ?? '')
+    await logSend('sent', effectiveRecipient)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    await logSend('failed', recipientEmail ?? '', message)
+    await logSend('failed', effectiveRecipient, message)
     return { success: false, error: message }
   }
 }
