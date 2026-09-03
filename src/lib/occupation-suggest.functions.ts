@@ -57,7 +57,6 @@ async function searchEsco(query: string): Promise<{ uri: string; title: string }
     }),
   });
   const txt = await res.text();
-  console.log("[occupation-suggest] esco", res.status, txt.slice(0, 120));
   if (!res.ok) return [];
   const rows = JSON.parse(txt || "[]") as any[];
   return (rows ?? [])
@@ -84,7 +83,6 @@ export const suggestOccupationMatch = createServerFn({ method: "POST" })
     // Kun brukerens egne ord i søket. Bransje er kontekst til modellen,
     // ikke en del av søkestrengen — det gir null treff i ESCO-søket.
     const candidates = await searchEsco(data.freeText);
-    console.log("[occupation-suggest] candidates", candidates.length);
 
     if (candidates.length === 0) {
       return { ok: true, items: [] };
@@ -98,11 +96,10 @@ export const suggestOccupationMatch = createServerFn({ method: "POST" })
       rpc: (fn: string, args?: Record<string, unknown>) => Promise<any>;
     };
 
-    const { data: profileRow, error: profileError } = await admin.rpc(
+    const { data: profileRow } = await admin.rpc(
       "internal_ai_get_active_profile",
       { p_task_key: TASK_KEY },
     );
-    console.log("[occupation-suggest] profile", !!profileRow, profileError?.message ?? null);
     if (!profileRow) return { ok: false, errorCode: "missing_profile", items: [] };
 
 
@@ -143,7 +140,6 @@ export const suggestOccupationMatch = createServerFn({ method: "POST" })
       runtime: { apiKey },
     });
 
-    console.log("[occupation-suggest] model", result.ok, result.ok ? result.text.slice(0, 200) : (result as any).outcome, result.ok ? null : (result as any).message ?? null);
     if (!result.ok) return { ok: false, errorCode: "model_error", items: [] };
 
 
