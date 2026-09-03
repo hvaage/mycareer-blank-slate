@@ -32,7 +32,7 @@ export function What() {
   return (
     <section id="hva">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-        <div className="grid items-center gap-10 lg:grid-cols-[1fr_0.9fr] lg:gap-14">
+        <div className="grid items-center gap-6 lg:grid-cols-[1fr_1.1fr] lg:gap-10">
           <div>
             <p className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[var(--km-blue)]">
               Fire funksjoner, ett system

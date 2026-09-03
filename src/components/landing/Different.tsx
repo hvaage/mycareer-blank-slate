@@ -43,13 +43,13 @@ export function Different() {
       className="border-y border-[var(--km-rule)] bg-[var(--km-paper-warm)]"
     >
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-        <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+        <div className="grid items-center gap-6 lg:grid-cols-[1fr_1.1fr] lg:gap-10">
           <div>
             <p className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[var(--km-blue)]">
               Hva du får
             </p>
             <h2 className="mt-3 text-[28px] font-semibold leading-[1.25] text-[var(--km-ink)]">
-              Ikke et engangsdokument
+              Karrierebygging over tid
             </h2>
             <p className="mt-4 max-w-[520px] text-[16px] leading-[1.6] text-[var(--km-ink-soft)]">
               Et system som viser deg mer enn du visste du kunne finne ut — om
