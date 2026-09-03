@@ -42,9 +42,20 @@ function normalize(s: string): string {
   return s.trim().toLowerCase();
 }
 
-export function AgeSalaryContext({ ageGroup, preferredIndustryName = null }: Props) {
+export function AgeSalaryContext({
+  ageGroup,
+  preferredIndustryName = null,
+  industrySlug,
+  onIndustryChange,
+}: Props) {
   const def = getAgeGroup(ageGroup);
-  const [slug, setSlug] = useState<string>("");
+  const [localSlug, setLocalSlug] = useState<string>("");
+  const controlled = industrySlug !== undefined;
+  const slug = controlled ? industrySlug ?? "" : localSlug;
+  const setSlug = (next: string) => {
+    if (!controlled) setLocalSlug(next);
+    onIndustryChange?.(next || null);
+  };
 
   const industriesQuery = useQuery({
     queryKey: ["career-age-salary-industries"],
