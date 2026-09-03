@@ -196,14 +196,6 @@ function isSubItemActive(pathname: string, to: string): boolean {
   return pathname === to || pathname.startsWith(to + "/");
 }
 
-function initialsFor(name: string | null | undefined, email: string | null | undefined) {
-  const src = (name && name.trim()) || (email && email.trim()) || "";
-  if (!src) return "?";
-  const parts = src.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
 export function AppSidebar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -319,13 +311,8 @@ export function AppSidebar() {
     (typeof meta.name === "string" && meta.name) ||
     (typeof meta.given_name === "string" && meta.given_name) ||
     null;
-  const avatarUrl =
-    (typeof meta.avatar_url === "string" && meta.avatar_url) ||
-    (typeof meta.picture === "string" && meta.picture) ||
-    null;
   const email = user?.email ?? null;
   const profileLabel = displayName || email || "Min profil";
-  const profileInitials = initialsFor(displayName, email);
 
   const activeGroupId = openGroup;
   const activeGroup = lookupGroups.find((g) => g.id === activeGroupId) ?? null;
@@ -596,13 +583,7 @@ export function AppSidebar() {
               onClick={handleProfileClick}
               className="mb-2 flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-accent/50"
             >
-              <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-accent text-xs font-semibold">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  profileInitials
-                )}
-              </span>
+              <UserAvatar size="md" />
               <span className="min-w-0 flex-1 truncate text-sm">{profileLabel}</span>
             </button>
           )}
