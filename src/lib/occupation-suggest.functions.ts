@@ -3,6 +3,8 @@
 // Prinsipper:
 //   - Modellen kan bare rangere blant faktiske ESCO-treff. Den kan aldri
 //     finne på en betegnelse.
+//   - Eksakte CxO-forkortelser (CEO, CFO, CCO, …) slås opp direkte mot
+//     norske ESCO-titler uten KI, for å unngå feiltolkning.
 //   - Samme KI-infrastruktur som resten av appen: modellprofil fra
 //     ai.model_profiles, felles Claude-klient, samme nøkkel. Ny profil
 //     `occupation_esco_match_v1` med lavt tokenbudsjett (600).
@@ -11,6 +13,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { lookupCxO } from "@/lib/cxo-mapping";
 
 const TASK_KEY = "occupation_esco_match";
 
@@ -80,6 +83,21 @@ export const suggestOccupationMatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => schema.parse(input ?? {}))
   .handler(async ({ data }): Promise<{ ok: boolean; errorCode?: string; items: OccupationSuggestion[] }> => {
+    // Eksakte CxO-forkortelser slås opp direkte, uten KI.
+    const cxo = lookupCxO(data.freeText);
+    if (cxo) {
+      return {
+        ok: true,
+        items: [
+          {
+            uri: cxo.escoUri,
+            title: cxo.norwegianTitle,
+            reasonNb: `${cxo.abbreviation} = ${cxo.expanded}. ${cxo.reasonNb}`,
+          },
+        ],
+      };
+    }
+
     // Kun brukerens egne ord i søket. Bransje er kontekst til modellen,
     // ikke en del av søkestrengen — det gir null treff i ESCO-søket.
     const candidates = await searchEsco(data.freeText);
