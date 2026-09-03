@@ -16,6 +16,12 @@ describe("CxO-mapping", () => {
     expect(lookupCxO("  cmo ")).not.toBeNull();
   });
 
+  it("slår også opp på full engelsk tittel", () => {
+    const hit = lookupCxO("Chief Commercial Officer");
+    expect(hit).not.toBeNull();
+    expect(hit!.abbreviation).toBe("CCO");
+  });
+
   it("returnerer null for ukjente forkortelser", () => {
     expect(lookupCxO("XYZ")).toBeNull();
     expect(lookupCxO("Utvikler")).toBeNull();
