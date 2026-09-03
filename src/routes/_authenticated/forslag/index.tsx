@@ -132,7 +132,7 @@ function ForslagInboxPage() {
         <QueueCard
           icon={Linkedin}
           title="LinkedIn"
-          description="Forslag fra LinkedIn-eksporten din. Kompetanser du selv har oppgitt vises som «Trenger vurdering» til de har belegg."
+          description="Forslag som venter på beslutning, er klare for overføring eller kan prøves på nytt. Importert innhold blir ikke brukerbekreftet av seg selv."
           count={linkedinCount}
           statusText={linkedinCount > 0 ? `${linkedinCount} venter` : "Ingenting venter"}
           action={

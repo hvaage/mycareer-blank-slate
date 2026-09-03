@@ -74,6 +74,7 @@ import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generation
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
 import { Route as AuthenticatedVurderingAvArbeidsgivereCompanyIdRouteImport } from './routes/_authenticated/vurdering-av-arbeidsgivere/$companyId'
 import { Route as AuthenticatedNettverkOversiktRouteImport } from './routes/_authenticated/nettverk.oversikt'
+import { Route as AuthenticatedMinProfilOpplysningerRouteImport } from './routes/_authenticated/min-profil/opplysninger'
 import { Route as AuthenticatedMinProfilKarriereretningRouteImport } from './routes/_authenticated/min-profil/karriereretning'
 import { Route as AuthenticatedMinProfilImportgjennomgangRouteImport } from './routes/_authenticated/min-profil/importgjennomgang'
 import { Route as AuthenticatedMinProfilImporterCvRouteImport } from './routes/_authenticated/min-profil/importer-cv'
@@ -484,6 +485,12 @@ const AuthenticatedNettverkOversiktRoute =
     path: '/oversikt',
     getParentRoute: () => AuthenticatedNettverkRoute,
   } as any)
+const AuthenticatedMinProfilOpplysningerRoute =
+  AuthenticatedMinProfilOpplysningerRouteImport.update({
+    id: '/min-profil/opplysninger',
+    path: '/min-profil/opplysninger',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedMinProfilKarriereretningRoute =
   AuthenticatedMinProfilKarriereretningRouteImport.update({
     id: '/min-profil/karriereretning',
@@ -869,6 +876,7 @@ export interface FileRoutesByFullPath {
   '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
+  '/min-profil/opplysninger': typeof AuthenticatedMinProfilOpplysningerRoute
   '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
@@ -985,6 +993,7 @@ export interface FileRoutesByTo {
   '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
+  '/min-profil/opplysninger': typeof AuthenticatedMinProfilOpplysningerRoute
   '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
@@ -1107,6 +1116,7 @@ export interface FileRoutesById {
   '/_authenticated/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/_authenticated/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/_authenticated/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
+  '/_authenticated/min-profil/opplysninger': typeof AuthenticatedMinProfilOpplysningerRoute
   '/_authenticated/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/_authenticated/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
@@ -1229,6 +1239,7 @@ export interface FileRouteTypes {
     | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
+    | '/min-profil/opplysninger'
     | '/nettverk/oversikt'
     | '/vurdering-av-arbeidsgivere/$companyId'
     | '/api/cv/atomization-jobs'
@@ -1345,6 +1356,7 @@ export interface FileRouteTypes {
     | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
+    | '/min-profil/opplysninger'
     | '/nettverk/oversikt'
     | '/vurdering-av-arbeidsgivere/$companyId'
     | '/api/cv/atomization-jobs'
@@ -1466,6 +1478,7 @@ export interface FileRouteTypes {
     | '/_authenticated/min-profil/importer-cv'
     | '/_authenticated/min-profil/importgjennomgang'
     | '/_authenticated/min-profil/karriereretning'
+    | '/_authenticated/min-profil/opplysninger'
     | '/_authenticated/nettverk/oversikt'
     | '/_authenticated/vurdering-av-arbeidsgivere/$companyId'
     | '/api/cv/atomization-jobs'
@@ -2016,6 +2029,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedNettverkOversiktRouteImport
       parentRoute: typeof AuthenticatedNettverkRoute
     }
+    '/_authenticated/min-profil/opplysninger': {
+      id: '/_authenticated/min-profil/opplysninger'
+      path: '/min-profil/opplysninger'
+      fullPath: '/min-profil/opplysninger'
+      preLoaderRoute: typeof AuthenticatedMinProfilOpplysningerRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/min-profil/karriereretning': {
       id: '/_authenticated/min-profil/karriereretning'
       path: '/min-profil/karriereretning'
@@ -2483,6 +2503,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMinProfilImporterCvRoute: typeof AuthenticatedMinProfilImporterCvRoute
   AuthenticatedMinProfilImportgjennomgangRoute: typeof AuthenticatedMinProfilImportgjennomgangRoute
   AuthenticatedMinProfilKarriereretningRoute: typeof AuthenticatedMinProfilKarriereretningRoute
+  AuthenticatedMinProfilOpplysningerRoute: typeof AuthenticatedMinProfilOpplysningerRoute
   AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute: typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedApplicationsIndexRoute: typeof AuthenticatedApplicationsIndexRoute
@@ -2556,6 +2577,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedMinProfilImportgjennomgangRoute,
   AuthenticatedMinProfilKarriereretningRoute:
     AuthenticatedMinProfilKarriereretningRoute,
+  AuthenticatedMinProfilOpplysningerRoute:
+    AuthenticatedMinProfilOpplysningerRoute,
   AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute:
     AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,

@@ -1,12 +1,9 @@
 // @ts-nocheck
 // ============================================================
-// Min profil — her redigerer brukeren det han selv oppgir om seg.
-// Statusbokser og gjentatte oppsummeringer er fjernet: den
-// informasjonen eies av Karriereoversikt, Min dokumentasjon og
-// Gjennomgå forslag, og redigeres der.
+// Min profil — overordnet dashboard for hele «Min karriere».
 // ============================================================
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { AboutMePage } from "@/components/pages/about-me-page";
+import { ProfileDashboardPage } from "@/components/pages/profile-dashboard-page";
 
 export const Route = createFileRoute("/_authenticated/min-profil/")({
   head: () => ({
@@ -15,12 +12,12 @@ export const Route = createFileRoute("/_authenticated/min-profil/")({
       {
         name: "description",
         content:
-          "Rediger det du selv oppgir om deg: kort om meg, karriereretning, jobbønsker og preferanser.",
+          "Se stilling, karrieregrunnlag, kompetanser og hva som bør oppdateres videre.",
       },
       { property: "og:title", content: "Min profil | Karrieren min" },
       {
         property: "og:description",
-        content: "Dine egne opplysninger, samlet ett sted og redigerbare.",
+        content: "Din samlede karriereprofil og inngang til alle deler av Min karriere.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -35,5 +32,5 @@ export const Route = createFileRoute("/_authenticated/min-profil/")({
       throw redirect({ to: "/kilder", replace: true });
     }
   },
-  component: AboutMePage,
+  component: ProfileDashboardPage,
 });

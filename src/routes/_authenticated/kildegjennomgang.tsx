@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Info, Check, X, Clock, PencilLine, ShieldAlert, ArrowRight, RotateCcw } from "lucide-react";
+import { Info, Check, X, Clock, PencilLine, ShieldAlert, ArrowRight } from "lucide-react";
 import { ExternalUrlLink, isExternalUrl } from "@/components/external-url-link";
 import {
   BulkReviewList,
@@ -42,13 +42,13 @@ import {
   type PromotionResolution,
 } from "@/lib/linkedin/promotion";
 
-/** Kvalifikasjonsforslag som kan behandles i bulk: nye, ikke besluttede. */
+/** Alle nye forslag med en kjent promoteringsport kan behandles samlet. */
 function bulkActionable(items: Proposal[]): Proposal[] {
   return items.filter(
     (p) =>
       p.proposal_kind === "create" &&
       (p.status === "pending_review" || p.status === "approved_for_promotion") &&
-      Boolean(proposalAtomType(p)),
+      Boolean(promotionActionForDomain(p.proposal_domain, p.proposal_kind, proposalAtomType(p))),
   );
 }
 
@@ -189,6 +189,7 @@ function KildegjennomgangPage() {
         )
         .order("proposal_domain", { ascending: true })
         .order("created_at", { ascending: true });
+      query = query.eq("user_id", user?.id ?? "");
       if (search.import) query = query.eq("linkedin_import_id", search.import);
       const { data, error } = await query;
       if (error) throw error;
@@ -220,6 +221,9 @@ function KildegjennomgangPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["linkedin-reconciliation-proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["review-inbox-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["profile-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-foundation"] });
     },
     onError: (error: Error) => {
       toast.error(
@@ -319,7 +323,8 @@ function KildegjennomgangPage() {
             }
           }
           const result = await promoteProposal({ proposalId: id, action, resolution: "create_new" });
-          if (result.ok) outcome.promoted += 1;
+           if (result.ok && result.alreadyRegistered) outcome.alreadyRegistered += 1;
+           else if (result.ok) outcome.promoted += 1;
           else if (result.errorCode === ALREADY_REGISTERED_CODE) outcome.alreadyRegistered += 1;
           else outcome.failed += 1;
         } catch {
@@ -355,7 +360,7 @@ function KildegjennomgangPage() {
   }, [proposals]);
 
   const currentDomain = activeDomain ?? domains[0]?.[0] ?? null;
-  const pendingCount = proposals.filter((p) => p.status === "pending_review").length;
+  const pendingCount = proposals.filter((p) => ["pending_review", "approved_for_promotion", "promotion_failed"].includes(p.status)).length;
 
   if (proposalsQuery.isLoading) {
     return (
@@ -402,7 +407,7 @@ function KildegjennomgangPage() {
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            {pendingCount} av {proposals.length} forslag venter på din beslutning.
+             {pendingCount} av {proposals.length} forslag krever handling.
           </p>
           <Tabs value={currentDomain ?? undefined} onValueChange={setActiveDomain}>
             <TabsList className="flex-wrap">
@@ -414,12 +419,13 @@ function KildegjennomgangPage() {
             </TabsList>
             {domains.map(([domain]) => {
               const inDomain = proposals.filter((p) => p.proposal_domain === domain);
-              const bulkIds = new Set(bulkActionable(inDomain).map((p) => p.id));
+              const actionable = bulkActionable(inDomain);
+              const bulkIds = new Set(actionable.map((p) => p.id));
               return (
                 <TabsContent key={domain} value={domain} className="space-y-3 pt-4">
                   {bulkIds.size > 0 && (
                     <BulkReviewList
-                      actionable={bulkActionable(inDomain).map(toBulkItem)}
+                       actionable={actionable.map(toBulkItem)}
                       alreadyRegistered={inDomain
                         .filter((p) => p.status === "promoted" || p.proposal_kind === "keep_existing")
                         .map(toBulkItem)}
@@ -638,12 +644,9 @@ function ProposalCard({
             <ShieldAlert className="h-4 w-4" />
             <AlertDescription className="space-y-2">
               <span>
-                Overføringen ble ikke gjennomført, og ingenting ble endret. Åpne forslaget på nytt for
-                å ta en ny beslutning.
+                Overføringen ble ikke gjennomført. Tidligere beslutning er beholdt; tekniske feil kan
+                prøves samlet fra arbeidslisten uten at du vurderer forslaget på nytt.
               </span>
-              <Button size="sm" variant="outline" disabled={busy} onClick={onReopen}>
-                <RotateCcw className="mr-1 h-4 w-4" /> Åpne på nytt
-              </Button>
             </AlertDescription>
           </Alert>
         )}

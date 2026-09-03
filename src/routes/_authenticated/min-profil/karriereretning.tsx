@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Pencil, Save, Target } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Target } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { CAREER_STAGES, getCareerStage, type CareerStageId } from "@/lib/career-stage";
@@ -26,7 +26,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PreferencesAtomsSection } from "@/components/career/PreferencesAtomsSection";
 import { ProfileConflictResolver } from "@/components/career/ProfileConflictResolver";
 import { OccupationPicker, type OccupationSelection } from "@/components/career/occupation-picker";
 import { AgeSalaryContext } from "@/components/career/age-salary-context";
@@ -61,15 +60,6 @@ function rowToForm(r: UserCareerProfileRow | null) {
 
 
 type FormState = ReturnType<typeof rowToForm>;
-
-function SummaryRow({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 py-1.5 border-b last:border-b-0">
-      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
-      <span className="text-sm text-right min-w-0">{value?.trim() ? value : <span className="text-muted-foreground">Ikke utfylt</span>}</span>
-    </div>
-  );
-}
 
 function CareerPreferencesPage() {
   const { user } = useAuth();
@@ -147,25 +137,15 @@ function CareerPreferencesPage() {
     onError: (e: Error) => toast.error(e.message ?? "Kunne ikke lagre"),
   });
 
-  const list = (v: unknown) => (Array.isArray(v) ? v.filter(Boolean).join(", ") : null);
-  const salary = useMemo(() => {
-    if (!profile) return null;
-    const min = profile.salary_expectation_min;
-    const max = profile.salary_expectation_max;
-    if (min == null && max == null) return null;
-    const f = (n: number | null) => (n == null ? "?" : new Intl.NumberFormat("nb-NO").format(n));
-    return `${f(min)}–${f(max)} ${profile.salary_currency ?? "NOK"}`.trim();
-  }, [profile]);
-
   if (!user) return null;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6 pb-24">
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="sm" className="shrink-0 -ml-2">
-          <Link to="/about-me">
+          <Link to="/min-profil">
             <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only sm:not-sr-only sm:ml-1">Om meg</span>
+            <span className="sr-only sm:not-sr-only sm:ml-1">Min profil</span>
           </Link>
         </Button>
       </div>
@@ -322,34 +302,6 @@ function CareerPreferencesPage() {
 
 
 
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                <div className="min-w-0">
-                  <CardTitle className="text-lg">Jobbønskene dine</CardTitle>
-                  <CardDescription>
-                    Disse svarene styrer hvilke stillinger vi henter inn. De redigeres ett sted — under Om meg.
-                  </CardDescription>
-                </div>
-                <Button asChild variant="outline" size="sm" className="shrink-0">
-                  <Link to="/about-me">
-                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                    Endre
-                  </Link>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <SummaryRow label="År med erfaring" value={profile?.years_experience != null ? String(profile.years_experience) : null} />
-              <SummaryRow label="Nivå du søker" value={profile?.target_seniority ?? null} />
-              <SummaryRow label="Ønskede roller" value={list(profile?.target_roles)} />
-              <SummaryRow label="Ønskede bransjer" value={list(profile?.target_industries)} />
-              <SummaryRow label="Arbeidsform" value={list(profile?.work_types)} />
-              <SummaryRow label="Steder" value={list(profile?.preferred_locations)} />
-              <SummaryRow label="Lønnsforventning" value={salary} />
-            </CardContent>
-          </Card>
-
           <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:left-64 z-40">
             <div className="max-w-2xl mx-auto flex justify-end gap-2">
               <Button
@@ -376,12 +328,6 @@ function CareerPreferencesPage() {
         </>
       )}
 
-      <PreferencesAtomsSection
-        userId={uid}
-        careerProfileId={row?.id ?? null}
-        profile={row ?? null}
-        profileLoading={isLoading}
-      />
     </div>
   );
 }

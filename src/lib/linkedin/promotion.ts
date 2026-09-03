@@ -97,7 +97,7 @@ const ERROR_SUMMARIES: Record<string, string> = {
 export const PROMOTION_ERROR_MESSAGES = ERROR_SUMMARIES;
 
 export type PromotionResult =
-  | { ok: true; promotionEventId: string; status: "promoted"; raw: Record<string, unknown> }
+  | { ok: true; promotionEventId: string; status: "promoted"; alreadyRegistered: boolean; raw: Record<string, unknown> }
   | {
       ok: false;
       errorCode: string;
@@ -149,6 +149,7 @@ export async function promoteProposal(input: {
       ok: true,
       promotionEventId: String(payload["promotion_event_id"] ?? ""),
       status: "promoted",
+      alreadyRegistered: payload["already_registered"] === true,
       raw: payload,
     };
   }
