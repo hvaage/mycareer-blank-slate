@@ -14,6 +14,7 @@ import {
   type CareerLifePhaseCode,
 } from "@/lib/career-life-phase";
 import { userCareerProfileQuery, type UserCareerProfileRow } from "@/lib/queries/user-career-profile";
+import { AGE_GROUPS, getAgeGroup, suggestLifePhaseFromAgeGroup } from "@/lib/age-group";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { PreferencesAtomsSection } from "@/components/career/PreferencesAtomsSection";
 import { ProfileConflictResolver } from "@/components/career/ProfileConflictResolver";
+import { OccupationPicker, type OccupationSelection } from "@/components/career/occupation-picker";
+import { AgeSalaryContext } from "@/components/career/age-salary-context";
+
 
 export const Route = createFileRoute("/_authenticated/min-profil/karriereretning")({
   component: CareerPreferencesPage,
@@ -42,8 +46,19 @@ function rowToForm(r: UserCareerProfileRow | null) {
   return {
     career_stage: (r?.career_stage as CareerStageId | null) ?? "",
     career_life_phase: (r?.career_life_phase as CareerLifePhaseCode | null) ?? "",
+    age_group: ((r as any)?.age_group as string | null) ?? "",
+    occupation:
+      (r as any)?.current_occupation_esco_uri && (r as any)?.current_occupation_title
+        ? ({
+            uri: (r as any).current_occupation_esco_uri as string,
+            title: (r as any).current_occupation_title as string,
+            source:
+              ((r as any).current_occupation_source as "search" | "ai_suggestion" | null) ?? "search",
+          } satisfies OccupationSelection)
+        : null,
   };
 }
+
 
 type FormState = ReturnType<typeof rowToForm>;
 
@@ -86,15 +101,22 @@ function CareerPreferencesPage() {
   const lifePhaseDef = useMemo(() => getCareerLifePhase(form.career_life_phase), [form.career_life_phase]);
 
   /**
-   * Forslag basert på erfaring. Vises kun som tekst med egen handling —
-   * feltet forblir tomt, og lagres som null, til brukeren aktivt velger.
+   * Forslag til karrierefase. Aldersgruppe har forrang når den er valgt,
+   * ellers brukes erfaring som før. Forslaget vises kun som tekst med egen
+   * handling: har brukeren allerede en fase, vises ingenting og ingenting
+   * overskrives. Feltet lagres som null til brukeren aktivt velger.
    */
   const suggestedPhase = useMemo(() => {
     if (form.career_life_phase) return null;
+    const fromAge = suggestLifePhaseFromAgeGroup(form.age_group);
+    if (fromAge) return { def: getCareerLifePhase(fromAge), basis: "alder" as const };
     const years = profile?.years_experience;
     if (years == null) return null;
-    return getCareerLifePhase(suggestCareerLifePhase(Number(years)));
-  }, [form.career_life_phase, profile?.years_experience]);
+    return {
+      def: getCareerLifePhase(suggestCareerLifePhase(Number(years))),
+      basis: "erfaring" as const,
+    };
+  }, [form.career_life_phase, form.age_group, profile?.years_experience]);
 
   const set = useCallback(<K extends keyof FormState>(key: K, v: FormState[K]) => {
     setForm((s) => ({ ...s, [key]: v }));
@@ -108,11 +130,16 @@ function CareerPreferencesPage() {
           user_id: uid,
           career_stage: form.career_stage || null,
           career_life_phase: form.career_life_phase || null,
+          age_group: form.age_group || null,
+          current_occupation_esco_uri: form.occupation?.uri ?? null,
+          current_occupation_title: form.occupation?.title ?? null,
+          current_occupation_source: form.occupation?.source ?? null,
         },
         { onConflict: "user_id" },
       );
       if (error) throw error;
     },
+
     onSuccess: () => {
       toast.success("Lagret");
       qc.invalidateQueries({ queryKey: ["user-career-profile", uid] });
@@ -177,6 +204,39 @@ function CareerPreferencesPage() {
               </p>
 
               <div className="space-y-2">
+                <Label htmlFor="age_group">Aldersgruppe</Label>
+                <Select
+                  value={form.age_group || "__empty"}
+                  onValueChange={(v) => set("age_group", v === "__empty" ? "" : v)}
+                >
+                  <SelectTrigger id="age_group" className="w-full">
+                    <SelectValue placeholder="Velg aldersgruppe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__empty">Ikke valgt</SelectItem>
+                    {AGE_GROUPS.map((a) => (
+                      <SelectItem key={a.code} value={a.code}>
+                        {a.labelNb}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Frivillig. Brukes kun til å sammenligne lønnsnivå med offisiell SSB-statistikk, og
+                  som kontekst i forslag. Alder brukes aldri til å sile bort stillinger.
+                </p>
+              </div>
+
+              <OccupationPicker
+                value={form.occupation}
+                onChange={(v) => set("occupation", v)}
+                industryHint={
+                  Array.isArray(profile?.target_industries) ? profile.target_industries[0] ?? null : null
+                }
+                backgroundHint={profile?.current_role_title ?? null}
+              />
+
+              <div className="space-y-2">
                 <Label htmlFor="career_life_phase">Karrierefase</Label>
                 <Select
                   value={form.career_life_phase || "__empty"}
@@ -196,18 +256,18 @@ function CareerPreferencesPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                {suggestedPhase && (
+                {suggestedPhase?.def && (
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>
-                      Foreslått ut fra din erfaring: {suggestedPhase.labelNb} ({suggestedPhase.ageRangeNb})
-                      — bekreft eller velg selv.
+                      Foreslått ut fra din {suggestedPhase.basis}: {suggestedPhase.def.labelNb} (
+                      {suggestedPhase.def.ageRangeNb}) — bekreft eller velg selv.
                     </span>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       className="h-7"
-                      onClick={() => set("career_life_phase", suggestedPhase.code)}
+                      onClick={() => set("career_life_phase", suggestedPhase.def!.code)}
                     >
                       Bruk forslag
                     </Button>
@@ -217,6 +277,7 @@ function CareerPreferencesPage() {
                   <p className="text-xs text-muted-foreground">{lifePhaseDef.suggestionGuidanceNb}</p>
                 )}
               </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="career_stage">Karrierestadium i dag</Label>
@@ -248,6 +309,18 @@ function CareerPreferencesPage() {
               )}
             </CardContent>
           </Card>
+
+          {form.age_group ? (
+            <AgeSalaryContext
+              ageGroup={form.age_group}
+              preferredIndustryName={
+                Array.isArray(profile?.target_industries) ? profile.target_industries[0] ?? null : null
+              }
+            />
+          ) : null}
+
+
+
 
           <Card>
             <CardHeader className="pb-2">

@@ -8437,11 +8437,15 @@ export type Database = {
       }
       user_career_profiles: {
         Row: {
+          age_group: string | null
           career_life_phase: string | null
           career_stage: string | null
           compensation_importance: number | null
           completeness_score: number | null
           created_at: string
+          current_occupation_esco_uri: string | null
+          current_occupation_source: string | null
+          current_occupation_title: string | null
           desired_industries: string[] | null
           desired_role_types: string[] | null
           dimension_weights: Json
@@ -8468,11 +8472,15 @@ export type Database = {
           years_experience: number | null
         }
         Insert: {
+          age_group?: string | null
           career_life_phase?: string | null
           career_stage?: string | null
           compensation_importance?: number | null
           completeness_score?: number | null
           created_at?: string
+          current_occupation_esco_uri?: string | null
+          current_occupation_source?: string | null
+          current_occupation_title?: string | null
           desired_industries?: string[] | null
           desired_role_types?: string[] | null
           dimension_weights?: Json
@@ -8499,11 +8507,15 @@ export type Database = {
           years_experience?: number | null
         }
         Update: {
+          age_group?: string | null
           career_life_phase?: string | null
           career_stage?: string | null
           compensation_importance?: number | null
           completeness_score?: number | null
           created_at?: string
+          current_occupation_esco_uri?: string | null
+          current_occupation_source?: string | null
+          current_occupation_title?: string | null
           desired_industries?: string[] | null
           desired_role_types?: string[] | null
           dimension_weights?: Json
