@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import dashboardImage from "@/assets/min-karriere-dashboard.png.asset.json";
+import dashboardImage from "@/assets/min-karriere-dashboard-fiktiv.png.asset.json";
 
 export function Inside() {
   return (
