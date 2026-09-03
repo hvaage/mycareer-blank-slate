@@ -1,5 +1,5 @@
 // @ts-nocheck
-// Gammel URL. «Om meg» ligger nå på Min profil.
+// Gammel URL. Redigering av profilopplysninger har egen underside.
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/about-me")({
@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_authenticated/about-me")({
     tab: typeof search.tab === "string" ? (search.tab as string) : undefined,
   }),
   beforeLoad: ({ search }) => {
-    throw redirect({ to: "/min-profil", search, replace: true });
+    throw redirect({ to: "/min-profil/opplysninger", search, replace: true });
   },
 });

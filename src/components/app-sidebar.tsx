@@ -31,6 +31,7 @@ import { useAuth } from "@/lib/auth-context";
 import { isAdmin } from "@/lib/admin-guard";
 import { cn } from "@/lib/utils";
 import logoLockup from "@/assets/karrierenmin-lockup.svg";
+import { UserAvatar } from "@/components/user-avatar";
 
 type SubItem = {
   label: string;
@@ -69,6 +70,7 @@ const primaryGroups: GroupNode[] = [
     icon: BookOpen,
     items: [
       { label: "Min profil", to: "/min-profil" },
+      { label: "Karriereprofil", to: "/min-profil/karriereretning" },
       { label: "Erfaring og kompetanse", to: "/karriere/erfaring" },
       { label: "Gap mot målrolle", to: "/karriere/gap" },
       { label: "Legg til kilder", to: "/kilder" },
@@ -307,7 +309,7 @@ export function AppSidebar() {
   const handleProfileClick = useCallback(() => {
     setOpenGroup(null);
     setOpenMobile(false);
-    navigate({ to: "/about-me" });
+    navigate({ to: "/min-profil" });
   }, [navigate, setOpenMobile]);
 
   // Profile (K4 — only useAuth().user, no profile query)
@@ -373,11 +375,7 @@ export function AppSidebar() {
               aria-label={`Min profil — ${profileLabel}`}
               className="mx-auto grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground transition-colors hover:bg-sidebar-accent/80"
             >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span>{profileInitials}</span>
-              )}
+              <UserAvatar size="md" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">{profileLabel}</TooltipContent>

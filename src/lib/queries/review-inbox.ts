@@ -49,7 +49,7 @@ const SOURCE_QUEUES: Array<{
         .from("atom_enrichment_proposals")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
-        .eq("status", "pending_review");
+        .in("status", ["pending_review", "approved_for_promotion", "promotion_failed"]);
       if (error) throw error;
       return count ?? 0;
     },

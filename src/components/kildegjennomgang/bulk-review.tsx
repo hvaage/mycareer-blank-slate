@@ -148,13 +148,20 @@ export function BulkReviewList({
   return (
     <Card>
       <CardHeader className="space-y-2">
-        <CardTitle className="text-base font-medium">Nye kvalifikasjoner og kompetanser</CardTitle>
+        <CardTitle className="text-base font-medium">Godkjenn og overfør</CardTitle>
         <CardDescription>
           {actionable.length} forslag kan overføres. Alle er valgt på forhånd — fjern avhukingen på
           det du ikke vil ha. Ingenting overføres før du bekrefter.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3 border-b pb-4">
+          <Button disabled={busy || selectedIds.length === 0} onClick={() => setConfirmOpen(true)}>
+            {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
+            Godkjenn og overfør ({selectedIds.length})
+          </Button>
+          {progress && <span className="text-sm text-muted-foreground">Behandler {progress.done} av {progress.total} …</span>}
+        </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Input
             value={query}
@@ -212,18 +219,6 @@ export function BulkReviewList({
             ))}
           </ul>
         )}
-
-        <div className="flex flex-wrap items-center gap-3 border-t pt-4">
-          <Button disabled={busy || selectedIds.length === 0} onClick={() => setConfirmOpen(true)}>
-            {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Check className="mr-1 h-4 w-4" />}
-            Godkjenn og overfør ({selectedIds.length})
-          </Button>
-          {progress && (
-            <span className="text-sm text-muted-foreground">
-              Behandler {progress.done} av {progress.total} …
-            </span>
-          )}
-        </div>
 
         {outcome && (
           <div className="rounded-md border bg-muted/30 p-3 text-sm">
