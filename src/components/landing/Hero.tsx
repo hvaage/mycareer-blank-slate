@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroImage from "@/assets/hero-woman-meeting.jpg.asset.json";
+import heroImage from "@/assets/hero-woman-denim.png.asset.json";
 
 const trustItems = ["Gratis å starte", "Ingen kredittkort", "2 minutter å komme i gang"];
 
@@ -34,15 +34,16 @@ export function Hero() {
               Karrieren min
             </p>
             <h1 className="mt-4 text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--km-ink)] lg:text-[44px]">
-              Ikke bare et CV-verktøy.
+              Du kan mer enn du tror.
               <br />
-              Systemet som dokumenterer karrieren din.
+              Du husker mindre enn du burde.
             </h1>
+            <p className="mt-3 font-mono text-xs font-medium uppercase tracking-[0.08em] text-[var(--km-ink-faint)]">
+              Systemet som dokumenterer karrieren din
+            </p>
             <p className="mt-5 max-w-[520px] text-[17px] leading-[1.6] text-[var(--km-ink-soft)]">
-              Du gjør ting hver dag som er verdt å huske og dokumentere — for
-              arbeidsgiveren din i dag, og for din neste. KarrierenMin samler
-              kontinuerlig, dokumenterer dine erfaringer og resultater, og matcher
-              deg mot jobber som faktisk passer kvalifikasjonene og ønskene dine.
+              Karrieren din skjer hver dag. Alt du har oppnådd, fortjener å bli
+              husket — ikke bare gjenskapt i siste liten.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button
@@ -69,16 +70,30 @@ export function Hero() {
                 </li>
               ))}
             </ul>
+            <div className="mt-6 max-w-[520px] space-y-2 rounded-[10px] border border-[var(--km-rule)] bg-white/70 p-5 text-[13px] leading-relaxed text-[var(--km-ink-soft)]">
+              <p>
+                <span className="font-semibold text-[var(--km-ink)]">Ingen interessekonflikt.</span>{" "}
+                Vi er ikke et rekrutteringsbyrå og tjener ingenting på hvor du havner.
+              </p>
+              <p>
+                <span className="font-semibold text-[var(--km-ink)]">Dine data er dine.</span>{" "}
+                Se nøyaktig hva som er lagret om deg, og slett det når du vil.
+              </p>
+              <p>
+                <span className="font-semibold text-[var(--km-ink)]">Gratis å starte.</span>{" "}
+                Ingen kredittkort, ingen bindingstid.
+              </p>
+            </div>
           </div>
 
           {/* Høyre kolonne — bildet vises i sin helhet, aldri beskåret */}
           <div>
             <img
               src={heroImage.url}
-              alt="Kvinne i 30-årene i møte med sin leder, som sitter med en bærbar PC"
+              alt="Kvinne i dongeriskjorte ved skrivebordet, ser ut av vinduet med et rolig smil"
               className="w-full rounded-xl shadow-[0_8px_24px_rgba(26,31,43,0.10)]"
-              width={1280}
-              height={1049}
+              width={1536}
+              height={1024}
               fetchPriority="high"
             />
             <div className="mt-4 rounded-xl border border-[var(--km-rule)] bg-white p-5 shadow-[0_8px_24px_rgba(26,31,43,0.06)]">
