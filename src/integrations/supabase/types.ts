@@ -9686,11 +9686,6 @@ export type Database = {
       }
       cv_variant_db: { Args: { p_variant: string }; Returns: string }
       delete_all_my_data: { Args: never; Returns: Json }
-      delete_email: {
-        Args: { message_id: number; queue_name: string }
-        Returns: boolean
-      }
-      email_queue_dispatch: { Args: never; Returns: undefined }
       employer_analysis_output_is_valid: {
         Args: {
           p_analysis: Json
@@ -9763,10 +9758,6 @@ export type Database = {
       employer_review_withdraw: {
         Args: { p_review_id: string }
         Returns: undefined
-      }
-      enqueue_email: {
-        Args: { payload: Json; queue_name: string }
-        Returns: number
       }
       ensure_company_for_employer: {
         Args: { p_organisasjonsnummer: string }
@@ -10403,15 +10394,6 @@ export type Database = {
         }
         Returns: Json
       }
-      move_to_dlq: {
-        Args: {
-          dlq_name: string
-          message_id: number
-          payload: Json
-          source_queue: string
-        }
-        Returns: number
-      }
       nav_sync_count_missing_nav_detail: { Args: never; Returns: number }
       nav_sync_distinct_external_count: { Args: never; Returns: number }
       nav_sync_duplicate_external_ids: {
@@ -10772,14 +10754,6 @@ export type Database = {
         }[]
       }
       prune_stale_leads: { Args: { p_user_id: string }; Returns: undefined }
-      read_email_batch: {
-        Args: { batch_size: number; queue_name: string; vt: number }
-        Returns: {
-          message: Json
-          msg_id: number
-          read_ct: number
-        }[]
-      }
       record_job_match_evaluation: {
         Args: {
           p_job_input_hash: string
