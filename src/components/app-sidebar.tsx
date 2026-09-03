@@ -70,6 +70,7 @@ const primaryGroups: GroupNode[] = [
     items: [
       { label: "Min profil", to: "/min-profil" },
       { label: "Erfaring og kompetanse", to: "/karriere/erfaring" },
+      { label: "Gap mot målrolle", to: "/karriere/gap" },
       { label: "Legg til kilder", to: "/kilder" },
       { label: "Gjennomgå forslag", to: "/forslag" },
       { label: "Min dokumentasjon", to: "/documentation" },

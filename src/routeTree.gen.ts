@@ -77,6 +77,7 @@ import { Route as AuthenticatedNettverkOversiktRouteImport } from './routes/_aut
 import { Route as AuthenticatedMinProfilKarriereretningRouteImport } from './routes/_authenticated/min-profil/karriereretning'
 import { Route as AuthenticatedMinProfilImportgjennomgangRouteImport } from './routes/_authenticated/min-profil/importgjennomgang'
 import { Route as AuthenticatedMinProfilImporterCvRouteImport } from './routes/_authenticated/min-profil/importer-cv'
+import { Route as AuthenticatedKarriereGapRouteImport } from './routes/_authenticated/karriere.gap'
 import { Route as AuthenticatedKarriereErfaringRouteImport } from './routes/_authenticated/karriere.erfaring'
 import { Route as AuthenticatedInnstillingerKontoRouteImport } from './routes/_authenticated/innstillinger.konto'
 import { Route as AuthenticatedInnstillingerIntegrasjonerRouteImport } from './routes/_authenticated/innstillinger.integrasjoner'
@@ -501,6 +502,12 @@ const AuthenticatedMinProfilImporterCvRoute =
     path: '/min-profil/importer-cv',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedKarriereGapRoute =
+  AuthenticatedKarriereGapRouteImport.update({
+    id: '/karriere/gap',
+    path: '/karriere/gap',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedKarriereErfaringRoute =
   AuthenticatedKarriereErfaringRouteImport.update({
     id: '/karriere/erfaring',
@@ -858,6 +865,7 @@ export interface FileRoutesByFullPath {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/karriere/gap': typeof AuthenticatedKarriereGapRoute
   '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
@@ -973,6 +981,7 @@ export interface FileRoutesByTo {
   '/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/karriere/gap': typeof AuthenticatedKarriereGapRoute
   '/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
@@ -1094,6 +1103,7 @@ export interface FileRoutesById {
   '/_authenticated/innstillinger/integrasjoner': typeof AuthenticatedInnstillingerIntegrasjonerRoute
   '/_authenticated/innstillinger/konto': typeof AuthenticatedInnstillingerKontoRoute
   '/_authenticated/karriere/erfaring': typeof AuthenticatedKarriereErfaringRoute
+  '/_authenticated/karriere/gap': typeof AuthenticatedKarriereGapRoute
   '/_authenticated/min-profil/importer-cv': typeof AuthenticatedMinProfilImporterCvRoute
   '/_authenticated/min-profil/importgjennomgang': typeof AuthenticatedMinProfilImportgjennomgangRoute
   '/_authenticated/min-profil/karriereretning': typeof AuthenticatedMinProfilKarriereretningRoute
@@ -1215,6 +1225,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/karriere/gap'
     | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
@@ -1330,6 +1341,7 @@ export interface FileRouteTypes {
     | '/innstillinger/integrasjoner'
     | '/innstillinger/konto'
     | '/karriere/erfaring'
+    | '/karriere/gap'
     | '/min-profil/importer-cv'
     | '/min-profil/importgjennomgang'
     | '/min-profil/karriereretning'
@@ -1450,6 +1462,7 @@ export interface FileRouteTypes {
     | '/_authenticated/innstillinger/integrasjoner'
     | '/_authenticated/innstillinger/konto'
     | '/_authenticated/karriere/erfaring'
+    | '/_authenticated/karriere/gap'
     | '/_authenticated/min-profil/importer-cv'
     | '/_authenticated/min-profil/importgjennomgang'
     | '/_authenticated/min-profil/karriereretning'
@@ -2024,6 +2037,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMinProfilImporterCvRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/karriere/gap': {
+      id: '/_authenticated/karriere/gap'
+      path: '/karriere/gap'
+      fullPath: '/karriere/gap'
+      preLoaderRoute: typeof AuthenticatedKarriereGapRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/karriere/erfaring': {
       id: '/_authenticated/karriere/erfaring'
       path: '/karriere/erfaring'
@@ -2459,6 +2479,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInnstillingerIntegrasjonerRoute: typeof AuthenticatedInnstillingerIntegrasjonerRoute
   AuthenticatedInnstillingerKontoRoute: typeof AuthenticatedInnstillingerKontoRoute
   AuthenticatedKarriereErfaringRoute: typeof AuthenticatedKarriereErfaringRoute
+  AuthenticatedKarriereGapRoute: typeof AuthenticatedKarriereGapRoute
   AuthenticatedMinProfilImporterCvRoute: typeof AuthenticatedMinProfilImporterCvRoute
   AuthenticatedMinProfilImportgjennomgangRoute: typeof AuthenticatedMinProfilImportgjennomgangRoute
   AuthenticatedMinProfilKarriereretningRoute: typeof AuthenticatedMinProfilKarriereretningRoute
@@ -2529,6 +2550,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedInnstillingerIntegrasjonerRoute,
   AuthenticatedInnstillingerKontoRoute: AuthenticatedInnstillingerKontoRoute,
   AuthenticatedKarriereErfaringRoute: AuthenticatedKarriereErfaringRoute,
+  AuthenticatedKarriereGapRoute: AuthenticatedKarriereGapRoute,
   AuthenticatedMinProfilImporterCvRoute: AuthenticatedMinProfilImporterCvRoute,
   AuthenticatedMinProfilImportgjennomgangRoute:
     AuthenticatedMinProfilImportgjennomgangRoute,
