@@ -22,6 +22,7 @@ import { getCareerLifePhase } from "@/lib/career-life-phase";
 import { getAgeGroup } from "@/lib/age-group";
 import { foundationStatusQuery } from "@/lib/queries/dashboard-status";
 import { useReviewInboxCounts } from "@/lib/queries/review-inbox";
+import { AgeSalaryContext } from "@/components/career/age-salary-context";
 
 const destinations = [
   { title: "Profilopplysninger", description: "Bakgrunn, jobbønsker og lønnsønske", to: "/min-profil/opplysninger", icon: Pencil },
@@ -113,6 +114,15 @@ export function ProfileDashboardPage() {
           <dl className="grid grid-cols-3 divide-x border-y py-3 text-center"><Metric label="Roller" value={foundation.data?.roles ?? 0} /><Metric label="Resultater" value={foundation.data?.results ?? 0} /><Metric label="Kompetanser" value={foundation.data?.competences ?? 0} /></dl>
         </div>
       </section>
+
+      {career?.age_group ? (
+        <section aria-label="Lønnssammenligning" className="max-w-2xl">
+          <AgeSalaryContext
+            ageGroup={career.age_group}
+            preferredIndustryName={(profile?.industries ?? profile?.target_industries ?? [])[0] ?? null}
+          />
+        </section>
+      ) : null}
 
       {suggestions.length > 0 && <section aria-labelledby="profile-next" className="border-y py-5"><h2 id="profile-next" className="mb-3 text-lg font-semibold">Foreslåtte oppdateringer</h2><div className="grid gap-2 md:grid-cols-3">{suggestions.map((item) => <Link key={item.label} to={item.to} className="flex items-center justify-between border-l-2 border-primary py-2 pl-3 text-sm font-medium hover:text-primary">{item.label}<ArrowRight className="h-4 w-4" /></Link>)}</div></section>}
 

@@ -323,7 +323,8 @@ function KildegjennomgangPage() {
             }
           }
           const result = await promoteProposal({ proposalId: id, action, resolution: "create_new" });
-          if (result.ok) outcome.promoted += 1;
+           if (result.ok && result.alreadyRegistered) outcome.alreadyRegistered += 1;
+           else if (result.ok) outcome.promoted += 1;
           else if (result.errorCode === ALREADY_REGISTERED_CODE) outcome.alreadyRegistered += 1;
           else outcome.failed += 1;
         } catch {
