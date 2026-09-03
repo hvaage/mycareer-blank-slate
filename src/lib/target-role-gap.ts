@@ -125,28 +125,98 @@ const SHORT_KEEP = new Set([
   "c#",
 ]);
 
-function tokens(text: string): Set<string> {
+/** Generiske handlingsverb i ESCO-krav. De bærer ikke innholdet i kravet. */
+const GENERIC_VERBS = new Set([
+  "administrere",
+  "administrasjon",
+  "analysere",
+  "analyse",
+  "utvikle",
+  "utvikling",
+  "planlegge",
+  "planlegging",
+  "gjennomfore",
+  "utarbeide",
+  "handtere",
+  "folge",
+  "opprette",
+  "etablere",
+  "vedlikeholde",
+  "overvake",
+  "identifisere",
+  "koordinere",
+  "manage",
+  "analyse",
+  "develop",
+  "plan",
+  "maintain",
+  "monitor",
+]);
+
+/** Uttrykk som betyr det samme, normalisert før ordoppdeling. */
+const SYNONYM_PHRASES: [RegExp, string][] = [
+  [/\bp l\b|\bprofit and loss\b|\bresultatansvar\b|\bbunnlinje\b|\bebitda\b|\bmargin\b/g, "lonnsomhet"],
+  [/\bomsetning\b|\brevenue\b|\barr\b|\bsalgsinntekt\b/g, "salg"],
+  [/\bansatte\b|\bpersonale\b|\bteamet\b|\bteam\b|\bmedarbeidere\b/g, "medarbeider"],
+  [/\brekruttering\b|\bansettelse\b|\bansette\b/g, "rekruttere"],
+  [/\bkunder\b|\bkunde\b|\bkundeansvar\b/g, "kunde"],
+  [/\bpartnere\b|\bpartnerskap\b|\bokosystem\b/g, "partner"],
+  [/\bstrategisk\b|\bstrategien\b/g, "strategi"],
+];
+
+function canonicalize(text: string): string {
+  let s = normalizeTerm(text);
+  for (const [re, to] of SYNONYM_PHRASES) s = s.replace(re, to);
+  return s;
+}
+
+/** Enkel norsk stammeform: kutt vanlige endelser og kort ned til stabil kjerne. */
+function stem(token: string): string {
+  let t = token;
+  for (const suffix of ["ene", "ane", "enes", "ens", "er", "en", "et", "a"]) {
+    if (t.length > 5 && t.endsWith(suffix)) {
+      t = t.slice(0, -suffix.length);
+      break;
+    }
+  }
+  return t.slice(0, 8);
+}
+
+function tokens(text: string, dropGenericVerbs = false): Set<string> {
   const out = new Set<string>();
-  for (const raw of normalizeTerm(text).split(" ")) {
+  for (const raw of canonicalize(text).split(" ")) {
     if (!raw) continue;
     if (STOPWORDS.has(raw)) continue;
-    if (raw.length >= 4 || SHORT_KEEP.has(raw)) out.add(raw);
+    if (dropGenericVerbs && GENERIC_VERBS.has(raw)) continue;
+    if (raw.length >= 4) out.add(stem(raw));
+    else if (SHORT_KEEP.has(raw)) out.add(raw);
   }
   return out;
 }
 
+/**
+ * Innholdsordene i et krav: handlingsverbet fjernes, slik at «administrere
+ * lønnsomhet» sammenlignes på «lønnsomhet». Er kravet bare et verb, brukes
+ * hele uttrykket.
+ */
+function requirementTokens(label: string): Set<string> {
+  const content = tokens(label, true);
+  return content.size > 0 ? content : tokens(label);
+}
+
 function matchesAtom(reqTokens: Set<string>, reqNorm: string, atomText: string): boolean {
-  const atomNorm = normalizeTerm(atomText);
+  const atomNorm = canonicalize(atomText);
   if (!atomNorm) return false;
-  if (reqNorm.length >= 5 && atomNorm.includes(reqNorm)) return true;
+  if (reqNorm.length >= 6 && atomNorm.includes(reqNorm)) return true;
   const atomTokens = tokens(atomText);
   if (atomTokens.size === 0 || reqTokens.size === 0) return false;
   let hits = 0;
   for (const t of reqTokens) if (atomTokens.has(t)) hits += 1;
-  // Ett treff er nok for korte krav; lengre krav må ha minst to sammenfallende ord.
-  const needed = reqTokens.size >= 4 ? 2 : 1;
+  // Ett innholdsord er nok for korte krav; sammensatte krav må ha to treff.
+  const needed = reqTokens.size >= 3 ? 2 : 1;
   return hits >= needed;
 }
+
 
 export function computeTargetRoleGap(input: {
   role: { title: string; uri: string | null };
