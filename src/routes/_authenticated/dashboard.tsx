@@ -160,12 +160,13 @@ function Dashboard() {
   const tod =
     hour < 5 ? "God natt" : hour < 10 ? "God morgen" : hour < 17 ? "Hei" : hour < 22 ? "God kveld" : "God natt";
 
-  const loading = apps.isLoading || foundation.isLoading || queue.isLoading;
+  const pendingItems = pending.data?.items ?? [];
+  const pendingTotal = pending.data?.total ?? 0;
+  const waitingCount = blockers.length + pendingItems.length;
+
+  const loading = apps.isLoading || foundation.isLoading || pending.isLoading;
   const allClear =
-    !loading &&
-    blockers.length === 0 &&
-    (queue.data?.total ?? 0) === 0 &&
-    activeApps.length === 0;
+    !loading && blockers.length === 0 && pendingTotal === 0 && activeApps.length === 0;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
@@ -177,12 +178,13 @@ function Dashboard() {
             {fname ? `, ${fname}` : ""}
           </h1>
           <p className="truncate text-sm text-muted-foreground">
-            {blockers.length > 0
-              ? `${blockers.length} ting venter på deg`
+            {waitingCount > 0
+              ? `${waitingCount} ${waitingCount === 1 ? "ting venter" : "ting venter"} på deg`
               : "Ingenting krever et valg fra deg nå"}
           </p>
         </div>
       </div>
+
 
       {loading ? <Skeleton className="h-24 w-full" /> : null}
 
