@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
-import colleaguesImage from "@/assets/colleagues-standing.png.asset.json";
+import colleaguesImage from "@/assets/colleagues-standing.webp.asset.json";
 
 type Benefit = {
   text: string;

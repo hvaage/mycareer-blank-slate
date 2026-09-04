@@ -1,5 +1,5 @@
 import { Activity, Compass, Target, Users } from "lucide-react";
-import writingImage from "@/assets/woman-writing.png.asset.json";
+import writingImage from "@/assets/woman-writing.webp.asset.json";
 
 const features = [
   {
