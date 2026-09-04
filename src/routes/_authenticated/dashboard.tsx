@@ -55,8 +55,8 @@ function Dashboard() {
   const apps = useQuery(applicationsListQuery());
   const steps = useQuery(allNextStepsQuery());
   const foundation = useQuery(foundationStatusQuery(userId));
-  const queue = useQuery(reviewQueueQuery(userId));
-  const newJobs = useQuery(newOpportunitiesQuery(userId));
+  const pending = useQuery(pendingOverviewQuery(userId));
+
   const conflictData = useQuery(profileConflictsQuery(userId));
 
   const conflicts = useMemo(
