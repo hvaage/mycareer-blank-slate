@@ -31,7 +31,15 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:url", content: "https://karrierenmin.no/" },
     ],
-    links: [{ rel: "canonical", href: "https://karrierenmin.no/" }],
+    links: [
+      { rel: "canonical", href: "https://karrierenmin.no/" },
+      {
+        rel: "preload",
+        as: "image",
+        href: "/__l5e/assets-v1/cface57a-e46a-44e5-87e7-00ee86d78ac5/hero-woman-denim.webp",
+        fetchPriority: "high",
+      },
+    ],
   }),
 });
 
