@@ -47,7 +47,9 @@ function bulkActionable(items: Proposal[]): Proposal[] {
   return items.filter(
     (p) =>
       p.proposal_kind === "create" &&
-      (p.status === "pending_review" || p.status === "approved_for_promotion") &&
+      (p.status === "pending_review" ||
+        p.status === "approved_for_promotion" ||
+        p.status === "promotion_failed") &&
       Boolean(promotionActionForDomain(p.proposal_domain, p.proposal_kind, proposalAtomType(p))),
   );
 }
@@ -304,6 +306,15 @@ function KildegjennomgangPage() {
           if (!action) {
             outcome.failed += 1;
             continue;
+          }
+          // Tidligere feilede forslag åpnes teknisk på nytt før de godkjennes
+          // og overføres, slik at brukeren slipper å vurdere dem om igjen.
+          if (proposal.status === "promotion_failed") {
+            const reopened = await reopenFailedProposal(id);
+            if (!reopened) {
+              outcome.failed += 1;
+              continue;
+            }
           }
           if (proposal.status !== "approved_for_promotion") {
             const { data, error } = await supabase.rpc(
