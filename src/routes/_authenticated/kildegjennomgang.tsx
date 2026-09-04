@@ -447,7 +447,9 @@ function KildegjennomgangPage() {
                         )
                         .map(toBulkItem)}
                       dismissed={inDomain.filter((p) => p.status === "dismissed").map(toBulkItem)}
-                      failed={inDomain.filter((p) => p.status === "promotion_failed").map(toBulkItem)}
+                      failed={inDomain
+                        .filter((p) => p.status === "promotion_failed" && !bulkIds.has(p.id))
+                        .map(toBulkItem)}
                       busy={bulkRun.isPending}
                       progress={bulkProgress}
                       outcome={bulkOutcome}
@@ -655,9 +657,12 @@ function ProposalCard({
             <ShieldAlert className="h-4 w-4" />
             <AlertDescription className="space-y-2">
               <span>
-                Overføringen ble ikke gjennomført. Tidligere beslutning er beholdt; tekniske feil kan
-                prøves samlet fra arbeidslisten uten at du vurderer forslaget på nytt.
+                Overføringen ble ikke gjennomført. Tidligere beslutning er beholdt. Åpne forslaget på
+                nytt for å avstemme det igjen.
               </span>
+              <Button size="sm" variant="outline" disabled={busy} onClick={onReopen}>
+                Åpne på nytt
+              </Button>
             </AlertDescription>
           </Alert>
         )}
