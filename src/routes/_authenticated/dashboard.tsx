@@ -394,20 +394,6 @@ function Dashboard() {
         </Card>
       ) : null}
 
-      {/* ---- Nye muligheter ---- */}
-      {(newJobs.data ?? 0) > 0 ? (
-        <Link
-          to="/job-leads"
-          className="flex items-center gap-2 rounded-lg border px-4 py-3 text-sm hover:bg-accent/40"
-        >
-          <span className="font-medium">{newJobs.data} nye stillinger</span>
-          <span className="text-muted-foreground">
-            {hasFoundation ? "er vurdert mot grunnlaget ditt" : "venter — bygg grunnlaget for å få dem vurdert"}
-          </span>
-          <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden />
-        </Link>
-      ) : null}
-
       {allClear ? (
         <div className="flex items-center gap-3 rounded-lg border px-4 py-4 text-sm">
           <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden />
@@ -418,15 +404,4 @@ function Dashboard() {
   );
 }
 
-function QueueLine({ n, to, text }: { n: number; to: string; text: string }) {
-  if (!n) return null;
-  return (
-    <Link
-      to={to}
-      className="flex items-baseline gap-2 rounded-md py-1 text-sm hover:underline"
-    >
-      <span className="font-semibold tabular-nums">{n}</span>
-      <span className="text-muted-foreground">{text}</span>
-    </Link>
-  );
 }
