@@ -2886,6 +2886,7 @@ export type Database = {
           created_at: string
           email_connection_id: string | null
           filter_query: string | null
+          grok_setup_status: string | null
           id: string
           inbound_alias_token: string | null
           intake_mode: string
@@ -2898,11 +2899,13 @@ export type Database = {
           source_system: string
           updated_at: string
           user_id: string
+          verified_at: string | null
         }
         Insert: {
           created_at?: string
           email_connection_id?: string | null
           filter_query?: string | null
+          grok_setup_status?: string | null
           id?: string
           inbound_alias_token?: string | null
           intake_mode?: string
@@ -2915,11 +2918,13 @@ export type Database = {
           source_system: string
           updated_at?: string
           user_id: string
+          verified_at?: string | null
         }
         Update: {
           created_at?: string
           email_connection_id?: string | null
           filter_query?: string | null
+          grok_setup_status?: string | null
           id?: string
           inbound_alias_token?: string | null
           intake_mode?: string
@@ -2932,6 +2937,7 @@ export type Database = {
           source_system?: string
           updated_at?: string
           user_id?: string
+          verified_at?: string | null
         }
         Relationships: [
           {
@@ -3739,6 +3745,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      grok_bot_setup_sessions: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          setup_code: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          setup_code: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          setup_code?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       imported_job_emails: {
         Row: {

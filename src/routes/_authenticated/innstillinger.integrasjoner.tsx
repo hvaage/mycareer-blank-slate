@@ -4,6 +4,9 @@ import { useAuth } from "@/lib/auth-context";
 import { IntegrationsPanel } from "@/components/settings/integrations-panel";
 
 export const Route = createFileRoute("/_authenticated/innstillinger/integrasjoner")({
+  validateSearch: (search: Record<string, unknown>): { intent?: string } => ({
+    intent: typeof search.intent === "string" ? search.intent : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Integrasjoner — Innstillinger | Karrierenmin" },
@@ -27,6 +30,7 @@ export const Route = createFileRoute("/_authenticated/innstillinger/integrasjone
 
 function SettingsIntegrationsPage() {
   const { user } = useAuth();
+  const { intent } = Route.useSearch();
   if (!user) return null;
 
   return (
@@ -37,7 +41,7 @@ function SettingsIntegrationsPage() {
           Koble til tjenester for å hente data automatisk.
         </p>
       </div>
-      <IntegrationsPanel userId={user.id} />
+      <IntegrationsPanel userId={user.id} autoEnsureGrok={intent === "grok"} />
     </div>
   );
 }
