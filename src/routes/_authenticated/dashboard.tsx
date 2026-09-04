@@ -21,11 +21,9 @@ import {
   Layers,
 } from "lucide-react";
 import { applicationsListQuery, allNextStepsQuery } from "@/lib/queries";
-import {
-  foundationStatusQuery,
-  newOpportunitiesQuery,
-  reviewQueueQuery,
-} from "@/lib/queries/dashboard-status";
+import { foundationStatusQuery } from "@/lib/queries/dashboard-status";
+import { pendingOverviewQuery } from "@/lib/queries/dashboard-pending";
+
 import { computeConflicts, profileConflictsQuery } from "@/lib/queries/profile-conflicts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
