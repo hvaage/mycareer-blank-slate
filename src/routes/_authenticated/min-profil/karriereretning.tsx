@@ -296,7 +296,14 @@ function CareerPreferencesPage() {
             />
           ) : null}
 
-
+          {/* Ønsker, verdier og mål redigeres her. Dashboardets påminnelser om
+              foreldede ønsker og forfalte mål peker hit. */}
+          <PreferencesAtomsSection
+            userId={uid}
+            careerProfileId={row?.id ?? null}
+            profile={row ?? null}
+            profileLoading={isLoading}
+          />
 
 
           <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
