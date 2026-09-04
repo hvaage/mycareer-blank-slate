@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProfileConflictResolver } from "@/components/career/ProfileConflictResolver";
 import { OccupationPicker, type OccupationSelection } from "@/components/career/occupation-picker";
 import { AgeSalaryContext } from "@/components/career/age-salary-context";
+import { PreferencesAtomsSection } from "@/components/career/PreferencesAtomsSection";
 import { useCareerProfileAutosave } from "@/lib/career-profile-save";
 
 
@@ -296,7 +297,14 @@ function CareerPreferencesPage() {
             />
           ) : null}
 
-
+          {/* Ønsker, verdier og mål redigeres her. Dashboardets påminnelser om
+              foreldede ønsker og forfalte mål peker hit. */}
+          <PreferencesAtomsSection
+            userId={uid}
+            careerProfileId={row?.id ?? null}
+            profile={row ?? null}
+            profileLoading={isLoading}
+          />
 
 
           <p className="flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">

@@ -47,7 +47,9 @@ function bulkActionable(items: Proposal[]): Proposal[] {
   return items.filter(
     (p) =>
       p.proposal_kind === "create" &&
-      (p.status === "pending_review" || p.status === "approved_for_promotion") &&
+      (p.status === "pending_review" ||
+        p.status === "approved_for_promotion" ||
+        p.status === "promotion_failed") &&
       Boolean(promotionActionForDomain(p.proposal_domain, p.proposal_kind, proposalAtomType(p))),
   );
 }
@@ -305,6 +307,15 @@ function KildegjennomgangPage() {
             outcome.failed += 1;
             continue;
           }
+          // Tidligere feilede forslag åpnes teknisk på nytt før de godkjennes
+          // og overføres, slik at brukeren slipper å vurdere dem om igjen.
+          if (proposal.status === "promotion_failed") {
+            const reopened = await reopenFailedProposal(id);
+            if (!reopened) {
+              outcome.failed += 1;
+              continue;
+            }
+          }
           if (proposal.status !== "approved_for_promotion") {
             const { data, error } = await supabase.rpc(
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -436,7 +447,9 @@ function KildegjennomgangPage() {
                         )
                         .map(toBulkItem)}
                       dismissed={inDomain.filter((p) => p.status === "dismissed").map(toBulkItem)}
-                      failed={inDomain.filter((p) => p.status === "promotion_failed").map(toBulkItem)}
+                      failed={inDomain
+                        .filter((p) => p.status === "promotion_failed" && !bulkIds.has(p.id))
+                        .map(toBulkItem)}
                       busy={bulkRun.isPending}
                       progress={bulkProgress}
                       outcome={bulkOutcome}
@@ -644,9 +657,12 @@ function ProposalCard({
             <ShieldAlert className="h-4 w-4" />
             <AlertDescription className="space-y-2">
               <span>
-                Overføringen ble ikke gjennomført. Tidligere beslutning er beholdt; tekniske feil kan
-                prøves samlet fra arbeidslisten uten at du vurderer forslaget på nytt.
+                Overføringen ble ikke gjennomført. Tidligere beslutning er beholdt. Åpne forslaget på
+                nytt for å avstemme det igjen.
               </span>
+              <Button size="sm" variant="outline" disabled={busy} onClick={onReopen}>
+                Åpne på nytt
+              </Button>
             </AlertDescription>
           </Alert>
         )}
