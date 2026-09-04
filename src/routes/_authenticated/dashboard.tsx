@@ -21,11 +21,9 @@ import {
   Layers,
 } from "lucide-react";
 import { applicationsListQuery, allNextStepsQuery } from "@/lib/queries";
-import {
-  foundationStatusQuery,
-  newOpportunitiesQuery,
-  reviewQueueQuery,
-} from "@/lib/queries/dashboard-status";
+import { foundationStatusQuery } from "@/lib/queries/dashboard-status";
+import { pendingOverviewQuery } from "@/lib/queries/dashboard-pending";
+
 import { computeConflicts, profileConflictsQuery } from "@/lib/queries/profile-conflicts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,8 +55,8 @@ function Dashboard() {
   const apps = useQuery(applicationsListQuery());
   const steps = useQuery(allNextStepsQuery());
   const foundation = useQuery(foundationStatusQuery(userId));
-  const queue = useQuery(reviewQueueQuery(userId));
-  const newJobs = useQuery(newOpportunitiesQuery(userId));
+  const pending = useQuery(pendingOverviewQuery(userId));
+
   const conflictData = useQuery(profileConflictsQuery(userId));
 
   const conflicts = useMemo(
@@ -118,16 +116,8 @@ function Dashboard() {
       weight: 100,
     });
   }
-  if ((queue.data?.candidates ?? 0) > 0) {
-    blockers.push({
-      id: "candidates",
-      title: `${queue.data!.candidates} linjer fra CV-importen venter`,
-      detail: "Ingenting telles som grunnlag før du har sett gjennom dem.",
-      to: "/forslag/cv",
-      cta: "Gå gjennom",
-      weight: 90,
-    });
-  }
+  // CV-linjer, KI-forslag og øvrige køer vises samlet under «Til gjennomgang».
+
   if (foundation.isSuccess && !hasFoundation) {
     blockers.push({
       id: "no-foundation",
@@ -170,12 +160,13 @@ function Dashboard() {
   const tod =
     hour < 5 ? "God natt" : hour < 10 ? "God morgen" : hour < 17 ? "Hei" : hour < 22 ? "God kveld" : "God natt";
 
-  const loading = apps.isLoading || foundation.isLoading || queue.isLoading;
+  const pendingItems = pending.data?.items ?? [];
+  const pendingTotal = pending.data?.total ?? 0;
+  const waitingCount = blockers.length + pendingItems.length;
+
+  const loading = apps.isLoading || foundation.isLoading || pending.isLoading;
   const allClear =
-    !loading &&
-    blockers.length === 0 &&
-    (queue.data?.total ?? 0) === 0 &&
-    activeApps.length === 0;
+    !loading && blockers.length === 0 && pendingTotal === 0 && activeApps.length === 0;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
@@ -187,12 +178,13 @@ function Dashboard() {
             {fname ? `, ${fname}` : ""}
           </h1>
           <p className="truncate text-sm text-muted-foreground">
-            {blockers.length > 0
-              ? `${blockers.length} ting venter på deg`
+            {waitingCount > 0
+              ? `${waitingCount} ${waitingCount === 1 ? "ting venter" : "ting venter"} på deg`
               : "Ingenting krever et valg fra deg nå"}
           </p>
         </div>
       </div>
+
 
       {loading ? <Skeleton className="h-24 w-full" /> : null}
 
@@ -267,32 +259,39 @@ function Dashboard() {
         )
       ) : null}
 
-      {/* ---- Til gjennomgang ---- */}
-      {(queue.data?.total ?? 0) > 0 ? (
+      {/* ---- Til gjennomgang: alt som venter, på tvers av modulene ---- */}
+      {pendingItems.length > 0 ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Inbox className="h-4 w-4 text-muted-foreground" aria-hidden />
               Til gjennomgang
             </CardTitle>
-            <span className="text-sm text-muted-foreground">{queue.data!.total}</span>
+            <span className="text-sm text-muted-foreground">{pendingTotal}</span>
           </CardHeader>
-          <CardContent className="space-y-1 py-0 pb-4">
-            <QueueLine
-              n={queue.data!.candidates}
-              to="/forslag/cv"
-              text="kandidater fra CV-import"
-            />
-            <QueueLine n={queue.data!.proposals} to="/forslag/ai" text="AI-forslag" />
-            <QueueLine
-              n={queue.data!.stale}
-              to="/preferences"
-              text="ønsker er eldre enn ferskhetsgrensen"
-            />
-            <QueueLine n={queue.data!.overdueGoals} to="/preferences" text="mål har passert frist" />
+          <CardContent className="divide-y py-0 pb-2">
+            {pendingItems.map((item) => (
+              <Link
+                key={item.key}
+                to={item.to}
+                className="-mx-2 flex items-center gap-3 rounded-md px-2 py-2.5 hover:bg-accent/40"
+              >
+                <span className="min-w-8 text-right text-sm font-semibold tabular-nums">
+                  {item.count}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{item.label}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {item.detail}
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              </Link>
+            ))}
           </CardContent>
         </Card>
       ) : null}
+
 
       {/* ---- Søknader ---- */}
       {activeApps.length > 0 ? (
@@ -395,20 +394,6 @@ function Dashboard() {
         </Card>
       ) : null}
 
-      {/* ---- Nye muligheter ---- */}
-      {(newJobs.data ?? 0) > 0 ? (
-        <Link
-          to="/job-leads"
-          className="flex items-center gap-2 rounded-lg border px-4 py-3 text-sm hover:bg-accent/40"
-        >
-          <span className="font-medium">{newJobs.data} nye stillinger</span>
-          <span className="text-muted-foreground">
-            {hasFoundation ? "er vurdert mot grunnlaget ditt" : "venter — bygg grunnlaget for å få dem vurdert"}
-          </span>
-          <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden />
-        </Link>
-      ) : null}
-
       {allClear ? (
         <div className="flex items-center gap-3 rounded-lg border px-4 py-4 text-sm">
           <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden />
@@ -419,15 +404,3 @@ function Dashboard() {
   );
 }
 
-function QueueLine({ n, to, text }: { n: number; to: string; text: string }) {
-  if (!n) return null;
-  return (
-    <Link
-      to={to}
-      className="flex items-baseline gap-2 rounded-md py-1 text-sm hover:underline"
-    >
-      <span className="font-semibold tabular-nums">{n}</span>
-      <span className="text-muted-foreground">{text}</span>
-    </Link>
-  );
-}
