@@ -64,6 +64,8 @@ export function Different() {
             src={colleaguesImage.url}
             alt="To kolleger som ser sammen på en skjerm ved et ståbord"
             className="w-full rounded-[10px] shadow-[0_8px_24px_rgba(26,31,43,0.10)]"
+            width={1536}
+            height={1024}
             loading="lazy"
           />
         </div>

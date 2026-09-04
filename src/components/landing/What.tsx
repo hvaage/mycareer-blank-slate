@@ -49,6 +49,8 @@ export function What() {
             src={writingImage.url}
             alt="Kvinne i lyseblå skjorte som skriver konsentrert på en bærbar PC"
             className="w-full rounded-[10px] shadow-[0_8px_24px_rgba(26,31,43,0.10)]"
+            width={1536}
+            height={1024}
             loading="lazy"
           />
         </div>
