@@ -116,16 +116,8 @@ function Dashboard() {
       weight: 100,
     });
   }
-  if ((queue.data?.candidates ?? 0) > 0) {
-    blockers.push({
-      id: "candidates",
-      title: `${queue.data!.candidates} linjer fra CV-importen venter`,
-      detail: "Ingenting telles som grunnlag før du har sett gjennom dem.",
-      to: "/forslag/cv",
-      cta: "Gå gjennom",
-      weight: 90,
-    });
-  }
+  // CV-linjer, KI-forslag og øvrige køer vises samlet under «Til gjennomgang».
+
   if (foundation.isSuccess && !hasFoundation) {
     blockers.push({
       id: "no-foundation",
