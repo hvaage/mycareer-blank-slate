@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroImage from "@/assets/hero-woman-denim.png.asset.json";
+import heroImage from "@/assets/hero-woman-denim.webp.asset.json";
 
 const trustItems = ["Gratis å starte", "Ingen kredittkort", "2 minutter å komme i gang"];
 
