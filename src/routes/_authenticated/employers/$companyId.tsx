@@ -27,6 +27,7 @@ import { fmtDateTime } from "@/lib/format";
 import { normalizeAiErrorMessage, AI_UX_RATE_LIMIT } from "@/lib/ai-ux-messages";
 
 import { EmployerAnalysisReportV2 } from "@/components/employers/EmployerAnalysisReportV2";
+import { MarketInsightPanel } from "@/components/employers/MarketInsightPanel";
 import { EmployerCandidateMatch } from "@/components/employers/EmployerCandidateMatch";
 import { EmployerCommonReview } from "@/components/employers/EmployerCommonReview";
 import { employerAnalysisDocsForCompanyQuery } from "@/lib/queries/employer-analysis-docs";
