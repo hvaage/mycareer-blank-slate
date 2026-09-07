@@ -8435,6 +8435,143 @@ export type Database = {
         }
         Relationships: []
       }
+      universum_employer_aliases: {
+        Row: {
+          alias_name: string
+          alias_normalized: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          note: string | null
+          organisasjonsnummer: string
+          updated_at: string
+        }
+        Insert: {
+          alias_name: string
+          alias_normalized?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          organisasjonsnummer: string
+          updated_at?: string
+        }
+        Update: {
+          alias_name?: string
+          alias_normalized?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          note?: string | null
+          organisasjonsnummer?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      universum_ranking_entries: {
+        Row: {
+          created_at: string
+          edition_id: string
+          employer_name: string
+          employer_name_normalized: string | null
+          evidence_url: string | null
+          id: string
+          previous_rank: number | null
+          rank: number
+          trend_from_previous: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          edition_id: string
+          employer_name: string
+          employer_name_normalized?: string | null
+          evidence_url?: string | null
+          id?: string
+          previous_rank?: number | null
+          rank: number
+          trend_from_previous?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          edition_id?: string
+          employer_name?: string
+          employer_name_normalized?: string | null
+          evidence_url?: string | null
+          id?: string
+          previous_rank?: number | null
+          rank?: number
+          trend_from_previous?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "universum_ranking_entries_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "universum_survey_editions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      universum_survey_editions: {
+        Row: {
+          access_note: string | null
+          coverage_note: string | null
+          created_at: string
+          fetched_at: string
+          field: string
+          id: string
+          is_active: boolean
+          key_insights: Json
+          market: string
+          registered_entries: number
+          segment: string
+          source_name: string
+          source_url: string
+          survey_year: number
+          total_ranked: number | null
+          updated_at: string
+        }
+        Insert: {
+          access_note?: string | null
+          coverage_note?: string | null
+          created_at?: string
+          fetched_at?: string
+          field: string
+          id?: string
+          is_active?: boolean
+          key_insights?: Json
+          market: string
+          registered_entries?: number
+          segment: string
+          source_name: string
+          source_url: string
+          survey_year: number
+          total_ranked?: number | null
+          updated_at?: string
+        }
+        Update: {
+          access_note?: string | null
+          coverage_note?: string | null
+          created_at?: string
+          fetched_at?: string
+          field?: string
+          id?: string
+          is_active?: boolean
+          key_insights?: Json
+          market?: string
+          registered_entries?: number
+          segment?: string
+          source_name?: string
+          source_url?: string
+          survey_year?: number
+          total_ranked?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_career_profiles: {
         Row: {
           age_group: string | null
@@ -9923,6 +10060,11 @@ export type Database = {
           schedule: string
         }[]
       }
+      get_universum_market_insight: {
+        Args: { p_organisasjonsnummer: string }
+        Returns: Json
+      }
+      get_universum_source_overview: { Args: never; Returns: Json }
       get_user_employers: {
         Args: never
         Returns: {
@@ -10937,6 +11079,26 @@ export type Database = {
       sync_user_opportunity_ai_from_legacy: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      universum_normalize_name: { Args: { p_name: string }; Returns: string }
+      universum_replace_edition_entries: {
+        Args: { p_edition_id: string; p_entries: Json }
+        Returns: number
+      }
+      universum_upsert_edition: {
+        Args: {
+          p_access_note?: string
+          p_coverage_note?: string
+          p_field: string
+          p_key_insights?: Json
+          p_market: string
+          p_segment: string
+          p_source_name: string
+          p_source_url: string
+          p_survey_year: number
+          p_total_ranked?: number
+        }
+        Returns: string
       }
     }
     Enums: {
