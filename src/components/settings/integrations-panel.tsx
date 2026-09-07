@@ -5,11 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Linkedin, Globe2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { EmailConnections } from "@/components/email-connections";
+import { GrokBotPanel } from "@/components/settings/grok-bot-panel";
 import { startLinkedInOAuth } from "@/lib/linkedin-oauth";
 import { ExternalUrlLink } from "@/components/external-url-link";
 
-export function IntegrationsPanel({ userId }: { userId: string }) {
+export function IntegrationsPanel({
+  userId,
+  autoEnsureGrok = false,
+}: {
+  userId: string;
+  autoEnsureGrok?: boolean;
+}) {
   const { data: profile } = useQuery({
     queryKey: ["profile-integrations", userId],
     enabled: !!userId,
@@ -27,7 +33,7 @@ export function IntegrationsPanel({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-6">
-      <EmailConnections />
+      <GrokBotPanel autoEnsure={autoEnsureGrok} />
       <LinkedInConnection profile={profile} />
       <JobBoardIntegrations />
     </div>
