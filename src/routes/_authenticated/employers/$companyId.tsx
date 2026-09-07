@@ -420,14 +420,22 @@ function CompanyDetailPage() {
           </div>
         </div>
       ) : envelope && analysisValidated ? (
-        <EmployerAnalysisReportV2
-          envelope={envelope}
-          mode="authenticated"
-          jobStatusSlot={jobStatusSlot}
-          candidateMatchSlot={
-            <EmployerCandidateMatch myRating={myRating} hasAnalysis={hasAnalysis} />
-          }
-        />
+        <>
+          <EmployerAnalysisReportV2
+            envelope={envelope}
+            mode="authenticated"
+            jobStatusSlot={jobStatusSlot}
+            candidateMatchSlot={
+              <EmployerCandidateMatch myRating={myRating} hasAnalysis={hasAnalysis} />
+            }
+          />
+          {/* Markedsinnsikt — vises kun ved bekreftet Universum-treff */}
+          <MarketInsightPanel
+            universum={envelope.market_insights?.universum}
+            className="mt-8"
+          />
+        </>
+
       ) : (
         <div className="space-y-4">
           <header>
