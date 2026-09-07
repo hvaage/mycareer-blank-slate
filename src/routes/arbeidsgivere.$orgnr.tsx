@@ -240,6 +240,11 @@ function DetailPage() {
           </p>
         )}
 
+        {/* Markedsinnsikt — vises kun ved bekreftet Universum-treff */}
+        <MarketInsightPanel universum={envelope?.market_insights?.universum} />
+
+
+
         <div>
           <h3 className="mb-3 text-sm font-semibold text-foreground">Ansattes vurderinger</h3>
           <EmployeeRatingsPanel d={d} orgnr={d.organisasjonsnummer} />
