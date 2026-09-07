@@ -26,6 +26,7 @@ import { RegisterPanel } from "@/components/employers/RegisterPanel";
 import { EmployeeRatingsPanel } from "@/components/employers/EmployeeRatingsPanel";
 import { JobseekerProcessPanel } from "@/components/employers/JobseekerProcessPanel";
 import { EmployerAnalysisReportV2 } from "@/components/employers/EmployerAnalysisReportV2";
+import { MarketInsightPanel } from "@/components/employers/MarketInsightPanel";
 
 export const Route = createFileRoute("/arbeidsgivere/$orgnr")({
   loader: async ({ params, context }) => {
@@ -238,6 +239,11 @@ function DetailPage() {
             Ingen KI-analyse av denne arbeidsgiveren ennå.
           </p>
         )}
+
+        {/* Markedsinnsikt — vises kun ved bekreftet Universum-treff */}
+        <MarketInsightPanel universum={envelope?.market_insights?.universum} />
+
+
 
         <div>
           <h3 className="mb-3 text-sm font-semibold text-foreground">Ansattes vurderinger</h3>

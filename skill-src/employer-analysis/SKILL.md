@@ -87,7 +87,26 @@ Use the supplied domain and country code to identify the local branch office ent
 
 To look up registry information for the target country, consult `references/data_sources_per_country.md` and `scripts/source_registry.py`.
 
+### Step 1b (MANDATORY once legal identity is confirmed): Universum register lookup
+
+As soon as the legal employer identity (organisasjonsnummer for Norway) is confirmed,
+look it up in the Universum register via the established backend contract
+(`get_employer_analysis_view` → `market_insights.universum`, or
+`get_universum_market_insight(orgnr)` server-side).
+
+Rules:
+
+- A hit is included as sourced market insight: year, segment, field, rank,
+  trend vs. previous year, source name, source URL and fetched-at timestamp.
+- No Universum claim may be made without a register hit. Never infer, estimate or
+  carry over a ranking from a parent company, a different market or a different segment.
+- Ambiguous name matches produce no hit. Resolve ambiguity by adding an explicit
+  alias row (`universum_employer_aliases`) tied to the organisasjonsnummer — never by guessing.
+- Always label it as student preference, not a quality assessment of the employer,
+  and keep it out of the scored dimensions.
+
 ### Step 2: Run structured web research
+
 
 Run targeted web searches across the defined source categories.
 

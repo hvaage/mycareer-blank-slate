@@ -27,6 +27,7 @@ import { fmtDateTime } from "@/lib/format";
 import { normalizeAiErrorMessage, AI_UX_RATE_LIMIT } from "@/lib/ai-ux-messages";
 
 import { EmployerAnalysisReportV2 } from "@/components/employers/EmployerAnalysisReportV2";
+import { MarketInsightPanel } from "@/components/employers/MarketInsightPanel";
 import { EmployerCandidateMatch } from "@/components/employers/EmployerCandidateMatch";
 import { EmployerCommonReview } from "@/components/employers/EmployerCommonReview";
 import { employerAnalysisDocsForCompanyQuery } from "@/lib/queries/employer-analysis-docs";
@@ -420,14 +421,22 @@ function CompanyDetailPage() {
           </div>
         </div>
       ) : envelope && analysisValidated ? (
-        <EmployerAnalysisReportV2
-          envelope={envelope}
-          mode="authenticated"
-          jobStatusSlot={jobStatusSlot}
-          candidateMatchSlot={
-            <EmployerCandidateMatch myRating={myRating} hasAnalysis={hasAnalysis} />
-          }
-        />
+        <>
+          <EmployerAnalysisReportV2
+            envelope={envelope}
+            mode="authenticated"
+            jobStatusSlot={jobStatusSlot}
+            candidateMatchSlot={
+              <EmployerCandidateMatch myRating={myRating} hasAnalysis={hasAnalysis} />
+            }
+          />
+          {/* Markedsinnsikt — vises kun ved bekreftet Universum-treff */}
+          <MarketInsightPanel
+            universum={envelope.market_insights?.universum}
+            className="mt-8"
+          />
+        </>
+
       ) : (
         <div className="space-y-4">
           <header>

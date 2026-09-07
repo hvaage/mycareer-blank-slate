@@ -140,6 +140,36 @@ export type RegisterEnvelope = {
   sync?: unknown;
 };
 
+/**
+ * Universum-plassering for én arbeidsgiver.
+ *
+ * Backend returnerer denne blokken KUN ved et entydig, kildebelagt registertreff.
+ * Ukjent eller tvetydig navn gir ingen blokk — aldri et gjettet treff.
+ */
+export type UniversumMarketInsight = {
+  schema_version?: number;
+  year: number;
+  market?: string | null;
+  segment?: string | null;
+  field?: string | null;
+  rank: number;
+  previous_rank?: number | null;
+  trend_from_2025?: "up" | "down" | "unchanged" | "new" | "unknown" | string | null;
+  total_ranked?: number | null;
+  match_method?: "explicit_alias" | "normalized_legal_name" | string | null;
+  employer_name_in_ranking?: string | null;
+  source_name?: string | null;
+  source_url?: string | null;
+  access_note?: string | null;
+  fetched_at?: string | null;
+  measures?: string | null;
+  disclaimer?: string | null;
+};
+
+export type MarketInsightsEnvelope = {
+  universum?: UniversumMarketInsight | null;
+};
+
 export type EmployerAnalysisViewEnvelope = {
   schema_version?: number | string;
   organisasjonsnummer: string;
@@ -155,7 +185,10 @@ export type EmployerAnalysisViewEnvelope = {
   register: RegisterEnvelope | null;
   financials: FinancialsEnvelope | null;
   weighting: WeightingEnvelope | null;
+  /** Valgfritt og additivt. Fraværende når ingen kilde har bekreftet treff. */
+  market_insights?: MarketInsightsEnvelope | null;
 };
+
 
 async function fetchEmployerAnalysisView(
   orgnr: string,
