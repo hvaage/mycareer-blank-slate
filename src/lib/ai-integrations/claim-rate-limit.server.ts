@@ -3,7 +3,7 @@
 //
 // BEGRENSNING, UTEN PYNT: dette er en per-instans teller i minnet.
 // Den bremser gjentatt gjetting fra samme kilde mot samme
-// serverinstans, men er IKKE distribuert. En angriper som treffer
+// serverinstans, men er ikke distribuert. En angriper som treffer
 // flere instanser får tilsvarende flere forsøk.
 //
 // Robust distribuert begrensning krever egen lagring (en tabell etter
@@ -21,10 +21,25 @@ export const CLAIM_WINDOW_MS = 10 * 60_000;
 
 const attempts = new Map<string, number[]>();
 
+/**
+ * Kilde-nøkkel for begrensningen.
+ *
+ * TILLITSFORUTSETNING, UTEN PYNT: `x-forwarded-for` er bare trygg når
+ * edge/proxy foran applikasjonen *overskriver* headeren på hver innkommende
+ * forespørsel. Prosjektet kjører bak Cloudflare, som gjør nettopp det.
+ * Serveres appen en gang uten en slik edge, kan en angriper sette headeren
+ * fritt og få en ny «kilde» per forespørsel — da er begrensningen omgått.
+ *
+ * `cf-connecting-ip` settes av edge og kan ikke overstyres av klienten, men
+ * finnes bare bak Cloudflare. Finnes ingen av headerne, faller vi tilbake til
+ * `unknown`, som gir én felles bøtte for all trafikk uten kjent kilde.
+ */
 export function claimClientKey(request: Request): string {
+  const edgeIp = request.headers.get("cf-connecting-ip");
+  if (edgeIp) return edgeIp.trim();
   const xff = request.headers.get("x-forwarded-for");
   if (xff) return xff.split(",")[0]!.trim();
-  return request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "unknown";
+  return request.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 /** Returnerer true når forsøket skal avvises. Koden sendes aldri hit inn. */

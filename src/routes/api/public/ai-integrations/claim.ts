@@ -8,14 +8,20 @@
 //   - koden hashes med SHA-256; klartekst logges aldri og lagres aldri
 //   - dobbeltbruk hindres av én atomisk betinget UPDATE (compare-and-set)
 //   - alle avvisninger er generiske og røper ikke hvorfor
-//   - capabilities tas kun fra streng allowlist; effective_mode utledes server-side
+//   - capabilities fra klienten IGNORERES fullstendig. Koden beviser samtykke,
+//     ikke plattformens faktiske egenskaper. Claim lagrer alltid tomme,
+//     ubekreftede capabilities. «Forbindelsen er aktiv» er derfor ikke det
+//     samme som «egenskapene er bekreftet». Oppgradering krever en senere
+//     serverkontrollert verifisering/challenge, se
+//     docs/operations/ai-integrations-mcp-oauth-spec.md.
+//   - effective_mode utledes server-side av de (tomme) bekreftede egenskapene
 //   - user_id og integration_id fra forespørselen ignoreres alltid
 
 import { createFileRoute } from "@tanstack/react-router";
 import {
   CLAIM_REJECTION,
   parseClaimInput,
-  pickAllowedCapabilities,
+  claimCapabilities,
 } from "@/lib/ai-integrations/claim-contract";
 import { deriveEffectiveMode } from "@/lib/ai-integrations/contract";
 import { sha256Hex } from "@/lib/ai-integrations/setup-code";
@@ -47,9 +53,9 @@ export const Route = createFileRoute("/api/public/ai-integrations/claim")({
         const parsed = parseClaimInput(body);
         if (!parsed.ok) return reject();
         const { provider, code } = parsed.value;
-        const capabilities = pickAllowedCapabilities(
-          (body as Record<string, unknown>)["capabilities"],
-        );
+        // Klientens capabilities-påstand leses bevisst ikke. Ingen egenskap
+        // kan settes til true av en uautentisert klient.
+        const capabilities = claimCapabilities();
 
         const setupCodeHash = await sha256Hex(code);
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -131,6 +137,7 @@ export const Route = createFileRoute("/api/public/ai-integrations/claim")({
             effective_mode: activated.effective_mode,
             capabilities: activated.capabilities,
           },
+          capabilities_verified: false,
           integration_token: issued.token,
           token_expires_at: issued.expiresAt.toISOString(),
         });

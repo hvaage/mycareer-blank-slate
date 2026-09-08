@@ -1,37 +1,44 @@
 # Karrierenmin for ChatGPT / Codex
 
-**Pakketype:** kildepakke. MCP-serverkonfigurasjon + supplerende instruksjonsfil.
-**Status:** manuelt installérbar i dag. Ikke innsendt til noen offisiell katalog.
+**Status: design-/kildepakke. Ikke installerbar før transport og autentisering
+er implementert.**
 
-OpenAIs gjeldende offisielle kontrakt krever at kundespesifikke data og
-skrivehandlinger er autentisert. Derfor er MCP-verktøyene den bærende
-sikkerhetsmekanismen her: alle kall mot Karrierenmin går gjennom autentiserte
-verktøy med `Authorization: Bearer <integration_token>`. `INSTRUCTIONS.md`
-supplerer verktøyene med bruksregler, men er **ikke** en sikkerhetsmekanisme og
-skal aldri være eneste kontroll.
+Denne mappen inneholder ingen fungerende MCP-server og ingen fungerende plugin.
+`mcp.config.SKETCH.json` er merket som ikke-fungerende skisse fordi
+Karrierenmins nåværende endepunkter er vanlige REST-ruter uten MCP JSON-RPC,
+`tools/list` eller `tools/call`.
 
-## Installasjon
+## Tre nivåer
 
-1. Kopier `mcp.config.example.json` inn i din MCP-klientkonfigurasjon.
-2. Erstatt `https://REPLACE-WITH-YOUR-PUBLIC-HOST` med den offentlige
-   HTTPS-adressen til Karrierenmin. Ikke bruk en lokal utvikleradresse.
-3. Legg `KARRIERENMIN_INTEGRATION_TOKEN` i klientens secret-lager. Ikke i filen,
-   ikke i git, ikke i prompt.
-4. Legg innholdet i `INSTRUCTIONS.md` inn som prosjekt-/agentinstruksjon.
+1. **REST-backendkontrakt** — implementert og testet (`../common/CONTRACT.md`).
+2. **Design-/kildepakke** — denne mappen.
+3. **Installerbar MCP/plugin** — finnes ikke ennå.
 
-## Første gang
+## Planlagt autentisering
 
-Kjør verktøyet `karrierenmin_claim` med engangskoden fra Karrierenmin. Lagre
-`integration_token` i secret-lageret, og bekreft med `karrierenmin_status`.
+ChatGPT-plugin skal følge den offisielle OAuth 2.1-kontrakten for MCP:
+discovery, authorization endpoint, token endpoint, PKCE og state. Engangskoden
+fra Karrierenmin brukes **inne i** autorisasjons-/account-linking-flyten.
+ChatGPT skal ikke måtte ta imot et bearer-token fra et verktøysvar og lagre det
+som en hemmelighet — det er ikke en støttet mekanisme og beskrives derfor ikke
+som en installasjonsflyt.
 
-Verktøysemantikken er identisk med `../common/tools.json`. Sikkerhetsreglene i
-`../common/SECURITY.md` gjelder uendret.
+Full spesifikasjon: `docs/operations/ai-integrations-mcp-oauth-spec.md`.
 
-## Endepunkter
+## Capabilities
 
-| Verktøy | Kall |
+Claim bekrefter ingen egenskaper. `background_execution`, `scheduled_runs` og
+`email_forward_or_send` lagres alltid som ubekreftede ved claim, uansett hva
+klienten påstår og uansett abonnement. Bekreftelse krever en serverkontrollert
+verifisering i en senere fase.
+
+## Dagens REST-endepunkter (referanse, ikke MCP)
+
+| Handling | Kall |
 | --- | --- |
 | `karrierenmin_claim` | `POST /api/public/ai-integrations/claim` (uten token) |
 | `karrierenmin_status` | `GET /api/public/ai-integrations/v1/status` (Bearer integrasjonstoken) |
 
 Tokenet sendes kun i `Authorization`-headeren — aldri i URL, prompt eller logg.
+`INSTRUCTIONS.md` er bruksregler, ikke en sikkerhetsmekanisme, og skal aldri
+være eneste kontroll.

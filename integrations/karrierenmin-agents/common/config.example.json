@@ -1,11 +1,13 @@
 {
+  "$status": "DESIGNEKSEMPEL FOR REST-KONTRAKTEN. Ikke en kjørbar MCP- eller plugin-konfigurasjon.",
+  "$token_note": "Ingen av de fire plattformene lagrer automatisk et token returnert fra et verktøykall. Tokenet må legges inn manuelt av brukeren eller et installasjonsprogram der plattformen har et secret-lager. Har den ikke det, må brukeren selv velge trygg lagring.",
   "karrierenmin_base_url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST",
   "provider": "REPLACE-WITH-ONE-OF: grok | claude | openai | gemini",
-  "integration_token": "STORE_IN_PLATFORM_SECRET_STORE_NOT_HERE",
+  "integration_token": "LEGGES_INN_MANUELT_I_PLATTFORMENS_SECRET_LAGER_IKKE_HER",
   "capabilities_reporting": {
+    "$note": "Sendes ikke ved claim og lagres aldri fra en klientpåstand. Alle egenskaper står som ubekreftet til en serverkontrollert verifisering finnes. Aldri utledet fra abonnement — bare det installasjonen faktisk kan.",
     "background_execution": false,
     "scheduled_runs": false,
-    "email_forward_or_send": false,
-    "note": "Sett kun true for det installasjonen faktisk kan. Aldri utledet fra abonnement."
+    "email_forward_or_send": false
   }
 }

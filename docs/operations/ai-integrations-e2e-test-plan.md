@@ -9,7 +9,8 @@ hos hver leverandør. Ingenting her påstår at live-testene er kjørt.
 | --- | --- | --- |
 | Kode og claim | `src/lib/__tests__/ai-integrations-claim.test.ts` | normalisering (bindestrek/små bokstaver), formatvalidering før databasekontakt, hash av normalisert kode, utløp, capability-allowlist, server-side mode-utledning, status- og workflow-allowlist, generisk avvisning, ignorert `user_id`/`integration_id`, grunnrate |
 | Token | `src/lib/__tests__/ai-integrations-token.test.ts` | signatur, unik `jti`, endret signatur/innhold, utløpt token, feil audience, ødelagt token, manglende/for kort hemmelighet, tjenestenøkkel aldri brukt, ingen hemmelighet i tokenet |
-| Leverandørpakker | `src/lib/__tests__/ai-integrations-packages.test.ts` | samme claim/status-testvektor for alle fire pakkene, felles kontraktfiler, offentlig HTTPS-placeholder (ingen `localhost`), forbud mot token i URL/logg, faktiske capabilities, ingen oppdiktet marketplace-ID, ingen hemmeligheter i repoet |
+| Leverandørpakker | `src/lib/__tests__/ai-integrations-packages.test.ts` | samme claim/status-testvektor for alle fire pakkene, felles kontraktfiler, offentlig HTTPS-placeholder (ingen `localhost`), forbud mot token i URL/logg, eksplisitt ikke-installerbar status, ingen påstand om fungerende MCP-server, ingen påstand om automatisk tokenlagring, ingen oppdiktet marketplace-ID, ingen hemmeligheter i repoet |
+| Capabilities og robusthet | `src/lib/__tests__/ai-integrations-robustness.test.ts` | klientpåstand gir alltid tomme capabilities, ruten leser ikke capabilities, oppbrukt kode krever ny kode, koden logges aldri, kilde-IP-utledning og dokumentert `x-forwarded-for`-forutsetning |
 | Kontrakt og lagring | `ai-integrations-contract.test.ts`, `ai-integrations-put-regression.test.ts`, `ai-integrations-setup-code.test.ts` | onboarding, «Jeg vil velge senere», preferanselagring uten leverandør, bevart status/capabilities, `partial_failure`, kodeformat og utløp |
 
 Kjøres med `bunx vitest run`.
@@ -23,9 +24,24 @@ og det andre får null. Ingen ny databasefunksjon eller migrasjon var nødvendig
 Enhetstestene dekker kontrakten; selve raddisiplinen er en databasegaranti og
 kan bekreftes i live-test L1 under.
 
-## 2. Live ende-til-ende-tester (ikke kjørt — krever ekte konto)
+## 2. Live ende-til-ende-tester (SPERRET — kan ikke kjøres eller markeres bestått ennå)
 
-Hver test krever installert pakke hos leverandøren og en ekte testbruker.
+**Sperre:** ingen av de fire pakkene er installerbare. Dagens endepunkter er
+vanlige REST-ruter uten MCP-transport, og det finnes ingen plugin. Live-testene
+under **kan ikke markeres bestått** før ekte MCP-/plugin-transport med
+autentisering er implementert etter
+`docs/operations/ai-integrations-mcp-oauth-spec.md`, og pakken faktisk er
+installert hos leverandøren av en ekte testbruker.
+
+Et manuelt `curl`-kall mot REST-rutene teller ikke som bestått live-test. Det
+tester backendkontrakten, ikke integrasjonen.
+
+Forutsetninger som alle må være oppfylt før tabellen tas i bruk:
+
+1. MCP-endepunkt svarer korrekt på `initialize`, `tools/list` og `tools/call`.
+2. OAuth-discovery og autorisasjonsflyt virker for den aktuelle overflaten.
+3. Pakken er installert i klienten og autentisert gjennom den flyten.
+4. En ekte testbruker med egen Karrierenmin-konto utfører stegene.
 
 | ID | Test | Bestått når | Ikke bestått når |
 | --- | --- | --- | --- |
@@ -36,12 +52,17 @@ Hver test krever installert pakke hos leverandøren og en ekte testbruker.
 | L5 | Frakobling i Karrierenmin | neste statuskall avvises umiddelbart | agenten har fortsatt tilgang |
 | L6 | `run` med tillatt workflow | HTTP 501 `not_available`, ingen jobb opprettet | falsk suksess |
 | L7 | `run` med workflow slått av i preferansene | avvist | kjøres likevel |
-| L8 | Capabilities-rapportering | rapportert verdi = faktisk evne | verdi utledet av abonnement |
+| L8 | Capabilities etter claim | alle egenskaper står som ubekreftet, uansett hva klienten påstår | en egenskap er `true` uten fullført serverkontrollert challenge |
+| L10 | Capability-challenge (når implementert) | egenskap settes `true` først etter at serveren har observert den faktisk utført | verdi utledet av abonnement eller klientpåstand |
 | L9 | Lekkasjekontroll | verken kode eller token finnes i agentens logg, svar eller URL | funnet noe sted |
 
 ## 3. Blokkeringer
 
-- **Live E2E:** krever konto og installasjon hos alle fire leverandørene. Ikke gjort.
+- **Live E2E:** sperret. Krever ekte MCP-/plugin-transport, autentisering,
+  installasjon og konto hos leverandøren. Ingen av delene finnes. Ikke gjort.
+- **MCP:** ikke implementert. Spesifikasjon i `ai-integrations-mcp-oauth-spec.md`.
+- **Capability-verifisering:** ikke implementert. Claim lagrer alltid tomme,
+  ubekreftede egenskaper.
 - **Marketplace:** ingen av pakkene er innsendt til noen offisiell katalog.
 - **Innkommende e-post:** DNS og `INBOUND_EMAIL_DOMAIN` er ikke satt.
   Se `inbound-email-domain-setup.md`. Grensesnittet viser nøytral ventestatus.
