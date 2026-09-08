@@ -310,7 +310,11 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
                 </option>
               ))}
             </select>
+            <p className="text-xs text-muted-foreground">
+              Dette svaret brukes bare til å vise deg riktig veiledning nå. Det lagres ikke.
+            </p>
           </div>
+
 
           {setup.data?.forwarding_address ? (
             <Alert>
@@ -396,16 +400,17 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
         {/* 5. Lagre */}
         <Separator />
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => save.mutate()} disabled={!provider || save.isPending}>
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
             {save.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
-            Lagre oppsettet
+            {provider ? "Lagre oppsettet" : "Lagre e-post- og LinkedIn-valgene"}
           </Button>
           {!provider ? (
             <span className="text-xs text-muted-foreground">
-              Velg en assistent for å lagre, eller fortsett uten.
+              Du trenger ingen assistent for å lagre disse valgene.
             </span>
           ) : null}
         </div>
+
 
         {/* 6. Status */}
         {current ? (
