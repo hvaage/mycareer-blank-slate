@@ -20,3 +20,12 @@ Hent engangskode i Karrierenmin, kjør `karrierenmin_claim` én gang, lagre
 `integration_token` sikkert, og bekreft med `karrierenmin_status`.
 
 Verktøysemantikk: `../common/tools.json`. Sikkerhetsregler: `../common/SECURITY.md`.
+
+## Endepunkter
+
+| Verktøy | Kall |
+| --- | --- |
+| `karrierenmin_claim` | `POST /api/public/ai-integrations/claim` (uten token) |
+| `karrierenmin_status` | `GET /api/public/ai-integrations/v1/status` (Bearer integrasjonstoken) |
+
+Tokenet sendes kun i `Authorization`-headeren — aldri i URL, prompt eller logg.

@@ -26,3 +26,12 @@ Kjør verktøyet `karrierenmin_claim` med engangskoden fra Karrierenmin. Lagre
 
 Verktøysemantikken er identisk med `../common/tools.json`. Sikkerhetsreglene i
 `../common/SECURITY.md` gjelder uendret.
+
+## Endepunkter
+
+| Verktøy | Kall |
+| --- | --- |
+| `karrierenmin_claim` | `POST /api/public/ai-integrations/claim` (uten token) |
+| `karrierenmin_status` | `GET /api/public/ai-integrations/v1/status` (Bearer integrasjonstoken) |
+
+Tokenet sendes kun i `Authorization`-headeren — aldri i URL, prompt eller logg.
