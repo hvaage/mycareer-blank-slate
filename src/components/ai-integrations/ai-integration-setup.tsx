@@ -69,6 +69,13 @@ const CAPABILITY_TEXT: Array<{ key: keyof AiCapabilities; label: string }> = [
   { key: "email_forward_or_send", label: "Kan sende og videresende e-post" },
 ];
 
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Du må være pålogget.");
+  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+}
+
 async function authedJson(path: string, init?: RequestInit) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
