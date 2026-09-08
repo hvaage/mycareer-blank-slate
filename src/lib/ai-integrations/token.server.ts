@@ -106,7 +106,10 @@ export async function issueAgentToken(input: {
 
 export type TokenVerification =
   | { ok: true; payload: AgentTokenPayload }
-  | { ok: false; reason: "not_configured" | "malformed" | "bad_signature" | "expired" | "audience" };
+  | {
+      ok: false;
+      reason: "not_configured" | "malformed" | "bad_signature" | "expired" | "audience";
+    };
 
 export async function verifyAgentToken(
   token: string,

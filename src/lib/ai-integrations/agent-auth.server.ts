@@ -52,7 +52,11 @@ export async function authenticateAgentRequest(request: Request): Promise<AgentA
     .eq("id", verified.payload.iid)
     .maybeSingle();
 
-  if (!data || data.provider !== verified.payload.provider || data.user_id !== verified.payload.sub) {
+  if (
+    !data ||
+    data.provider !== verified.payload.provider ||
+    data.user_id !== verified.payload.sub
+  ) {
     return { error: agentFail(401, "unauthorized", "Mangler gyldig integrasjonstoken.") };
   }
   if (!isAgentUsableStatus(data.status)) {

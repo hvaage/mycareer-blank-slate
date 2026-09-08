@@ -15,9 +15,8 @@ export const Route = createFileRoute("/api/public/ai-integrations/v1/status")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const { authenticateAgentRequest } = await import(
-          "@/lib/ai-integrations/agent-auth.server"
-        );
+        const { authenticateAgentRequest } =
+          await import("@/lib/ai-integrations/agent-auth.server");
         const auth = await authenticateAgentRequest(request);
         if ("error" in auth) return auth.error;
         const { integration } = auth;

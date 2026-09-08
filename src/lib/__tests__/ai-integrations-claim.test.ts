@@ -20,7 +20,10 @@ import {
 describe("normalisering av engangskode", () => {
   it("fjerner bindestreker og mellomrom og gjør om til versaler", () => {
     const raw = generateSetupCode();
-    const messy = ` ${raw.toLowerCase().match(/.{1,4}/g)!.join("-")} `;
+    const messy = ` ${raw
+      .toLowerCase()
+      .match(/.{1,4}/g)!
+      .join("-")} `;
     expect(normalizeSetupCode(messy)).toBe(raw);
   });
 
@@ -61,7 +64,10 @@ describe("normalisering av engangskode", () => {
 describe("hash og utløp", () => {
   it("hasher normalisert kode til 64 heks-tegn", async () => {
     const raw = generateSetupCode();
-    const formatted = raw.match(/.{1,4}/g)!.join("-").toLowerCase();
+    const formatted = raw
+      .match(/.{1,4}/g)!
+      .join("-")
+      .toLowerCase();
     const a = await sha256Hex(normalizeSetupCode(formatted));
     const b = await sha256Hex(raw);
     expect(a).toBe(b);

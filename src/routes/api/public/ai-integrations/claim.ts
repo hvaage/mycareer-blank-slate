@@ -28,9 +28,8 @@ export const Route = createFileRoute("/api/public/ai-integrations/claim")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { claimClientKey, claimRateLimited } = await import(
-          "@/lib/ai-integrations/claim-rate-limit.server"
-        );
+        const { claimClientKey, claimRateLimited } =
+          await import("@/lib/ai-integrations/claim-rate-limit.server");
         if (claimRateLimited(claimClientKey(request))) {
           return Response.json(
             { ok: false, error: { code: "rate_limited", message: "For mange forsøk. Vent litt." } },

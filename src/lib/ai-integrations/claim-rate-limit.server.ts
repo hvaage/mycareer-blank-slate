@@ -24,11 +24,7 @@ const attempts = new Map<string, number[]>();
 export function claimClientKey(request: Request): string {
   const xff = request.headers.get("x-forwarded-for");
   if (xff) return xff.split(",")[0]!.trim();
-  return (
-    request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  return request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "unknown";
 }
 
 /** Returnerer true når forsøket skal avvises. Koden sendes aldri hit inn. */
@@ -37,7 +33,8 @@ export function claimRateLimited(key: string, now: number = Date.now()): boolean
   recent.push(now);
   attempts.set(key, recent);
   if (attempts.size > 5000) {
-    for (const [k, v] of attempts) if (v.every((t) => now - t >= CLAIM_WINDOW_MS)) attempts.delete(k);
+    for (const [k, v] of attempts)
+      if (v.every((t) => now - t >= CLAIM_WINDOW_MS)) attempts.delete(k);
   }
   return recent.length > CLAIM_MAX_ATTEMPTS;
 }

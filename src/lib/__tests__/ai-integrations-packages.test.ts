@@ -74,7 +74,10 @@ describe("fire likestilte installasjonspakker", () => {
 
       it("kjører samme claim-testvektor", () => {
         const code = generateSetupCode();
-        const formatted = code.match(/.{1,4}/g)!.join("-").toLowerCase();
+        const formatted = code
+          .match(/.{1,4}/g)!
+          .join("-")
+          .toLowerCase();
         const parsed = parseClaimInput({ provider, setup_code: formatted });
         expect(parsed.ok).toBe(true);
         if (!parsed.ok) return;
@@ -99,7 +102,11 @@ describe("fire likestilte installasjonspakker", () => {
 
 describe("ingen hemmeligheter i repoet", () => {
   it("pakkene inneholder ingen reelle token- eller nøkkelverdier", () => {
-    const all = [ROOT, join(ROOT, "common"), ...Object.values(PACKAGE_DIR).map((d) => join(ROOT, d))]
+    const all = [
+      ROOT,
+      join(ROOT, "common"),
+      ...Object.values(PACKAGE_DIR).map((d) => join(ROOT, d)),
+    ]
       .map(readAll)
       .join("\n");
     expect(all).not.toContain("SUPABASE_SERVICE_ROLE_KEY");

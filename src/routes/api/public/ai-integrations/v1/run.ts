@@ -9,18 +9,14 @@
 // returnerer derfor eksplisitt not_available og later ALDRI som om noe kjørte.
 
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  isAgentWorkflowKind,
-  WORKFLOW_PREFERENCE_KEY,
-} from "@/lib/ai-integrations/claim-contract";
+import { isAgentWorkflowKind, WORKFLOW_PREFERENCE_KEY } from "@/lib/ai-integrations/claim-contract";
 
 export const Route = createFileRoute("/api/public/ai-integrations/v1/run")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { authenticateAgentRequest, agentFail } = await import(
-          "@/lib/ai-integrations/agent-auth.server"
-        );
+        const { authenticateAgentRequest, agentFail } =
+          await import("@/lib/ai-integrations/agent-auth.server");
         const auth = await authenticateAgentRequest(request);
         if ("error" in auth) return auth.error;
         const { integration } = auth;

@@ -95,11 +95,13 @@ describe("integrasjonstoken", () => {
   it("utsteder ikke token uten egen hemmelighet", async () => {
     delete process.env["AI_INTEGRATION_TOKEN_SECRET"];
     expect(isTokenRuntimeConfigured()).toBe(false);
-    expect(await issueAgentToken({ integrationId: INTEGRATION, userId: USER, provider: "gemini" }))
-      .toBeNull();
+    expect(
+      await issueAgentToken({ integrationId: INTEGRATION, userId: USER, provider: "gemini" }),
+    ).toBeNull();
     process.env["AI_INTEGRATION_TOKEN_SECRET"] = "for-kort";
-    expect(await issueAgentToken({ integrationId: INTEGRATION, userId: USER, provider: "gemini" }))
-      .toBeNull();
+    expect(
+      await issueAgentToken({ integrationId: INTEGRATION, userId: USER, provider: "gemini" }),
+    ).toBeNull();
   });
 
   it("bruker aldri tjenestenøkkelen til signering", async () => {
