@@ -11,7 +11,7 @@ utarbeidelsen, og pakken er derfor bevisst konservativ og portabel.
 1. Legg innholdet i `CLAUDE.md` inn som prosjektinstruksjon.
 2. Kopier `mcp.config.example.json` inn i din MCP-konfigurasjon og bytt
    `https://REPLACE-WITH-YOUR-PUBLIC-HOST` til den offentlige HTTPS-adressen.
-   Ikke bruk `localhost`.
+   Ikke bruk en lokal utvikleradresse.
 3. Legg `KARRIERENMIN_INTEGRATION_TOKEN` i plattformens secret-lager.
 
 ## Første gang

@@ -14,7 +14,7 @@ skal aldri være eneste kontroll.
 
 1. Kopier `mcp.config.example.json` inn i din MCP-klientkonfigurasjon.
 2. Erstatt `https://REPLACE-WITH-YOUR-PUBLIC-HOST` med den offentlige
-   HTTPS-adressen til Karrierenmin. Ikke bruk `localhost`.
+   HTTPS-adressen til Karrierenmin. Ikke bruk en lokal utvikleradresse.
 3. Legg `KARRIERENMIN_INTEGRATION_TOKEN` i klientens secret-lager. Ikke i filen,
    ikke i git, ikke i prompt.
 4. Legg innholdet i `INSTRUCTIONS.md` inn som prosjekt-/agentinstruksjon.
