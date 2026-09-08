@@ -150,13 +150,11 @@ export const suggestOccupationMatch = createServerFn({ method: "POST" })
       .filter(Boolean)
       .join("\n");
 
-    const { callClaude } = await import("../../supabase/functions/_shared/claude/client.ts");
-    const result = await callClaude({
+    const result = await callModel({
       profile,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
       correlationId: crypto.randomUUID(),
-      runtime: { apiKey },
     });
 
     if (!result.ok) return { ok: false, errorCode: "model_error", items: [] };
