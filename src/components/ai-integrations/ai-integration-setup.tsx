@@ -342,12 +342,12 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
             <Alert>
               <Info className="h-4 w-4" aria-hidden />
               <AlertDescription className="text-sm">
-                Direkte tilkobling til e-postkontoen din kommer i neste steg. Da får du enten en
-                sikker tilkobling til {emailProvider === "microsoft" ? "Outlook" : "e-posten din"}{" "}
-                eller en privat videresendingsadresse du sender jobbvarsler til.
+                Du har ingen privat importadresse ennå. Vi setter den opp for deg, og den vises her
+                så snart den er klar til bruk. Du trenger ikke gjøre noe i mellomtiden.
               </AlertDescription>
             </Alert>
           )}
+
 
           <div className="space-y-3">
             <ToggleRow
