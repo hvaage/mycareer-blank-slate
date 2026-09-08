@@ -100,3 +100,29 @@ WHERE jobname IN (
 | WARN 0029 authenticated SECURITY DEFINER | 76 | 76 | Samme. |
 
 Performance Advisor: de fire FK-indeksene er tatt med nettopp for å unngå «unindexed foreign key»-funn. Eventuelle nye funn på de fem tabellene skal vurderes som reelle.
+
+## E. Funn etter produksjonskjøring: default privileges og korrigering (2026-09-08)
+
+Migrasjonen `20260908140601_ai_integration_foundation.sql` ble kjørt i produksjon og committet uten feil. Etterkontrollen avdekket at databasens **default privileges** i `public` gir `anon` og `authenticated` bredere rettigheter på nyopprettede tabeller enn migrasjonens egne GRANT-linjer. Migrasjonen inneholdt ingen REVOKE, og de fem nye tabellene fikk derfor mer tilgang enn tiltenkt — blant annet radnivåtilgang for `anon` og full UPDATE (ikke kolonnebegrenset) for `authenticated` på `career_log_suggestions`.
+
+**Korrigering:** egen migrasjon `harden_ai_integration_grants` (registrert som `20260908172214`), avgrenset til de fem AI-tabellene:
+
+1. `REVOKE ALL PRIVILEGES ON TABLE ... FROM PUBLIC, anon, authenticated` på alle fem.
+2. `GRANT ALL ... TO service_role` på alle fem.
+3. `authenticated`: SELECT på `ai_integrations`, `automation_runs` og `career_log_suggestions`; SELECT/INSERT/UPDATE/DELETE på `automation_preferences`; `UPDATE (status, title, summary, occurred_on, reviewed_at)` på `career_log_suggestions`.
+4. Ingen rettigheter til `anon`. Ingen rettigheter til `authenticated` på `ai_integration_setup_sessions`.
+5. RLS-policyer og globale default privileges uendret.
+
+De samme REVOKE-linjene er lagt inn i grunnmigrasjonen før GRANT-linjene, slik at nye miljøer blir riktige uten korrigeringsmigrasjonen. Korrigeringsmigrasjonen beholdes for miljøer der grunnmigrasjonen allerede er kjørt.
+
+### Rettighetsmatrise etter korrigering
+
+| Tabell | anon | authenticated | service_role |
+| --- | --- | --- | --- |
+| ai_integrations | ingen | SELECT | ALL |
+| ai_integration_setup_sessions | ingen | ingen | ALL |
+| automation_preferences | ingen | SELECT, INSERT, UPDATE, DELETE | ALL |
+| automation_runs | ingen | SELECT | ALL |
+| career_log_suggestions | ingen | SELECT + UPDATE(status, title, summary, occurred_on, reviewed_at) | ALL |
+
+Retesten med to eksisterende testbrukere (34 kontrollpunkter: eierskapsisolasjon, kolonnegrant, kryssbrukerforsøk, anon-tilgang, service_role-tilgang, constraints og v1-låser) ga PASS på alle punkter, og all testdata ble fjernet i samme transaksjon.

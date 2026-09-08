@@ -170,6 +170,14 @@ ALTER TABLE public.automation_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.automation_runs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.career_log_suggestions ENABLE ROW LEVEL SECURITY;
 
+-- Eksplisitt tilbaketrekking foer begrensede grants, slik at generoese
+-- default privileges i nye miljoeer ikke gir anon/authenticated for mye.
+REVOKE ALL PRIVILEGES ON TABLE public.ai_integrations FROM PUBLIC, anon, authenticated;
+REVOKE ALL PRIVILEGES ON TABLE public.ai_integration_setup_sessions FROM PUBLIC, anon, authenticated;
+REVOKE ALL PRIVILEGES ON TABLE public.automation_preferences FROM PUBLIC, anon, authenticated;
+REVOKE ALL PRIVILEGES ON TABLE public.automation_runs FROM PUBLIC, anon, authenticated;
+REVOKE ALL PRIVILEGES ON TABLE public.career_log_suggestions FROM PUBLIC, anon, authenticated;
+
 GRANT SELECT ON public.ai_integrations TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.automation_preferences TO authenticated;
 GRANT SELECT ON public.automation_runs TO authenticated;
