@@ -129,6 +129,7 @@ import { Route as AuthenticatedNettverkMuligheterIdRouteImport } from './routes/
 import { Route as AuthenticatedNettverkKontakterImportRouteImport } from './routes/_authenticated/nettverk.kontakter.import'
 import { Route as AuthenticatedNettverkKontakterIdRouteImport } from './routes/_authenticated/nettverk.kontakter.$id'
 import { Route as ApiPublicAiIntegrationsV1StatusRouteImport } from './routes/api/public/ai-integrations/v1/status'
+import { Route as ApiPublicAiIntegrationsV1RunRouteImport } from './routes/api/public/ai-integrations/v1/run'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -809,6 +810,12 @@ const ApiPublicAiIntegrationsV1StatusRoute =
     path: '/api/public/ai-integrations/v1/status',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicAiIntegrationsV1RunRoute =
+  ApiPublicAiIntegrationsV1RunRouteImport.update({
+    id: '/api/public/ai-integrations/v1/run',
+    path: '/api/public/ai-integrations/v1/run',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -929,6 +936,7 @@ export interface FileRoutesByFullPath {
   '/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
   '/nettverk/muligheter/': typeof AuthenticatedNettverkMuligheterIndexRoute
   '/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
+  '/api/public/ai-integrations/v1/run': typeof ApiPublicAiIntegrationsV1RunRoute
   '/api/public/ai-integrations/v1/status': typeof ApiPublicAiIntegrationsV1StatusRoute
 }
 export interface FileRoutesByTo {
@@ -1046,6 +1054,7 @@ export interface FileRoutesByTo {
   '/nettverk/kontakter': typeof AuthenticatedNettverkKontakterIndexRoute
   '/nettverk/muligheter': typeof AuthenticatedNettverkMuligheterIndexRoute
   '/nettverk/selskaper': typeof AuthenticatedNettverkSelskaperIndexRoute
+  '/api/public/ai-integrations/v1/run': typeof ApiPublicAiIntegrationsV1RunRoute
   '/api/public/ai-integrations/v1/status': typeof ApiPublicAiIntegrationsV1StatusRoute
 }
 export interface FileRoutesById {
@@ -1169,6 +1178,7 @@ export interface FileRoutesById {
   '/_authenticated/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
   '/_authenticated/nettverk/muligheter/': typeof AuthenticatedNettverkMuligheterIndexRoute
   '/_authenticated/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
+  '/api/public/ai-integrations/v1/run': typeof ApiPublicAiIntegrationsV1RunRoute
   '/api/public/ai-integrations/v1/status': typeof ApiPublicAiIntegrationsV1StatusRoute
 }
 export interface FileRouteTypes {
@@ -1292,6 +1302,7 @@ export interface FileRouteTypes {
     | '/nettverk/kontakter/'
     | '/nettverk/muligheter/'
     | '/nettverk/selskaper/'
+    | '/api/public/ai-integrations/v1/run'
     | '/api/public/ai-integrations/v1/status'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -1409,6 +1420,7 @@ export interface FileRouteTypes {
     | '/nettverk/kontakter'
     | '/nettverk/muligheter'
     | '/nettverk/selskaper'
+    | '/api/public/ai-integrations/v1/run'
     | '/api/public/ai-integrations/v1/status'
   id:
     | '__root__'
@@ -1531,6 +1543,7 @@ export interface FileRouteTypes {
     | '/_authenticated/nettverk/kontakter/'
     | '/_authenticated/nettverk/muligheter/'
     | '/_authenticated/nettverk/selskaper/'
+    | '/api/public/ai-integrations/v1/run'
     | '/api/public/ai-integrations/v1/status'
   fileRoutesById: FileRoutesById
 }
@@ -1570,6 +1583,7 @@ export interface RootRouteChildren {
   ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
   ApiPublicSyncBrregEnheterRoute: typeof ApiPublicSyncBrregEnheterRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
+  ApiPublicAiIntegrationsV1RunRoute: typeof ApiPublicAiIntegrationsV1RunRoute
   ApiPublicAiIntegrationsV1StatusRoute: typeof ApiPublicAiIntegrationsV1StatusRoute
 }
 
@@ -2415,6 +2429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAiIntegrationsV1StatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ai-integrations/v1/run': {
+      id: '/api/public/ai-integrations/v1/run'
+      path: '/api/public/ai-integrations/v1/run'
+      fullPath: '/api/public/ai-integrations/v1/run'
+      preLoaderRoute: typeof ApiPublicAiIntegrationsV1RunRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -2718,6 +2739,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicSelskapsanalysePreviewEmailRoute,
   ApiPublicSyncBrregEnheterRoute: ApiPublicSyncBrregEnheterRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
+  ApiPublicAiIntegrationsV1RunRoute: ApiPublicAiIntegrationsV1RunRoute,
   ApiPublicAiIntegrationsV1StatusRoute: ApiPublicAiIntegrationsV1StatusRoute,
 }
 export const routeTree = rootRouteImport
