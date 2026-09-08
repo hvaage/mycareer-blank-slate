@@ -37,6 +37,16 @@ export const AI_STATUSES = ["draft", "connecting", "active", "degraded", "discon
 export type AiStatus = (typeof AI_STATUSES)[number];
 
 /**
+ * Status settes til «connecting» kun for en ny integrasjon eller når en
+ * tidligere frakoblet integrasjon kobles til på nytt. Ellers beholdes
+ * eksisterende status uendret — endret abonnement er ikke ny tilkobling.
+ */
+export function nextIntegrationStatus(existingStatus: string | null | undefined): string {
+  if (!existingStatus || existingStatus === "disconnected") return "connecting";
+  return existingStatus;
+}
+
+/**
  * Bekreftede egenskaper. Settes kun av verifisering mot leverandøren,
  * aldri av brukerens egen beskrivelse av abonnementet.
  */
@@ -107,7 +117,11 @@ export const DEFAULT_AUTOMATION_CHOICES: AutomationChoices = {
 };
 
 export type SaveIntegrationInput = {
-  provider: AiProvider;
+  /**
+   * null betyr «jeg vil velge senere». Da lagres bare automatiseringsvalgene,
+   * og det opprettes ingen rad i ai_integrations.
+   */
+  provider: AiProvider | null;
   plan_tier: AiPlanTier;
   automation: AutomationChoices;
 };
@@ -132,9 +146,16 @@ export function parseSaveIntegrationInput(body: unknown): ValidationResult {
   }
   const input = body as Record<string, unknown>;
 
-  const provider = input["provider"];
-  if (typeof provider !== "string" || !(AI_PROVIDERS as readonly string[]).includes(provider)) {
-    return { ok: false, error: "Velg en gyldig assistent." };
+  const providerRaw = input["provider"];
+  let provider: AiProvider | null = null;
+  if (providerRaw !== undefined && providerRaw !== null) {
+    if (
+      typeof providerRaw !== "string" ||
+      !(AI_PROVIDERS as readonly string[]).includes(providerRaw)
+    ) {
+      return { ok: false, error: "Velg en gyldig assistent." };
+    }
+    provider = providerRaw as AiProvider;
   }
 
   const planTier = input["plan_tier"] ?? "unknown";
@@ -157,7 +178,7 @@ export function parseSaveIntegrationInput(body: unknown): ValidationResult {
   return {
     ok: true,
     value: {
-      provider: provider as AiProvider,
+      provider,
       plan_tier: planTier as AiPlanTier,
       automation: {
         job_email_import_enabled: readBoolean(
@@ -208,7 +229,16 @@ export function isSetupCodeExpired(expiresAt: string | Date, now: Date = new Dat
   return !(exp.getTime() > now.getTime());
 }
 
-/** E-postleverandører vi viser i oppsettet. Kalender vises aldri som datakilde. */
+/**
+ * E-postleverandører vi viser i oppsettet. Kalender vises aldri som datakilde.
+ *
+ * FASE 1 — IKKE-PERSISTENT: dette valget lagres ikke. Gjeldende skjema har
+ * ingen egnet plass for det: `email_connections` krever en reell tilkoblet
+ * konto (e-postadresse + token) og dekker bare google/microsoft, mens
+ * `email_job_sources` beskriver en faktisk inntakskilde. Valget styrer derfor
+ * kun veiledningsteksten i grensesnittet, og sendes bevisst ikke til backend.
+ * Skal det lagres, krever det en egen migrasjon i en senere fase.
+ */
 export const EMAIL_PROVIDER_OPTIONS = [
   { value: "gmail", label: "Gmail" },
   { value: "microsoft", label: "Outlook / Microsoft 365" },
@@ -216,5 +246,8 @@ export const EMAIL_PROVIDER_OPTIONS = [
   { value: "other", label: "Annen e-postleverandør" },
   { value: "multiple", label: "Flere kontoer" },
 ] as const;
+
+/** Fase 1: e-postleverandørvalget lagres ikke. Brukes i UI-tekst og tester. */
+export const EMAIL_PROVIDER_CHOICE_IS_PERSISTED = false;
 
 export type EmailProviderChoice = (typeof EMAIL_PROVIDER_OPTIONS)[number]["value"];

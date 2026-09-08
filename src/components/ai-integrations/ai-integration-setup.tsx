@@ -69,6 +69,13 @@ const CAPABILITY_TEXT: Array<{ key: keyof AiCapabilities; label: string }> = [
   { key: "email_forward_or_send", label: "Kan sende og videresende e-post" },
 ];
 
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Du må være pålogget.");
+  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+}
+
 async function authedJson(path: string, init?: RequestInit) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -124,15 +131,27 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!provider) throw new Error("Velg en assistent først.");
-      return await authedJson("/api/ai-integrations", {
+      // provider = null er gyldig: da lagres bare e-post- og LinkedIn-valgene.
+      // E-postleverandørvalget sendes bevisst ikke — det lagres ikke i fase 1.
+      const res = await fetch("/api/ai-integrations", {
         method: "PUT",
+        headers: await authHeaders(),
         body: JSON.stringify({ provider, plan_tier: planTier, automation }),
       });
+      const json = await res.json().catch(() => null);
+      if (json?.error?.code === "partial_failure") {
+        return { partial: true, message: json.error.message as string };
+      }
+      if (!res.ok || !json?.ok)
+        throw new Error(json?.error?.message ?? "Handlingen kunne ikke utføres.");
+      return { partial: false, message: "" };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // Ved delvis lagring hentes fersk tilstand, slik at UI aldri viser mer enn det som faktisk ble lagret.
       queryClient.invalidateQueries({ queryKey: ["ai-integration-setup"] });
-      toast.success("Oppsettet er lagret");
+      if (result.partial) toast.warning(result.message);
+      else if (provider) toast.success("Oppsettet er lagret");
+      else toast.success("E-post- og LinkedIn-valgene dine er lagret");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -291,6 +310,9 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
                 </option>
               ))}
             </select>
+            <p className="text-xs text-muted-foreground">
+              Dette svaret brukes bare til å vise deg riktig veiledning nå. Det lagres ikke.
+            </p>
           </div>
 
           {setup.data?.forwarding_address ? (
@@ -377,13 +399,13 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
         {/* 5. Lagre */}
         <Separator />
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => save.mutate()} disabled={!provider || save.isPending}>
+          <Button onClick={() => save.mutate()} disabled={save.isPending}>
             {save.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
-            Lagre oppsettet
+            {provider ? "Lagre oppsettet" : "Lagre e-post- og LinkedIn-valgene"}
           </Button>
           {!provider ? (
             <span className="text-xs text-muted-foreground">
-              Velg en assistent for å lagre, eller fortsett uten.
+              Du trenger ingen assistent for å lagre disse valgene.
             </span>
           ) : null}
         </div>
