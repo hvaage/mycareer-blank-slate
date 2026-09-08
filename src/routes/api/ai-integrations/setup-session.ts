@@ -47,12 +47,21 @@ export const Route = createFileRoute("/api/ai-integrations/setup-session")({
           return apiFail(404, "not_found", "Sett opp assistenten før du lager en kode.");
         }
 
-        await supabaseAdmin
+        // Ny kode lages ALDRI før gamle koder faktisk er invalidert.
+        const { error: invalidateError } = await supabaseAdmin
           .from("ai_integration_setup_sessions")
           .update({ consumed_at: new Date().toISOString() })
           .eq("user_id", userId)
           .eq("ai_integration_id", integration.id)
           .is("consumed_at", null);
+
+        if (invalidateError) {
+          return apiFail(
+            500,
+            "database_error",
+            "Kunne ikke låse gamle koder. Ingen ny kode ble laget. Prøv igjen.",
+          );
+        }
 
         const code = generateSetupCode();
         const expiresAt = setupCodeExpiry();

@@ -124,15 +124,27 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
 
   const save = useMutation({
     mutationFn: async () => {
-      if (!provider) throw new Error("Velg en assistent først.");
-      return await authedJson("/api/ai-integrations", {
+      // provider = null er gyldig: da lagres bare e-post- og LinkedIn-valgene.
+      // E-postleverandørvalget sendes bevisst ikke — det lagres ikke i fase 1.
+      const res = await fetch("/api/ai-integrations", {
         method: "PUT",
+        headers: await authHeaders(),
         body: JSON.stringify({ provider, plan_tier: planTier, automation }),
       });
+      const json = await res.json().catch(() => null);
+      if (json?.error?.code === "partial_failure") {
+        return { partial: true, message: json.error.message as string };
+      }
+      if (!res.ok || !json?.ok)
+        throw new Error(json?.error?.message ?? "Handlingen kunne ikke utføres.");
+      return { partial: false, message: "" };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // Ved delvis lagring hentes fersk tilstand, slik at UI aldri viser mer enn det som faktisk ble lagret.
       queryClient.invalidateQueries({ queryKey: ["ai-integration-setup"] });
-      toast.success("Oppsettet er lagret");
+      if (result.partial) toast.warning(result.message);
+      else if (provider) toast.success("Oppsettet er lagret");
+      else toast.success("E-post- og LinkedIn-valgene dine er lagret");
     },
     onError: (e: Error) => toast.error(e.message),
   });
