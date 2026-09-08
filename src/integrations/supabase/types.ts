@@ -11449,6 +11449,60 @@ export type Database = {
         Returns: boolean
       }
       oauth_is_valid_uri_set: { Args: { p_uris: string[] }; Returns: boolean }
+      oauth_redeem_authorization_code: {
+        Args: {
+          p_client_row_id: string
+          p_code_challenge: string
+          p_code_hash: string
+          p_redirect_uri: string
+          p_refresh_expires_at: string
+          p_refresh_token_hash: string
+        }
+        Returns: {
+          ai_integration_id: string
+          family_id: string
+          grant_id: string
+          ok: boolean
+          reason: string
+          scopes: string[]
+          user_id: string
+        }[]
+      }
+      oauth_revoke_grants: {
+        Args: {
+          p_ai_integration_id: string
+          p_grant_id: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: {
+          revoked_grants: number
+          revoked_tokens: number
+        }[]
+      }
+      oauth_revoke_refresh_token: {
+        Args: { p_client_row_id: string; p_token_hash: string }
+        Returns: {
+          revoked: number
+        }[]
+      }
+      oauth_rotate_refresh_token: {
+        Args: {
+          p_client_row_id: string
+          p_new_expires_at: string
+          p_new_token_hash: string
+          p_token_hash: string
+        }
+        Returns: {
+          ai_integration_id: string
+          family_id: string
+          grant_id: string
+          ok: boolean
+          reason: string
+          scopes: string[]
+          user_id: string
+        }[]
+      }
       opportunity_fingerprint: {
         Args: { p_company: string; p_location: string; p_title: string }
         Returns: string

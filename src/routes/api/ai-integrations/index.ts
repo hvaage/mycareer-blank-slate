@@ -40,7 +40,6 @@ async function readForwardingAddress(
   return { address: `${token}@${domain}`, intake_status: "ready" };
 }
 
-
 export const Route = createFileRoute("/api/ai-integrations/")({
   server: {
     handlers: {
@@ -73,7 +72,6 @@ export const Route = createFileRoute("/api/ai-integrations/")({
           forwarding_address: intake.address,
           email_intake_status: intake.intake_status,
         });
-
       },
 
       PUT: async ({ request }) => {
@@ -224,6 +222,22 @@ export const Route = createFileRoute("/api/ai-integrations/")({
             .eq("user_id", userId)
             .eq("ai_integration_id", updated.id)
             .is("consumed_at", null);
+
+          // Frakobling trekker også alle OAuth-tilganger og fornyelsesnøkler
+          // for denne integrasjonen. Én atomisk databaseoperasjon.
+          const { error: revokeError } = await supabaseAdmin.rpc("oauth_revoke_grants", {
+            p_grant_id: null,
+            p_ai_integration_id: updated.id,
+            p_user_id: userId,
+            p_reason: "integration_disconnected",
+          });
+          if (revokeError) {
+            return apiFail(
+              500,
+              "partial_disconnect",
+              "Assistenten er koblet fra, men vi klarte ikke å trekke tilbake alle tilganger. Prøv igjen.",
+            );
+          }
         }
 
         return Response.json({ ok: true });

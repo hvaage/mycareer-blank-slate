@@ -77,6 +77,25 @@ function AuthCallback() {
           return;
         }
 
+        // Kom brukeren hit midt i en tilkobling av en KI-assistent, sendes
+        // hen tilbake dit. Tilstanden er signert og verifiseres server-side
+        // mot en allowliste — aldri en rå adresse fra nettleseren.
+        const pendingOauth = sessionStorage.getItem("km_oauth_return");
+        if (pendingOauth) {
+          sessionStorage.removeItem("km_oauth_return");
+          const resolved = await fetch("/api/public/oauth/return", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ state: pendingOauth }),
+          })
+            .then((r) => r.json())
+            .catch(() => null);
+          if (!cancelled && resolved?.ok && typeof resolved.path === "string") {
+            window.location.assign(resolved.path);
+            return;
+          }
+        }
+
         const target = await getPostLoginRedirect(userId);
         if (cancelled) return;
         navigate({ to: target, replace: true });

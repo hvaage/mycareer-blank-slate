@@ -25,6 +25,7 @@ import { Route as RekruttererundersokelseIndexRouteImport } from './routes/rekru
 import { Route as ArbeidsgivereIndexRouteImport } from './routes/arbeidsgivere.index'
 import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
 import { Route as RekruttererundersokelseTakkRouteImport } from './routes/rekruttererundersokelse.takk'
+import { Route as OauthAuthorizeRouteImport } from './routes/oauth.authorize'
 import { Route as AuthNyttPassordRouteImport } from './routes/auth.nytt-passord'
 import { Route as AuthLinkedinCallbackRouteImport } from './routes/auth.linkedin-callback'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -42,6 +43,8 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCoverLettersRouteImport } from './routes/_authenticated/cover-letters'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAboutMeRouteImport } from './routes/_authenticated/about-me'
+import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
+import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known/oauth-authorization-server'
 import { Route as SelskapsanalyseAnalysedatabaseIndexRouteImport } from './routes/selskapsanalyse.analysedatabase.index'
 import { Route as RekruttererundersokelseResultaterIndexRouteImport } from './routes/rekruttererundersokelse.resultater.index'
 import { Route as ApiAiIntegrationsIndexRouteImport } from './routes/api/ai-integrations/index'
@@ -64,6 +67,7 @@ import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/s
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
+import { Route as ApiOauthConsentRouteImport } from './routes/api/oauth/consent'
 import { Route as ApiLinkedinImportsRouteImport } from './routes/api/linkedin/imports'
 import { Route as ApiInternalLinkedinReconciliationWorkerRouteImport } from './routes/api/internal/linkedin-reconciliation-worker'
 import { Route as ApiInternalLinkedinImportWorkerRouteImport } from './routes/api/internal/linkedin-import-worker'
@@ -116,6 +120,11 @@ import { Route as ApiPublicSyncBrregEnheterRouteImport } from './routes/api/publ
 import { Route as ApiPublicSelskapsanalysePreviewEmailRouteImport } from './routes/api/public/selskapsanalyse/preview-email'
 import { Route as ApiPublicSelskapsanalyseDownloadRouteImport } from './routes/api/public/selskapsanalyse/download'
 import { Route as ApiPublicOpsWatchdogRouteImport } from './routes/api/public/ops/watchdog'
+import { Route as ApiPublicOauthTokenRouteImport } from './routes/api/public/oauth/token'
+import { Route as ApiPublicOauthRevokeRouteImport } from './routes/api/public/oauth/revoke'
+import { Route as ApiPublicOauthReturnRouteImport } from './routes/api/public/oauth/return'
+import { Route as ApiPublicOauthRegisterRouteImport } from './routes/api/public/oauth/register'
+import { Route as ApiPublicOauthPrepareRouteImport } from './routes/api/public/oauth/prepare'
 import { Route as ApiPublicLinkedinWorkerRouteImport } from './routes/api/public/linkedin/worker'
 import { Route as ApiPublicJobsNetworkSuggestionsRouteImport } from './routes/api/public/jobs/network-suggestions'
 import { Route as ApiPublicInboundJobEmailRouteImport } from './routes/api/public/inbound/job-email'
@@ -212,6 +221,11 @@ const RekruttererundersokelseTakkRoute =
     path: '/takk',
     getParentRoute: () => RekruttererundersokelseRoute,
   } as any)
+const OauthAuthorizeRoute = OauthAuthorizeRouteImport.update({
+  id: '/oauth/authorize',
+  path: '/oauth/authorize',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthNyttPassordRoute = AuthNyttPassordRouteImport.update({
   id: '/auth/nytt-passord',
   path: '/auth/nytt-passord',
@@ -303,6 +317,18 @@ const AuthenticatedAboutMeRoute = AuthenticatedAboutMeRouteImport.update({
   path: '/about-me',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const DotwellKnownOauthProtectedResourceRoute =
+  DotwellKnownOauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownOauthAuthorizationServerRoute =
+  DotwellKnownOauthAuthorizationServerRouteImport.update({
+    id: '/.well-known/oauth-authorization-server',
+    path: '/.well-known/oauth-authorization-server',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const SelskapsanalyseAnalysedatabaseIndexRoute =
   SelskapsanalyseAnalysedatabaseIndexRouteImport.update({
     id: '/analysedatabase/',
@@ -429,6 +455,11 @@ const LovableEmailEventsRoute = LovableEmailEventsRouteImport.update({
 const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
   id: '/api/public/ingest-report',
   path: '/api/public/ingest-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOauthConsentRoute = ApiOauthConsentRouteImport.update({
+  id: '/api/oauth/consent',
+  path: '/api/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLinkedinImportsRoute = ApiLinkedinImportsRouteImport.update({
@@ -734,6 +765,31 @@ const ApiPublicOpsWatchdogRoute = ApiPublicOpsWatchdogRouteImport.update({
   path: '/api/public/ops/watchdog',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicOauthTokenRoute = ApiPublicOauthTokenRouteImport.update({
+  id: '/api/public/oauth/token',
+  path: '/api/public/oauth/token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicOauthRevokeRoute = ApiPublicOauthRevokeRouteImport.update({
+  id: '/api/public/oauth/revoke',
+  path: '/api/public/oauth/revoke',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicOauthReturnRoute = ApiPublicOauthReturnRouteImport.update({
+  id: '/api/public/oauth/return',
+  path: '/api/public/oauth/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicOauthRegisterRoute = ApiPublicOauthRegisterRouteImport.update({
+  id: '/api/public/oauth/register',
+  path: '/api/public/oauth/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicOauthPrepareRoute = ApiPublicOauthPrepareRouteImport.update({
+  id: '/api/public/oauth/prepare',
+  path: '/api/public/oauth/prepare',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicLinkedinWorkerRoute = ApiPublicLinkedinWorkerRouteImport.update({
   id: '/api/public/linkedin/worker',
   path: '/api/public/linkedin/worker',
@@ -828,6 +884,8 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -845,6 +903,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/auth/nytt-passord': typeof AuthNyttPassordRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/arbeidsgivere/': typeof ArbeidsgivereIndexRoute
@@ -893,6 +952,7 @@ export interface FileRoutesByFullPath {
   '/api/internal/linkedin-import-worker': typeof ApiInternalLinkedinImportWorkerRoute
   '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
+  '/api/oauth/consent': typeof ApiOauthConsentRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -927,6 +987,11 @@ export interface FileRoutesByFullPath {
   '/api/public/inbound/job-email': typeof ApiPublicInboundJobEmailRoute
   '/api/public/jobs/network-suggestions': typeof ApiPublicJobsNetworkSuggestionsRoute
   '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
+  '/api/public/oauth/prepare': typeof ApiPublicOauthPrepareRoute
+  '/api/public/oauth/register': typeof ApiPublicOauthRegisterRoute
+  '/api/public/oauth/return': typeof ApiPublicOauthReturnRoute
+  '/api/public/oauth/revoke': typeof ApiPublicOauthRevokeRoute
+  '/api/public/oauth/token': typeof ApiPublicOauthTokenRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -947,6 +1012,8 @@ export interface FileRoutesByTo {
   '/personvern': typeof PersonvernRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -963,6 +1030,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/auth/nytt-passord': typeof AuthNyttPassordRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/arbeidsgivere': typeof ArbeidsgivereIndexRoute
@@ -1011,6 +1079,7 @@ export interface FileRoutesByTo {
   '/api/internal/linkedin-import-worker': typeof ApiInternalLinkedinImportWorkerRoute
   '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
+  '/api/oauth/consent': typeof ApiOauthConsentRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -1045,6 +1114,11 @@ export interface FileRoutesByTo {
   '/api/public/inbound/job-email': typeof ApiPublicInboundJobEmailRoute
   '/api/public/jobs/network-suggestions': typeof ApiPublicJobsNetworkSuggestionsRoute
   '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
+  '/api/public/oauth/prepare': typeof ApiPublicOauthPrepareRoute
+  '/api/public/oauth/register': typeof ApiPublicOauthRegisterRoute
+  '/api/public/oauth/return': typeof ApiPublicOauthReturnRoute
+  '/api/public/oauth/revoke': typeof ApiPublicOauthRevokeRoute
+  '/api/public/oauth/token': typeof ApiPublicOauthTokenRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -1070,6 +1144,8 @@ export interface FileRoutesById {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
   '/_authenticated/about-me': typeof AuthenticatedAboutMeRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -1087,6 +1163,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/linkedin-callback': typeof AuthLinkedinCallbackRoute
   '/auth/nytt-passord': typeof AuthNyttPassordRoute
+  '/oauth/authorize': typeof OauthAuthorizeRoute
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/arbeidsgivere/': typeof ArbeidsgivereIndexRoute
@@ -1135,6 +1212,7 @@ export interface FileRoutesById {
   '/api/internal/linkedin-import-worker': typeof ApiInternalLinkedinImportWorkerRoute
   '/api/internal/linkedin-reconciliation-worker': typeof ApiInternalLinkedinReconciliationWorkerRoute
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
+  '/api/oauth/consent': typeof ApiOauthConsentRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
@@ -1169,6 +1247,11 @@ export interface FileRoutesById {
   '/api/public/inbound/job-email': typeof ApiPublicInboundJobEmailRoute
   '/api/public/jobs/network-suggestions': typeof ApiPublicJobsNetworkSuggestionsRoute
   '/api/public/linkedin/worker': typeof ApiPublicLinkedinWorkerRoute
+  '/api/public/oauth/prepare': typeof ApiPublicOauthPrepareRoute
+  '/api/public/oauth/register': typeof ApiPublicOauthRegisterRoute
+  '/api/public/oauth/return': typeof ApiPublicOauthReturnRoute
+  '/api/public/oauth/revoke': typeof ApiPublicOauthRevokeRoute
+  '/api/public/oauth/token': typeof ApiPublicOauthTokenRoute
   '/api/public/ops/watchdog': typeof ApiPublicOpsWatchdogRoute
   '/api/public/selskapsanalyse/download': typeof ApiPublicSelskapsanalyseDownloadRoute
   '/api/public/selskapsanalyse/preview-email': typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -1194,6 +1277,8 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
     | '/about-me'
     | '/app'
     | '/cover-letters'
@@ -1211,6 +1296,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/auth/nytt-passord'
+    | '/oauth/authorize'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
     | '/arbeidsgivere/'
@@ -1259,6 +1345,7 @@ export interface FileRouteTypes {
     | '/api/internal/linkedin-import-worker'
     | '/api/internal/linkedin-reconciliation-worker'
     | '/api/linkedin/imports'
+    | '/api/oauth/consent'
     | '/api/public/ingest-report'
     | '/lovable/email/events'
     | '/rekruttererundersokelse/resultater/full'
@@ -1293,6 +1380,11 @@ export interface FileRouteTypes {
     | '/api/public/inbound/job-email'
     | '/api/public/jobs/network-suggestions'
     | '/api/public/linkedin/worker'
+    | '/api/public/oauth/prepare'
+    | '/api/public/oauth/register'
+    | '/api/public/oauth/return'
+    | '/api/public/oauth/revoke'
+    | '/api/public/oauth/token'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1313,6 +1405,8 @@ export interface FileRouteTypes {
     | '/personvern'
     | '/signup'
     | '/sitemap.xml'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
     | '/about-me'
     | '/app'
     | '/cover-letters'
@@ -1329,6 +1423,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/auth/nytt-passord'
+    | '/oauth/authorize'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
     | '/arbeidsgivere'
@@ -1377,6 +1472,7 @@ export interface FileRouteTypes {
     | '/api/internal/linkedin-import-worker'
     | '/api/internal/linkedin-reconciliation-worker'
     | '/api/linkedin/imports'
+    | '/api/oauth/consent'
     | '/api/public/ingest-report'
     | '/lovable/email/events'
     | '/rekruttererundersokelse/resultater/full'
@@ -1411,6 +1507,11 @@ export interface FileRouteTypes {
     | '/api/public/inbound/job-email'
     | '/api/public/jobs/network-suggestions'
     | '/api/public/linkedin/worker'
+    | '/api/public/oauth/prepare'
+    | '/api/public/oauth/register'
+    | '/api/public/oauth/return'
+    | '/api/public/oauth/revoke'
+    | '/api/public/oauth/token'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1435,6 +1536,8 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/about-me'
     | '/_authenticated/app'
     | '/_authenticated/cover-letters'
@@ -1452,6 +1555,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/auth/linkedin-callback'
     | '/auth/nytt-passord'
+    | '/oauth/authorize'
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
     | '/arbeidsgivere/'
@@ -1500,6 +1604,7 @@ export interface FileRouteTypes {
     | '/api/internal/linkedin-import-worker'
     | '/api/internal/linkedin-reconciliation-worker'
     | '/api/linkedin/imports'
+    | '/api/oauth/consent'
     | '/api/public/ingest-report'
     | '/lovable/email/events'
     | '/rekruttererundersokelse/resultater/full'
@@ -1534,6 +1639,11 @@ export interface FileRouteTypes {
     | '/api/public/inbound/job-email'
     | '/api/public/jobs/network-suggestions'
     | '/api/public/linkedin/worker'
+    | '/api/public/oauth/prepare'
+    | '/api/public/oauth/register'
+    | '/api/public/oauth/return'
+    | '/api/public/oauth/revoke'
+    | '/api/public/oauth/token'
     | '/api/public/ops/watchdog'
     | '/api/public/selskapsanalyse/download'
     | '/api/public/selskapsanalyse/preview-email'
@@ -1559,9 +1669,12 @@ export interface RootRouteChildren {
   SelskapsanalyseRoute: typeof SelskapsanalyseRouteWithChildren
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
+  DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   AuthNyttPassordRoute: typeof AuthNyttPassordRoute
+  OauthAuthorizeRoute: typeof OauthAuthorizeRoute
   ApiAiIntegrationsSetupSessionRoute: typeof ApiAiIntegrationsSetupSessionRoute
   ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRouteWithChildren
   ApiCvGenerationsRoute: typeof ApiCvGenerationsRouteWithChildren
@@ -1570,6 +1683,7 @@ export interface RootRouteChildren {
   ApiInternalLinkedinImportWorkerRoute: typeof ApiInternalLinkedinImportWorkerRoute
   ApiInternalLinkedinReconciliationWorkerRoute: typeof ApiInternalLinkedinReconciliationWorkerRoute
   ApiLinkedinImportsRoute: typeof ApiLinkedinImportsRoute
+  ApiOauthConsentRoute: typeof ApiOauthConsentRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
   ApiAiIntegrationsIndexRoute: typeof ApiAiIntegrationsIndexRoute
@@ -1578,6 +1692,11 @@ export interface RootRouteChildren {
   ApiPublicInboundJobEmailRoute: typeof ApiPublicInboundJobEmailRoute
   ApiPublicJobsNetworkSuggestionsRoute: typeof ApiPublicJobsNetworkSuggestionsRoute
   ApiPublicLinkedinWorkerRoute: typeof ApiPublicLinkedinWorkerRoute
+  ApiPublicOauthPrepareRoute: typeof ApiPublicOauthPrepareRoute
+  ApiPublicOauthRegisterRoute: typeof ApiPublicOauthRegisterRoute
+  ApiPublicOauthReturnRoute: typeof ApiPublicOauthReturnRoute
+  ApiPublicOauthRevokeRoute: typeof ApiPublicOauthRevokeRoute
+  ApiPublicOauthTokenRoute: typeof ApiPublicOauthTokenRoute
   ApiPublicOpsWatchdogRoute: typeof ApiPublicOpsWatchdogRoute
   ApiPublicSelskapsanalyseDownloadRoute: typeof ApiPublicSelskapsanalyseDownloadRoute
   ApiPublicSelskapsanalysePreviewEmailRoute: typeof ApiPublicSelskapsanalysePreviewEmailRoute
@@ -1701,6 +1820,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RekruttererundersokelseTakkRouteImport
       parentRoute: typeof RekruttererundersokelseRoute
     }
+    '/oauth/authorize': {
+      id: '/oauth/authorize'
+      path: '/oauth/authorize'
+      fullPath: '/oauth/authorize'
+      preLoaderRoute: typeof OauthAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/nytt-passord': {
       id: '/auth/nytt-passord'
       path: '/auth/nytt-passord'
@@ -1819,6 +1945,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/about-me'
       preLoaderRoute: typeof AuthenticatedAboutMeRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-authorization-server': {
+      id: '/.well-known/oauth-authorization-server'
+      path: '/.well-known/oauth-authorization-server'
+      fullPath: '/.well-known/oauth-authorization-server'
+      preLoaderRoute: typeof DotwellKnownOauthAuthorizationServerRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/selskapsanalyse/analysedatabase/': {
       id: '/selskapsanalyse/analysedatabase/'
@@ -1972,6 +2112,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/ingest-report'
       fullPath: '/api/public/ingest-report'
       preLoaderRoute: typeof ApiPublicIngestReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/oauth/consent': {
+      id: '/api/oauth/consent'
+      path: '/api/oauth/consent'
+      fullPath: '/api/oauth/consent'
+      preLoaderRoute: typeof ApiOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/linkedin/imports': {
@@ -2336,6 +2483,41 @@ declare module '@tanstack/react-router' {
       path: '/api/public/ops/watchdog'
       fullPath: '/api/public/ops/watchdog'
       preLoaderRoute: typeof ApiPublicOpsWatchdogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/token': {
+      id: '/api/public/oauth/token'
+      path: '/api/public/oauth/token'
+      fullPath: '/api/public/oauth/token'
+      preLoaderRoute: typeof ApiPublicOauthTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/revoke': {
+      id: '/api/public/oauth/revoke'
+      path: '/api/public/oauth/revoke'
+      fullPath: '/api/public/oauth/revoke'
+      preLoaderRoute: typeof ApiPublicOauthRevokeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/return': {
+      id: '/api/public/oauth/return'
+      path: '/api/public/oauth/return'
+      fullPath: '/api/public/oauth/return'
+      preLoaderRoute: typeof ApiPublicOauthReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/register': {
+      id: '/api/public/oauth/register'
+      path: '/api/public/oauth/register'
+      fullPath: '/api/public/oauth/register'
+      preLoaderRoute: typeof ApiPublicOauthRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oauth/prepare': {
+      id: '/api/public/oauth/prepare'
+      path: '/api/public/oauth/prepare'
+      fullPath: '/api/public/oauth/prepare'
+      preLoaderRoute: typeof ApiPublicOauthPrepareRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/linkedin/worker': {
@@ -2713,9 +2895,14 @@ const rootRouteChildren: RootRouteChildren = {
   SelskapsanalyseRoute: SelskapsanalyseRouteWithChildren,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  DotwellKnownOauthAuthorizationServerRoute:
+    DotwellKnownOauthAuthorizationServerRoute,
+  DotwellKnownOauthProtectedResourceRoute:
+    DotwellKnownOauthProtectedResourceRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   AuthNyttPassordRoute: AuthNyttPassordRoute,
+  OauthAuthorizeRoute: OauthAuthorizeRoute,
   ApiAiIntegrationsSetupSessionRoute: ApiAiIntegrationsSetupSessionRoute,
   ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRouteWithChildren,
   ApiCvGenerationsRoute: ApiCvGenerationsRouteWithChildren,
@@ -2725,6 +2912,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInternalLinkedinReconciliationWorkerRoute:
     ApiInternalLinkedinReconciliationWorkerRoute,
   ApiLinkedinImportsRoute: ApiLinkedinImportsRoute,
+  ApiOauthConsentRoute: ApiOauthConsentRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailEventsRoute: LovableEmailEventsRoute,
   ApiAiIntegrationsIndexRoute: ApiAiIntegrationsIndexRoute,
@@ -2733,6 +2921,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicInboundJobEmailRoute: ApiPublicInboundJobEmailRoute,
   ApiPublicJobsNetworkSuggestionsRoute: ApiPublicJobsNetworkSuggestionsRoute,
   ApiPublicLinkedinWorkerRoute: ApiPublicLinkedinWorkerRoute,
+  ApiPublicOauthPrepareRoute: ApiPublicOauthPrepareRoute,
+  ApiPublicOauthRegisterRoute: ApiPublicOauthRegisterRoute,
+  ApiPublicOauthReturnRoute: ApiPublicOauthReturnRoute,
+  ApiPublicOauthRevokeRoute: ApiPublicOauthRevokeRoute,
+  ApiPublicOauthTokenRoute: ApiPublicOauthTokenRoute,
   ApiPublicOpsWatchdogRoute: ApiPublicOpsWatchdogRoute,
   ApiPublicSelskapsanalyseDownloadRoute: ApiPublicSelskapsanalyseDownloadRoute,
   ApiPublicSelskapsanalysePreviewEmailRoute:
