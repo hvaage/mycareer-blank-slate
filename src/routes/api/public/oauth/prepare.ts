@@ -108,7 +108,13 @@ export const Route = createFileRoute("/api/public/oauth/prepare")({
               scope,
               description: SCOPE_DESCRIPTIONS[scope] ?? scope,
             })),
-            return_state: await sealReturnState("/oauth/authorize"),
+            // Returtilstanden er signert, kortlivet og bare gyldig for
+            // ruter på allowlisten. Aldri en rå adresse fra klienten.
+            return_state: await sealReturnState(
+              typeof (body as { return_path?: unknown }).return_path === "string"
+                ? (body as { return_path: string }).return_path
+                : "/oauth/authorize",
+            ),
           },
           { headers: noStore },
         );
