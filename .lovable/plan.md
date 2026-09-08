@@ -1,131 +1,65 @@
-# Overføringsbrief — rett feilet NAV-oppdatering i ESCO
+# Forhåndskontroll før AI-integrasjonsmigrasjon (kun lesing)
 
-Kopier teksten under inn i **Hvaage/ESCO**, som eier GitHub Actions-jobben «Import NAV monthly market stats».
+Ingen endringer er gjort: ingen migrasjon, ingen kode, ingen publisering, ingen jobber stanset.
 
-## Oppdrag
+## 1. Tilbakeføring, backup og transaksjon
 
-Finn den dokumenterte rotårsaken til at workflowen **«Import NAV monthly market stats»** feilet på `main`, rett feilen i eksisterende importløype, kjør importen kontrollert og kontroller at riktig NAV-periode er publisert uten tap eller duplikater.
+| Spørsmål | Svar |
+| --- | --- |
+| Omfatter «gå tilbake til et tidligere punkt» databasen? | Nei. Den gjenoppretter kun applikasjonskode/filer. |
+| Gjenopprettes tabeller, kolonner, indekser, funksjoner, triggere, grants, RLS? | Nei. Databaseskjema forblir slik det er etter siste migrasjon. |
+| Gjenopprettes data endret/slettet etterpå? | Nei. |
+| Kan jeg lage en verifiserbar backup før migrasjon? | Delvis. Jeg kan eksportere skjemadefinisjoner (tabeller, indekser, funksjoner, triggere, policyer) og CSV-eksport av navngitte tabeller/spørringer til fil. Full databasedump er ikke tilgjengelig herfra; komplett eksport gjøres av deg i Cloud → Advanced settings → Export data. |
+| Kan hele SQL-migrasjonen kjøres i én transaksjon med rollback ved feil? | Ja, forutsatt at migrasjonen ikke bruker `CREATE INDEX CONCURRENTLY`, `VACUUM`, `CREATE DATABASE` eller endringer i pg_cron-jobber som må committes underveis. Alle planlagte objekter (5 tabeller, 9 indekser, 2 triggere, policyer, grants) er transaksjonssikre i PostgreSQL. |
 
-Varslet viser referanse `ed28d90` og «All jobs have failed». Karrierenmin.no og «Jobbkompetanse Explorer» skal ikke endres for å maskere feilen; de er kun konsumenter av ESCO-markedsdata.
+## 2. Lesende kontroller
 
-## 1. Diagnostiser før du endrer
+| Kontroll | Resultat | Status |
+| --- | --- | --- |
+| Prosjekt/database bekreftet | Prosjektets konfigurerte Lovable Cloud-database (samme instans som preview og publisert app), PostgreSQL 17.6 | PASS |
+| `public.email_job_sources` finnes | Ja | PASS |
+| Kolonnene `user_id` og `intake_mode` | Begge finnes | PASS |
+| `public.update_updated_at_column()` | Finnes, ingen argumenter, returnerer `trigger` | PASS |
+| De 5 planlagte AI-tabellene finnes fra før | Ingen av dem finnes | PASS (ingen kollisjon) |
+| De 9 planlagte indeksnavnene | Ingen finnes | PASS |
+| Triggernavn `set_ai_integrations_updated_at`, `set_automation_preferences_updated_at` | Ingen finnes | PASS |
+| Policy-navn på de 5 tabellene | Ingen finnes (tabellene finnes ikke) | PASS |
+| Duplikater `intake_mode = 'forwarding'` per bruker | 0 berørte brukere, høyeste duplikatantall 0 | PASS (unik indeks kan opprettes uten opprydding) |
+| `gen_random_uuid()` tilgjengelig | Ja. `pgcrypto` 1.3 og `uuid-ossp` 1.1 i `extensions`-skjemaet; PG17 har `gen_random_uuid()` innebygd | PASS |
+| Migrasjonsregister (siste 5 versjoner) | 20260907065414, 20260907065308, 20260903132533, 20260903125733, 20260903122434 | PASS (uendret) |
 
-1. Finn workflowfilen med visningsnavn «Import NAV monthly market stats» og kjøringen som svarer til `ed28d90`.
-2. Les komplett logg for alle feilede steg. Finn den **første reelle feilen**, ikke bare avsluttende exit code.
-3. Rapporter jobb, steg, kommando, stack trace/HTTP-/databasefeil og om feilen oppstod ved uthenting, parsing, transformasjon eller skriving.
-4. Sammenlign med siste vellykkede kjøring: kode, avhengigheter, runtime, inputformat og periode.
-5. Ikke gjør en spekulativ endring. Hvis den konkrete loggen ikke kan hentes, avslutt `BLOCKED` med nøyaktig manglende tilgang eller logg.
+Ingen FAIL. Ingen blokkeringer funnet for de planlagte objektene.
 
-## 2. Kontroller datatilstanden før retting
+## 3. Aktive jobber som må vurderes stanset under migrasjonen
 
-Kontroller uten å mutere data:
+Aktive: `nav-sync-30min` (*/30), `careerjet-sync-6h`, `rydd-cron-logg` (04:00), `regnskap-sync-15min` (13,28,43,58), `ops-watchdog-hourly`, `brreg-enheter-full-start` (1. og 15. kl. 03), `brreg-enheter-full-driver` (*/5 den 1.–3./15.–17.), `network-suggestions-worker-1min` (hvert minutt), `network-suggestions-reaper-5min`, `careerjet-purge-60d` (03:20).
 
-- NAV-kilde og periode jobben forsøkte å importere
-- sist fullførte periode
-- om den feilede kjøringen skrev alt, deler eller ingenting
-- radantall per berørt datasett
-- delvise eller dupliserte rader på naturlig nøkkel/kildeidentitet
-- importstatus og siste sikre cursor/checkpoint, dersom det finnes
-- om offentlige markeds-RPC-er fortsatt leverer forrige komplette datasett
+Allerede inaktive: `linkedin-import-worker`, `linkedin-import-reaper`.
 
-Ikke slett eller nullstill tidligere gyldige markedsdata.
+Anbefalt stansliste før migrasjon (minutt-/femminuttsjobber som holder lange transaksjoner eller skriver tungt): `network-suggestions-worker-1min`, `network-suggestions-reaper-5min`, `regnskap-sync-15min`, `brreg-enheter-full-driver`, `nav-sync-30min`. Øvrige jobber kan stå så lenge migrasjonen ikke faller sammen med deres tidsvindu.
 
-## 3. Rett kun bekreftet feilklasse
+## 4. Advisor-status (lesende)
 
-Undersøk relevante kontrollpunkter, men konkluder bare ut fra loggbevis:
+Eksisterende funn, alle fra før og uten relasjon til de planlagte AI-objektene:
+- 15 × RLS aktivert uten policy (INFO)
+- 1 × funksjon uten fast `search_path` (WARN)
+- 2 × utvidelse i `public` (WARN)
+- 16 × SECURITY DEFINER kallbar av `anon` (WARN) — dekket av det dokumenterte unntaket i `docs/sikkerhetsminne.md`
+- 76 × SECURITY DEFINER kallbar av innlogget (WARN) — samme dokumenterte unntak
 
-- **NAV-kilde:** URL, redirect, statuskode, autentisering, rate limit eller timeout.
-- **Format:** encoding/BOM, skilletegn, kolonnenavn, dato-/tallformat eller obligatoriske felt.
-- **Database:** skjema/type, constraint, timeout/lås, grant/RLS eller RPC-signatur.
-- **Kapasitet:** CPU/minne/tid, for store batcher eller rad-for-rad-skriving.
-- **Workflow:** action/runtime/avhengighet, working directory, filsti eller installsteg.
+Nye AI-objekter: ingen funn, siden ingen av dem finnes ennå.
 
-Krav til rettingen:
+## 5. Anbefalt backup-/rollbackmetode
 
-- Gjenbruk eksisterende importløype; ikke bygg en parallell pipeline.
-- Retry skal være idempotent og ikke lage duplikater.
-- Ved kapasitetsfeil: bruk avgrensede batcher og lagret resume-state; flytt checkpoint først når hele batchen er skrevet.
-- Ved formatfeil: valider obligatoriske felt og gi trygg diagnostikk uten å logge sensitivt råinnhold.
-- Ved transiente nettverksfeil: kontrollert retry/backoff. Kontrakt- og autentiseringsfeil skal feile tydelig.
-- Ved migrasjon: bruk additive, produksjonssikre endringer uten destruktiv omskriving.
-- `SECURITY DEFINER` skal ha fast `search_path`; ikke gi PUBLIC-tilgang uten dokumentert behov.
-- Bevar forrige komplette datasett dersom ny import feiler.
-- Ikke be om, vis, kopier eller logg secret-verdier.
+1. Du kjører full dataeksport i Cloud → Advanced settings → Export data rett før migrasjonen.
+2. Jeg lagrer i tillegg en skjema-øyeblikksfil (tabeller, kolonner, indekser, funksjoner, triggere, policyer, grants) som referanse for diff etterpå.
+3. Migrasjonen kjøres som én `BEGIN … COMMIT`-blokk uten `CONCURRENTLY`, slik at feil ruller alt tilbake automatisk.
+4. En eksplisitt rollback-SQL (drop av de 5 tabellene, 9 indeksene, 2 triggerne og tilhørende policyer/grants) skrives før kjøring, men først når du autoriserer det.
 
-## 4. Sikre samme feilklasse
+## 6. Neste steg (krever din godkjenning)
 
-Legg bare til vern som følger av rotårsaken:
-
-- preflight av kilde, skjema og nødvendige konfigurasjonsnavn
-- fasebaserte feilmeldinger og tellinger
-- idempotent upsert/deduplisering
-- staging/transaksjonsgrense som hindrer halvferdig publisering
-- resume-state ved kapasitetsproblem
-- run-status `started`, `completed` eller `failed`, med siste sikre checkpoint
-
-## 5. Tester
-
-Gjenskap den faktiske feilen i en målrettet test som feiler før og passerer etter rettingen. Test også:
-
-1. normal gyldig NAV-respons/fil
-2. retry av samme periode uten duplikater
-3. delvis batch etterfulgt av resume
-4. manglende obligatorisk felt publiserer ikke et halvferdig datasett
-5. relevante offentlige markeds-RPC-er svarer etter fullført import
-
-Ikke bruk bare mocks dersom feilen lå i ekstern kontrakt eller databaseoperasjon.
-
-## 6. Kontrollert ny kjøring
-
-1. Kjør canary/dry-run hvis importøren støtter det.
-2. Kjør deretter reparert workflow manuelt for samme relevante periode.
-3. Hvis gammel run ikke kan kjøres på ny kode, bruk en ny manuell kjøring med samme inngangsperiode.
-4. Ikke opprett en ekstra schedule; behold én autoritativ månedlig workflow.
-5. Overvåk til faktisk avslutning.
-
-## 7. Akseptanse
-
-Rapporter forventet og observert resultat for:
-
-- workflow, jobb og alle steg er grønne
-- import-run er `completed`, ikke bare startet
-- korrekt kildeperiode og importtid
-- hentet, lest, avvist, skrevet, oppdatert og uendret antall
-- ingen duplikater på naturlig nøkkel/kildeidentitet
-- ingen utilsiktet reduksjon i tidligere gyldige perioder
-- siste komplette periode er tilgjengelig gjennom relevante offentlige markeds-RPC-er
-- minst ett realistisk yrkesoppslag returnerer NAV-markedstall med korrekt periode og kilde
-- ingen secrets eller nøkkelverdier i logger eller klientrespons
-- neste månedlige schedule er aktiv, uten parallell schedule
-
-Exit code 0 er ikke tilstrekkelig dersom loggen inneholder feil, status ikke er fullført eller tellingene ikke stemmer.
-
-## 8. Stoppbare avvik
-
-Avslutt `BLOCKED` før muterende kjøring dersom:
-
-- den konkrete feilloggen ikke kan hentes
-- nødvendig secret mangler ved runtime
-- NAV-kontrakten ikke kan bekreftes
-- rettingen krever destruktiv sletting/overskriving av gyldige perioder
-- riktig produksjonsdatabase eller workflow ikke kan identifiseres
-- en uforklart delvis import kan forverres ved retry
-
-Oppgi bare navnet på manglende konfigurasjon, aldri verdien.
-
-## 9. Sluttrapport
-
-Svar kort og etterprøvbart:
-
-1. **Rotårsak:** første reelle feil med workflow-, jobb- og stegnavn.
-2. **Endret:** filer, migrasjoner, funksjoner og workflow-steg.
-3. **Verifisert:** tester og ny produksjonskjøring, med run-referanse.
-4. **Datakontroll:** periode og eksakte tellinger før/etter.
-5. **Drift:** neste månedlige kjøring og resterende risiko.
-6. Avslutt `GO` bare når workflow og datakontroller består; ellers `BLOCKED` med konkrete mangler.
-
-## Allerede avklart
-
-- Karrierenmin.no har bare en separat leseklient mot ESCO-data.
-- «Jobbkompetanse Explorer» har visning og RPC-kall, men ingen NAV-importjobb.
-- Rotårsaken kan ikke fastslås fra e-postskjermbildet alene; steglokken fra **Hvaage/ESCO** er nødvendig.
+Ingen av punktene under utføres før du sier fra:
+- lage skjema-øyeblikksfil
+- skrive rollback-SQL
+- stanse de fem navngitte cron-jobbene
+- kjøre selve migrasjonen
