@@ -1,13 +1,13 @@
 {
-  "$comment": "Mal. Bytt base-URL til din offentlige HTTPS-adresse. Tokenet hentes fra klientens secret-lager, aldri fra denne filen.",
-  "mcpServers": {
-    "karrierenmin": {
-      "type": "http",
-      "url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/ai-integrations/v1",
-      "headers": {
-        "Authorization": "Bearer ${KARRIERENMIN_INTEGRATION_TOKEN}"
-      },
-      "tools": ["karrierenmin_claim", "karrierenmin_status"]
-    }
+  "$status": "IKKE-FUNGERENDE SKISSE. Dette er ikke en gyldig MCP-serverkonfigurasjon. URL-en under peker på vanlige REST-ruter som ikke implementerer MCP JSON-RPC, tools/list eller tools/call. Kopieres denne inn i en MCP-klient, vil den ikke virke.",
+  "$why": "Se docs/operations/ai-integrations-mcp-oauth-spec.md for hva som må bygges før en ekte konfigurasjon kan skrives.",
+  "$auth_note": "Claim er uten token og utsteder tokenet. Et Authorization-felt på hele serverforbindelsen er derfor feil bootstrap og er fjernet. Varig autentisering for ChatGPT-plugin skal følge OAuth 2.1 med PKCE, ikke et bearer-token som klienten forventes å lagre selv.",
+  "sketch": {
+    "server_name": "karrierenmin",
+    "planned_transport": "mcp-http-jsonrpc",
+    "planned_endpoint": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp",
+    "planned_authorization": "oauth2.1+pkce",
+    "planned_tools": ["karrierenmin_status", "karrierenmin_run"],
+    "account_linking": "Engangskoden fra Karrierenmin brukes inne i autorisasjonsflyten, ikke som et verktøykall som returnerer en hemmelighet."
   }
 }
