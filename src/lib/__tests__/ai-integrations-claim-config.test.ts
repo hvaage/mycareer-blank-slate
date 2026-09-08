@@ -190,8 +190,7 @@ function fakeAtomicRpc(
     rows.push({ source_hash: args.p_source_hash, occurred_at: now });
     const attempts = rows.filter(
       (r) =>
-        r.source_hash === args.p_source_hash &&
-        r.occurred_at >= now - args.p_window_seconds * 1000,
+        r.source_hash === args.p_source_hash && r.occurred_at >= now - args.p_window_seconds * 1000,
     ).length;
     return { data: [{ allowed: attempts <= args.p_max_attempts, attempts }], error: null };
   };
@@ -231,7 +230,7 @@ describe("C. atomisk distribuert ratebegrensning", () => {
     );
     expect(src).toContain('rpc("claim_rate_check"');
     expect(src).not.toContain(".insert(");
-    expect(src).not.toContain("count: \"exact\"");
+    expect(src).not.toContain('count: "exact"');
   });
 
   it("slipper gjennom inntil grensen og stopper deretter", async () => {
