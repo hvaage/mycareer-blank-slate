@@ -1,6 +1,6 @@
 # Spesifikasjon: ekte MCP-transport og OAuth 2.1 for Karrierenmin
 
-Status: **spesifikasjon for neste leveranse. Ingenting av dette er implementert.**
+Status: **OAuth 2.1/PKCE (fase 3) er implementert. MCP-transporten er fortsatt ikke bygget. Se statusoppdateringen nederst i dokumentet.**
 
 Dagens `/api/public/ai-integrations/*` er vanlige REST-ruter. De implementerer
 ikke MCP. Denne filen beskriver hva som må bygges før noen pakke kan kalles
@@ -144,3 +144,102 @@ bekreftet.
 6. Frakobling tilbakekaller tilgang umiddelbart.
 7. Engangskode brukt i account linking kan ikke brukes to ganger.
 8. Ingen capability settes `true` uten fullført challenge.
+
+---
+
+# Statusoppdatering: fase 3 er implementert (OAuth 2.1/PKCE)
+
+Denne delen erstatter statuslinjen øverst for alt som gjelder OAuth. **MCP-
+transporten (punkt 1) er fortsatt ikke bygget.** OAuth-laget under er
+implementert, testet og migrasjonen er anvendt. Ingen publisering er gjort, og
+det finnes ingen verifisert ende-til-ende-test mot en faktisk leverandør.
+
+## Implementert
+
+| Del | Rute/fil | Status |
+| --- | --- | --- |
+| Protected-resource metadata | `src/routes/[.]well-known/oauth-protected-resource.ts` | ferdig |
+| Authorization-server metadata | `src/routes/[.]well-known/oauth-authorization-server.ts` | ferdig |
+| Validering av authorization request | `src/routes/api/public/oauth/prepare.ts` | ferdig |
+| Samtykkeside (norsk) | `src/routes/oauth.authorize.tsx` | ferdig |
+| Godkjenning/avvisning (POST + CSRF) | `src/routes/api/oauth/consent.ts` | ferdig |
+| Token endpoint | `src/routes/api/public/oauth/token.ts` | ferdig |
+| Revocation (RFC 7009) | `src/routes/api/public/oauth/revoke.ts` | ferdig |
+| Dynamisk klientregistrering | `src/routes/api/public/oauth/register.ts` | av som standard |
+| Retur etter innlogging | `src/routes/api/public/oauth/return.ts` | ferdig |
+| Tokenverifisering mot database | `src/lib/ai-integrations/oauth-auth.server.ts` | ferdig |
+| Revokering ved frakobling | `src/routes/api/ai-integrations/index.ts` (DELETE) | ferdig |
+| MCP Streamable HTTP | — | **ikke bygget** |
+
+## Miljøvariabler
+
+| Variabel | Påkrevd | Betydning |
+| --- | --- | --- |
+| `PUBLIC_APP_ORIGIN` | ja | Kanonisk HTTPS-origin. Issuer og resource utledes kun herfra, aldri fra `Host` eller `x-forwarded-host`. Mangler den, svarer OAuth-rutene 500. |
+| `AI_INTEGRATION_OAUTH_SECRET` | ja | Minst 32 tegn. Signerer access tokens og alle kortlivede tilstander. Bevisst en annen nøkkel enn `AI_INTEGRATION_TOKEN_SECRET`. |
+| `AI_INTEGRATION_TOKEN_SECRET` | ja (eldre flyt) | Det gamle 30-dagers agenttokenet. Beholdes som separat kompatibilitetsflyt. |
+| `OAUTH_DYNAMIC_REGISTRATION` | nei | Sett til `enabled` for å åpne `POST /api/public/oauth/register`. Uten den er ruten av og `registration_endpoint` annonseres ikke. |
+| `OAUTH_ALLOW_LOOPBACK_REDIRECTS` | nei | Kun utviklingsmiljø. Sett aldri i produksjon. |
+
+Hemmelighetene legges inn under Prosjektinnstillinger → Secrets. De skal aldri
+ligge i repoet.
+
+## Forhåndsregistrering av klient
+
+Åpen registrering er av. En klient legges inn direkte i `oauth_clients`, som
+bare serverrollen har tilgang til:
+
+```sql
+insert into public.oauth_clients
+  (client_id, client_name, client_type, redirect_uris, allowed_scopes, is_active)
+values
+  ('chatgpt-karrierenmin', 'ChatGPT', 'public',
+   array['https://chatgpt.com/connector_platform_oauth_redirect'],
+   array['karriere.status.read', 'karriere.workflow.run'], true);
+```
+
+Regler: kun `public` clients (ingen client secret i repoet), eksakt
+redirect-URI uten wildcard eller fragment, og bare scopes klienten faktisk
+trenger. En klient deaktiveres med `update ... set is_active = false`, som
+stanser nye autorisasjoner umiddelbart; eksisterende tilganger trekkes med
+`select public.oauth_revoke_grants(...)`.
+
+## Nøkkelrotasjon
+
+1. Sett ny `AI_INTEGRATION_OAUTH_SECRET`.
+2. Alle utstedte access tokens slutter å verifisere umiddelbart (levetid er
+   uansett 60 minutter), og alle åpne samtykkesider må startes på nytt.
+3. Refresh tokens lagres kun som hash i databasen og påvirkes ikke av
+   rotasjonen; klienten får nytt access token ved neste fornyelse.
+4. Ved mistanke om kompromittering: rotér nøkkelen **og** kjør
+   `oauth_revoke_grants` for berørte brukere eller integrasjoner.
+
+## Sikkerhetsegenskaper som er testet
+
+- Discovery annonserer bare implementerte funksjoner; ingen OIDC, `openid`,
+  `email`, `userinfo` eller CIMD. `iss` returneres i alle authorization
+  responses, derfor er `authorization_response_iss_parameter_supported: true`.
+- Eksakt redirect-URI. Ingen prefiks, wildcard, ekstra spørring eller fragment.
+  Feil som oppstår før redirect-URI er bekreftet kan aldri videresendes.
+- PKCE S256 er obligatorisk; verifier valideres på lengde (43–128) og alfabet.
+- Authorization code lever i 60 sekunder, lagres kun som SHA-256-hash og
+  konsumeres atomisk med advisory lock. Gjenbruk trekker grantet.
+- Refresh token roteres atomisk; gjenbruk trekker hele familien og grantet.
+- Access token har 60 minutters levetid og egen `typ`, `aud`/`resource`, `jti`
+  og `grant_id`. Et gammelt agenttoken kan aldri passere som OAuth-token.
+- Alle tokensvar er `no-store` / `no-cache`.
+- Frakobling av assistenten trekker alle grants og fornyelsesnøkler.
+- Ingen kode, verifier eller token skrives til logg eller URL.
+
+## Testprosedyre
+
+```bash
+bunx vitest run src/lib/__tests__/ai-integrations-oauth-flow.test.ts   # 60 tester
+bunx vitest run                                                        # hele suiten
+bunx tsgo --noEmit -p tsconfig.json
+bun run build
+```
+
+Ende-til-ende mot ChatGPT/Codex, Claude, Grok eller Gemini er **IKKE KJØRT** og
+er blokkert inntil en faktisk klient er forhåndsregistrert og appen er
+publisert på den kanoniske originen.
