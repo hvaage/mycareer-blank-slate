@@ -37,6 +37,16 @@ export const AI_STATUSES = ["draft", "connecting", "active", "degraded", "discon
 export type AiStatus = (typeof AI_STATUSES)[number];
 
 /**
+ * Status settes til «connecting» kun for en ny integrasjon eller når en
+ * tidligere frakoblet integrasjon kobles til på nytt. Ellers beholdes
+ * eksisterende status uendret — endret abonnement er ikke ny tilkobling.
+ */
+export function nextIntegrationStatus(existingStatus: string | null | undefined): string {
+  if (!existingStatus || existingStatus === "disconnected") return "connecting";
+  return existingStatus;
+}
+
+/**
  * Bekreftede egenskaper. Settes kun av verifisering mot leverandøren,
  * aldri av brukerens egen beskrivelse av abonnementet.
  */
