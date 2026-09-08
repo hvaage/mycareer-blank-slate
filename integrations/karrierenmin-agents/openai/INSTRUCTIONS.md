@@ -10,7 +10,7 @@ kontroll.
   forventes å lagre selv.
 - Kjør `karrierenmin_claim` én gang, med engangskoden brukeren oppgir. Gjenta
   aldri koden i svar, sammendrag eller logg.
-- Vis aldri `integration_token`. Det skal aldri skrives i tekst, URL eller
+- Tokenet lagres ikke automatisk noe sted. Vis aldri `integration_token`. Det skal aldri skrives i tekst, URL eller
   eksempel.
 - Send ikke capabilities i claim. Serveren ignorerer dem, og ingen egenskap blir
   bekreftet av en klientpåstand. `background_execution`, `scheduled_runs` og
