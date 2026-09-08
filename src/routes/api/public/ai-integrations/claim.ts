@@ -57,6 +57,21 @@ export const Route = createFileRoute("/api/public/ai-integrations/claim")({
         // kan settes til true av en uautentisert klient.
         const capabilities = claimCapabilities();
 
+        // FASE 1: alle deterministiske serverforutsetninger valideres FØR
+        // engangskoden forbrukes. En manglende/for kort
+        // AI_INTEGRATION_TOKEN_SECRET skal aldri konsumere koden eller
+        // aktivere integrasjonen.
+        const { isTokenRuntimeConfigured } = await import("@/lib/ai-integrations/token.server");
+        if (!isTokenRuntimeConfigured()) {
+          return Response.json(
+            {
+              ok: false,
+              error: { code: "server_misconfigured", message: "Backend er ikke ferdig satt opp." },
+            },
+            { status: 500 },
+          );
+        }
+
         const setupCodeHash = await sha256Hex(code);
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const nowIso = new Date().toISOString();
