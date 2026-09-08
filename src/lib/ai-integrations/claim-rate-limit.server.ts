@@ -3,7 +3,7 @@
 //
 // BEGRENSNING, UTEN PYNT: dette er en per-instans teller i minnet.
 // Den bremser gjentatt gjetting fra samme kilde mot samme
-// serverinstans, men er IKKE distribuert. En angriper som treffer
+// serverinstans, men er ikke distribuert. En angriper som treffer
 // flere instanser får tilsvarende flere forsøk.
 //
 // Robust distribuert begrensning krever egen lagring (en tabell etter
