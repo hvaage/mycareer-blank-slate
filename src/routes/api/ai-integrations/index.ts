@@ -84,39 +84,13 @@ export const Route = createFileRoute("/api/ai-integrations/")({
         const parsed = parseSaveIntegrationInput(body);
         if (!parsed.ok) return apiFail(400, "invalid_input", parsed.error);
         const { provider, plan_tier, automation } = parsed.value;
+        // Merk: e-postleverandørvalget i grensesnittet lagres ikke i fase 1.
+        // Skjemaet har ingen egnet plass for det, og vi finner ikke opp en.
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Bekreftede capabilities beholdes; driftsformen utledes alltid av dem.
-        const { data: existing } = await supabaseAdmin
-          .from("ai_integrations")
-          .select("id, capabilities")
-          .eq("user_id", userId)
-          .eq("provider", provider)
-          .maybeSingle();
-
-        const capabilities = (existing?.capabilities ?? {}) as AiCapabilities;
-
-        const { data: saved, error: saveError } = await supabaseAdmin
-          .from("ai_integrations")
-          .upsert(
-            {
-              user_id: userId,
-              provider,
-              declared_plan_tier: plan_tier,
-              effective_mode: deriveEffectiveMode(capabilities),
-              status: "connecting",
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id,provider" },
-          )
-          .select("id, provider, declared_plan_tier, effective_mode, status, capabilities")
-          .single();
-
-        if (saveError || !saved) {
-          return apiFail(500, "database_error", "Kunne ikke lagre oppsettet ditt.");
-        }
-
+        // Datavalgene lagres alltid — også når brukeren ikke har valgt assistent.
+        // De skrives først, slik at «velg senere» aldri blokkeres av assistentoppsettet.
         const { error: prefError } = await supabaseAdmin.from("automation_preferences").upsert(
           {
             user_id: userId,
@@ -131,8 +105,78 @@ export const Route = createFileRoute("/api/ai-integrations/")({
 
         if (prefError) return apiFail(500, "database_error", "Kunne ikke lagre valgene dine.");
 
-        return Response.json({ ok: true, integration: saved, automation });
+        // «Jeg vil velge senere»: ingen rad i ai_integrations opprettes.
+        if (!provider) {
+          return Response.json({
+            ok: true,
+            integration: null,
+            automation,
+            email_provider_persisted: false,
+          });
+        }
+
+        // Bekreftede capabilities, status og verifiseringsdata beholdes.
+        const { data: existing } = await supabaseAdmin
+          .from("ai_integrations")
+          .select("id, status, capabilities")
+          .eq("user_id", userId)
+          .eq("provider", provider)
+          .maybeSingle();
+
+        const capabilities = (existing?.capabilities ?? {}) as AiCapabilities;
+        // connecting settes bare for ny integrasjon eller ved ny tilkobling
+        // etter frakobling. Ellers står status urørt.
+        const nextStatus =
+          !existing || existing.status === "disconnected" ? "connecting" : existing.status;
+
+        const shared = {
+          declared_plan_tier: plan_tier,
+          effective_mode: deriveEffectiveMode(capabilities),
+          status: nextStatus,
+          updated_at: new Date().toISOString(),
+        };
+        const columns = "id, provider, declared_plan_tier, effective_mode, status, capabilities";
+
+        const { data: saved, error: saveError } = existing
+          ? await supabaseAdmin
+              .from("ai_integrations")
+              .update(shared)
+              .eq("id", existing.id)
+              .eq("user_id", userId)
+              .select(columns)
+              .single()
+          : await supabaseAdmin
+              .from("ai_integrations")
+              .insert({ user_id: userId, provider, ...shared })
+              .select(columns)
+              .single();
+
+        if (saveError || !saved) {
+          // Datavalgene ER lagret. Vi skjuler ikke delvis lagring: klienten
+          // henter fersk tilstand og viser hva som faktisk gikk gjennom.
+          return Response.json(
+            {
+              ok: false,
+              error: {
+                code: "partial_failure",
+                message:
+                  "Valgene for e-post og LinkedIn er lagret, men assistenten ble ikke lagret. Prøv å lagre assistenten på nytt.",
+              },
+              saved: { automation: true, integration: false },
+              automation,
+            },
+            { status: 207 },
+          );
+        }
+
+        return Response.json({
+          ok: true,
+          integration: saved,
+          automation,
+          email_provider_persisted: false,
+        });
       },
+
 
       DELETE: async ({ request }) => {
         const auth = await authenticateApiRequest(request);
