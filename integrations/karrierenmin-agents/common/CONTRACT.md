@@ -1,4 +1,10 @@
-# Karrierenmin — felles backendkontrakt for assistentpakker
+# Karrierenmin — felles REST-backendkontrakt for assistentpakker
+
+**Dette er en REST-kontrakt over HTTPS/JSON. Det er ikke MCP.** Endepunktene
+implementerer ikke JSON-RPC, `tools/list` eller `tools/call`, og kan ikke
+brukes som en MCP-server. Ekte MCP-transport og OAuth 2.1 er spesifisert i
+`docs/operations/ai-integrations-mcp-oauth-spec.md` og er ikke bygget ennå.
+Ingen av de fire pakkene er derfor installerbare i dag.
 
 Alle fire pakkene (Grok, Claude, ChatGPT/Codex, Gemini) snakker med nøyaktig samme
 backend. Ingen leverandør er standard eller anbefalt, og ingen pakke har egne
@@ -29,15 +35,33 @@ Content-Type: application/json
 
 - `setup_code` hentes av brukeren i Karrierenmin og er gyldig i 15 minutter, én gang.
 - Koden normaliseres server-side (bindestreker fjernes, versaler).
-- `capabilities` skal rapportere hva assistenten **faktisk** kan gjøre i den aktuelle
-  installasjonen. Aldri utled dette fra gratis-/betalt-abonnement. Ukjente eller
-  ikke-boolske felter forkastes av backend.
+- `capabilities` **ignoreres fullstendig**. Engangskoden beviser brukerens
+  samtykke og tilgang til koden, ikke hva plattformen faktisk kan gjøre. En
+  uautentisert klient kan påstå hva som helst, så backend lagrer alltid tomme,
+  ubekreftede egenskaper ved claim. Aldri utledet fra gratis-/betalt-abonnement.
+  Egenskaper kan først settes til `true` etter en serverkontrollert
+  verifisering/challenge i en senere fase.
 - Alle feil svarer likt (`invalid_claim`). Backend røper aldri om koden var ukjent,
   utløpt, allerede brukt eller knyttet til en annen leverandør.
 
-Vellykket svar inneholder `integration_token` og `token_expires_at`.
-Tokenet lagres i plattformens sikre secret-lager der det finnes. Det skal aldri
-legges i prompt, logg, README-eksempel eller URL-query.
+Vellykket svar inneholder `integration_token`, `token_expires_at` og
+`capabilities_verified: false`. Forbindelsen er da aktiv, men ingen egenskap er
+bekreftet — det er to forskjellige ting.
+
+Tokenet lagres **ikke** automatisk. Ingen av plattformene tar imot et token fra
+et verktøysvar og legger det i et secret-lager på egen hånd. Brukeren eller et
+installasjonsprogram må kopiere det inn. Det skal aldri legges i prompt, logg,
+README-eksempel eller URL-query.
+
+**Koden forbrukes før aktivering.** Feiler aktivering eller tokenutstedelse
+etter at koden er markert brukt, er koden likevel oppbrukt. Brukeren må lage en
+ny kode i Karrierenmin. Feilmeldingen skal ikke røpe intern årsak.
+
+**Rate-limit.** Claim begrenses per kilde-IP utledet fra `x-forwarded-for`, med
+`cf-connecting-ip`/`x-real-ip` som fallback og `unknown` når ingen finnes. Det er
+bare trygt når edge/proxy overskriver headeren før den når applikasjonen. Uten en
+slik edge kan headeren forfalskes, og begrensningen omgås per forespørsel.
+Begrensningen er dessuten per instans og i minnet, ikke distribuert.
 
 ## 2. Status
 
