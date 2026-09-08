@@ -315,7 +315,6 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
             </p>
           </div>
 
-
           {setup.data?.forwarding_address ? (
             <Alert>
               <AlertDescription className="space-y-2 text-sm">
@@ -410,7 +409,6 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
             </span>
           ) : null}
         </div>
-
 
         {/* 6. Status */}
         {current ? (

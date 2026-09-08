@@ -177,7 +177,6 @@ export const Route = createFileRoute("/api/ai-integrations/")({
         });
       },
 
-
       DELETE: async ({ request }) => {
         const auth = await authenticateApiRequest(request);
         if ("error" in auth) return auth.error;

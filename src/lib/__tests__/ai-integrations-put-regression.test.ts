@@ -104,9 +104,8 @@ vi.mock("@/integrations/supabase/client.server", () => ({
 }));
 
 vi.mock("@/lib/api-auth.server", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api-auth.server")>(
-    "@/lib/api-auth.server",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/api-auth.server")>("@/lib/api-auth.server");
   return {
     ...actual,
     authenticateApiRequest: async () => ({
@@ -120,7 +119,9 @@ async function putHandler() {
   const mod = await import("@/routes/api/ai-integrations/index");
   const handlers = (
     mod.Route as unknown as {
-      options: { server: { handlers: Record<string, (c: { request: Request }) => Promise<Response>> } };
+      options: {
+        server: { handlers: Record<string, (c: { request: Request }) => Promise<Response>> };
+      };
     }
   ).options.server.handlers;
   return handlers["PUT"]!;
@@ -130,7 +131,9 @@ async function sessionHandler() {
   const mod = await import("@/routes/api/ai-integrations/setup-session");
   const handlers = (
     mod.Route as unknown as {
-      options: { server: { handlers: Record<string, (c: { request: Request }) => Promise<Response>> } };
+      options: {
+        server: { handlers: Record<string, (c: { request: Request }) => Promise<Response>> };
+      };
     }
   ).options.server.handlers;
   return handlers["POST"]!;
