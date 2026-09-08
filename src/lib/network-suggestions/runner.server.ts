@@ -7,7 +7,7 @@
 //   - evidens valideres mot en lukket liste; ukjente referanser forkastes
 //   - forslag oppretter aldri aktiviteter, sender aldri meldinger
 
-import type { ModelProfile } from "../../../supabase/functions/_shared/claude/client.ts";
+import type { ModelProfile } from "../ai-model/types";
 import {
   buildSuggestionContext,
   suggestionKey,
@@ -233,7 +233,6 @@ function parseSuggestions(
 
 export async function runSuggestionJob(input: {
   adminClient: Admin;
-  apiKey: string;
   userId: string;
   scope: SuggestionScope;
   scopeObjectId: string | null;
