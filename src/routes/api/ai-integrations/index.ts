@@ -65,12 +65,15 @@ export const Route = createFileRoute("/api/ai-integrations/")({
 
         if (error) return apiFail(500, "database_error", "Kunne ikke hente oppsettet ditt.");
 
+        const intake = await readForwardingAddress(auth.userClient);
         return Response.json({
           ok: true,
           integrations: integrations ?? [],
           automation: preferences ?? DEFAULT_AUTOMATION_CHOICES,
-          forwarding_address: await readForwardingAddress(auth.userClient),
+          forwarding_address: intake.address,
+          email_intake_status: intake.intake_status,
         });
+
       },
 
       PUT: async ({ request }) => {
