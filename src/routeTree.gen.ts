@@ -44,6 +44,7 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAboutMeRouteImport } from './routes/_authenticated/about-me'
 import { Route as SelskapsanalyseAnalysedatabaseIndexRouteImport } from './routes/selskapsanalyse.analysedatabase.index'
 import { Route as RekruttererundersokelseResultaterIndexRouteImport } from './routes/rekruttererundersokelse.resultater.index'
+import { Route as ApiAiIntegrationsIndexRouteImport } from './routes/api/ai-integrations/index'
 import { Route as AuthenticatedVurderingAvArbeidsgivereIndexRouteImport } from './routes/_authenticated/vurdering-av-arbeidsgivere/index'
 import { Route as AuthenticatedOnboardingIndexRouteImport } from './routes/_authenticated/onboarding/index'
 import { Route as AuthenticatedOfferAnalysisIndexRouteImport } from './routes/_authenticated/offer-analysis/index'
@@ -70,6 +71,7 @@ import { Route as ApiInternalCvGenerationWorkerRouteImport } from './routes/api/
 import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose-cv-atoms'
 import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generations'
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
+import { Route as ApiAiIntegrationsSetupSessionRouteImport } from './routes/api/ai-integrations/setup-session'
 import { Route as AuthenticatedVurderingAvArbeidsgivereCompanyIdRouteImport } from './routes/_authenticated/vurdering-av-arbeidsgivere/$companyId'
 import { Route as AuthenticatedNettverkOversiktRouteImport } from './routes/_authenticated/nettverk.oversikt'
 import { Route as AuthenticatedMinProfilOpplysningerRouteImport } from './routes/_authenticated/min-profil/opplysninger'
@@ -310,6 +312,11 @@ const RekruttererundersokelseResultaterIndexRoute =
     path: '/resultater/',
     getParentRoute: () => RekruttererundersokelseRoute,
   } as any)
+const ApiAiIntegrationsIndexRoute = ApiAiIntegrationsIndexRouteImport.update({
+  id: '/api/ai-integrations/',
+  path: '/api/ai-integrations/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedVurderingAvArbeidsgivereIndexRoute =
   AuthenticatedVurderingAvArbeidsgivereIndexRouteImport.update({
     id: '/vurdering-av-arbeidsgivere/',
@@ -459,6 +466,12 @@ const ApiCvAtomizationJobsRoute = ApiCvAtomizationJobsRouteImport.update({
   path: '/api/cv/atomization-jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiIntegrationsSetupSessionRoute =
+  ApiAiIntegrationsSetupSessionRouteImport.update({
+    id: '/api/ai-integrations/setup-session',
+    path: '/api/ai-integrations/setup-session',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute =
   AuthenticatedVurderingAvArbeidsgivereCompanyIdRouteImport.update({
     id: '/vurdering-av-arbeidsgivere/$companyId',
@@ -851,6 +864,7 @@ export interface FileRoutesByFullPath {
   '/min-profil/opplysninger': typeof AuthenticatedMinProfilOpplysningerRoute
   '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
+  '/api/ai-integrations/setup-session': typeof ApiAiIntegrationsSetupSessionRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -877,6 +891,7 @@ export interface FileRoutesByFullPath {
   '/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/vurdering-av-arbeidsgivere/': typeof AuthenticatedVurderingAvArbeidsgivereIndexRoute
+  '/api/ai-integrations/': typeof ApiAiIntegrationsIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
@@ -964,6 +979,7 @@ export interface FileRoutesByTo {
   '/min-profil/opplysninger': typeof AuthenticatedMinProfilOpplysningerRoute
   '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
+  '/api/ai-integrations/setup-session': typeof ApiAiIntegrationsSetupSessionRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -990,6 +1006,7 @@ export interface FileRoutesByTo {
   '/offer-analysis': typeof AuthenticatedOfferAnalysisIndexRoute
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
   '/vurdering-av-arbeidsgivere': typeof AuthenticatedVurderingAvArbeidsgivereIndexRoute
+  '/api/ai-integrations': typeof ApiAiIntegrationsIndexRoute
   '/rekruttererundersokelse/resultater': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
@@ -1083,6 +1100,7 @@ export interface FileRoutesById {
   '/_authenticated/min-profil/opplysninger': typeof AuthenticatedMinProfilOpplysningerRoute
   '/_authenticated/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/_authenticated/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
+  '/api/ai-integrations/setup-session': typeof ApiAiIntegrationsSetupSessionRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
   '/api/cv/propose-cv-atoms': typeof ApiCvProposeCvAtomsRoute
@@ -1109,6 +1127,7 @@ export interface FileRoutesById {
   '/_authenticated/offer-analysis/': typeof AuthenticatedOfferAnalysisIndexRoute
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/_authenticated/vurdering-av-arbeidsgivere/': typeof AuthenticatedVurderingAvArbeidsgivereIndexRoute
+  '/api/ai-integrations/': typeof ApiAiIntegrationsIndexRoute
   '/rekruttererundersokelse/resultater/': typeof RekruttererundersokelseResultaterIndexRoute
   '/selskapsanalyse/analysedatabase/': typeof SelskapsanalyseAnalysedatabaseIndexRoute
   '/_authenticated/nettverk/kontakter/$id': typeof AuthenticatedNettverkKontakterIdRoute
@@ -1202,6 +1221,7 @@ export interface FileRouteTypes {
     | '/min-profil/opplysninger'
     | '/nettverk/oversikt'
     | '/vurdering-av-arbeidsgivere/$companyId'
+    | '/api/ai-integrations/setup-session'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1228,6 +1248,7 @@ export interface FileRouteTypes {
     | '/offer-analysis/'
     | '/onboarding/'
     | '/vurdering-av-arbeidsgivere/'
+    | '/api/ai-integrations/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
     | '/nettverk/kontakter/$id'
@@ -1315,6 +1336,7 @@ export interface FileRouteTypes {
     | '/min-profil/opplysninger'
     | '/nettverk/oversikt'
     | '/vurdering-av-arbeidsgivere/$companyId'
+    | '/api/ai-integrations/setup-session'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1341,6 +1363,7 @@ export interface FileRouteTypes {
     | '/offer-analysis'
     | '/onboarding'
     | '/vurdering-av-arbeidsgivere'
+    | '/api/ai-integrations'
     | '/rekruttererundersokelse/resultater'
     | '/selskapsanalyse/analysedatabase'
     | '/nettverk/kontakter/$id'
@@ -1433,6 +1456,7 @@ export interface FileRouteTypes {
     | '/_authenticated/min-profil/opplysninger'
     | '/_authenticated/nettverk/oversikt'
     | '/_authenticated/vurdering-av-arbeidsgivere/$companyId'
+    | '/api/ai-integrations/setup-session'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
     | '/api/cv/propose-cv-atoms'
@@ -1459,6 +1483,7 @@ export interface FileRouteTypes {
     | '/_authenticated/offer-analysis/'
     | '/_authenticated/onboarding/'
     | '/_authenticated/vurdering-av-arbeidsgivere/'
+    | '/api/ai-integrations/'
     | '/rekruttererundersokelse/resultater/'
     | '/selskapsanalyse/analysedatabase/'
     | '/_authenticated/nettverk/kontakter/$id'
@@ -1498,6 +1523,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   AuthNyttPassordRoute: typeof AuthNyttPassordRoute
+  ApiAiIntegrationsSetupSessionRoute: typeof ApiAiIntegrationsSetupSessionRoute
   ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRouteWithChildren
   ApiCvGenerationsRoute: typeof ApiCvGenerationsRouteWithChildren
   ApiCvProposeCvAtomsRoute: typeof ApiCvProposeCvAtomsRoute
@@ -1507,6 +1533,7 @@ export interface RootRouteChildren {
   ApiLinkedinImportsRoute: typeof ApiLinkedinImportsRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
+  ApiAiIntegrationsIndexRoute: typeof ApiAiIntegrationsIndexRoute
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
   ApiPublicInboundJobEmailRoute: typeof ApiPublicInboundJobEmailRoute
   ApiPublicJobsNetworkSuggestionsRoute: typeof ApiPublicJobsNetworkSuggestionsRoute
@@ -1765,6 +1792,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RekruttererundersokelseResultaterIndexRouteImport
       parentRoute: typeof RekruttererundersokelseRoute
     }
+    '/api/ai-integrations/': {
+      id: '/api/ai-integrations/'
+      path: '/api/ai-integrations'
+      fullPath: '/api/ai-integrations/'
+      preLoaderRoute: typeof ApiAiIntegrationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/vurdering-av-arbeidsgivere/': {
       id: '/_authenticated/vurdering-av-arbeidsgivere/'
       path: '/vurdering-av-arbeidsgivere'
@@ -1945,6 +1979,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cv/atomization-jobs'
       fullPath: '/api/cv/atomization-jobs'
       preLoaderRoute: typeof ApiCvAtomizationJobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai-integrations/setup-session': {
+      id: '/api/ai-integrations/setup-session'
+      path: '/api/ai-integrations/setup-session'
+      fullPath: '/api/ai-integrations/setup-session'
+      preLoaderRoute: typeof ApiAiIntegrationsSetupSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/vurdering-av-arbeidsgivere/$companyId': {
@@ -2612,6 +2653,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   AuthNyttPassordRoute: AuthNyttPassordRoute,
+  ApiAiIntegrationsSetupSessionRoute: ApiAiIntegrationsSetupSessionRoute,
   ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRouteWithChildren,
   ApiCvGenerationsRoute: ApiCvGenerationsRouteWithChildren,
   ApiCvProposeCvAtomsRoute: ApiCvProposeCvAtomsRoute,
@@ -2622,6 +2664,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLinkedinImportsRoute: ApiLinkedinImportsRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   LovableEmailEventsRoute: LovableEmailEventsRoute,
+  ApiAiIntegrationsIndexRoute: ApiAiIntegrationsIndexRoute,
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
   ApiPublicInboundJobEmailRoute: ApiPublicInboundJobEmailRoute,
   ApiPublicJobsNetworkSuggestionsRoute: ApiPublicJobsNetworkSuggestionsRoute,
