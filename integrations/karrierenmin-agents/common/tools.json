@@ -1,0 +1,43 @@
+{
+  "$comment": "Felles verktøysemantikk. Alle fire pakkene eksponerer nøyaktig disse to verktøyene med samme navn, parametere og feilhåndtering.",
+  "tools": [
+    {
+      "name": "karrierenmin_claim",
+      "description": "Aktiverer assistenten mot brukerens Karrierenmin-konto med en engangskode brukeren har hentet i Karrierenmin. Kjøres én gang. Koden skal aldri gjentas i svar eller logg.",
+      "http": {
+        "method": "POST",
+        "path": "/api/public/ai-integrations/claim",
+        "auth": "none"
+      },
+      "parameters": {
+        "type": "object",
+        "required": ["provider", "setup_code"],
+        "properties": {
+          "provider": { "type": "string", "enum": ["grok", "claude", "openai", "gemini"] },
+          "setup_code": { "type": "string", "description": "Engangskode fra Karrierenmin. Bindestreker og små bokstaver er tillatt." },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "background_execution": { "type": "boolean" },
+              "scheduled_runs": { "type": "boolean" },
+              "email_forward_or_send": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "on_success": "Lagre integration_token i sikkert secret-lager. Ikke vis tokenet til brukeren.",
+      "on_error": "Vis backendens melding uendret. Ikke gjett årsak. Be brukeren lage ny kode."
+    },
+    {
+      "name": "karrierenmin_status",
+      "description": "Henter status, bekreftede capabilities og tilgjengelige arbeidsflyter for den aktiverte integrasjonen.",
+      "http": {
+        "method": "GET",
+        "path": "/api/public/ai-integrations/v1/status",
+        "auth": "bearer:integration_token"
+      },
+      "parameters": { "type": "object", "properties": {} },
+      "on_error": "Ved integration_inactive: slett lagret token og stopp."
+    }
+  ]
+}
