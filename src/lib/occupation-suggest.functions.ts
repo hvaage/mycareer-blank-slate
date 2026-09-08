@@ -106,8 +106,9 @@ export const suggestOccupationMatch = createServerFn({ method: "POST" })
       return { ok: true, items: [] };
     }
 
-    const apiKey = process.env["ANTHROPIC" + "_API_KEY"];
-    if (!apiKey) return { ok: false, errorCode: "missing_api_key", items: [] };
+    const { callModel, isModelRuntimeConfigured } = await import("@/lib/ai-model/model.server");
+    if (!(await isModelRuntimeConfigured()))
+      return { ok: false, errorCode: "missing_api_key", items: [] };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as unknown as {
