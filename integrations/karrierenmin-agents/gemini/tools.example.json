@@ -1,10 +1,12 @@
 {
-  "$comment": "Mal. Bytt base-URL til din offentlige HTTPS-adresse. Tokenet hentes fra secret-lageret, aldri fra denne filen eller fra URL-query.",
+  "$status": "DESIGNMAL, IKKE INSTALLERBAR. Ikke MCP. Beskriver to REST-kall og kan ikke lastes inn som en fungerende verktøykonfigurasjon.",
+  "$token_note": "Tokenet lagres ikke automatisk fra claim-svaret. Brukeren må selv legge det i plattformens secret-lager.",
   "base_url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST",
   "auth": {
     "type": "bearer",
     "header": "Authorization",
-    "value_from_secret": "KARRIERENMIN_INTEGRATION_TOKEN"
+    "value_from_secret": "KARRIERENMIN_INTEGRATION_TOKEN",
+    "$note": "Gjelder kun status. Claim kalles uten token."
   },
   "tools": [
     {
@@ -14,13 +16,9 @@
       "auth": "none",
       "body": {
         "provider": "gemini",
-        "setup_code": "<engangskode fra brukeren>",
-        "capabilities": {
-          "background_execution": false,
-          "scheduled_runs": false,
-          "email_forward_or_send": false
-        }
-      }
+        "setup_code": "<engangskode fra brukeren>"
+      },
+      "$capabilities_note": "Capabilities sendes ikke. Serveren ignorerer klientpåstander og lagrer tomme, ubekreftede egenskaper. Aldri utledet fra abonnement."
     },
     {
       "name": "karrierenmin_status",
