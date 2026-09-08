@@ -158,35 +158,47 @@ describe("A. last_verified_at betyr bekreftet forbindelse, ikke egenskaper", () 
     expect(CLAIM_ROUTE).toContain("last_verified_at: nowIso");
   });
 });
+// ---------- C. atomisk distribuert ratebegrensning ----------
+//
+// Grensen håndheves nå av ÉN databaseoperasjon (public.claim_rate_check),
+// som låser per kilde og rydder, registrerer og teller i samme transaksjon.
+// Testene simulerer den funksjonens semantikk og krever at klienten gjør
+// nøyaktig ett kall — ikke insert etterfulgt av count.
 
-// ---------- C. distribuert ratebegrensning ----------
+type Row = { source_hash: string; occurred_at: number };
 
-type Row = { source_hash: string; occurred_at: string };
-
-function fakeSharedStore(
+/** Simulerer public.claim_rate_check, inkludert atomisk telling. */
+function fakeAtomicRpc(
   rows: Row[] = [],
-  opts: { failInsert?: boolean; failCount?: boolean } = {},
+  opts: { fail?: boolean; garbage?: boolean; clock?: () => number } = {},
 ) {
-  return {
-    rows,
-    insert: async (source_hash: string, occurred_at: string) => {
-      if (opts.failInsert) return { error: new Error("nede") };
-      rows.push({ source_hash, occurred_at });
-      return { error: null };
-    },
-    count: async (source_hash: string, sinceIso: string) => {
-      if (opts.failCount) return { count: null, error: new Error("nede") };
-      return {
-        count: rows.filter((r) => r.source_hash === source_hash && r.occurred_at >= sinceIso)
-          .length,
-        error: null,
-      };
-    },
-    cleanup: async () => undefined,
+  const calls: Array<Record<string, unknown>> = [];
+  const rpc = async (args: {
+    p_source_hash: string;
+    p_max_attempts: number;
+    p_window_seconds: number;
+    p_retention_seconds: number;
+  }) => {
+    calls.push(args);
+    if (opts.fail) return { data: null, error: new Error("nede") };
+    if (opts.garbage) return { data: [{ noe_annet: 1 }], error: null };
+    const now = opts.clock ? opts.clock() : Date.now();
+    // rydding
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      if (rows[i]!.occurred_at < now - args.p_retention_seconds * 1000) rows.splice(i, 1);
+    }
+    rows.push({ source_hash: args.p_source_hash, occurred_at: now });
+    const attempts = rows.filter(
+      (r) =>
+        r.source_hash === args.p_source_hash &&
+        r.occurred_at >= now - args.p_window_seconds * 1000,
+    ).length;
+    return { data: [{ allowed: attempts <= args.p_max_attempts, attempts }], error: null };
   };
+  return { rows, calls, rpc };
 }
 
-describe("C. distribuert ratebegrensning", () => {
+describe("C. atomisk distribuert ratebegrensning", () => {
   const secret = "c".repeat(64);
   const originalRate = process.env["CLAIM_RATE_HASH_SECRET"];
 
@@ -198,74 +210,107 @@ describe("C. distribuert ratebegrensning", () => {
     else process.env["CLAIM_RATE_HASH_SECRET"] = originalRate;
   });
 
+  it("bruker nøyaktig ett atomisk kall per forsøk", async () => {
+    const store = fakeAtomicRpc();
+    await claimRateCheck("203.0.113.5", { rpc: store.rpc });
+    expect(store.calls).toHaveLength(1);
+    expect(Object.keys(store.calls[0]!).sort()).toEqual([
+      "p_max_attempts",
+      "p_retention_seconds",
+      "p_source_hash",
+      "p_window_seconds",
+    ]);
+    expect(store.calls[0]!["p_max_attempts"]).toBe(CLAIM_MAX_ATTEMPTS);
+    expect(store.calls[0]!["p_window_seconds"]).toBe(CLAIM_WINDOW_MS / 1000);
+  });
+
+  it("klienten inneholder ikke lenger insert-så-tell-mønsteret", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src", "lib", "ai-integrations", "claim-rate-limit.server.ts"),
+      "utf8",
+    );
+    expect(src).toContain('rpc("claim_rate_check"');
+    expect(src).not.toContain(".insert(");
+    expect(src).not.toContain("count: \"exact\"");
+  });
+
   it("slipper gjennom inntil grensen og stopper deretter", async () => {
-    const store = fakeSharedStore();
+    const store = fakeAtomicRpc();
     for (let i = 0; i < CLAIM_MAX_ATTEMPTS; i += 1) {
-      expect((await claimRateCheck("203.0.113.5", { store })).allowed).toBe(true);
+      expect((await claimRateCheck("203.0.113.5", { rpc: store.rpc })).allowed).toBe(true);
     }
-    const blocked = await claimRateCheck("203.0.113.5", { store });
-    expect(blocked).toEqual({ allowed: false, reason: "rate_limited" });
+    expect(await claimRateCheck("203.0.113.5", { rpc: store.rpc })).toEqual({
+      allowed: false,
+      reason: "rate_limited",
+    });
   });
 
   it("glemmer forsøk utenfor tidsvinduet", async () => {
-    const store = fakeSharedStore();
-    const t0 = new Date("2026-09-08T12:00:00.000Z");
+    let t = new Date("2026-09-08T12:00:00.000Z").getTime();
+    const store = fakeAtomicRpc([], { clock: () => t });
     for (let i = 0; i <= CLAIM_MAX_ATTEMPTS; i += 1) {
-      await claimRateCheck("203.0.113.5", { store, now: t0 });
+      await claimRateCheck("203.0.113.5", { rpc: store.rpc });
     }
-    const later = new Date(t0.getTime() + CLAIM_WINDOW_MS + 60_000);
-    expect((await claimRateCheck("203.0.113.5", { store, now: later })).allowed).toBe(true);
+    t += CLAIM_WINDOW_MS + 60_000;
+    expect((await claimRateCheck("203.0.113.5", { rpc: store.rpc })).allowed).toBe(true);
   });
 
   it("holder kilder adskilt", async () => {
-    const store = fakeSharedStore();
-    for (let i = 0; i <= CLAIM_MAX_ATTEMPTS; i += 1) await claimRateCheck("1.2.3.4", { store });
-    expect((await claimRateCheck("5.6.7.8", { store })).allowed).toBe(true);
+    const store = fakeAtomicRpc();
+    for (let i = 0; i <= CLAIM_MAX_ATTEMPTS; i += 1)
+      await claimRateCheck("1.2.3.4", { rpc: store.rpc });
+    expect((await claimRateCheck("5.6.7.8", { rpc: store.rpc })).allowed).toBe(true);
   });
 
   it("teller på tvers av instanser fordi lagringen er felles", async () => {
     const rows: Row[] = [];
-    const instanceA = fakeSharedStore(rows);
-    const instanceB = fakeSharedStore(rows);
+    const a = fakeAtomicRpc(rows);
+    const b = fakeAtomicRpc(rows);
     for (let i = 0; i < CLAIM_MAX_ATTEMPTS; i += 1) {
-      const store = i % 2 === 0 ? instanceA : instanceB;
-      expect((await claimRateCheck("203.0.113.5", { store })).allowed).toBe(true);
+      const rpc = i % 2 === 0 ? a.rpc : b.rpc;
+      expect((await claimRateCheck("203.0.113.5", { rpc })).allowed).toBe(true);
     }
-    expect((await claimRateCheck("203.0.113.5", { store: instanceB })).allowed).toBe(false);
+    expect((await claimRateCheck("203.0.113.5", { rpc: b.rpc })).allowed).toBe(false);
   });
 
-  it("feiler lukket ved databasefeil", async () => {
+  it("samtidige forsøk kan ikke overskride grensen", async () => {
+    const store = fakeAtomicRpc();
+    const results = await Promise.all(
+      Array.from({ length: CLAIM_MAX_ATTEMPTS + 5 }, () =>
+        claimRateCheck("203.0.113.5", { rpc: store.rpc }),
+      ),
+    );
+    expect(results.filter((r) => r.allowed)).toHaveLength(CLAIM_MAX_ATTEMPTS);
+    expect(store.calls).toHaveLength(CLAIM_MAX_ATTEMPTS + 5);
+  });
+
+  it("feiler lukket ved databasefeil og ved uventet svar", async () => {
+    expect(await claimRateCheck("1.2.3.4", { rpc: fakeAtomicRpc([], { fail: true }).rpc })).toEqual(
+      { allowed: false, reason: "storage_error" },
+    );
     expect(
-      await claimRateCheck("1.2.3.4", { store: fakeSharedStore([], { failInsert: true }) }),
-    ).toEqual({
-      allowed: false,
-      reason: "storage_error",
-    });
-    expect(
-      await claimRateCheck("1.2.3.4", { store: fakeSharedStore([], { failCount: true }) }),
-    ).toEqual({
-      allowed: false,
-      reason: "storage_error",
-    });
+      await claimRateCheck("1.2.3.4", { rpc: fakeAtomicRpc([], { garbage: true }).rpc }),
+    ).toEqual({ allowed: false, reason: "storage_error" });
   });
 
   it("feiler lukket når hemmeligheten mangler", async () => {
     delete process.env["CLAIM_RATE_HASH_SECRET"];
     expect(isClaimRateStorageConfigured()).toBe(false);
-    expect(await claimRateCheck("1.2.3.4", { store: fakeSharedStore() })).toEqual({
+    const store = fakeAtomicRpc();
+    expect(await claimRateCheck("1.2.3.4", { rpc: store.rpc })).toEqual({
       allowed: false,
       reason: "not_configured",
     });
+    expect(store.calls).toHaveLength(0);
   });
 
-  it("lagrer kilden bare som ikke-reverserbar hash", async () => {
-    const store = fakeSharedStore();
-    await claimRateCheck("203.0.113.5", { store });
-    const stored = store.rows[0]!;
-    expect(stored.source_hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(stored.source_hash).not.toContain("203.0.113.5");
-    expect(stored.source_hash).toBe(await hashClaimSource("203.0.113.5", secret));
-    expect(await hashClaimSource("203.0.113.5", "d".repeat(64))).not.toBe(stored.source_hash);
-    expect(Object.keys(stored).sort()).toEqual(["occurred_at", "source_hash"]);
+  it("sender kilden bare som ikke-reverserbar hash", async () => {
+    const store = fakeAtomicRpc();
+    await claimRateCheck("203.0.113.5", { rpc: store.rpc });
+    const sent = store.calls[0]!["p_source_hash"] as string;
+    expect(sent).toMatch(/^[0-9a-f]{64}$/);
+    expect(sent).not.toContain("203.0.113.5");
+    expect(sent).toBe(await hashClaimSource("203.0.113.5", secret));
+    expect(await hashClaimSource("203.0.113.5", "d".repeat(64))).not.toBe(sent);
   });
 });
