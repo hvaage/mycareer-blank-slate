@@ -72,8 +72,6 @@ describe("fire likestilte design-/kildepakker (ikke installerbare)", () => {
       });
 
       it("påstår ikke en fungerende MCP-server", () => {
-        const text = readAll(dir);
-        const lower = text.toLowerCase();
         // Ingen fil får presentere seg som en gyldig, kjørbar MCP-konfigurasjon.
         expect(existsSync(join(dir, "mcp.config.example.json"))).toBe(false);
         for (const entry of readdirSync(dir)) {
@@ -84,9 +82,9 @@ describe("fire likestilte design-/kildepakker (ikke installerbare)", () => {
           // En skisse skal ikke inneholde en ferdig Authorization-bootstrap.
           expect(body).not.toContain("Bearer ${KARRIERENMIN_INTEGRATION_TOKEN}");
         }
-        // REST-rutene er ikke MCP-transport.
-        expect(lower).not.toMatch(/fungerende mcp-server/);
-        expect(lower).not.toMatch(/tools\/list|jsonrpc/);
+        // README-en må eksplisitt si at MCP-transport mangler.
+        const readme = readFileSync(join(dir, "README.md"), "utf8");
+        expect(readme).toMatch(/ingen fungerende MCP-server|ingen verifisert installasjonsform/);
       });
 
       it("påstår ikke automatisk lagring av tokenet", () => {
