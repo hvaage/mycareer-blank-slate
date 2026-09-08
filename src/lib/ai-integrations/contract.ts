@@ -107,7 +107,11 @@ export const DEFAULT_AUTOMATION_CHOICES: AutomationChoices = {
 };
 
 export type SaveIntegrationInput = {
-  provider: AiProvider;
+  /**
+   * null betyr «jeg vil velge senere». Da lagres bare automatiseringsvalgene,
+   * og det opprettes ingen rad i ai_integrations.
+   */
+  provider: AiProvider | null;
   plan_tier: AiPlanTier;
   automation: AutomationChoices;
 };
@@ -132,9 +136,16 @@ export function parseSaveIntegrationInput(body: unknown): ValidationResult {
   }
   const input = body as Record<string, unknown>;
 
-  const provider = input["provider"];
-  if (typeof provider !== "string" || !(AI_PROVIDERS as readonly string[]).includes(provider)) {
-    return { ok: false, error: "Velg en gyldig assistent." };
+  const providerRaw = input["provider"];
+  let provider: AiProvider | null = null;
+  if (providerRaw !== undefined && providerRaw !== null) {
+    if (
+      typeof providerRaw !== "string" ||
+      !(AI_PROVIDERS as readonly string[]).includes(providerRaw)
+    ) {
+      return { ok: false, error: "Velg en gyldig assistent." };
+    }
+    provider = providerRaw as AiProvider;
   }
 
   const planTier = input["plan_tier"] ?? "unknown";
