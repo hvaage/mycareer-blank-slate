@@ -1,31 +1,41 @@
 # Karrierenmin for Claude
 
-**Pakketype:** kildepakke. Portabel instruksjonspakke + MCP-konfigurasjonsmal.
-**Status:** manuelt installérbar i dag. Ikke innsendt til noen offisiell katalog.
+**Status: design-/kildepakke. Ikke installerbar før transport og autentisering
+er implementert.**
 
-Et stabilt marketplace-format for denne plattformen kunne ikke bekreftes ved
-utarbeidelsen, og pakken er derfor bevisst konservativ og portabel.
+Mappen inneholder ingen fungerende MCP-server. `mcp.config.SKETCH.json` er
+merket som ikke-fungerende skisse: Karrierenmins endepunkter er vanlige
+REST-ruter uten MCP JSON-RPC, `tools/list` eller `tools/call`.
 
-## Installasjon
+## Tre nivåer
 
-1. Legg innholdet i `CLAUDE.md` inn som prosjektinstruksjon.
-2. Kopier `mcp.config.example.json` inn i din MCP-konfigurasjon og bytt
-   `https://REPLACE-WITH-YOUR-PUBLIC-HOST` til den offentlige HTTPS-adressen.
-   Ikke bruk en lokal utvikleradresse.
-3. Legg `KARRIERENMIN_INTEGRATION_TOKEN` i plattformens secret-lager.
+1. **REST-backendkontrakt** — implementert og testet (`../common/CONTRACT.md`).
+2. **Design-/kildepakke** — denne mappen.
+3. **Installerbar MCP-pakke** — finnes ikke ennå.
 
-## Første gang
+## Planlagt autentisering
 
-Hent engangskode i Karrierenmin, kjør `karrierenmin_claim` én gang, lagre
-`integration_token` sikkert, og bekreft med `karrierenmin_status`.
+For en lokal MCP-klient kan et manuelt konfigurert secret brukes. Tokenet må da
+kopieres inn i klientens secret-/miljøoppsett av brukeren selv eller av et
+installasjonsprogram. Claude lagrer det ikke automatisk fra et verktøysvar, og
+pakken påstår ikke noe annet. Claim er uten token og utsteder tokenet; det er en
+onboardingflyt, ikke varig MCP-autentisering.
 
-Verktøysemantikk: `../common/tools.json`. Sikkerhetsregler: `../common/SECURITY.md`.
+Full spesifikasjon: `docs/operations/ai-integrations-mcp-oauth-spec.md`.
 
-## Endepunkter
+## Capabilities
 
-| Verktøy | Kall |
+Claim bekrefter ingen egenskaper. Klientpåstander om `background_execution`,
+`scheduled_runs` eller `email_forward_or_send` ignoreres, og aldri utledet fra
+abonnement. De lagres som ubekreftede til en serverkontrollert verifisering
+finnes.
+
+## Dagens REST-endepunkter (referanse, ikke MCP)
+
+| Handling | Kall |
 | --- | --- |
 | `karrierenmin_claim` | `POST /api/public/ai-integrations/claim` (uten token) |
 | `karrierenmin_status` | `GET /api/public/ai-integrations/v1/status` (Bearer integrasjonstoken) |
 
 Tokenet sendes kun i `Authorization`-headeren — aldri i URL, prompt eller logg.
+Sikkerhetsregler: `../common/SECURITY.md`. Verktøysemantikk: `../common/tools.json`.
