@@ -14,6 +14,97 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_integration_setup_sessions: {
+        Row: {
+          ai_integration_id: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          provider: string
+          setup_code_hash: string
+          user_id: string
+        }
+        Insert: {
+          ai_integration_id: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          provider: string
+          setup_code_hash: string
+          user_id: string
+        }
+        Update: {
+          ai_integration_id?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          provider?: string
+          setup_code_hash?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_integration_setup_sessions_ai_integration_id_fkey"
+            columns: ["ai_integration_id"]
+            isOneToOne: false
+            referencedRelation: "ai_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_integrations: {
+        Row: {
+          capabilities: Json
+          created_at: string
+          declared_plan_tier: string
+          effective_mode: string
+          email_job_source_id: string | null
+          id: string
+          last_verified_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          capabilities?: Json
+          created_at?: string
+          declared_plan_tier?: string
+          effective_mode?: string
+          email_job_source_id?: string | null
+          id?: string
+          last_verified_at?: string | null
+          provider: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          capabilities?: Json
+          created_at?: string
+          declared_plan_tier?: string
+          effective_mode?: string
+          email_job_source_id?: string | null
+          id?: string
+          last_verified_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_integrations_email_job_source_id_fkey"
+            columns: ["email_job_source_id"]
+            isOneToOne: false
+            referencedRelation: "email_job_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       application_process_ratings: {
         Row: {
           application_id: string
@@ -454,6 +545,107 @@ export type Database = {
           },
         ]
       }
+      automation_preferences: {
+        Row: {
+          calendar_followup_enabled: boolean
+          calendar_ingest_enabled: boolean
+          career_email_suggestion_day: number | null
+          career_email_suggestions_enabled: boolean
+          created_at: string
+          job_email_import_enabled: boolean
+          job_preference_automation_enabled: boolean
+          linkedin_export_import_enabled: boolean
+          linkedin_ready_detection_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_followup_enabled?: boolean
+          calendar_ingest_enabled?: boolean
+          career_email_suggestion_day?: number | null
+          career_email_suggestions_enabled?: boolean
+          created_at?: string
+          job_email_import_enabled?: boolean
+          job_preference_automation_enabled?: boolean
+          linkedin_export_import_enabled?: boolean
+          linkedin_ready_detection_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_followup_enabled?: boolean
+          calendar_ingest_enabled?: boolean
+          career_email_suggestion_day?: number | null
+          career_email_suggestions_enabled?: boolean
+          created_at?: string
+          job_email_import_enabled?: boolean
+          job_preference_automation_enabled?: boolean
+          linkedin_export_import_enabled?: boolean
+          linkedin_ready_detection_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      automation_runs: {
+        Row: {
+          ai_integration_id: string | null
+          created_at: string
+          error_class: string | null
+          finished_at: string | null
+          id: string
+          idempotency_key: string
+          items_seen: number
+          items_skipped: number
+          items_written: number
+          started_at: string | null
+          status: string
+          trigger_kind: string
+          user_id: string
+          workflow_kind: string
+        }
+        Insert: {
+          ai_integration_id?: string | null
+          created_at?: string
+          error_class?: string | null
+          finished_at?: string | null
+          id?: string
+          idempotency_key: string
+          items_seen?: number
+          items_skipped?: number
+          items_written?: number
+          started_at?: string | null
+          status?: string
+          trigger_kind: string
+          user_id: string
+          workflow_kind: string
+        }
+        Update: {
+          ai_integration_id?: string | null
+          created_at?: string
+          error_class?: string | null
+          finished_at?: string | null
+          id?: string
+          idempotency_key?: string
+          items_seen?: number
+          items_skipped?: number
+          items_written?: number
+          started_at?: string | null
+          status?: string
+          trigger_kind?: string
+          user_id?: string
+          workflow_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_runs_ai_integration_id_fkey"
+            columns: ["ai_integration_id"]
+            isOneToOne: false
+            referencedRelation: "ai_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       canonical_opportunities: {
         Row: {
           created_at: string
@@ -793,6 +985,68 @@ export type Database = {
             columns: ["parent_atom_id"]
             isOneToOne: false
             referencedRelation: "career_atoms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      career_log_suggestions: {
+        Row: {
+          ai_integration_id: string | null
+          confidence: number
+          created_at: string
+          id: string
+          model_ref: string | null
+          occurred_on: string | null
+          provider: string
+          reviewed_at: string | null
+          source_kind: string
+          source_ref_hash: string
+          status: string
+          suggested_type: string
+          summary: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          ai_integration_id?: string | null
+          confidence: number
+          created_at?: string
+          id?: string
+          model_ref?: string | null
+          occurred_on?: string | null
+          provider: string
+          reviewed_at?: string | null
+          source_kind: string
+          source_ref_hash: string
+          status?: string
+          suggested_type: string
+          summary: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          ai_integration_id?: string | null
+          confidence?: number
+          created_at?: string
+          id?: string
+          model_ref?: string | null
+          occurred_on?: string | null
+          provider?: string
+          reviewed_at?: string | null
+          source_kind?: string
+          source_ref_hash?: string
+          status?: string
+          suggested_type?: string
+          summary?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "career_log_suggestions_ai_integration_id_fkey"
+            columns: ["ai_integration_id"]
+            isOneToOne: false
+            referencedRelation: "ai_integrations"
             referencedColumns: ["id"]
           },
         ]
@@ -2898,6 +3152,7 @@ export type Database = {
           source_system: string
           updated_at: string
           user_id: string
+          verified_at: string | null
         }
         Insert: {
           created_at?: string
@@ -2915,6 +3170,7 @@ export type Database = {
           source_system: string
           updated_at?: string
           user_id: string
+          verified_at?: string | null
         }
         Update: {
           created_at?: string
@@ -2932,6 +3188,7 @@ export type Database = {
           source_system?: string
           updated_at?: string
           user_id?: string
+          verified_at?: string | null
         }
         Relationships: [
           {
