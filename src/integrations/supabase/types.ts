@@ -730,11 +730,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "capability_challenges_ai_integration_id_fkey"
-            columns: ["ai_integration_id"]
+            foreignKeyName: "capability_challenges_integration_owner_fkey"
+            columns: ["ai_integration_id", "user_id"]
             isOneToOne: false
             referencedRelation: "ai_integrations"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "user_id"]
           },
         ]
       }
@@ -7666,18 +7666,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "oauth_authorization_codes_ai_integration_id_fkey"
-            columns: ["ai_integration_id"]
-            isOneToOne: false
-            referencedRelation: "ai_integrations"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "oauth_authorization_codes_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "oauth_clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_authorization_codes_integration_owner_fkey"
+            columns: ["ai_integration_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "ai_integrations"
+            referencedColumns: ["id", "user_id"]
           },
         ]
       }
@@ -7759,18 +7759,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "oauth_grants_ai_integration_id_fkey"
-            columns: ["ai_integration_id"]
-            isOneToOne: false
-            referencedRelation: "ai_integrations"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "oauth_grants_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "oauth_clients"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_grants_integration_owner_fkey"
+            columns: ["ai_integration_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "ai_integrations"
+            referencedColumns: ["id", "user_id"]
           },
         ]
       }
@@ -10255,6 +10255,18 @@ export type Database = {
         }[]
       }
       careerjet_sync_vault_has_secret: { Args: never; Returns: boolean }
+      claim_rate_check: {
+        Args: {
+          p_max_attempts: number
+          p_retention_seconds: number
+          p_source_hash: string
+          p_window_seconds: number
+        }
+        Returns: {
+          allowed: boolean
+          attempts: number
+        }[]
+      }
       count_employers: {
         Args: {
           p_arbeidsgiver_type?: string
@@ -11432,6 +11444,11 @@ export type Database = {
         }
         Returns: string
       }
+      oauth_is_valid_scope_set: {
+        Args: { p_scopes: string[] }
+        Returns: boolean
+      }
+      oauth_is_valid_uri_set: { Args: { p_uris: string[] }; Returns: boolean }
       opportunity_fingerprint: {
         Args: { p_company: string; p_location: string; p_title: string }
         Returns: string
