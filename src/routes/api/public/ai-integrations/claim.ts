@@ -26,6 +26,16 @@ import {
 import { deriveEffectiveMode } from "@/lib/ai-integrations/contract";
 import { sha256Hex } from "@/lib/ai-integrations/setup-code";
 
+function misconfigured(): Response {
+  return Response.json(
+    {
+      ok: false,
+      error: { code: "server_misconfigured", message: "Backend er ikke ferdig satt opp." },
+    },
+    { status: 500 },
+  );
+}
+
 function reject(): Response {
   return Response.json({ ok: false, error: CLAIM_REJECTION }, { status: 400 });
 }
@@ -34,13 +44,30 @@ export const Route = createFileRoute("/api/public/ai-integrations/claim")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { claimClientKey, claimRateLimited } =
+        // FASE 1: alle deterministiske serverforutsetninger valideres FØRST,
+        // før både databasekontakt og forbruk av engangskoden. En manglende
+        // eller for kort AI_INTEGRATION_TOKEN_SECRET skal aldri konsumere
+        // koden, aktivere integrasjonen eller skrive en eneste rad.
+        const { isTokenRuntimeConfigured } = await import("@/lib/ai-integrations/token.server");
+        const { claimClientKey, claimRateCheck, isClaimRateStorageConfigured } =
           await import("@/lib/ai-integrations/claim-rate-limit.server");
-        if (claimRateLimited(claimClientKey(request))) {
-          return Response.json(
-            { ok: false, error: { code: "rate_limited", message: "For mange forsøk. Vent litt." } },
-            { status: 429 },
-          );
+        if (!isTokenRuntimeConfigured() || !isClaimRateStorageConfigured()) {
+          return misconfigured();
+        }
+
+        // Distribuert ratebegrensning. Fail closed ved lagringsfeil.
+        const rate = await claimRateCheck(claimClientKey(request));
+        if (!rate.allowed) {
+          if (rate.reason === "rate_limited") {
+            return Response.json(
+              {
+                ok: false,
+                error: { code: "rate_limited", message: "For mange forsøk. Vent litt." },
+              },
+              { status: 429 },
+            );
+          }
+          return misconfigured();
         }
 
         let body: unknown;
@@ -56,21 +83,6 @@ export const Route = createFileRoute("/api/public/ai-integrations/claim")({
         // Klientens capabilities-påstand leses bevisst ikke. Ingen egenskap
         // kan settes til true av en uautentisert klient.
         const capabilities = claimCapabilities();
-
-        // FASE 1: alle deterministiske serverforutsetninger valideres FØR
-        // engangskoden forbrukes. En manglende/for kort
-        // AI_INTEGRATION_TOKEN_SECRET skal aldri konsumere koden eller
-        // aktivere integrasjonen.
-        const { isTokenRuntimeConfigured } = await import("@/lib/ai-integrations/token.server");
-        if (!isTokenRuntimeConfigured()) {
-          return Response.json(
-            {
-              ok: false,
-              error: { code: "server_misconfigured", message: "Backend er ikke ferdig satt opp." },
-            },
-            { status: 500 },
-          );
-        }
 
         const setupCodeHash = await sha256Hex(code);
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -132,15 +144,7 @@ export const Route = createFileRoute("/api/public/ai-integrations/claim")({
           userId: integration.user_id as string,
           provider,
         });
-        if (!issued) {
-          return Response.json(
-            {
-              ok: false,
-              error: { code: "server_misconfigured", message: "Backend er ikke ferdig satt opp." },
-            },
-            { status: 500 },
-          );
-        }
+        if (!issued) return misconfigured();
 
         // Svaret inneholder ingen e-post, LinkedIn-data, CV-data eller nøkler.
         return Response.json({

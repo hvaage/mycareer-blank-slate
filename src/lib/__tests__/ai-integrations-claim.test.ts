@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   CAPABILITY_ALLOWLIST,
   CLAIM_REJECTION,
@@ -11,11 +11,6 @@ import {
 import { deriveEffectiveMode, AI_PROVIDERS } from "@/lib/ai-integrations/contract";
 import { generateSetupCode, sha256Hex } from "@/lib/ai-integrations/setup-code";
 import { isSetupCodeExpired, setupCodeExpiry } from "@/lib/ai-integrations/contract";
-import {
-  claimRateLimited,
-  resetClaimRateLimit,
-  CLAIM_MAX_ATTEMPTS,
-} from "@/lib/ai-integrations/claim-rate-limit.server";
 
 describe("normalisering av engangskode", () => {
   it("fjerner bindestreker og mellomrom og gjør om til versaler", () => {
@@ -145,23 +140,5 @@ describe("avvisning uten informasjonslekkasje", () => {
     for (const leak of ["utløp", "brukt", "finnes ikke", "feil leverandør", "frakoblet"]) {
       expect(text).not.toContain(leak);
     }
-  });
-});
-
-describe("grunnrate for claim", () => {
-  beforeEach(() => resetClaimRateLimit());
-
-  it("slipper gjennom inntil grensen og stopper deretter", () => {
-    for (let i = 0; i < CLAIM_MAX_ATTEMPTS; i++) {
-      expect(claimRateLimited("1.2.3.4")).toBe(false);
-    }
-    expect(claimRateLimited("1.2.3.4")).toBe(true);
-  });
-
-  it("holder kilder adskilt og glemmer gamle forsøk", () => {
-    const t0 = Date.now();
-    for (let i = 0; i < CLAIM_MAX_ATTEMPTS + 1; i++) claimRateLimited("1.2.3.4", t0);
-    expect(claimRateLimited("5.6.7.8", t0)).toBe(false);
-    expect(claimRateLimited("1.2.3.4", t0 + 11 * 60_000)).toBe(false);
   });
 });

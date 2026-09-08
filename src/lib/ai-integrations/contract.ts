@@ -50,6 +50,22 @@ export function nextIntegrationStatus(existingStatus: string | null | undefined)
  * Bekreftede egenskaper. Settes kun av verifisering mot leverandøren,
  * aldri av brukerens egen beskrivelse av abonnementet.
  */
+/**
+ * SEMANTIKK FOR `ai_integrations.last_verified_at`.
+ *
+ * Feltet betyr «forbindelsen ble sist bekreftet», altså at en gyldig
+ * engangskode ble innløst eller at et senere forbindelseskall lyktes.
+ * Det betyr IKKE at noen capability er bekreftet. Bekreftede egenskaper
+ * kommer utelukkende fra en serverkontrollert challenge (fase 6) og leses
+ * fra `capabilities`. Claim setter alltid `capabilities = {}` samtidig som
+ * `last_verified_at` settes — de to feltene skal aldri tolkes sammen.
+ *
+ * Navnet beholdes bevisst; en feltendring ville ikke gjort semantikken
+ * tryggere, bare flyttet risikoen til migrasjon og eksisterende data.
+ */
+export const LAST_VERIFIED_AT_MEANING =
+  "Tidspunktet forbindelsen sist ble bekreftet. Sier ingenting om hvilke egenskaper som er bekreftet.";
+
 export type AiCapabilities = {
   background_execution?: boolean;
   scheduled_runs?: boolean;
