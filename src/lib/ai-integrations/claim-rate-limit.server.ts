@@ -68,64 +68,63 @@ export type ClaimRateOutcome =
   | { allowed: true }
   | { allowed: false; reason: "not_configured" | "storage_error" | "rate_limited" };
 
-type RateStore = {
-  insert: (sourceHash: string, occurredAt: string) => Promise<{ error: unknown }>;
-  count: (
-    sourceHash: string,
-    sinceIso: string,
-  ) => Promise<{ count: number | null; error: unknown }>;
-  cleanup: (beforeIso: string) => Promise<void>;
-};
+/**
+ * Ett atomisk databasekall. Låsing, opprydding, registrering og telling
+ * skjer i samme transaksjon i `public.claim_rate_check`, slik at to
+ * samtidige forsøk fra samme kilde ikke kan omgå grensen (det gamle
+ * insert-så-tell-mønsteret var to operasjoner og ikke atomisk).
+ *
+ * Funksjonen returnerer bare `allowed` og `attempts` — aldri rådata.
+ */
+export type ClaimRateRpc = (args: {
+  p_source_hash: string;
+  p_max_attempts: number;
+  p_window_seconds: number;
+  p_retention_seconds: number;
+}) => Promise<{ data: unknown; error: unknown }>;
 
-async function defaultStore(): Promise<RateStore> {
+async function defaultRpc(): Promise<ClaimRateRpc> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const table = () => supabaseAdmin.from("claim_rate_events");
-  return {
-    insert: async (sourceHash, occurredAt) =>
-      await table().insert({ source_hash: sourceHash, occurred_at: occurredAt }),
-    count: async (sourceHash, sinceIso) =>
-      await table()
-        .select("id", { count: "exact", head: true })
-        .eq("source_hash", sourceHash)
-        .gte("occurred_at", sinceIso),
-    cleanup: async (beforeIso) => {
-      await table().delete().lt("occurred_at", beforeIso);
-    },
-  };
+  return (args) =>
+    (
+      supabaseAdmin as unknown as {
+        rpc: (fn: string, a: unknown) => Promise<{ data: unknown; error: unknown }>;
+      }
+    ).rpc("claim_rate_check", args);
+}
+
+function readAllowed(data: unknown): boolean | null {
+  const row = Array.isArray(data) ? data[0] : data;
+  if (typeof row !== "object" || row === null) return null;
+  const allowed = (row as Record<string, unknown>)["allowed"];
+  return typeof allowed === "boolean" ? allowed : null;
 }
 
 /**
  * Registrerer forsøket og avgjør om det skal slippe gjennom.
- * Koden sendes aldri hit inn.
+ * Koden sendes aldri hit inn. Fail closed ved enhver feil.
  */
 export async function claimRateCheck(
   source: string,
-  options: { now?: Date; store?: RateStore } = {},
+  options: { rpc?: ClaimRateRpc } = {},
 ): Promise<ClaimRateOutcome> {
   const secret = readHashSecret();
   if (!secret) return { allowed: false, reason: "not_configured" };
 
-  const now = options.now ?? new Date();
-  const store = options.store ?? (await defaultStore());
-  const sourceHash = await hashClaimSource(source, secret);
-
   try {
-    const inserted = await store.insert(sourceHash, now.toISOString());
-    if (inserted.error) return { allowed: false, reason: "storage_error" };
+    const rpc = options.rpc ?? (await defaultRpc());
+    const sourceHash = await hashClaimSource(source, secret);
+    const { data, error } = await rpc({
+      p_source_hash: sourceHash,
+      p_max_attempts: CLAIM_MAX_ATTEMPTS,
+      p_window_seconds: Math.floor(CLAIM_WINDOW_MS / 1000),
+      p_retention_seconds: Math.floor(CLAIM_RETENTION_MS / 1000),
+    });
+    if (error) return { allowed: false, reason: "storage_error" };
 
-    const since = new Date(now.getTime() - CLAIM_WINDOW_MS).toISOString();
-    const { count, error } = await store.count(sourceHash, since);
-    if (error || typeof count !== "number") return { allowed: false, reason: "storage_error" };
-
-    // Opportunistisk opprydding; feiler den, påvirker det ikke avgjørelsen.
-    if (count % 25 === 0) {
-      void store
-        .cleanup(new Date(now.getTime() - CLAIM_RETENTION_MS).toISOString())
-        .catch(() => undefined);
-    }
-
-    if (count > CLAIM_MAX_ATTEMPTS) return { allowed: false, reason: "rate_limited" };
-    return { allowed: true };
+    const allowed = readAllowed(data);
+    if (allowed === null) return { allowed: false, reason: "storage_error" };
+    return allowed ? { allowed: true } : { allowed: false, reason: "rate_limited" };
   } catch {
     return { allowed: false, reason: "storage_error" };
   }
