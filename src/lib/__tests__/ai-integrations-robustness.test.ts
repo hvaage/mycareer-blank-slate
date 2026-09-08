@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -7,12 +7,7 @@ import {
   pickAllowedCapabilities,
 } from "@/lib/ai-integrations/claim-contract";
 import { deriveEffectiveMode } from "@/lib/ai-integrations/contract";
-import {
-  CLAIM_MAX_ATTEMPTS,
-  claimClientKey,
-  claimRateLimited,
-  resetClaimRateLimit,
-} from "@/lib/ai-integrations/claim-rate-limit.server";
+import { claimClientKey } from "@/lib/ai-integrations/claim-rate-limit.server";
 
 const CLAIM_ROUTE = readFileSync(
   join(process.cwd(), "src", "routes", "api", "public", "ai-integrations", "claim.ts"),
@@ -77,8 +72,6 @@ describe("D. robusthet i claim", () => {
 });
 
 describe("D. rate-limit-kilden", () => {
-  beforeEach(() => resetClaimRateLimit());
-
   const req = (headers: Record<string, string>) => new Request("https://x/", { headers });
 
   it("foretrekker edge-headeren som klienten ikke kan sette", () => {
@@ -103,14 +96,7 @@ describe("D. rate-limit-kilden", () => {
       "utf8",
     );
     expect(src).toContain("overskriver");
-    expect(src).toContain("ikke distribuert");
-  });
-
-  it("begrenser etter allowlistet antall forsøk", () => {
-    for (let i = 0; i < CLAIM_MAX_ATTEMPTS; i += 1) {
-      expect(claimRateLimited("k")).toBe(false);
-    }
-    expect(claimRateLimited("k")).toBe(true);
+    expect(src).toContain("FAIL CLOSED");
   });
 });
 

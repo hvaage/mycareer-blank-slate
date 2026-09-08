@@ -688,6 +688,56 @@ export type Database = {
         }
         Relationships: []
       }
+      capability_challenges: {
+        Row: {
+          ai_integration_id: string
+          capability: string
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          nonce_hash: string
+          observed_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_integration_id: string
+          capability: string
+          completed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          nonce_hash: string
+          observed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_integration_id?: string
+          capability?: string
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          nonce_hash?: string
+          observed_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capability_challenges_ai_integration_id_fkey"
+            columns: ["ai_integration_id"]
+            isOneToOne: false
+            referencedRelation: "ai_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       career_atom_evidence_projection: {
         Row: {
           atom_id: string
@@ -1766,6 +1816,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      claim_rate_events: {
+        Row: {
+          id: string
+          occurred_at: string
+          source_hash: string
+        }
+        Insert: {
+          id?: string
+          occurred_at?: string
+          source_hash: string
+        }
+        Update: {
+          id?: string
+          occurred_at?: string
+          source_hash?: string
+        }
+        Relationships: []
       }
       companies: {
         Row: {
@@ -7514,6 +7582,251 @@ export type Database = {
             columns: ["source_import_id"]
             isOneToOne: false
             referencedRelation: "linkedin_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_access_token_revocations: {
+        Row: {
+          expires_at: string
+          grant_id: string | null
+          id: string
+          jti: string | null
+          reason: string | null
+          revoked_at: string
+        }
+        Insert: {
+          expires_at: string
+          grant_id?: string | null
+          id?: string
+          jti?: string | null
+          reason?: string | null
+          revoked_at?: string
+        }
+        Update: {
+          expires_at?: string
+          grant_id?: string | null
+          id?: string
+          jti?: string | null
+          reason?: string | null
+          revoked_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_access_token_revocations_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_grants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_authorization_codes: {
+        Row: {
+          ai_integration_id: string | null
+          client_id: string
+          code_challenge: string
+          code_challenge_method: string
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          redirect_uri: string
+          scopes: string[]
+          user_id: string
+        }
+        Insert: {
+          ai_integration_id?: string | null
+          client_id: string
+          code_challenge: string
+          code_challenge_method?: string
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          redirect_uri: string
+          scopes: string[]
+          user_id: string
+        }
+        Update: {
+          ai_integration_id?: string | null
+          client_id?: string
+          code_challenge?: string
+          code_challenge_method?: string
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          redirect_uri?: string
+          scopes?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_authorization_codes_ai_integration_id_fkey"
+            columns: ["ai_integration_id"]
+            isOneToOne: false
+            referencedRelation: "ai_integrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_authorization_codes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_clients: {
+        Row: {
+          allowed_scopes: string[]
+          client_id: string
+          client_name: string
+          client_secret_hash: string | null
+          client_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          redirect_uris: string[]
+          updated_at: string
+        }
+        Insert: {
+          allowed_scopes: string[]
+          client_id: string
+          client_name: string
+          client_secret_hash?: string | null
+          client_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          redirect_uris: string[]
+          updated_at?: string
+        }
+        Update: {
+          allowed_scopes?: string[]
+          client_id?: string
+          client_name?: string
+          client_secret_hash?: string | null
+          client_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          redirect_uris?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      oauth_grants: {
+        Row: {
+          ai_integration_id: string
+          client_id: string
+          created_at: string
+          id: string
+          revoked_at: string | null
+          revoked_reason: string | null
+          scopes: string[]
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_integration_id: string
+          client_id: string
+          created_at?: string
+          id?: string
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          scopes: string[]
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_integration_id?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          scopes?: string[]
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_grants_ai_integration_id_fkey"
+            columns: ["ai_integration_id"]
+            isOneToOne: false
+            referencedRelation: "ai_integrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_grants_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_refresh_tokens: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          family_id: string
+          grant_id: string
+          id: string
+          parent_id: string | null
+          reuse_detected_at: string | null
+          revoked_at: string | null
+          status: string
+          token_hash: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          family_id: string
+          grant_id: string
+          id?: string
+          parent_id?: string | null
+          reuse_detected_at?: string | null
+          revoked_at?: string | null
+          status?: string
+          token_hash: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          family_id?: string
+          grant_id?: string
+          id?: string
+          parent_id?: string | null
+          reuse_detected_at?: string | null
+          revoked_at?: string | null
+          status?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_refresh_tokens_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_grants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_refresh_tokens_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_refresh_tokens"
             referencedColumns: ["id"]
           },
         ]

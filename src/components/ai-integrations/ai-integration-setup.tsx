@@ -348,7 +348,6 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
             </Alert>
           )}
 
-
           <div className="space-y-3">
             <ToggleRow
               id="opt-job-import"
@@ -436,6 +435,14 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
                 </p>
               )}
             </div>
+
+            {/* last_verified_at = sist bekreftede FORBINDELSE. Sier ingenting
+                om hvilke egenskaper som er bekreftet. */}
+            <p className="text-xs text-muted-foreground">
+              {current.last_verified_at
+                ? `Forbindelsen ble sist bekreftet ${new Date(current.last_verified_at).toLocaleDateString("nb-NO")}. Det betyr at koblingen virker — ikke at egenskapene over er sjekket.`
+                : "Forbindelsen er ikke bekreftet ennå."}
+            </p>
 
             <div className="space-y-0.5">
               <p className="text-sm font-medium">{EFFECTIVE_MODE_TEXT[mode].title}</p>
