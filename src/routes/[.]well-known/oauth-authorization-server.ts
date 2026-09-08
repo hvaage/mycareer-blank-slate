@@ -17,7 +17,7 @@ import {
   publicAppOrigin,
 } from "@/lib/ai-integrations/oauth-config.server";
 
-export const Route = createFileRoute("/(.well-known)/oauth-authorization-server" as never)({
+export const Route = createFileRoute("/.well-known/oauth-authorization-server")({
   server: {
     handlers: {
       GET: async () => {

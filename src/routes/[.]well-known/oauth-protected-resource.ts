@@ -8,7 +8,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { OAUTH_SCOPES } from "@/lib/ai-integrations/oauth-contract";
 import { oauthUrls, publicAppOrigin } from "@/lib/ai-integrations/oauth-config.server";
 
-export const Route = createFileRoute("/(.well-known)/oauth-protected-resource" as never)({
+export const Route = createFileRoute("/.well-known/oauth-protected-resource")({
   server: {
     handlers: {
       GET: async () => {
