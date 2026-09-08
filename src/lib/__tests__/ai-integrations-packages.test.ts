@@ -152,7 +152,8 @@ describe("fire likestilte design-/kildepakker (ikke installerbare)", () => {
     ]) {
       expect(text).toContain(needed);
     }
-    expect(text).toContain("Ingenting av dette er implementert");
+    // OAuth-laget er nå bygget; MCP-transporten er fortsatt bare spesifisert.
+    expect(text).toContain("MCP-transporten er fortsatt ikke bygget");
   });
 });
 
