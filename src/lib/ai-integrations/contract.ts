@@ -168,7 +168,7 @@ export function parseSaveIntegrationInput(body: unknown): ValidationResult {
   return {
     ok: true,
     value: {
-      provider: provider as AiProvider,
+      provider,
       plan_tier: planTier as AiPlanTier,
       automation: {
         job_email_import_enabled: readBoolean(
@@ -219,7 +219,16 @@ export function isSetupCodeExpired(expiresAt: string | Date, now: Date = new Dat
   return !(exp.getTime() > now.getTime());
 }
 
-/** E-postleverandører vi viser i oppsettet. Kalender vises aldri som datakilde. */
+/**
+ * E-postleverandører vi viser i oppsettet. Kalender vises aldri som datakilde.
+ *
+ * FASE 1 — IKKE-PERSISTENT: dette valget lagres ikke. Gjeldende skjema har
+ * ingen egnet plass for det: `email_connections` krever en reell tilkoblet
+ * konto (e-postadresse + token) og dekker bare google/microsoft, mens
+ * `email_job_sources` beskriver en faktisk inntakskilde. Valget styrer derfor
+ * kun veiledningsteksten i grensesnittet, og sendes bevisst ikke til backend.
+ * Skal det lagres, krever det en egen migrasjon i en senere fase.
+ */
 export const EMAIL_PROVIDER_OPTIONS = [
   { value: "gmail", label: "Gmail" },
   { value: "microsoft", label: "Outlook / Microsoft 365" },
@@ -227,5 +236,8 @@ export const EMAIL_PROVIDER_OPTIONS = [
   { value: "other", label: "Annen e-postleverandør" },
   { value: "multiple", label: "Flere kontoer" },
 ] as const;
+
+/** Fase 1: e-postleverandørvalget lagres ikke. Brukes i UI-tekst og tester. */
+export const EMAIL_PROVIDER_CHOICE_IS_PERSISTED = false;
 
 export type EmailProviderChoice = (typeof EMAIL_PROVIDER_OPTIONS)[number]["value"];
