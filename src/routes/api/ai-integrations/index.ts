@@ -14,6 +14,7 @@ import { authenticateApiRequest, apiFail } from "@/lib/api-auth.server";
 import {
   DEFAULT_AUTOMATION_CHOICES,
   deriveEffectiveMode,
+  nextIntegrationStatus,
   parseSaveIntegrationInput,
   AI_PROVIDERS,
   type AiCapabilities,
@@ -126,8 +127,7 @@ export const Route = createFileRoute("/api/ai-integrations/")({
         const capabilities = (existing?.capabilities ?? {}) as AiCapabilities;
         // connecting settes bare for ny integrasjon eller ved ny tilkobling
         // etter frakobling. Ellers står status urørt.
-        const nextStatus =
-          !existing || existing.status === "disconnected" ? "connecting" : existing.status;
+        const nextStatus = nextIntegrationStatus(existing?.status ?? null);
 
         const shared = {
           declared_plan_tier: plan_tier,
