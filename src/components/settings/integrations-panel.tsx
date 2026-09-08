@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Linkedin, Globe2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { EmailConnections } from "@/components/email-connections";
+import { AiIntegrationSetup } from "@/components/ai-integrations/ai-integration-setup";
 import { startLinkedInOAuth } from "@/lib/linkedin-oauth";
 import { ExternalUrlLink } from "@/components/external-url-link";
 
@@ -27,12 +27,13 @@ export function IntegrationsPanel({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-6">
-      <EmailConnections />
+      <AiIntegrationSetup />
       <LinkedInConnection profile={profile} />
       <JobBoardIntegrations />
     </div>
   );
 }
+
 
 function LinkedInConnection({ profile }: { profile: any }) {
   const connected = !!profile?.linkedin_connected_at;

@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { JobSearchPrefs } from "@/components/job-search-prefs";
 import { CvUploadFlow } from "@/components/cv-upload/cv-upload-flow";
+import { AiIntegrationSetup } from "@/components/ai-integrations/ai-integration-setup";
 
 import { startLinkedInOAuth } from "@/lib/linkedin-oauth";
 
@@ -421,23 +422,8 @@ function Step1({
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" /> Gmail
-            </CardTitle>
-          </div>
-          <CardDescription>
-            Les jobbvarsler fra LinkedIn (og senere andre aviser) rett inn i Jobb-leads.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button type="button" onClick={() => void onConnectGmail()}>
-            Koble til Gmail
-          </Button>
-        </CardContent>
-      </Card>
+      <AiIntegrationSetup compact />
+
 
       <Card>
         <CardHeader>
