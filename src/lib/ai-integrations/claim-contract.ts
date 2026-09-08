@@ -49,7 +49,11 @@ export function parseClaimInput(body: unknown): ClaimParse {
   return { ok: true, value: { provider: provider as AiProvider, code } };
 }
 
-/** Kun disse egenskapene kan rapporteres av en agent. Alt annet forkastes. */
+/**
+ * Kun disse egenskapene kan noen gang bli bekreftet. Alt annet forkastes.
+ *
+ * VIKTIG: allowlisten brukes IKKE av claim. Se `UNVERIFIED_CAPABILITIES`.
+ */
 export const CAPABILITY_ALLOWLIST = [
   "background_execution",
   "scheduled_runs",
@@ -57,8 +61,8 @@ export const CAPABILITY_ALLOWLIST = [
 ] as const;
 
 /**
- * Plukker ut kun allowlistede boolske egenskaper. Ukjente nøkler,
- * ikke-boolske verdier og påstander om abonnement forkastes stille.
+ * Filtrerer et capability-objekt mot allowlisten. Beregnet på en senere,
+ * serverkontrollert verifisering/challenge — ikke på klientpåstander.
  */
 export function pickAllowedCapabilities(raw: unknown): AiCapabilities {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
@@ -69,6 +73,27 @@ export function pickAllowedCapabilities(raw: unknown): AiCapabilities {
     else if (source[key] === false) out[key] = false;
   }
   return out;
+}
+
+/**
+ * Capabilities ved claim.
+ *
+ * Engangskoden beviser at brukeren har gitt samtykke og hatt tilgang til
+ * koden. Den beviser INGENTING om hva plattformen faktisk kan gjøre. En
+ * uautentisert klient kan påstå hva som helst, så claim setter alltid
+ * tomme (ubekreftede) capabilities. Forbindelsen blir aktiv, men ingen
+ * egenskap er bekreftet.
+ *
+ * Oppgradering skjer først i en senere fase, gjennom en serverkontrollert
+ * verifisering/challenge per egenskap (se
+ * docs/operations/ai-integrations-mcp-oauth-spec.md). Først da kan
+ * `pickAllowedCapabilities` brukes på et serververifisert resultat.
+ */
+export const UNVERIFIED_CAPABILITIES: AiCapabilities = Object.freeze({});
+
+/** Capabilities som lagres ved claim. Alltid tomt, uansett hva klienten sender. */
+export function claimCapabilities(_clientClaimed?: unknown): AiCapabilities {
+  return { ...UNVERIFIED_CAPABILITIES };
 }
 
 /** Statuser som gir en agent lov til å bruke API-et. */
