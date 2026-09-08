@@ -23,10 +23,7 @@ export const Route = createFileRoute("/api/public/oauth/revoke")({
 
         const contentType = request.headers.get("content-type") ?? "";
         if (!contentType.toLowerCase().includes("application/x-www-form-urlencoded")) {
-          return Response.json(
-            { error: "invalid_request" },
-            { status: 400, headers: noStore },
-          );
+          return Response.json({ error: "invalid_request" }, { status: 400, headers: noStore });
         }
 
         let form: URLSearchParams;

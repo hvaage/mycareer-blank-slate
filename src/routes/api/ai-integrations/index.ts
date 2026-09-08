@@ -40,7 +40,6 @@ async function readForwardingAddress(
   return { address: `${token}@${domain}`, intake_status: "ready" };
 }
 
-
 export const Route = createFileRoute("/api/ai-integrations/")({
   server: {
     handlers: {
@@ -73,7 +72,6 @@ export const Route = createFileRoute("/api/ai-integrations/")({
           forwarding_address: intake.address,
           email_intake_status: intake.intake_status,
         });
-
       },
 
       PUT: async ({ request }) => {

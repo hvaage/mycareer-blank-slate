@@ -112,7 +112,10 @@ export const Route = createFileRoute("/api/public/oauth/register")({
           allowed_scopes: requested,
         });
         if (error) {
-          return Response.json({ error: "invalid_client_metadata" }, { status: 400, headers: noStore });
+          return Response.json(
+            { error: "invalid_client_metadata" },
+            { status: 400, headers: noStore },
+          );
         }
 
         return Response.json(

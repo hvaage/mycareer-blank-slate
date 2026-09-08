@@ -83,7 +83,11 @@ export async function hmacSign(data: string, secret: string): Promise<string> {
   return b64url(new Uint8Array(mac));
 }
 
-export async function hmacVerify(data: string, signature: string, secret: string): Promise<boolean> {
+export async function hmacVerify(
+  data: string,
+  signature: string,
+  secret: string,
+): Promise<boolean> {
   return timingSafeEqual(await hmacSign(data, secret), signature);
 }
 

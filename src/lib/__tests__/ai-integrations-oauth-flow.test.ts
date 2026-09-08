@@ -230,9 +230,9 @@ describe("authorization request", () => {
     const shape = validateAuthorizeShape(baseParams());
     if (!shape.ok) throw new Error("skulle vært gyldig");
     expect(validateAgainstClient(shape.value, null, RESOURCE).ok).toBe(false);
-    expect(
-      validateAgainstClient(shape.value, { ...CLIENT, is_active: false }, RESOURCE).ok,
-    ).toBe(false);
+    expect(validateAgainstClient(shape.value, { ...CLIENT, is_active: false }, RESOURCE).ok).toBe(
+      false,
+    );
   });
 
   it("avviser redirect-mismatch og åpen videresending, uten å kunne redirecte", () => {
@@ -261,7 +261,9 @@ describe("authorization request", () => {
   });
 
   it("avslag bevarer opprinnelig state", () => {
-    const url = new URL(errorRedirectUrl(CLIENT.redirect_uris[0]!, "access_denied", "abc123", ORIGIN));
+    const url = new URL(
+      errorRedirectUrl(CLIENT.redirect_uris[0]!, "access_denied", "abc123", ORIGIN),
+    );
     expect(url.searchParams.get("error")).toBe("access_denied");
     expect(url.searchParams.get("state")).toBe("abc123");
   });
@@ -602,7 +604,7 @@ describe("lekkasjekontroll", () => {
   });
 
   it("access token legges aldri i en URL", () => {
-    expect(routeSources.token).not.toContain("searchParams.set(\"access_token\"");
+    expect(routeSources.token).not.toContain('searchParams.set("access_token"');
     const page = readFileSync("src/routes/oauth.authorize.tsx", "utf8");
     expect(page).not.toContain("access_token=");
   });

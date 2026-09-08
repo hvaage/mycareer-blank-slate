@@ -27,10 +27,10 @@ import type { AiProvider } from "@/lib/ai-integrations/contract";
 const noStore = { "Cache-Control": "no-store", Pragma: "no-cache" };
 
 function oauthError(status: number, error: string, description?: string): Response {
-  return Response.json(
-    description ? { error, error_description: description } : { error },
-    { status, headers: noStore },
-  );
+  return Response.json(description ? { error, error_description: description } : { error }, {
+    status,
+    headers: noStore,
+  });
 }
 
 type RedeemRow = {

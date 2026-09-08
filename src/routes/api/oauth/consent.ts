@@ -129,7 +129,11 @@ export const Route = createFileRoute("/api/oauth/consent")({
               ? integrations[0]
               : undefined;
         if (!chosen) {
-          return apiFail(400, "integration_required", "Velg hvilken assistent som skal kobles til.");
+          return apiFail(
+            400,
+            "integration_required",
+            "Velg hvilken assistent som skal kobles til.",
+          );
         }
 
         const code = randomToken(32);
@@ -151,12 +155,7 @@ export const Route = createFileRoute("/api/oauth/consent")({
         return Response.json(
           {
             ok: true,
-            redirect_url: successRedirectUrl(
-              sealed.redirect_uri,
-              code,
-              sealed.state,
-              urls.issuer,
-            ),
+            redirect_url: successRedirectUrl(sealed.redirect_uri, code, sealed.state, urls.issuer),
           },
           // Cookien ryddes: samtykket er brukt opp.
           { headers: { ...noStore, "Set-Cookie": csrfCookieHeader("", 0) } },

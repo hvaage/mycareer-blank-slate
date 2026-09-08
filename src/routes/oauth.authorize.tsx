@@ -163,8 +163,8 @@ function AuthorizePage() {
             <>
               <h1 className="text-2xl text-foreground">Vil du koble til {clientName}?</h1>
               <p className="mt-3 text-sm text-muted-foreground">
-                {clientName} ber om tilgang til karrierearbeidet ditt i Karrierenmin. Du kan når
-                som helst koble fra igjen under Innstillinger.
+                {clientName} ber om tilgang til karrierearbeidet ditt i Karrierenmin. Du kan når som
+                helst koble fra igjen under Innstillinger.
               </p>
 
               <h2 className="mt-6 text-sm font-medium text-foreground">Dette gir du tilgang til</h2>
@@ -178,7 +178,9 @@ function AuthorizePage() {
 
               {integrations.length > 1 && (
                 <div className="mt-6">
-                  <h2 className="text-sm font-medium text-foreground">Hvilken assistent gjelder det?</h2>
+                  <h2 className="text-sm font-medium text-foreground">
+                    Hvilken assistent gjelder det?
+                  </h2>
                   <div className="mt-2 space-y-2">
                     {integrations.map((i) => (
                       <label
@@ -209,11 +211,18 @@ function AuthorizePage() {
                 <Button
                   type="button"
                   onClick={() => decide("approve")}
-                  disabled={busy || integrations.length === 0 || (integrations.length > 1 && !chosen)}
+                  disabled={
+                    busy || integrations.length === 0 || (integrations.length > 1 && !chosen)
+                  }
                 >
                   {busy ? "Et øyeblikk…" : "Godkjenn"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => decide("deny")} disabled={busy}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => decide("deny")}
+                  disabled={busy}
+                >
                   Avslå
                 </Button>
               </div>

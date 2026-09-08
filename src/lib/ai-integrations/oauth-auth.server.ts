@@ -35,7 +35,8 @@ export async function authenticateOauthRequest(
     requiredScope,
   });
   if (!verified.ok) {
-    if (verified.reason === "not_configured") return { ok: false, status: 500, error: "server_error" };
+    if (verified.reason === "not_configured")
+      return { ok: false, status: 500, error: "server_error" };
     if (verified.reason === "scope") return { ok: false, status: 403, error: "insufficient_scope" };
     return { ok: false, status: 401, error: "invalid_token" };
   }
@@ -47,7 +48,11 @@ export async function authenticateOauthRequest(
 
   const db = await admin();
   const [{ data: grant }, { data: integration }] = await Promise.all([
-    db.from("oauth_grants").select("id, status, user_id, ai_integration_id").eq("id", payload.grant_id).maybeSingle(),
+    db
+      .from("oauth_grants")
+      .select("id, status, user_id, ai_integration_id")
+      .eq("id", payload.grant_id)
+      .maybeSingle(),
     db.from("ai_integrations").select("id, status").eq("id", payload.iid).maybeSingle(),
   ]);
 
