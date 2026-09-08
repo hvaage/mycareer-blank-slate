@@ -35,11 +35,15 @@ describe("deriveEffectiveMode", () => {
     expect(deriveEffectiveMode({})).toBe("guided");
     expect(deriveEffectiveMode(null)).toBe("guided");
     expect(deriveEffectiveMode({ background_execution: true })).toBe("guided");
-    expect(deriveEffectiveMode({ scheduled_runs: true, email_forward_or_send: true })).toBe("guided");
+    expect(deriveEffectiveMode({ scheduled_runs: true, email_forward_or_send: true })).toBe(
+      "guided",
+    );
   });
 
   it("stoler ikke på oppgitt abonnement — kun bekreftede egenskaper", () => {
-    expect(deriveEffectiveMode({ background_execution: false, scheduled_runs: false })).toBe("guided");
+    expect(deriveEffectiveMode({ background_execution: false, scheduled_runs: false })).toBe(
+      "guided",
+    );
   });
 });
 

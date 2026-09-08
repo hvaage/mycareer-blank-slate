@@ -82,7 +82,8 @@ async function authedJson(path: string, init?: RequestInit) {
     },
   });
   const json = await res.json().catch(() => null);
-  if (!res.ok || !json?.ok) throw new Error(json?.error?.message ?? "Handlingen kunne ikke utføres.");
+  if (!res.ok || !json?.ok)
+    throw new Error(json?.error?.message ?? "Handlingen kunne ikke utføres.");
   return json;
 }
 
@@ -472,9 +473,7 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
         ) : null}
 
         {compact ? null : (
-          <p className="text-xs text-muted-foreground">
-            Kalenderen din brukes ikke som datakilde.
-          </p>
+          <p className="text-xs text-muted-foreground">Kalenderen din brukes ikke som datakilde.</p>
         )}
       </CardContent>
     </Card>

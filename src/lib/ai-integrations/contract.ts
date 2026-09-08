@@ -33,13 +33,7 @@ export const AI_PLAN_LABELS: Record<AiPlanTier, string> = {
 export const AI_EFFECTIVE_MODES = ["guided", "agent", "email_rule", "hybrid"] as const;
 export type AiEffectiveMode = (typeof AI_EFFECTIVE_MODES)[number];
 
-export const AI_STATUSES = [
-  "draft",
-  "connecting",
-  "active",
-  "degraded",
-  "disconnected",
-] as const;
+export const AI_STATUSES = ["draft", "connecting", "active", "degraded", "disconnected"] as const;
 export type AiStatus = (typeof AI_STATUSES)[number];
 
 /**
@@ -59,7 +53,9 @@ export type AiCapabilities = {
  *   kun e-post                    -> email_rule
  *   ellers                        -> guided
  */
-export function deriveEffectiveMode(capabilities: AiCapabilities | null | undefined): AiEffectiveMode {
+export function deriveEffectiveMode(
+  capabilities: AiCapabilities | null | undefined,
+): AiEffectiveMode {
   const c = capabilities ?? {};
   const background = c.background_execution === true;
   const scheduled = c.scheduled_runs === true;

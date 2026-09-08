@@ -8,13 +8,8 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { authenticateApiRequest, apiFail } from "@/lib/api-auth.server";
-import {
-  AI_PROVIDERS,
-  formatSetupCode,
-  setupCodeExpiry,
-} from "@/lib/ai-integrations/contract";
+import { AI_PROVIDERS, formatSetupCode, setupCodeExpiry } from "@/lib/ai-integrations/contract";
 import { generateSetupCode, sha256Hex } from "@/lib/ai-integrations/setup-code";
-
 
 export const Route = createFileRoute("/api/ai-integrations/setup-session")({
   server: {
@@ -32,7 +27,10 @@ export const Route = createFileRoute("/api/ai-integrations/setup-session")({
         }
 
         const provider = (body as Record<string, unknown> | null)?.["provider"];
-        if (typeof provider !== "string" || !(AI_PROVIDERS as readonly string[]).includes(provider)) {
+        if (
+          typeof provider !== "string" ||
+          !(AI_PROVIDERS as readonly string[]).includes(provider)
+        ) {
           return apiFail(400, "invalid_input", "Ukjent assistent.");
         }
 

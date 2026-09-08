@@ -147,7 +147,10 @@ export const Route = createFileRoute("/api/ai-integrations/")({
         }
 
         const provider = (body as Record<string, unknown> | null)?.["provider"];
-        if (typeof provider !== "string" || !(AI_PROVIDERS as readonly string[]).includes(provider)) {
+        if (
+          typeof provider !== "string" ||
+          !(AI_PROVIDERS as readonly string[]).includes(provider)
+        ) {
           return apiFail(400, "invalid_input", "Ukjent assistent.");
         }
 

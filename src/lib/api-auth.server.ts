@@ -12,9 +12,7 @@ export function apiFail(status: number, code: string, message: string): Response
   return Response.json({ ok: false, error: { code, message } }, { status });
 }
 
-export type ApiAuthResult =
-  | { error: Response }
-  | { userClient: SupabaseClient; userId: string };
+export type ApiAuthResult = { error: Response } | { userClient: SupabaseClient; userId: string };
 
 export async function authenticateApiRequest(request: Request): Promise<ApiAuthResult> {
   const { createClient } = await import("@supabase/supabase-js");
