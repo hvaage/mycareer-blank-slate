@@ -24,9 +24,10 @@ import {
  * Returnerer en ferdig formatert videresendingsadresse dersom brukeren
  * allerede har en. Selve tokenet forlater aldri serveren alene.
  */
-async function readForwardingAddress(userClient: SupabaseClient): Promise<string | null> {
+async function readForwardingAddress(
+  userClient: SupabaseClient,
+): Promise<{ address: string | null; intake_status: "ready" | "pending_setup" }> {
   const domain = process.env["INBOUND_EMAIL_DOMAIN"];
-  if (!domain) return null;
   const { data } = await userClient
     .from("email_job_sources")
     .select("inbound_alias_token")
@@ -35,8 +36,10 @@ async function readForwardingAddress(userClient: SupabaseClient): Promise<string
     .limit(1)
     .maybeSingle();
   const token = (data as { inbound_alias_token?: string } | null)?.inbound_alias_token;
-  return token ? `${token}@${domain}` : null;
+  if (!domain || !token) return { address: null, intake_status: "pending_setup" };
+  return { address: `${token}@${domain}`, intake_status: "ready" };
 }
+
 
 export const Route = createFileRoute("/api/ai-integrations/")({
   server: {
@@ -62,12 +65,15 @@ export const Route = createFileRoute("/api/ai-integrations/")({
 
         if (error) return apiFail(500, "database_error", "Kunne ikke hente oppsettet ditt.");
 
+        const intake = await readForwardingAddress(auth.userClient);
         return Response.json({
           ok: true,
           integrations: integrations ?? [],
           automation: preferences ?? DEFAULT_AUTOMATION_CHOICES,
-          forwarding_address: await readForwardingAddress(auth.userClient),
+          forwarding_address: intake.address,
+          email_intake_status: intake.intake_status,
         });
+
       },
 
       PUT: async ({ request }) => {

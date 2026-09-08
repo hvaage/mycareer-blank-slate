@@ -1,0 +1,13 @@
+{
+  "$comment": "Mal. Bytt base-URL til din offentlige HTTPS-adresse. Tokenet hentes fra klientens secret-lager, aldri fra denne filen.",
+  "mcpServers": {
+    "karrierenmin": {
+      "type": "http",
+      "url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/ai-integrations/v1",
+      "headers": {
+        "Authorization": "Bearer ${KARRIERENMIN_INTEGRATION_TOKEN}"
+      },
+      "tools": ["karrierenmin_claim", "karrierenmin_status"]
+    }
+  }
+}

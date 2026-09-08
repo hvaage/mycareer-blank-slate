@@ -1,0 +1,32 @@
+{
+  "$comment": "Mal. Bytt base-URL til din offentlige HTTPS-adresse. Tokenet hentes fra secret-lageret, aldri fra denne filen eller fra URL-query.",
+  "base_url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST",
+  "auth": {
+    "type": "bearer",
+    "header": "Authorization",
+    "value_from_secret": "KARRIERENMIN_INTEGRATION_TOKEN"
+  },
+  "tools": [
+    {
+      "name": "karrierenmin_claim",
+      "method": "POST",
+      "path": "/api/public/ai-integrations/claim",
+      "auth": "none",
+      "body": {
+        "provider": "grok",
+        "setup_code": "<engangskode fra brukeren>",
+        "capabilities": {
+          "background_execution": false,
+          "scheduled_runs": false,
+          "email_forward_or_send": false
+        }
+      }
+    },
+    {
+      "name": "karrierenmin_status",
+      "method": "GET",
+      "path": "/api/public/ai-integrations/v1/status",
+      "auth": "bearer"
+    }
+  ]
+}

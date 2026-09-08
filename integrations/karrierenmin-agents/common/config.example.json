@@ -1,0 +1,11 @@
+{
+  "karrierenmin_base_url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST",
+  "provider": "REPLACE-WITH-ONE-OF: grok | claude | openai | gemini",
+  "integration_token": "STORE_IN_PLATFORM_SECRET_STORE_NOT_HERE",
+  "capabilities_reporting": {
+    "background_execution": false,
+    "scheduled_runs": false,
+    "email_forward_or_send": false,
+    "note": "Sett kun true for det installasjonen faktisk kan. Aldri utledet fra abonnement."
+  }
+}
