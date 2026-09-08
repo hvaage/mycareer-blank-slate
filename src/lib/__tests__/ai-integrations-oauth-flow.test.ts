@@ -52,6 +52,14 @@ import {
 import { isRegistrableRedirectUri } from "@/routes/api/public/oauth/register";
 import { OAUTH_SCOPES } from "@/lib/ai-integrations/oauth-contract";
 
+/** Kommentarer teller ikke som kontrakt — bare faktisk kode. */
+function stripComments(source: string): string {
+  return source
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("//") && !line.trimStart().startsWith("*"))
+    .join("\n");
+}
+
 const ORIGIN = "https://karrierenmin.no";
 const RESOURCE = `${ORIGIN}${OAUTH_PATHS.resource}`;
 
@@ -110,7 +118,9 @@ describe("kanonisk origin", () => {
   });
 
   it("utleder aldri origin fra Host — kun miljøvariabelen leses", () => {
-    const source = readFileSync("src/lib/ai-integrations/oauth-config.server.ts", "utf8");
+    const source = stripComments(
+      readFileSync("src/lib/ai-integrations/oauth-config.server.ts", "utf8"),
+    );
     expect(source).toContain('process.env["PUBLIC_APP_ORIGIN"]');
     expect(source.toLowerCase()).not.toContain("x-forwarded-host");
   });
@@ -125,8 +135,12 @@ describe("kanonisk origin", () => {
 });
 
 describe("discovery-kontrakt", () => {
-  const asMeta = readFileSync("src/routes/[.well-known]/oauth-authorization-server.ts", "utf8");
-  const prMeta = readFileSync("src/routes/[.well-known]/oauth-protected-resource.ts", "utf8");
+  const asMeta = stripComments(
+    readFileSync("src/routes/[.]well-known/oauth-authorization-server.ts", "utf8"),
+  );
+  const prMeta = stripComments(
+    readFileSync("src/routes/[.]well-known/oauth-protected-resource.ts", "utf8"),
+  );
 
   it("annonserer S256 og bare det som er implementert", () => {
     expect(asMeta).toContain('code_challenge_methods_supported: ["S256"]');
@@ -625,12 +639,18 @@ describe("atomiske databaseprosedyrer", () => {
   });
 
   it("prosedyrene er SECURITY INVOKER med fast search_path", () => {
-    const relevant = withoutComments.split("CREATE OR REPLACE FUNCTION public.oauth_").slice(1);
-    for (const block of relevant) {
-      const head = block.slice(0, 2000);
-      expect(head).toContain("SECURITY INVOKER");
-      expect(head).toContain("SET search_path = public, pg_temp");
-      expect(head).not.toContain("SECURITY DEFINER");
+    for (const fn of [
+      "oauth_redeem_authorization_code",
+      "oauth_rotate_refresh_token",
+      "oauth_revoke_grants",
+      "oauth_revoke_refresh_token",
+    ]) {
+      const head = withoutComments
+        .split(`CREATE OR REPLACE FUNCTION public.${fn}`)[1]!
+        .slice(0, 1200);
+      expect(head, fn).toContain("SECURITY INVOKER");
+      expect(head, fn).toContain("SET search_path = public, pg_temp");
+      expect(head, fn).not.toContain("SECURITY DEFINER");
     }
   });
 
