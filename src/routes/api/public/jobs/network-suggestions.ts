@@ -43,8 +43,9 @@ export const Route = createFileRoute("/api/public/jobs/network-suggestions")({
         if (!secretMatches(request.headers.get("x-worker-secret"), expected)) {
           return fail(401, "unauthorized");
         }
-        const apiKey = process.env["ANTHROPIC_API_KEY"];
-        if (!apiKey) return fail(500, "server_misconfigured");
+        // Leverandørnøytral konfigurasjonssjekk. Ruten kjenner ikke motoren.
+        const { isModelRuntimeConfigured } = await import("@/lib/ai-model/model.server");
+        if (!(await isModelRuntimeConfigured())) return fail(500, "server_misconfigured");
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const admin = supabaseAdmin as unknown as {
@@ -78,7 +79,6 @@ export const Route = createFileRoute("/api/public/jobs/network-suggestions")({
           const { runSuggestionJob } = await import("@/lib/network-suggestions/runner.server");
           const outcome = await runSuggestionJob({
             adminClient: admin,
-            apiKey,
             userId: run.user_id,
             scope: run.scope,
             scopeObjectId: run.scope_object_id ?? null,
