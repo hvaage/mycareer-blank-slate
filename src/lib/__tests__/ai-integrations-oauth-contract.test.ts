@@ -105,7 +105,11 @@ describe("databasedefinisjonen speiler reglene", () => {
 
   it("ratebegrensningen er atomisk, invoker og kun for service_role", () => {
     expect(sql).toContain("SECURITY INVOKER");
-    expect(sql).not.toContain("SECURITY DEFINER");
+    const statements = sql
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("--"))
+      .join("\n");
+    expect(statements).not.toContain("SECURITY DEFINER");
     expect(sql).toContain("SET search_path = public, pg_temp");
     expect(sql).toContain("pg_advisory_xact_lock");
     expect(sql).toContain("REVOKE ALL ON FUNCTION public.claim_rate_check");
