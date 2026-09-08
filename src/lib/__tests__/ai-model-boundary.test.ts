@@ -60,9 +60,8 @@ describe("nøytralt AI-modellgrensesnitt", () => {
       callClaude: ReturnType<typeof vi.fn>;
     };
     callClaude.mockClear();
-    const { createClaudeModelClient } = await import(
-      "../../../supabase/functions/_shared/ai-model/claude-adapter.ts"
-    );
+    const { createClaudeModelClient } =
+      await import("../../../supabase/functions/_shared/ai-model/claude-adapter.ts");
     const client = createClaudeModelClient({ apiKey: "hemmelig" });
 
     const result = await client.call({
@@ -83,9 +82,8 @@ describe("nøytralt AI-modellgrensesnitt", () => {
   });
 
   it("manglende serverkonfigurasjon gir kontrollert feil, ikke unntak", async () => {
-    const { createClaudeModelClient } = await import(
-      "../../../supabase/functions/_shared/ai-model/claude-adapter.ts"
-    );
+    const { createClaudeModelClient } =
+      await import("../../../supabase/functions/_shared/ai-model/claude-adapter.ts");
     const previous = process.env["ANTHROPIC_API_KEY"];
     delete process.env["ANTHROPIC_API_KEY"];
     try {
