@@ -106,8 +106,9 @@ export const suggestOccupationMatch = createServerFn({ method: "POST" })
       return { ok: true, items: [] };
     }
 
-    const apiKey = process.env["ANTHROPIC" + "_API_KEY"];
-    if (!apiKey) return { ok: false, errorCode: "missing_api_key", items: [] };
+    const { callModel, isModelRuntimeConfigured } = await import("@/lib/ai-model/model.server");
+    if (!(await isModelRuntimeConfigured()))
+      return { ok: false, errorCode: "missing_api_key", items: [] };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as unknown as {
@@ -149,13 +150,11 @@ export const suggestOccupationMatch = createServerFn({ method: "POST" })
       .filter(Boolean)
       .join("\n");
 
-    const { callClaude } = await import("../../supabase/functions/_shared/claude/client.ts");
-    const result = await callClaude({
+    const result = await callModel({
       profile,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
       correlationId: crypto.randomUUID(),
-      runtime: { apiKey },
     });
 
     if (!result.ok) return { ok: false, errorCode: "model_error", items: [] };

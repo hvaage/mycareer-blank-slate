@@ -1,13 +1,13 @@
 // Fase 5D — kjøring av én forslagsjobb. Server-only.
 //
-//   - modell: eksisterende Claude-klient med navngitt profil
+//   - modell: nøytralt AI-modellgrensesnitt med navngitt profil
 //     (task_key = network_activity_suggestions)
 //   - ai.model_runs får profil, versjon, tokens, status og korrelasjons-ID.
 //     Aldri rå prompt, respons, kontaktdata eller annonsetekst.
 //   - evidens valideres mot en lukket liste; ukjente referanser forkastes
 //   - forslag oppretter aldri aktiviteter, sender aldri meldinger
 
-import type { ModelProfile } from "../../../supabase/functions/_shared/claude/client.ts";
+import type { ModelProfile } from "../ai-model/types";
 import {
   buildSuggestionContext,
   suggestionKey,
@@ -233,14 +233,13 @@ function parseSuggestions(
 
 export async function runSuggestionJob(input: {
   adminClient: Admin;
-  apiKey: string;
   userId: string;
   scope: SuggestionScope;
   scopeObjectId: string | null;
   correlationId: string;
   focus?: SuggestionFocus | null;
 }): Promise<RunOutcome> {
-  const { adminClient, apiKey, userId, scope, scopeObjectId, correlationId } = input;
+  const { adminClient, userId, scope, scopeObjectId, correlationId } = input;
   const focus: SuggestionFocus =
     input.focus && input.focus in FOCUS_TYPES ? (input.focus as SuggestionFocus) : "nettverk";
 
@@ -273,13 +272,12 @@ export async function runSuggestionJob(input: {
   });
   const runId = typeof modelRunId === "string" ? modelRunId : null;
 
-  const { callClaude } = await import("../../../supabase/functions/_shared/claude/client.ts");
-  const result = await callClaude({
+  const { callModel } = await import("../ai-model/model.server");
+  const result = await callModel({
     profile,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildUserMessage(scope, context.evidence, lifePhaseGuidance, focus, context.history) }],
     correlationId,
-    runtime: { apiKey },
   });
 
   const finish = async (
