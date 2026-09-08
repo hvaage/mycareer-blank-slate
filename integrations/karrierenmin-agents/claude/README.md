@@ -27,8 +27,8 @@ Full spesifikasjon: `docs/operations/ai-integrations-mcp-oauth-spec.md`.
 
 Claim bekrefter ingen egenskaper. Klientpåstander om `background_execution`,
 `scheduled_runs` eller `email_forward_or_send` ignoreres, og aldri utledet fra
-abonnement. De lagres som ubekreftede til en serverkontrollert verifisering
-finnes.
+abonnement. De lagres som ubekreftede til en serverkontrollert verifisering har vist hva
+installasjonen faktisk kan.
 
 ## Dagens REST-endepunkter (referanse, ikke MCP)
 
