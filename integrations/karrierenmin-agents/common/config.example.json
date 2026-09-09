@@ -1,8 +1,14 @@
 {
-  "$status": "DESIGNEKSEMPEL FOR REST-KONTRAKTEN. Ikke en kjørbar MCP- eller plugin-konfigurasjon.",
-  "$token_note": "Ingen av de fire plattformene lagrer automatisk et token returnert fra et verktøykall. Tokenet må legges inn manuelt av brukeren eller et installasjonsprogram der plattformen har et secret-lager. Har den ikke det, må brukeren selv velge trygg lagring.",
+  "$status": "KONFIGURASJONSMAL. Den kanoniske tilkoblingen er MCP over Streamable HTTP med OAuth 2.1 — se mcp.config.json i leverandørmappen. Feltene under gjelder kompatibilitetslaget (REST) for eksisterende integrasjonstokener.",
+  "$mcp": {
+    "endpoint": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp",
+    "auth": "oauth2.1-pkce",
+    "resource_metadata": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/.well-known/oauth-protected-resource/api/public/mcp",
+    "$note": "Ingen nøkkel settes her. Brukeren logger inn i Karrierenmin og godkjenner scopene selv."
+  },
+  "$token_note": "I kompatibilitetslaget lagres ikke tokenet automatisk fra et verktøykall. Det må legges inn manuelt av brukeren eller et installasjonsprogram der plattformen har et secret-lager.",
   "karrierenmin_base_url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST",
-  "provider": "REPLACE-WITH-ONE-OF: grok | claude | openai | gemini",
+  "provider": "REPLACE-WITH-ONE-OF: grok | claude | openai | gemini | copilot",
   "integration_token": "LEGGES_INN_MANUELT_I_PLATTFORMENS_SECRET_LAGER_IKKE_HER",
   "capabilities_reporting": {
     "$note": "Sendes ikke ved claim og lagres aldri fra en klientpåstand. Alle egenskaper står som ubekreftet til en serverkontrollert verifisering finnes. Aldri utledet fra abonnement — bare det installasjonen faktisk kan.",

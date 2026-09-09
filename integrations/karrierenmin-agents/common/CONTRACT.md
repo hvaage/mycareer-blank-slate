@@ -1,14 +1,12 @@
-# Karrierenmin — felles REST-backendkontrakt for assistentpakker
+# Karrierenmin — felles backendkontrakt for assistentpakker
 
-**Dette er en REST-kontrakt over HTTPS/JSON. Det er ikke MCP.** Endepunktene
-implementerer ikke JSON-RPC, `tools/list` eller `tools/call`, og kan ikke
-brukes som en MCP-server. Ekte MCP-transport og OAuth 2.1 er spesifisert i
-`docs/operations/ai-integrations-mcp-oauth-spec.md` og er ikke bygget ennå.
-Ingen av de fire pakkene er derfor installerbare i dag.
+Kontrakten har to lag. **MCP er det kanoniske laget.** REST beholdes som
+kompatibilitetslag for eksisterende integrasjonstokener, og begge lagene bruker
+nøyaktig samme domenelogikk, samme autorisasjonsprinsipp og samme feilsemantikk.
 
-Alle fire pakkene (Grok, Claude, ChatGPT/Codex, Gemini) snakker med nøyaktig samme
-backend. Ingen leverandør er standard eller anbefalt, og ingen pakke har egne
-endepunkter eller egne rettigheter.
+Alle fem pakkene (Claude, ChatGPT/Codex, Gemini, Grok, Microsoft Copilot)
+snakker med samme backend. Ingen leverandør er standard eller anbefalt, og ingen
+pakke har egne endepunkter eller egne rettigheter.
 
 Basis-URL settes av brukeren som en offentlig HTTPS-adresse, aldri `localhost`:
 
@@ -16,75 +14,89 @@ Basis-URL settes av brukeren som en offentlig HTTPS-adresse, aldri `localhost`:
 KARRIERENMIN_BASE_URL = https://<ditt-domene>
 ```
 
-## 1. Claim (engangsaktivering)
+## 1. MCP over Streamable HTTP (kanonisk)
+
+```
+POST {KARRIERENMIN_BASE_URL}/api/public/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+Authorization: Bearer <OAuth 2.1 access token>
+```
+
+- **Sesjonsløs.** Ingen sesjonsheader, ingen sesjonstabell, ingen SSE-strøm.
+  Hver forespørsel autentiseres på nytt.
+- **Metoder:** `initialize`, `notifications/initialized`, `ping`, `tools/list`,
+  `tools/call`. `GET` og `DELETE` svarer `405` med `Allow: POST, OPTIONS`.
+- **Protokollversjoner:** `2025-11-25` og `2025-06-18`. En ukjent versjon i
+  `MCP-Protocol-Version` avvises med `400`. `2026-07-28` annonseres ikke, fordi
+  den installerte SDK-en ikke kan validere den.
+- **JSON-RPC-batch støttes ikke.** Den ble fjernet i `2025-06-18`, og begge
+  støttede versjoner er uten batch.
+- **Grenser:** 256 KiB body målt i UTF-8-byte, `application/json` inn,
+  `no-store` ut, fremmed `Origin` avvises.
+- **Feilkoder:** `-32700` parse error, `-32600` ugyldig forespørsel, `-32601`
+  ukjent metode, `-32602` ugyldige parametre. En gyldig notifikasjon gir `202`
+  uten innhold. `id` beholdes uendret i svaret.
+
+### Autentisering
+
+Uten gyldig token svarer endepunktet `401` med:
+
+```
+WWW-Authenticate: Bearer realm="karrierenmin", error="invalid_token",
+  resource_metadata="{KARRIERENMIN_BASE_URL}/.well-known/oauth-protected-resource/api/public/mcp"
+```
+
+Kanonisk OAuth-`resource` er nøyaktig `{KARRIERENMIN_BASE_URL}/api/public/mcp`.
+`initialize` og `tools/list` krever et gyldig token. Scope kreves per verktøy.
+
+### Verktøy
+
+| Verktøy | Scope | Svar |
+| --- | --- | --- |
+| `karrierenmin_status` | `karriere.status.read` | Status, driftsform, ubekreftede capabilities og brukerens arbeidsflytvalg |
+| `karrierenmin_run` | `karriere.workflow.run` | Alltid `not_enabled` eller `not_available`. Oppretter aldri en kjøring |
+
+Mangler tokenet scopet et verktøy krever, svarer serveren `HTTP 200` med en
+MCP-verktøyfeil `insufficient_scope` — ikke `401`. Er integrasjonen frakoblet
+eller revokert, avvises hele forespørselen med `401`.
+
+## 2. Claim (engangsaktivering, kompatibilitetslag)
 
 ```
 POST {KARRIERENMIN_BASE_URL}/api/public/ai-integrations/claim
 Content-Type: application/json
 
-{
-  "provider": "grok" | "claude" | "openai" | "gemini",
-  "setup_code": "XXXX-XXXX-...",
-  "capabilities": {
-    "background_execution": true|false,
-    "scheduled_runs": true|false,
-    "email_forward_or_send": true|false
-  }
-}
+{ "provider": "grok" | "claude" | "openai" | "gemini" | "copilot",
+  "setup_code": "XXXX-XXXX-..." }
 ```
 
 - `setup_code` hentes av brukeren i Karrierenmin og er gyldig i 15 minutter, én gang.
 - Koden normaliseres server-side (bindestreker fjernes, versaler).
-- `capabilities` **ignoreres fullstendig**. Engangskoden beviser brukerens
-  samtykke og tilgang til koden, ikke hva plattformen faktisk kan gjøre. En
-  uautentisert klient kan påstå hva som helst, så backend lagrer alltid tomme,
+- Capabilities **ignoreres fullstendig**. Engangskoden beviser brukerens
+  samtykke, ikke hva plattformen faktisk kan gjøre. Backend lagrer alltid tomme,
   ubekreftede egenskaper ved claim. Aldri utledet fra gratis-/betalt-abonnement.
-  Egenskaper kan først settes til `true` etter en serverkontrollert
-  verifisering/challenge i en senere fase.
-- Alle feil svarer likt (`invalid_claim`). Backend røper aldri om koden var ukjent,
-  utløpt, allerede brukt eller knyttet til en annen leverandør.
+- Alle feil svarer likt (`invalid_claim`). Backend røper aldri om koden var
+  ukjent, utløpt, allerede brukt eller knyttet til en annen leverandør.
+- **Koden forbrukes før aktivering.** Feiler noe etterpå, er koden likevel
+  oppbrukt, og brukeren må lage en ny kode.
+  Feilmeldingen skal ikke røpe intern årsak.
+- Tokenet lagres **ikke** automatisk. Det skal aldri legges i prompt, logg,
+  README-eksempel eller URL-query.
 
-Vellykket svar inneholder `integration_token`, `token_expires_at` og
-`capabilities_verified: false`. Forbindelsen er da aktiv, men ingen egenskap er
-bekreftet — det er to forskjellige ting.
+Claim er onboarding, ikke varig MCP-autentisering. Nye tilkoblinger bruker OAuth.
 
-Tokenet lagres **ikke** automatisk. Ingen av plattformene tar imot et token fra
-et verktøysvar og legger det i et secret-lager på egen hånd. Brukeren eller et
-installasjonsprogram må kopiere det inn. Det skal aldri legges i prompt, logg,
-README-eksempel eller URL-query.
-
-**Koden forbrukes før aktivering.** Feiler aktivering eller tokenutstedelse
-etter at koden er markert brukt, er koden likevel oppbrukt. Brukeren må lage en
-ny kode i Karrierenmin. Feilmeldingen skal ikke røpe intern årsak.
-
-**Rate-limit.** Claim begrenses per kilde-IP utledet fra `x-forwarded-for`, med
-`cf-connecting-ip`/`x-real-ip` som fallback og `unknown` når ingen finnes. Det er
-bare trygt når edge/proxy overskriver headeren før den når applikasjonen. Uten en
-slik edge kan headeren forfalskes, og begrensningen omgås per forespørsel.
-Begrensningen er dessuten per instans og i minnet, ikke distribuert.
-
-## 2. Status
+## 3. REST status og kjøring (kompatibilitetslag)
 
 ```
-GET {KARRIERENMIN_BASE_URL}/api/public/ai-integrations/v1/status
-Authorization: Bearer <integration_token>
-```
-
-Svarer med integrasjonens status, bekreftede capabilities, `effective_mode`
-(utledet server-side) og hvilke arbeidsflyter som er tilgjengelige.
-
-## 3. Kjøring
-
-```
+GET  {KARRIERENMIN_BASE_URL}/api/public/ai-integrations/v1/status
 POST {KARRIERENMIN_BASE_URL}/api/public/ai-integrations/v1/run
 Authorization: Bearer <integration_token>
-
-{ "workflow_kind": "job_import" | "career_log" | "linkedin_ready" }
 ```
 
-I gjeldende fase svarer backend `not_available` (HTTP 501) fordi ingen
-agentutløst kjøring er koblet på ennå. Pakkene skal vise dette som det er,
-og aldri fremstille det som en vellykket kjøring.
+Samme innhold og samme semantikk som MCP-verktøyene, fordi begge kaller det
+samme delte domenelaget. `run` svarer `403 not_enabled` eller `501
+not_available` og oppretter aldri en kjøring.
 
 ## Feilkoder
 
@@ -92,7 +104,8 @@ og aldri fremstille det som en vellykket kjøring.
 | --- | --- |
 | `invalid_claim` | Koden kan ikke brukes. Be brukeren lage en ny kode. |
 | `rate_limited` | For mange forsøk fra samme kilde. |
-| `unauthorized` | Token mangler, er feil signert, har feil audience eller er utløpt. |
+| `unauthorized` / `invalid_token` | Token mangler, er feil signert, har feil audience/resource eller er utløpt. |
+| `insufficient_scope` | Tilgangen mangler scopet verktøyet krever. |
 | `integration_inactive` | Brukeren har koblet fra. Tilgangen er tilbakekalt. |
 | `not_enabled` | Brukeren har ikke slått på arbeidsflyten. |
 | `not_available` | Arbeidsflyten finnes ikke som agentutløst funksjon ennå. |

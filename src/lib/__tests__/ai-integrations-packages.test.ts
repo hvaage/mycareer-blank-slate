@@ -21,7 +21,7 @@ function readAll(dir: string): string {
     .join("\n");
 }
 
-describe("fem likestilte design-/kildepakker (ikke installerbare)", () => {
+describe("fem likestilte pakker mot én leverandørnøytral MCP-server", () => {
   it("har felles kontrakt og sikkerhetsregler", () => {
     for (const file of ["CONTRACT.md", "SECURITY.md", "tools.json", "config.example.json"]) {
       expect(existsSync(join(ROOT, "common", file))).toBe(true);
@@ -66,26 +66,28 @@ describe("fem likestilte design-/kildepakker (ikke installerbare)", () => {
         expect(text).toContain("faktisk");
       });
 
-      it("oppgir status som ikke-installerbar, ikke som ferdig pakke", () => {
-        const readme = readFileSync(join(dir, "README.md"), "utf8").toLowerCase();
-        expect(readme).toMatch(/ikke installerbar|portabel designmal/);
-        expect(readme).not.toContain("manuelt installérbar i dag");
+      it("påstår aldri en verifisert installasjon hos leverandøren", () => {
+        const readme = readFileSync(join(dir, "README.md"), "utf8")
+          .toLowerCase()
+          .replace(/\s+/g, " ");
+        expect(readme).toContain("ikke verifisert ende-til-ende");
+        expect(readme).not.toContain("verifisert installasjon");
       });
 
-      it("påstår ikke en fungerende MCP-server", () => {
-        // Ingen fil får presentere seg som en gyldig, kjørbar MCP-konfigurasjon.
-        expect(existsSync(join(dir, "mcp.config.example.json"))).toBe(false);
-        for (const entry of readdirSync(dir)) {
-          if (!entry.toLowerCase().includes("mcp")) continue;
-          const body = readFileSync(join(dir, entry), "utf8");
-          expect(entry).toContain("SKETCH");
-          expect(body).toContain("IKKE-FUNGERENDE SKISSE");
-          // En skisse skal ikke inneholde en ferdig Authorization-bootstrap.
-          expect(body).not.toContain("Bearer ${KARRIERENMIN_INTEGRATION_TOKEN}");
-        }
-        // README-en må eksplisitt si at MCP-transport mangler.
-        const readme = readFileSync(join(dir, "README.md"), "utf8");
-        expect(readme).toMatch(/ingen fungerende MCP-server|ingen verifisert installasjonsform/);
+      it("peker på det ene leverandørnøytrale MCP-endepunktet", () => {
+        const config = JSON.parse(readFileSync(join(dir, "mcp.config.json"), "utf8")) as {
+          mcpServers: Record<string, { type: string; url: string }>;
+        };
+        const server = config.mcpServers["karrierenmin"]!;
+        expect(server.type).toBe("http");
+        expect(server.url).toBe("https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp");
+      });
+
+      it("legger ingen statisk nøkkel i MCP-konfigurasjonen", () => {
+        const body = readFileSync(join(dir, "mcp.config.json"), "utf8");
+        expect(body).not.toContain("Authorization");
+        expect(body).not.toContain("KARRIERENMIN_INTEGRATION_TOKEN");
+        expect(body).toContain("OAuth 2.1");
       });
 
       it("påstår ikke automatisk lagring av tokenet", () => {
@@ -126,15 +128,28 @@ describe("fem likestilte design-/kildepakker (ikke installerbare)", () => {
     });
   }
 
-  it("skiller de tre nivåene og påstår ingen installerbar MCP-pakke", () => {
+  it("skiller nivåene og er ærlig om hva som ikke er verifisert", () => {
     const readme = readFileSync(join(ROOT, "README.md"), "utf8");
     expect(readme).toContain("Kildepakke");
     expect(readme).toContain("marketplace-innsending");
-    // Nivå 3 finnes ikke ennå og må stå slik.
-    expect(readme).toContain("Ikke installerbare");
-    expect(readme).toContain("Finnes ikke ennå");
-    expect(readme).toContain("Manuelt installérbart:** ingenting ennå");
-    expect(readme).toContain("implementerer ikke MCP JSON-RPC");
+    expect(readme).toContain("Streamable HTTP JSON-RPC");
+    // Live installasjon er fortsatt ikke kjørt, og må stå slik.
+    expect(readme).toContain("**Ikke kjørt**");
+    expect(readme).toContain("ikke verifisert");
+  });
+
+  it("alle fem pakkene beskriver identiske verktøy og scopes", () => {
+    const tools = JSON.parse(readFileSync(join(ROOT, "common", "tools.json"), "utf8")) as {
+      tools: Array<{ name: string; scope: string }>;
+    };
+    expect(tools.tools.map((t) => t.name)).toEqual(["karrierenmin_status", "karrierenmin_run"]);
+    for (const provider of AI_PROVIDERS) {
+      const readme = readFileSync(join(ROOT, PACKAGE_DIR[provider]!, "README.md"), "utf8");
+      for (const tool of tools.tools) {
+        expect(readme).toContain(tool.name);
+        expect(readme).toContain(tool.scope);
+      }
+    }
   });
 
   it("viser til MCP/OAuth-spesifikasjonen som gjenstående arbeid", () => {
@@ -153,8 +168,9 @@ describe("fem likestilte design-/kildepakker (ikke installerbare)", () => {
     ]) {
       expect(text).toContain(needed);
     }
-    // OAuth-laget er nå bygget; MCP-transporten er fortsatt bare spesifisert.
-    expect(text).toContain("MCP-transporten er fortsatt ikke bygget");
+    // OAuth-laget og MCP-transporten er bygget; live installasjon er ikke verifisert.
+    expect(text).toContain("MCP-transporten er bygget");
+    expect(text).toContain("ikke verifisert ende-til-ende");
   });
 });
 

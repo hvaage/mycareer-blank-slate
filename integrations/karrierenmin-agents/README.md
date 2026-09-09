@@ -1,51 +1,47 @@
 # Karrierenmin — assistentpakker
 
-**Status: design-/kildepakker. Ikke installerbare før MCP-transport og
-autentisering er implementert.**
-
-Skill mellom tre nivåer, og bland dem aldri:
+**Status: MCP-serveren er bygget og testet. Den er leverandørnøytral og lik for
+alle fem assistentene. Live installasjon hos den enkelte leverandøren er IKKE
+verifisert — ingen ende-til-ende-test er kjørt mot ChatGPT/Codex, Claude,
+Gemini, Grok eller Microsoft Copilot.**
 
 | Nivå | Hva det er | Status i dag |
 | --- | --- | --- |
-| 1. REST-backendkontrakt | `claim`, `v1/status`, `v1/run` over vanlig HTTPS/JSON | Implementert og testet |
-| 2. Design-/kildepakker | Instruksjonstekst, verktøysemantikk og konfigurasjonsskisser i dette treet | Finnes her |
-| 3. Installerbar MCP-/plugin-pakke | Ekte MCP-transport (JSON-RPC, `tools/list`, `tools/call`) og OAuth-basert autentisering | **Finnes ikke ennå** |
+| 1. MCP-transport | Streamable HTTP JSON-RPC på `POST /api/public/mcp` med `initialize`, `tools/list`, `tools/call` | Implementert og testet |
+| 2. OAuth 2.1 | PKCE, discovery, samtykke, token, revokering, scope per verktøy | Implementert og testet |
+| 3. REST-kompatibilitetslag | `claim`, `v1/status`, `v1/run` for eksisterende integrasjonstokener | Beholdt, samme domenelag |
+| 4. Verifisert installasjon hos leverandør | Live oppkobling i den enkelte klienten | **Ikke kjørt** |
 
-Endepunktene under `/api/public/ai-integrations/` er vanlige REST-ruter. De
-implementerer ikke MCP JSON-RPC eller MCP-transport. Ingenting i dette treet er
-derfor en fungerende MCP-server, og ingen av pakkene kan installeres i en
-MCP-klient og virke.
-
-Spesifikasjonen for neste leveranse ligger i
-`docs/operations/ai-integrations-mcp-oauth-spec.md`.
+Alle fem pakkene peker på nøyaktig samme endepunkt, samme to verktøy og samme
+scopes. Ingen leverandør har egne verktøy, egne felter eller egne rettigheter.
 
 ## Kildepakke, ikke marketplace
 
 - **Kildepakke:** alt i dette treet. Det versjoneres her.
-- **Manuelt installérbart:** ingenting ennå. Tidligere formuleringer om manuell
-  installasjon var feil og er fjernet.
-- **Krever senere marketplace-innsending:** publisering hos en av de fire
-  leverandørene. Ikke gjort. Pakkene inneholder bevisst ingen marketplace-ID,
-  ingen katalogslenke og ingen påstand om tilgjengelighet.
+- **Manuelt installérbart:** MCP-konfigurasjonen i hver leverandørmappe
+  (`mcp.config.json`). Den er skrevet mot en faktisk fungerende server, men er
+  ikke verifisert i den enkelte klienten.
+- **Krever senere marketplace-innsending:** publisering hos leverandørene. Ikke
+  gjort. Pakkene inneholder bevisst ingen marketplace-ID, ingen katalogslenke og
+  ingen påstand om tilgjengelighet.
 
-## Claim er ikke MCP-autentisering
+## Verktøy
 
-Claim-kallet er **uten** token og utsteder tokenet. Varig autentisering er noe
-annet. Ingen av de fire plattformene tar automatisk imot et token returnert fra
-et verktøykall og lagrer det som en hemmelighet. En fungerende installasjonsflyt
-krever derfor enten OAuth 2.1 (ChatGPT-plugin) eller at brukeren selv kopierer
-tokenet inn i klientens secret-/miljøoppsett (lokale MCP-klienter).
+| Verktøy | Scope | Semantikk |
+| --- | --- | --- |
+| `karrierenmin_status` | `karriere.status.read` | Leser status, driftsform og brukerens egne arbeidsflytvalg |
+| `karrierenmin_run` | `karriere.workflow.run` | Ber om en arbeidsflyt. Svarer alltid `not_enabled` eller `not_available`, og oppretter aldri en kjøring |
 
-| Overflate | Planlagt varig autentisering |
-| --- | --- |
-| ChatGPT / Codex-plugin | OAuth 2.1 med PKCE, engangskode brukt inne i account linking |
-| Codex / Claude lokal MCP-klient | Manuelt konfigurert secret som brukeren eller et installasjonsprogram kopierer inn |
-| Gemini | Portabel designmal inntil verifisert plattformmekanisme finnes |
-| Grok | Portabel designmal inntil verifisert plattformmekanisme finnes |
+## Autentisering
 
-`common/` beskriver REST-kontrakten (`CONTRACT.md`), sikkerhetsreglene
-(`SECURITY.md`), verktøysemantikken (`tools.json`) og konfigurasjonsmalen
-(`config.example.json`).
+MCP-serveren er en OAuth 2.1-beskyttet ressurs. Kanonisk `resource` er nøyaktig
+`https://<ditt-domene>/api/public/mcp`. Klienten oppdager autorisasjonsserveren
+via `401` + `WWW-Authenticate` og
+`/.well-known/oauth-protected-resource/api/public/mcp`.
+
+Claim-kallet i REST-laget er noe annet: det er uten token og utsteder tokenet.
+Det er onboarding, ikke varig MCP-autentisering, og det er ikke lenger den
+anbefalte veien inn.
 
 ## Capabilities er aldri bekreftet ved claim
 
@@ -53,3 +49,7 @@ Claim lagrer alltid tomme capabilities. En klientpåstand om
 `background_execution`, `scheduled_runs` eller `email_forward_or_send` blir
 ignorert. Egenskaper kan først bekreftes gjennom en serverkontrollert
 verifisering i en senere fase.
+
+`common/` beskriver kontrakten (`CONTRACT.md`), sikkerhetsreglene
+(`SECURITY.md`), verktøysemantikken (`tools.json`) og konfigurasjonsmalen
+(`config.example.json`).

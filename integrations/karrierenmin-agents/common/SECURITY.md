@@ -1,8 +1,9 @@
-# Sikkerhetsregler som gjelder alle fire pakkene
+# Sikkerhetsregler som gjelder alle fem pakkene
 
-0. **Ingenting her er installerbart ennå.** Pakkene er design-/kildepakker.
-   Det finnes ingen fungerende MCP-server og ingen plugin. Ikke beskriv dem som
-   installerbare.
+0. **MCP-serveren er bygget og testet, men ikke verifisert hos leverandøren.**
+   `POST /api/public/mcp` er en fungerende, OAuth-beskyttet MCP-server. Ingen
+   live ende-til-ende-test er kjørt i ChatGPT/Codex, Claude, Gemini, Grok eller
+   Microsoft Copilot. Ikke påstå en verifisert installasjon.
 1. **Tokenet er en hemmelighet, og lagres manuelt.** Plattformen lagrer ikke
    automatisk et token returnert fra et verktøykall. Brukeren eller et
    installasjonsprogram må kopiere `integration_token` inn i plattformens
@@ -31,6 +32,8 @@
 9. **Engangskoden forbrukes før aktivering.** Feiler noe etterpå, er koden
    likevel oppbrukt. Be brukeren lage en ny kode. Ikke forklar intern årsak og
    ikke prøv koden på nytt.
-10. **Claim er ikke varig autentisering.** Claim kalles uten token og utsteder
+10. **Scope er per verktøy.** `insufficient_scope` betyr at brukeren må
+   godkjenne tilgangen på nytt. Ikke prøv et annet verktøy for å komme rundt det.
+11. **Claim er ikke varig autentisering.** Claim kalles uten token og utsteder
    tokenet. Ikke sett `Authorization` på hele serverforbindelsen som om claim og
    status hadde samme autentisering.

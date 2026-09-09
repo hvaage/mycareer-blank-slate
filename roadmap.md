@@ -25,9 +25,23 @@
 - [x] Rene formatteringsendringer i urelaterte CV-testfiler er tilbakestilt. Testlogikk uendret.
 - [x] Full suite (24 filer / 365 tester), typecheck, lint og security advisor (118 funn = uendret baseline).
 
+## Streamable HTTP MCP-transport (fra commit f3e5feb0)
+
+- [x] Ett leverandørnøytralt endepunkt: `POST /api/public/mcp`. Sesjonsløst — ingen sesjonsheader, ingen sesjonstabell, ingen SSE-strøm.
+- [x] `@modelcontextprotocol/sdk@1.30.0` installert og brukt som referanse for typer/skjemaer/protokollkonstanter. HTTP-laget er egen sesjonsløs adapter fordi SDK-transporten ikke kan gi de påkrevde svarene (405 med `Allow: POST, OPTIONS`, OAuth-`WWW-Authenticate` før meldingen tolkes, scope per verktøy). Begrunnelsen er dokumentert i koden og i spesifikasjonen.
+- [x] Protokollversjoner 2025-06-18 og 2025-11-25 med versjonsstyrt batch-regel (ingen støttet versjon tillater batch). 2026-07-28 annonseres bevisst ikke — SDK-en kan ikke validere den.
+- [x] HTTP-semantikk: GET/DELETE 405 med `Allow: POST, OPTIONS`, OPTIONS 204, notifikasjon 202, `-32601`, `-32602`, `-32700`, `-32600`, `id` beholdt.
+- [x] Herding: `application/json` inn, Accept-krav, 256 KiB UTF-8-bodygrense (både `Content-Length` og faktiske byte), Origin/DNS-rebinding, CORS kun for egen origin, `no-store`, ingen logging.
+- [x] Autentisering før tolkning. 401 med eksakt `WWW-Authenticate` og `resource_metadata`. Kanonisk OAuth-resource er nøyaktig `/api/public/mcp`, med ny ressursspesifikk discovery-rute.
+- [x] Scope per verktøy: manglende verktøy-scope gir HTTP 200 med MCP-feil `insufficient_scope`; frakoblet/revokert integrasjon gir 401.
+- [x] `karrierenmin_status` og `karrierenmin_run` med eksakte input-/outputskjemaer, annotations og strukturert output. `run` returnerer kun `not_enabled`/`not_available` og oppretter aldri en kjøring.
+- [x] Delt domenelag (`agent-domain.server.ts`) brukt av både MCP og REST-kompatibilitetsrutene. Ingen claim-verktøy over MCP.
+- [x] Kontrakter, alle fem leverandørpakker, MCP/OAuth-spesifikasjon og E2E-plan oppdatert. Ingen migrasjon var nødvendig.
+- [x] Tester: 32 nye MCP-tester (handler, protokoll, herding, autentisering, scope, verktøysemantikk, leverandørmatrise for alle fem, delt domenelag).
+
 ## Åpne punkter (blokkert / ikke gjort)
 
 - [ ] Performance Advisor som eget verktøy er ikke tilgjengelig i dette miljøet. Erstattet med manuell indekskontroll: manglende indekser på fremmednøkler i OAuth-tabellene ble lagt til i migrasjon `20260909143412_...`.
-- [ ] Streamable HTTP MCP-transport (`karrierenmin_status` / `karrierenmin_run`) er ikke implementert.
-- [ ] Live E2E mot ChatGPT/Claude/Copilot/Grok/Gemini: IKKE KJØRT. Krever ekte konto og installasjon hos leverandør.
+- [ ] MCP Inspector mot en publisert origin er ikke kjørt: transporten krever `PUBLIC_APP_ORIGIN` og en offentlig HTTPS-adresse, og publisering er ikke tillatt i denne leveransen.
+- [ ] Live E2E mot ChatGPT/Claude/Copilot/Grok/Gemini: IKKE KJØRT. Krever ekte konto og installasjon hos leverandør. Gjelder også etter at MCP-transporten er bygget.
 - [ ] Migrasjonskravet «én ny migrasjon» ble i praksis fire filer: hovedherding (`20260909141023_...`), retting av tvetydig `family_id` (`20260909142117_...`) og indeksering (`20260909143412_...`), i tillegg til fase 3-basen. Alle er additive.
