@@ -101,8 +101,10 @@ export async function authenticateOauthRequest(
     return invalid;
   }
 
-  // Integrasjonen må være i bruk, eid av samme bruker, og providerbindingen
-  // i tokenet må stemme med databasen.
+  // Integrasjonen må være ACTIVE, eid av samme bruker, og providerbindingen
+  // i tokenet må stemme med databasen. Første vellykkede tokenutstedelse
+  // aktiverer integrasjonen atomisk, så «connecting» trenger ingen dataadgang.
+  // «degraded» og «disconnected» gir aldri adgang.
   const integrationRow = integration as {
     status: string;
     provider: string;
@@ -110,7 +112,7 @@ export async function authenticateOauthRequest(
   } | null;
   if (
     !integrationRow ||
-    !["connecting", "active", "degraded"].includes(integrationRow.status) ||
+    integrationRow.status !== "active" ||
     integrationRow.user_id !== payload.sub ||
     integrationRow.provider !== payload.provider
   ) {
@@ -122,6 +124,7 @@ export async function authenticateOauthRequest(
     userId: payload.sub,
     integrationId: payload.iid,
     grantId: payload.grant_id,
-    scopes: payload.scopes,
+    scopes: effectiveScopes,
   };
+
 }
