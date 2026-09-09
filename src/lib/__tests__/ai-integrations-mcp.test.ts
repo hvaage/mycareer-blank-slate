@@ -11,17 +11,25 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AI_PROVIDERS } from "@/lib/ai-integrations/contract";
 import {
+  JSONRPC_INVALID_REQUEST,
   MCP_ENDPOINT_PATH,
   MCP_MAX_BODY_BYTES,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
   MCP_TOOLS,
   MCP_TOOL_SCOPE,
-  acceptsJson,
+  acceptsMediaType,
+  acceptsStreamableHttp,
+  hasOriginHeader,
   isAllowedOrigin,
   isJsonContentType,
+  isKnownBySdk,
   isSupportedProtocolVersion,
+  parseJsonRpcMessage,
   supportsBatch,
+  validateMethodParams,
 } from "@/lib/ai-integrations/mcp-contract";
+import { RequestIdSchema } from "@modelcontextprotocol/sdk/types.js";
+import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { OAUTH_PATHS } from "@/lib/ai-integrations/oauth-config.server";
 
 const ORIGIN = "https://karrierenmin.no";
@@ -40,9 +48,11 @@ let authResult: AuthResult = {
 };
 
 const authSpy = vi.fn();
+let authThrows = false;
 vi.mock("@/lib/ai-integrations/oauth-auth.server", () => ({
   authenticateOauthRequest: (request: Request, scope: string | null) => {
     authSpy(request, scope);
+    if (authThrows) throw new Error("hemmelig db-tekst: token abc123");
     return Promise.resolve(authResult);
   },
 }));
@@ -139,6 +149,7 @@ beforeEach(() => {
     capabilities: {},
     last_verified_at: "2026-01-01T00:00:00.000Z",
   };
+  authThrows = false;
   authSpy.mockClear();
 });
 
@@ -172,12 +183,106 @@ describe("kanonisk ressurs og kontrakt", () => {
   it("headerhjelperne er strenge", () => {
     expect(isJsonContentType("application/json; charset=utf-8")).toBe(true);
     expect(isJsonContentType("text/plain")).toBe(false);
-    expect(acceptsJson("application/json, text/event-stream")).toBe(true);
-    expect(acceptsJson("text/html")).toBe(false);
-    expect(acceptsJson(null)).toBe(false);
+  });
+
+  it("Accept krever BÅDE application/json og text/event-stream med q>0", () => {
+    expect(acceptsStreamableHttp("application/json, text/event-stream")).toBe(true);
+    expect(acceptsStreamableHttp("APPLICATION/JSON, TEXT/EVENT-STREAM")).toBe(true);
+    expect(acceptsStreamableHttp("application/json;q=0.9, text/event-stream;q=0.1")).toBe(true);
+    expect(acceptsStreamableHttp("*/*")).toBe(true);
+    expect(acceptsStreamableHttp("application/*, text/*")).toBe(true);
+    // Bare én av de to typene.
+    expect(acceptsStreamableHttp("application/json")).toBe(false);
+    expect(acceptsStreamableHttp("text/event-stream")).toBe(false);
+    // q=0 betyr «ikke akseptert».
+    expect(acceptsStreamableHttp("application/json, text/event-stream;q=0")).toBe(false);
+    expect(acceptsStreamableHttp("application/json;q=0, text/event-stream")).toBe(false);
+    expect(acceptsStreamableHttp("*/*;q=0")).toBe(false);
+    expect(acceptsStreamableHttp("text/html")).toBe(false);
+    expect(acceptsStreamableHttp(null)).toBe(false);
+    // Eksakt match slår wildcard.
+    expect(acceptsMediaType("*/*, text/event-stream;q=0", "text/event-stream")).toBe(false);
+  });
+
+  it("Origin: manglende tillates, «null» og fremmede avvises", () => {
     expect(isAllowedOrigin(null, ORIGIN)).toBe(true);
+    expect(isAllowedOrigin("", ORIGIN)).toBe(true);
+    expect(isAllowedOrigin("null", ORIGIN)).toBe(false);
     expect(isAllowedOrigin("https://evil.example", ORIGIN)).toBe(false);
     expect(isAllowedOrigin(ORIGIN, ORIGIN)).toBe(true);
+    expect(hasOriginHeader(null)).toBe(false);
+    expect(hasOriginHeader("null")).toBe(true);
+  });
+
+  it("bruker SDK-ens skjemaer i kjørebanen for konvolutten", () => {
+    // id: null er ikke en notifikasjon — RequestIdSchema avviser null.
+    expect(RequestIdSchema.safeParse(null).success).toBe(false);
+    const invalid = parseJsonRpcMessage({ jsonrpc: "2.0", id: null, method: "ping" });
+    expect(invalid).toEqual({
+      kind: "invalid",
+      code: JSONRPC_INVALID_REQUEST,
+      message: expect.stringContaining("Ugyldig id"),
+    });
+    expect(parseJsonRpcMessage({ jsonrpc: "2.0", id: 7, method: "ping" })).toEqual({
+      kind: "request",
+      id: 7,
+      method: "ping",
+      params: undefined,
+    });
+    expect(parseJsonRpcMessage({ jsonrpc: "2.0", method: "notifications/initialized" }).kind).toBe(
+      "notification",
+    );
+    // Feil jsonrpc-versjon avvises av SDK-skjemaet, ikke av oss.
+    expect(parseJsonRpcMessage({ jsonrpc: "1.0", id: 1, method: "ping" }).kind).toBe("invalid");
+    // tools/call uten name avvises av CallToolRequestSchema.
+    expect(validateMethodParams("tools/call", { arguments: {} }).ok).toBe(false);
+    expect(validateMethodParams("tools/call", { name: "karrierenmin_status" }).ok).toBe(true);
+    // Vi annonserer bare versjoner SDK-en faktisk kjenner.
+    for (const version of MCP_SUPPORTED_PROTOCOL_VERSIONS) {
+      expect(isKnownBySdk(version)).toBe(true);
+    }
+    expect(isKnownBySdk("2026-07-28")).toBe(false);
+  });
+
+  it("status-outputSchema krever alle feltene som faktisk returneres", () => {
+    const validator = new AjvJsonSchemaValidator();
+    const tool = MCP_TOOLS.find((t) => t.name === "karrierenmin_status")!;
+    const required = tool.outputSchema.properties.integration.required as readonly string[];
+    expect([...required]).toEqual(
+      expect.arrayContaining(["capabilities_verified", "last_verified_at"]),
+    );
+    const validate = validator.getValidator(
+      tool.outputSchema as unknown as Parameters<typeof validator.getValidator>[0],
+    );
+    // Et faktisk statusresultat mangler ingen påkrevde felt.
+    expect(
+      validate({
+        api_version: "1",
+        integration: {
+          provider: "claude",
+          status: "active",
+          effective_mode: "guided",
+          capabilities: {},
+          capabilities_verified: false,
+          last_verified_at: null,
+        },
+        workflows: [],
+      }).valid,
+    ).toBe(true);
+    // Utelatt capabilities_verified skal nå være ugyldig.
+    expect(
+      validate({
+        api_version: "1",
+        integration: {
+          provider: "claude",
+          status: "active",
+          effective_mode: "guided",
+          capabilities: {},
+          last_verified_at: null,
+        },
+        workflows: [],
+      }).valid,
+    ).toBe(false);
   });
 });
 
@@ -259,13 +364,33 @@ describe("autentisering", () => {
 });
 
 describe("protokoll og JSON-RPC", () => {
+  const initParams = {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "testklient", version: "1.0.0" },
+  };
+
   it("initialize forhandler versjon og oppgir serverinfo", async () => {
-    const res = await post(rpc("initialize", { protocolVersion: "2025-06-18" }));
+    const res = await post(rpc("initialize", initParams));
     const body = (await res.json()) as { result: Record<string, unknown>; id: number };
     expect(res.status).toBe(200);
     expect(body.id).toBe(1);
     expect(body.result["protocolVersion"]).toBe("2025-06-18");
     expect((body.result["serverInfo"] as Record<string, string>)["name"]).toBe("karrierenmin");
+  });
+
+  it("initialize uten SDK-påkrevde params gir -32602", async () => {
+    const res = await post(rpc("initialize", { protocolVersion: "2025-06-18" }));
+    const body = (await res.json()) as { error: { code: number } };
+    expect(body.error.code).toBe(-32602);
+  });
+
+  it("id: null avvises som ugyldig forespørsel, ikke som notifikasjon", async () => {
+    const res = await post({ jsonrpc: "2.0", id: null, method: "ping" });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: number; message: string } };
+    expect(body.error.code).toBe(JSONRPC_INVALID_REQUEST);
+    expect(body.error.message).toContain("Ugyldig id");
   });
 
   it("ukjent protokollversjon i headeren avvises med 400", async () => {
@@ -464,5 +589,50 @@ describe("delt domenelag og ingen sesjonstilstand", () => {
 
   it("MCP-ruten logger ingenting", () => {
     expect(mcpRoute).not.toMatch(/console\.(log|info|warn|error)/);
+  });
+});
+
+describe("OPTIONS og ytre feilgrense", () => {
+  async function options(headers: Record<string, string> = {}) {
+    const handlers = await route();
+    return handlers["OPTIONS"]!({ request: new Request(URL_MCP, { method: "OPTIONS", headers }) });
+  }
+
+  it("OPTIONS uten Origin gir 204 uten CORS-headere", async () => {
+    const res = await options();
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("OPTIONS med kjent Origin gir 204 med snevre CORS-headere", async () => {
+    const res = await options({ origin: ORIGIN });
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBe(ORIGIN);
+    expect(res.headers.get("access-control-allow-methods")).toBe("POST, OPTIONS");
+    expect(res.headers.get("vary")).toBe("Origin");
+  });
+
+  it("OPTIONS med fremmed eller null Origin gir 403", async () => {
+    for (const origin of ["https://evil.example", "null"]) {
+      const res = await options({ origin });
+      expect(res.status).toBe(403);
+      expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    }
+  });
+
+  it("POST med Origin: null gir 403", async () => {
+    const res = await post(rpc("ping"), { headers: { origin: "null" } });
+    expect(res.status).toBe(403);
+  });
+
+  it("uventet unntak gir generisk intern feil uten lekkasje", async () => {
+    authThrows = true;
+    const res = await post(rpc("ping"));
+    expect(res.status).toBe(500);
+    const text = await res.text();
+    expect(text).toContain("-32603");
+    expect(text).not.toContain("hemmelig");
+    expect(text).not.toContain("abc123");
+    expect(text.toLowerCase()).not.toContain("stack");
   });
 });

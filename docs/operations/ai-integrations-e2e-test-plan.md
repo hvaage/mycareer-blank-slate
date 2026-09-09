@@ -89,3 +89,19 @@ Forutsetninger som alle må være oppfylt før tabellen tas i bruk:
 3. Slett testradene for testbrukerne i `ai_integrations`,
    `ai_integration_setup_sessions` og `automation_runs`.
 4. Bekreft at ingen produksjonsbrukerdata er berørt.
+
+## Tillegg etter korreksjonsleveransen
+
+- Klienten må sende `Accept: application/json, text/event-stream`. Bare én av
+  medietypene, eller `q=0`, gir 406. Test dette først når en installasjon feiler.
+- `Origin: null` gir 403. Klienter uten `Origin` (desktop/CLI) slipper gjennom.
+- Adgang krever integrasjonsstatus `active`. En integrasjon som er satt til
+  `degraded` eller `disconnected` gir 401 selv med et ellers gyldig token.
+- Trekkes et scope tilbake i grantet, avvises eksisterende tokener som
+  inneholder det. Ny godkjenning kreves.
+- Installasjonsfiler finnes kun der formatet er dokumentert: Claude Code
+  (`.mcp.json`) og Gemini CLI (`settings.json` med `httpUrl`). ChatGPT/Codex,
+  Copilot Studio og Grok settes opp i klientens eget grensesnitt.
+- Live E2E hos alle fem leverandører: fortsatt IKKE KJØRT.
+- MCP Inspector: fortsatt BLOKKERT — `PUBLIC_APP_ORIGIN` mangler i preview og
+  fail-closed-oppførselen er ikke omgått.

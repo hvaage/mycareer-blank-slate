@@ -18,9 +18,17 @@ scopes. Ingen leverandør har egne verktøy, egne felter eller egne rettigheter.
 ## Kildepakke, ikke marketplace
 
 - **Kildepakke:** alt i dette treet. Det versjoneres her.
-- **Manuelt installérbart:** MCP-konfigurasjonen i hver leverandørmappe
-  (`mcp.config.json`). Den er skrevet mot en faktisk fungerende server, men er
-  ikke verifisert i den enkelte klienten.
+- **Leverandørnøytralt manifest:** `common/connection.json` beskriver endepunkt,
+  resource, scopes og verktøy. Det er dokumentasjon — ingen klient kan importere
+  den filen.
+- **Konfigurasjonsfil finnes bare der formatet er dokumentert:** `claude/mcp.json`
+  (Claude Code, lagres som `.mcp.json`) og `gemini/settings.example.json`
+  (Gemini CLI, feltet `httpUrl`). Ingen av dem er verifisert ende-til-ende hos leverandøren, og de er derfor
+  ikke verifisert som installasjon.
+- **Installasjon i grensesnitt, ikke fil:** ChatGPT/Codex (koblinger/utviklermodus),
+  Microsoft Copilot Studio (MCP-veiviser) og Grok (ingen dokumentert filformat vi
+  har verifisert) settes opp med server-URL i klientens eget grensesnitt.
+
 - **Krever senere marketplace-innsending:** publisering hos leverandørene. Ikke
   gjort. Pakkene inneholder bevisst ingen marketplace-ID, ingen katalogslenke og
   ingen påstand om tilgjengelighet.

@@ -1,5 +1,5 @@
 {
-  "$status": "KANONISK VERKTØYSEMANTIKK FOR MCP-SERVEREN. Serveren er bygget og testet på POST /api/public/mcp (Streamable HTTP, JSON-RPC 2.0). Denne filen dokumenterer semantikken; den er ikke i seg selv en klientkonfigurasjon — bruk mcp.config.json i leverandørmappen.",
+  "$status": "KANONISK VERKTØYSEMANTIKK FOR MCP-SERVEREN. Serveren er bygget og testet på POST /api/public/mcp (Streamable HTTP, JSON-RPC 2.0). Denne filen dokumenterer semantikken; den er ikke i seg selv en klientkonfigurasjon — bruk common/connection.json og leverandørens README.",
   "$transport": {
     "type": "streamable-http",
     "endpoint": "/api/public/mcp",

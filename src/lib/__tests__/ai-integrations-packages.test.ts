@@ -74,19 +74,21 @@ describe("fem likestilte pakker mot én leverandørnøytral MCP-server", () => {
         expect(readme).not.toContain("verifisert installasjon");
       });
 
-      it("peker på det ene leverandørnøytrale MCP-endepunktet", () => {
-        const config = JSON.parse(readFileSync(join(dir, "mcp.config.json"), "utf8")) as {
-          mcpServers: Record<string, { type: string; url: string }>;
-        };
-        const server = config.mcpServers["karrierenmin"]!;
-        expect(server.type).toBe("http");
-        expect(server.url).toBe("https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp");
+      it("peker på det ene leverandørnøytrale MCP-endepunktet i README", () => {
+        const readme = readFileSync(join(dir, "README.md"), "utf8");
+        expect(readme).toContain("https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp");
+        expect(readme).toContain("## Installasjon hos denne leverandøren");
       });
 
-      it("legger ingen statisk nøkkel i MCP-konfigurasjonen", () => {
-        const body = readFileSync(join(dir, "mcp.config.json"), "utf8");
-        expect(body).not.toContain("Authorization");
-        expect(body).not.toContain("KARRIERENMIN_INTEGRATION_TOKEN");
+      it("har ingen generisk mcp.config.json", () => {
+        // Filformatet er ikke gyldig for alle fem klientene, og skal ikke
+        // ligge der som om det var det.
+        expect(existsSync(join(dir, "mcp.config.json"))).toBe(false);
+      });
+
+      it("legger ingen statisk nøkkel i pakken", () => {
+        const body = readAll(dir);
+        expect(body).not.toContain("KARRIERENMIN_INTEGRATION_TOKEN=");
         expect(body).toContain("OAuth 2.1");
       });
 
@@ -186,5 +188,69 @@ describe("ingen hemmeligheter i repoet", () => {
     expect(all).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(all).not.toMatch(/eyJ[A-Za-z0-9_-]{20,}\./);
     expect(all).not.toMatch(/sb_(secret|publishable)_/);
+  });
+});
+
+describe("leverandørspesifikk installasjonssannhet", () => {
+  const ENDPOINT = "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp";
+
+  it("common/connection.json er et dokumentasjonsmanifest, ikke en importerbar fil", () => {
+    const manifest = JSON.parse(readFileSync(join(ROOT, "common", "connection.json"), "utf8")) as {
+      $dette_er_dokumentasjon: string;
+      endpoint: string;
+      transport: string;
+      oauth: { resource: string; static_token: boolean };
+      protocol_versions: string[];
+      tools: { name: string; scope: string }[];
+    };
+    expect(manifest.$dette_er_dokumentasjon).toContain("IKKE en fil noen klient kan importere");
+    expect(manifest.endpoint).toBe(ENDPOINT);
+    expect(manifest.transport).toBe("streamable-http");
+    expect(manifest.oauth.resource).toBe(ENDPOINT);
+    expect(manifest.oauth.static_token).toBe(false);
+    expect(manifest.protocol_versions).toEqual(["2025-11-25", "2025-06-18"]);
+    expect(manifest.tools.map((t) => t.name)).toEqual(["karrierenmin_status", "karrierenmin_run"]);
+  });
+
+  it("Claude Code får .mcp.json-formatet med remote HTTP", () => {
+    const path = join(ROOT, "claude", "mcp.json");
+    const config = JSON.parse(readFileSync(path, "utf8")) as {
+      mcpServers: Record<string, { type: string; url: string }>;
+    };
+    expect(config.mcpServers["karrierenmin"]).toEqual({ type: "http", url: ENDPOINT });
+    const body = readFileSync(path, "utf8");
+    expect(body).toContain(".mcp.json");
+    expect(body.toLowerCase()).toContain("ikke lokal stdio");
+  });
+
+  it("Gemini CLI får settings.json med httpUrl, ikke type/url", () => {
+    const path = join(ROOT, "gemini", "settings.example.json");
+    const config = JSON.parse(readFileSync(path, "utf8")) as {
+      mcpServers: Record<string, Record<string, unknown>>;
+    };
+    const server = config.mcpServers["karrierenmin"]!;
+    expect(server["httpUrl"]).toBe(ENDPOINT);
+    expect(server["url"]).toBeUndefined();
+    expect(server["type"]).toBeUndefined();
+  });
+
+  for (const provider of ["openai", "copilot", "grok"] as const) {
+    it(`${provider} får UI-veiledning, ikke en oppdiktet konfigurasjonsfil`, () => {
+      const dir = join(ROOT, provider);
+      const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+      // Kun REST-kompatibilitetseksempelet kan finnes — ingen MCP-klientkonfigurasjon.
+      expect(files.filter((f) => f !== "tools.example.json")).toEqual([]);
+      const readme = readFileSync(join(dir, "README.md"), "utf8").replace(/\s+/g, " ");
+      expect(readme).toContain("ingen importerbar konfigurasjonsfil");
+    });
+  }
+
+  it("ingen pakke påstår live E2E-verifisering", () => {
+    for (const dir of Object.values(PACKAGE_DIR)) {
+      const readme = readFileSync(join(ROOT, dir, "README.md"), "utf8")
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+      expect(readme).toContain("ikke verifisert ende-til-ende");
+    }
   });
 });

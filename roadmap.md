@@ -37,11 +37,25 @@
 - [x] `karrierenmin_status` og `karrierenmin_run` med eksakte input-/outputskjemaer, annotations og strukturert output. `run` returnerer kun `not_enabled`/`not_available` og oppretter aldri en kjøring.
 - [x] Delt domenelag (`agent-domain.server.ts`) brukt av både MCP og REST-kompatibilitetsrutene. Ingen claim-verktøy over MCP.
 - [x] Kontrakter, alle fem leverandørpakker, MCP/OAuth-spesifikasjon og E2E-plan oppdatert. Ingen migrasjon var nødvendig.
-- [x] Tester: 32 nye MCP-tester (handler, protokoll, herding, autentisering, scope, verktøysemantikk, leverandørmatrise for alle fem, delt domenelag).
+- [x] Tester: 43 MCP-tester (handler, protokoll, herding, autentisering, scope, verktøysemantikk, leverandørmatrise for alle fem, delt domenelag).
+
+## Korreksjonsleveranse: SDK-sannhet, transportsemantikk, OAuth-invarianter og pakkesannhet
+
+- [x] SDK-en er faktisk i kjørebanen: `JSONRPCRequestSchema`, `JSONRPCNotificationSchema`, `RequestIdSchema`, `InitializeRequestSchema`, `PingRequestSchema`, `ListToolsRequestSchema`, `CallToolRequestSchema` og `SUPPORTED_PROTOCOL_VERSIONS` validerer hver forespørsel. SDK-ens `Server`/transport brukes ikke, og det er dokumentert eksakt hvorfor.
+- [x] Accept krever BÅDE `application/json` og `text/event-stream` med `q > 0`. Robust medietype-/q-parser med tester for manglende type, `q=0`, store/små bokstaver, wildcards og gyldig kombinasjon.
+- [x] Origin: manglende tillates, `null` og fremmede avvises med 403 — også på OPTIONS. Kjent origin gir 204 med snevre CORS-headere; manglende origin gir 204 uten CORS.
+- [x] `id: null` avvises som `-32600`; fravær av `id` er fortsatt notifikasjon (202).
+- [x] Ytre fail-closed feilgrense: generisk `-32603` uten stack, token, body, argumenter eller DB-tekst.
+- [x] `karrierenmin_status` sitt `outputSchema` krever `capabilities_verified` og `last_verified_at`. Faktisk statusresultat valideres mot skjemaet med SDK-ens AJV-validator i test.
+- [x] Adgang kun ved `active`: `draft`/`connecting`/`degraded`/`disconnected` avvises. Regresjonstester for alle statusene.
+- [x] Scope kryssjekkes mot grantets nåværende scopes ved hvert kall; effektive scopes er skjæringsmengden, og et tilbaketrukket scope avviser tokenet.
+- [x] Leverandørpakkene er ikke lenger fem identiske `mcp.config.json`. Dokumentasjonsmanifest `common/connection.json` (ikke importerbart), dokumenterte filformater kun for Claude Code (`claude/mcp.json` → `.mcp.json`) og Gemini CLI (`settings.example.json` med `httpUrl`), og UI-/veiviserveiledning for ChatGPT/Codex, Copilot Studio og Grok. Pakketestene validerer leverandørspesifikk sannhet.
+- [x] Full suite (26 filer / 435 tester), typecheck, lint og build passerte. Ingen DB-migrasjon, ingen publisering.
 
 ## Åpne punkter (blokkert / ikke gjort)
 
 - [ ] Performance Advisor som eget verktøy er ikke tilgjengelig i dette miljøet. Erstattet med manuell indekskontroll: manglende indekser på fremmednøkler i OAuth-tabellene ble lagt til i migrasjon `20260909143412_...`.
+- [ ] `PUBLIC_APP_ORIGIN` mangler i preview-miljøet. Transporten er fail-closed og svarer 500 uten den; dette er IKKE omgått. Blokkerer lokal/live røyktest.
 - [ ] MCP Inspector mot en publisert origin er ikke kjørt: transporten krever `PUBLIC_APP_ORIGIN` og en offentlig HTTPS-adresse, og publisering er ikke tillatt i denne leveransen.
 - [ ] Live E2E mot ChatGPT/Claude/Copilot/Grok/Gemini: IKKE KJØRT. Krever ekte konto og installasjon hos leverandør. Gjelder også etter at MCP-transporten er bygget.
 - [ ] Migrasjonskravet «én ny migrasjon» ble i praksis fire filer: hovedherding (`20260909141023_...`), retting av tvetydig `family_id` (`20260909142117_...`) og indeksering (`20260909143412_...`), i tillegg til fase 3-basen. Alle er additive.

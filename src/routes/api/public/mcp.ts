@@ -12,20 +12,23 @@
 // protokollversjon -> JSON-RPC. Ingenting av innholdet tolkes før kallet
 // er autentisert.
 //
-// Logging: verken token, body, argumenter eller feilinnhold logges.
+// Logging: verken token, body, argumenter eller feilinnhold logges. Ytre
+// feilgrense svarer generisk og lekker aldri stack, DB-tekst eller innhold.
 // ============================================================
 
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  JSONRPC_INVALID_REQUEST,
+  JSONRPC_INTERNAL_ERROR,
   JSONRPC_PARSE_ERROR,
   MCP_MAX_BODY_BYTES,
   MCP_DEFAULT_PROTOCOL_VERSION,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
-  acceptsJson,
+  acceptsStreamableHttp,
+  hasOriginHeader,
   isAllowedOrigin,
   isJsonContentType,
   isSupportedProtocolVersion,
+  parseJsonRpcMessage,
   type McpProtocolVersion,
 } from "@/lib/ai-integrations/mcp-contract";
 
@@ -35,7 +38,7 @@ const BASE_HEADERS: Record<string, string> = {
 };
 
 function corsHeaders(origin: string | null, appOrigin: string): Record<string, string> {
-  if (!origin || origin !== appOrigin) return {};
+  if (!origin || origin.trim() !== appOrigin) return {};
   return {
     "Access-Control-Allow-Origin": appOrigin,
     "Access-Control-Allow-Headers": "authorization, content-type, mcp-protocol-version, accept",
@@ -71,16 +74,19 @@ async function handlePost(request: Request): Promise<Response> {
   if (!originConfig.ok) return json({ error: "server_error" }, 500);
   const appOrigin = originConfig.origin;
   const urls = oauthUrls(appOrigin);
-  const cors = corsHeaders(request.headers.get("origin"), appOrigin);
+  const requestOrigin = request.headers.get("origin");
+  const cors = corsHeaders(requestOrigin, appOrigin);
 
   // --- Transport-herding -------------------------------------------------
-  if (!isAllowedOrigin(request.headers.get("origin"), appOrigin)) {
-    return json({ error: "forbidden_origin" }, 403, cors);
+  // Manglende Origin er tillatt (ikke-nettleserklienter). «null» og fremmede
+  // opphav avvises.
+  if (!isAllowedOrigin(requestOrigin, appOrigin)) {
+    return json({ error: "forbidden_origin" }, 403);
   }
   if (!isJsonContentType(request.headers.get("content-type"))) {
     return json({ error: "unsupported_media_type" }, 415, cors);
   }
-  if (!acceptsJson(request.headers.get("accept"))) {
+  if (!acceptsStreamableHttp(request.headers.get("accept"))) {
     return json({ error: "not_acceptable" }, 406, cors);
   }
 
@@ -130,36 +136,19 @@ async function handlePost(request: Request): Promise<Response> {
     return rpcErrorResponse(400, JSONRPC_PARSE_ERROR, "Kunne ikke tolke JSON.", cors);
   }
 
-  if (Array.isArray(parsed)) {
-    // Batch ble fjernet i 2025-06-18. Ingen støttet versjon tillater det.
-    return rpcErrorResponse(
-      400,
-      JSONRPC_INVALID_REQUEST,
-      "JSON-RPC-batch støttes ikke i denne protokollversjonen.",
-      cors,
-    );
-  }
-  if (typeof parsed !== "object" || parsed === null) {
-    return rpcErrorResponse(400, JSONRPC_INVALID_REQUEST, "Forventet et JSON-RPC-objekt.", cors);
-  }
-
-  const message = parsed as Record<string, unknown>;
-  const id = message["id"];
-  const hasValidId = typeof id === "string" || typeof id === "number";
-  if (message["jsonrpc"] !== "2.0" || typeof message["method"] !== "string") {
-    return rpcErrorResponse(400, JSONRPC_INVALID_REQUEST, "Ugyldig JSON-RPC-melding.", cors);
-  }
-  if (id !== undefined && id !== null && !hasValidId) {
-    return rpcErrorResponse(400, JSONRPC_INVALID_REQUEST, "Ugyldig id.", cors);
+  // Konvolutten valideres med SDK-ens Zod-skjemaer. id: null er ugyldig.
+  const message = parseJsonRpcMessage(parsed);
+  if (message.kind === "invalid") {
+    return rpcErrorResponse(400, message.code, message.message, cors);
   }
 
   const { dispatchMcpMessage } = await import("@/lib/ai-integrations/mcp-server.server");
   const outgoing = await dispatchMcpMessage(
     {
       jsonrpc: "2.0",
-      ...(hasValidId ? { id: id as string | number } : {}),
-      method: message["method"] as string,
-      params: message["params"],
+      ...(message.kind === "request" ? { id: message.id } : {}),
+      method: message.method,
+      params: message.params,
     },
     {
       userId: auth.userId,
@@ -179,20 +168,41 @@ async function handlePost(request: Request): Promise<Response> {
   return json(outgoing, 200, cors);
 }
 
+/** Ytre fail-closed grense: ingen stack, token, body eller DB-tekst ut. */
+async function safeHandlePost(request: Request): Promise<Response> {
+  try {
+    return await handlePost(request);
+  } catch {
+    return rpcErrorResponse(500, JSONRPC_INTERNAL_ERROR, "Intern feil.");
+  }
+}
+
 export const Route = createFileRoute("/api/public/mcp")({
   server: {
     handlers: {
-      POST: async ({ request }) => handlePost(request),
+      POST: async ({ request }) => safeHandlePost(request),
       GET: async () => methodNotAllowed(),
       DELETE: async () => methodNotAllowed(),
       OPTIONS: async ({ request }) => {
-        const { publicAppOrigin } = await import("@/lib/ai-integrations/oauth-config.server");
-        const origin = publicAppOrigin();
-        const cors = origin.ok ? corsHeaders(request.headers.get("origin"), origin.origin) : {};
-        return new Response(null, {
-          status: 204,
-          headers: { Allow: "POST, OPTIONS", "Cache-Control": "no-store", ...cors },
-        });
+        try {
+          const { publicAppOrigin } = await import("@/lib/ai-integrations/oauth-config.server");
+          const config = publicAppOrigin();
+          const requestOrigin = request.headers.get("origin");
+          const appOrigin = config.ok ? config.origin : null;
+          if (appOrigin && !isAllowedOrigin(requestOrigin, appOrigin)) {
+            return json({ error: "forbidden_origin" }, 403);
+          }
+          const cors =
+            appOrigin && hasOriginHeader(requestOrigin)
+              ? corsHeaders(requestOrigin, appOrigin)
+              : {};
+          return new Response(null, {
+            status: 204,
+            headers: { Allow: "POST, OPTIONS", "Cache-Control": "no-store", ...cors },
+          });
+        } catch {
+          return json({ error: "server_error" }, 500);
+        }
       },
     },
   },

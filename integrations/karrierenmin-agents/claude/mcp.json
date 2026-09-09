@@ -1,0 +1,11 @@
+{
+  "$bruk": "Claude Code leser .mcp.json i prosjektroten. Lagre denne filen som .mcp.json der, eller kjør `claude mcp add --transport http karrierenmin https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp`. Dette gjelder remote HTTP — ikke lokal stdio i Claude Desktop.",
+  "$status": "Formatet er dokumentert av Claude Code. Installasjonen er IKKE live-verifisert hos leverandøren.",
+  "$auth": "OAuth 2.1 med PKCE. Ingen statisk nøkkel settes her; klienten følger 401-svaret fra endepunktet og åpner innlogging i Karrierenmin.",
+  "mcpServers": {
+    "karrierenmin": {
+      "type": "http",
+      "url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp"
+    }
+  }
+}

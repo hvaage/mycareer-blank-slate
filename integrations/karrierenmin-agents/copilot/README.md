@@ -29,7 +29,15 @@ MCP-serveren bruker OAuth 2.1 med PKCE. Klienten oppdager autorisasjonsserveren
 fra `401`-svaret og
 `https://REPLACE-WITH-YOUR-PUBLIC-HOST/.well-known/oauth-protected-resource/api/public/mcp`.
 Brukeren logger inn i Karrierenmin og godkjenner scopene selv. Ingen statisk
-nøkkel legges i konfigurasjonen. Se `mcp.config.json`.
+nøkkel legges i konfigurasjonen.
+
+## Installasjon hos denne leverandøren
+
+Det finnes ingen importerbar konfigurasjonsfil her. Legg serveren inn via
+Copilot Studio sin MCP-veiviser / egendefinerte kobling med server-URL-en over.
+
+Felles, leverandørnøytralt manifest (dokumentasjon, ikke importerbart):
+`../common/connection.json`. Ikke live-verifisert hos noen leverandør.
 
 Tokenet skal aldri stå i prompt, samtalelogg, feilmelding eller URL — kun i
 `Authorization`-headeren, som klienten setter selv.
