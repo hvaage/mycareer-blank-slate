@@ -16,6 +16,15 @@
 - [x] Dokumentasjon: CIMD først, DCR som fallback, faktiske begrensninger.
 - [x] Full testsuite, typecheck, lint, build og security-advisor (118 funn = uendret baseline). Ingen publisering.
 
+## Korreksjonsrunde (fra commit e49e8cf2)
+
+- [x] Claude Code-loopback følger nå den offisielle modellen: portløs metadata-mal (`http://localhost/callback`, `http://127.0.0.1/callback`) valideres separat fra faktisk authorize-redirect med ephemeral port 1024–65535. Portagnostisk match kun for `registration_method=cimd` med client_id/metadata_url = `https://claude.ai/oauth/claude-code-client-metadata`. DCR, manual og andre CIMD-klienter har fortsatt eksakt match. Tester dekker begge retninger.
+- [x] Ressursbinding er obligatorisk: `oauth_authorization_codes.resource` er NOT NULL etter trygg fjerning av gamle NULL-koder (60 sek TTL), og RPC-en avviser NULL, tom og avvikende ressurs (`IS DISTINCT FROM`). Verifisert mot database.
+- [x] DCR: opportunistisk `oauth_cleanup_expired_clients` før registrering, fail closed. Bodygrensen måles som UTF-8-byte, og for stor `Content-Length` avvises før body leses. Tester med multibyte.
+- [x] Minste rettigheter på `oauth_security_events`: kun `service_role` med SELECT/INSERT/DELETE. Eier (`postgres`) og plattformrollen `sandbox_exec` (SELECT/INSERT) er plattforminterne og urørt. Tabellkommentaren er rettet: ingen tokener/koder/hemmeligheter, `user_id` er pseudonym med definert opprydding.
+- [x] Rene formatteringsendringer i urelaterte CV-testfiler er tilbakestilt. Testlogikk uendret.
+- [x] Full suite (24 filer / 365 tester), typecheck, lint og security advisor (118 funn = uendret baseline).
+
 ## Åpne punkter (blokkert / ikke gjort)
 
 - [ ] Performance Advisor som eget verktøy er ikke tilgjengelig i dette miljøet. Erstattet med manuell indekskontroll: manglende indekser på fremmednøkler i OAuth-tabellene ble lagt til i migrasjon `20260909143412_...`.
