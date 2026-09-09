@@ -44,7 +44,6 @@ export const Route = createFileRoute("/.well-known/oauth-authorization-server")(
           // til klientens eget metadatadokument.
           client_id_metadata_document_supported: true,
           service_documentation: `${origin.origin}/personvern`,
-
         };
         if (dynamicRegistrationEnabled()) {
           metadata["registration_endpoint"] = urls.registration_endpoint;

@@ -406,7 +406,10 @@ describe("OAuth access token", () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
     expect(issued.expiresIn).toBe(OAUTH_ACCESS_TOKEN_TTL_SECONDS);
     expect(OAUTH_ACCESS_TOKEN_TTL_SECONDS).toBe(3600);
-    const verified = await verifyOauthAccessToken(issued.token, { resource: RESOURCE, issuer: ISSUER });
+    const verified = await verifyOauthAccessToken(issued.token, {
+      resource: RESOURCE,
+      issuer: ISSUER,
+    });
     expect(verified.ok).toBe(true);
     if (!verified.ok) return;
     for (const key of [
@@ -438,7 +441,10 @@ describe("OAuth access token", () => {
 
   it("avviser feil audience/resource", async () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
-    const r = await verifyOauthAccessToken(issued.token, { resource: "https://annen.no/mcp", issuer: ISSUER });
+    const r = await verifyOauthAccessToken(issued.token, {
+      resource: "https://annen.no/mcp",
+      issuer: ISSUER,
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("audience");
   });
@@ -446,7 +452,11 @@ describe("OAuth access token", () => {
   it("avviser utløpt token", async () => {
     const issued = (await issueOauthAccessToken({ ...issueInput, ttlSeconds: 1 }))!;
     const later = new Date(Date.now() + 5 * 60 * 1000);
-    const r = await verifyOauthAccessToken(issued.token, { resource: RESOURCE, issuer: ISSUER, now: later });
+    const r = await verifyOauthAccessToken(issued.token, {
+      resource: RESOURCE,
+      issuer: ISSUER,
+      now: later,
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("expired");
   });

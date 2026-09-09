@@ -27,7 +27,6 @@ function AuthCallback() {
       // MERK: her logges det bevisst ingenting. Adresse, spørrestreng,
       // kode, state og tokener er legitimasjon og skal aldri i konsollen.
 
-
       try {
         let session: { user?: { id?: string } } | null = null;
 
@@ -60,7 +59,6 @@ function AuthCallback() {
           }
           session = sessionData?.session ?? null;
         }
-
 
         if (cancelled) return;
 

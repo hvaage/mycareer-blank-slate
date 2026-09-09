@@ -60,7 +60,11 @@ describe("godkjenningsregler", () => {
   it("delvis dekket påstand blokkerer hele dokumentet", () => {
     const report = summarizeEvidence("doc", [
       claim({ claimId: "c1" }),
-      claim({ claimId: "c15", evidenceStatus: "partially_supported", verification: "partially_supported" }),
+      claim({
+        claimId: "c15",
+        evidenceStatus: "partially_supported",
+        verification: "partially_supported",
+      }),
     ]);
     expect(report.canApprove).toBe(false);
     expect(report.blockingClaimIds).toEqual(["c15"]);
@@ -70,7 +74,11 @@ describe("godkjenningsregler", () => {
   it("bekreftet påstand løser blokkeringen", () => {
     const report = summarizeEvidence("doc", [
       claim({ claimId: "c1" }),
-      claim({ claimId: "c15", evidenceStatus: "user_attested", verification: "partially_supported" }),
+      claim({
+        claimId: "c15",
+        evidenceStatus: "user_attested",
+        verification: "partially_supported",
+      }),
     ]);
     expect(report.canApprove).toBe(true);
     expect(report.documentedCoverage.user_attested).toBe(1);
@@ -97,7 +105,8 @@ describe("handlinger i gjennomgangen", () => {
 });
 
 describe("bekreftelse og omskriving", () => {
-  const text = "Bygget opp virksomheten fra oppstart og ledet den til markedsledende posisjon i 2003.";
+  const text =
+    "Bygget opp virksomheten fra oppstart og ledet den til markedsledende posisjon i 2003.";
 
   it("teknisk no-op (identisk tekst) bevarer bekreftelsen", () => {
     expect(attestationSurvivesRewrite(text, `  ${text} `)).toBe(true);
@@ -123,11 +132,10 @@ describe("bekreftelse og omskriving", () => {
     expect(attestationSurvivesRewrite("Størst i Norge.", "Størst i Norden.")).toBe(false);
   });
 
-
   it("endret markedsomfang krever ny bekreftelse", () => {
-    expect(
-      attestationSurvivesRewrite(text, text.replace("markedsledende", "nest største")),
-    ).toBe(false);
+    expect(attestationSurvivesRewrite(text, text.replace("markedsledende", "nest største"))).toBe(
+      false,
+    );
   });
 
   it("tilbaketrukket bekreftelse gjeninnfører blokkering", () => {
