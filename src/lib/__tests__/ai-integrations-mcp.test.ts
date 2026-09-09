@@ -626,17 +626,19 @@ describe("OPTIONS og ytre feilgrense", () => {
     expect(res.headers.get("vary")).toBe("Origin");
   });
 
-  it("OPTIONS med fremmed eller null Origin gir 403", async () => {
-    for (const origin of ["https://evil.example", "null"]) {
+  it("OPTIONS med fremmed, tom eller null Origin gir 403", async () => {
+    for (const origin of ["https://evil.example", "null", "", "   "]) {
       const res = await options({ origin });
       expect(res.status).toBe(403);
       expect(res.headers.get("access-control-allow-origin")).toBeNull();
     }
   });
 
-  it("POST med Origin: null gir 403", async () => {
-    const res = await post(rpc("ping"), { headers: { origin: "null" } });
-    expect(res.status).toBe(403);
+  it("POST med Origin: null, tom eller whitespace gir 403", async () => {
+    for (const origin of ["null", "", "   "]) {
+      const res = await post(rpc("ping"), { headers: { origin } });
+      expect(res.status).toBe(403);
+    }
   });
 
   it("uventet unntak gir generisk intern feil uten lekkasje", async () => {
