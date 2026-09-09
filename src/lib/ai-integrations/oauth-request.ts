@@ -5,7 +5,8 @@
 // gjør oppslag når forespørselen allerede er formelt riktig.
 // ============================================================
 
-import { isValidScopeSet, scopesWithinClient, isExactRedirectUri } from "./oauth-contract";
+import { isValidScopeSet, scopesWithinClient } from "./oauth-contract";
+import { redirectUriAllowedForClient } from "./oauth-client-policy";
 
 export type AuthorizeParams = {
   response_type?: string | null;
@@ -113,6 +114,9 @@ export type ClientRecord = {
   is_active: boolean;
   redirect_uris: string[];
   allowed_scopes: string[];
+  /** manual | cimd | dcr — avgjør om portagnostisk loopback er tillatt. */
+  registration_method?: string | null;
+  metadata_url?: string | null;
 };
 
 /**
