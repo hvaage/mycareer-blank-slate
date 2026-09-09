@@ -65,7 +65,7 @@ export async function resolveCimdClient(clientIdUrl: string): Promise<CimdResult
   const { data: cached } = await db
     .from("oauth_clients")
     .select(
-      "id, client_id, client_name, client_type, is_active, redirect_uris, allowed_scopes, registration_method, metadata_expires_at",
+      "id, client_id, client_name, client_type, is_active, redirect_uris, allowed_scopes, registration_method, metadata_url, metadata_expires_at",
     )
     .eq("client_id", clientIdUrl)
     .maybeSingle();
@@ -138,7 +138,8 @@ export async function resolveCimdClient(clientIdUrl: string): Promise<CimdResult
 
   const row = (Array.isArray(upserted) ? upserted[0] : upserted) as ClientRecord | undefined;
   if (!row) return { ok: false, reason: "store_failed" };
-  return { ok: true, client: row };
+  // Provenance settes fra det vi nettopp verifiserte, ikke fra klientpåstand.
+  return { ok: true, client: { ...row, registration_method: "cimd", metadata_url: check.url } };
 }
 
 /** True når client_id ser ut som en CIMD-URL i det hele tatt. */
