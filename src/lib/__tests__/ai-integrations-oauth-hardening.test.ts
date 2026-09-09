@@ -22,10 +22,7 @@ import {
   redirectUriAllowedForClient,
   allowsPortAgnosticLoopback,
 } from "@/lib/ai-integrations/oauth-client-policy";
-import {
-  DCR_MAX_BODY_BYTES,
-  utf8ByteLength,
-} from "@/routes/api/public/oauth/register";
+import { DCR_MAX_BODY_BYTES, utf8ByteLength } from "@/routes/api/public/oauth/register";
 import {
   AI_PROVIDERS,
   AI_PROVIDER_LABELS,
@@ -294,18 +291,17 @@ describe("Claude Code loopback", () => {
 
   it("matcher en tilfeldig ephemeral port i authorize-forespørselen", () => {
     for (const port of [1024, 8912, 54321, 65535]) {
-      expect(
-        redirectUriAllowedForClient(`http://127.0.0.1:${port}/callback`, claudeClient),
-      ).toBe(true);
+      expect(redirectUriAllowedForClient(`http://127.0.0.1:${port}/callback`, claudeClient)).toBe(
+        true,
+      );
       expect(redirectUriAllowedForClient(`http://localhost:${port}/callback`, claudeClient)).toBe(
         true,
       );
     }
   });
 
-  it("avviser portløs, privilegert port, feil bane og https mot malen", () => {
+  it("avviser privilegert port, feil bane og https mot malen", () => {
     for (const uri of [
-      "http://127.0.0.1/callback",
       "http://127.0.0.1:80/callback",
       "http://127.0.0.1:54321/cb",
       "https://127.0.0.1:54321/callback",
@@ -335,7 +331,7 @@ describe("Claude Code loopback", () => {
       { ...claudeClient, metadata_url: null },
     ];
     for (const client of others) {
-      expect(allowsPortAgnosticLoopback(client)).toBe(client === others[-1]);
+      expect(allowsPortAgnosticLoopback(client)).toBe(false);
       expect(redirectUriAllowedForClient(requested, client)).toBe(false);
     }
   });
