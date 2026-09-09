@@ -62,6 +62,7 @@ function stripComments(source: string): string {
 
 const ORIGIN = "https://karrierenmin.no";
 const RESOURCE = `${ORIGIN}${OAUTH_PATHS.resource}`;
+const ISSUER = ORIGIN;
 
 const CLIENT: ClientRecord = {
   id: "11111111-1111-1111-1111-111111111111",
