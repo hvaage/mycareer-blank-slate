@@ -596,3 +596,48 @@ describe("delt domenelag og ingen sesjonstilstand", () => {
     expect(mcpRoute).not.toMatch(/console\.(log|info|warn|error)/);
   });
 });
+
+describe("OPTIONS og ytre feilgrense", () => {
+  async function options(headers: Record<string, string> = {}) {
+    const handlers = await route();
+    return handlers["OPTIONS"]!({ request: new Request(URL_MCP, { method: "OPTIONS", headers }) });
+  }
+
+  it("OPTIONS uten Origin gir 204 uten CORS-headere", async () => {
+    const res = await options();
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("OPTIONS med kjent Origin gir 204 med snevre CORS-headere", async () => {
+    const res = await options({ origin: ORIGIN });
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBe(ORIGIN);
+    expect(res.headers.get("access-control-allow-methods")).toBe("POST, OPTIONS");
+    expect(res.headers.get("vary")).toBe("Origin");
+  });
+
+  it("OPTIONS med fremmed eller null Origin gir 403", async () => {
+    for (const origin of ["https://evil.example", "null"]) {
+      const res = await options({ origin });
+      expect(res.status).toBe(403);
+      expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    }
+  });
+
+  it("POST med Origin: null gir 403", async () => {
+    const res = await post(rpc("ping"), { headers: { origin: "null" } });
+    expect(res.status).toBe(403);
+  });
+
+  it("uventet unntak gir generisk intern feil uten lekkasje", async () => {
+    authThrows = true;
+    const res = await post(rpc("ping"));
+    expect(res.status).toBe(500);
+    const text = await res.text();
+    expect(text).toContain("-32603");
+    expect(text).not.toContain("hemmelig");
+    expect(text).not.toContain("abc123");
+    expect(text.toLowerCase()).not.toContain("stack");
+  });
+});
