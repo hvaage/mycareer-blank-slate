@@ -11,8 +11,14 @@ eksisterende integrasjonstokener, og bruker samme delte domenelag som MCP.
 
 - Sesjonsløs Streamable HTTP: ingen sesjonsheader, ingen sesjonstabell, ingen
   SSE-strøm. Hver forespørsel autentiseres på nytt.
-- `@modelcontextprotocol/sdk@1.30.0` er installert og brukt som referanse for
-  typer, skjemaer og protokollkonstanter. HTTP-laget er skrevet i
+- `@modelcontextprotocol/sdk@1.30.0` er installert, og SDK-ens Zod-skjemaer er
+  faktisk i kjørebanen for hver forespørsel: `JSONRPCRequestSchema`,
+  `JSONRPCNotificationSchema`, `RequestIdSchema`, `InitializeRequestSchema`,
+  `PingRequestSchema`, `ListToolsRequestSchema`, `CallToolRequestSchema`, samt
+  `SUPPORTED_PROTOCOL_VERSIONS`/`LATEST_PROTOCOL_VERSION`. Konvolutt og params
+  valideres av SDK-en, ikke av håndskrevne sjekker. SDK-ens `Server`/`McpServer`
+  og `WebStandardStreamableHTTPServerTransport` brukes IKKE, og vi påstår ingen
+  SDK-validering for transportlaget. HTTP-laget er skrevet i
   `src/routes/api/public/mcp.ts` fordi SDK-transporten eier sin egen
   Response-generering og ikke kan gi de påkrevde svarene uendret: `405` med
   `Allow: POST, OPTIONS` på GET/DELETE, OAuth-autentisering med eksakt
@@ -27,9 +33,19 @@ eksisterende integrasjonstokener, og bruker samme delte domenelag som MCP.
 ## 1. MCP-transport
 
 - Ett endepunkt: `POST /api/public/mcp`, Streamable HTTP med JSON-RPC 2.0.
-- Requesten må sende `Content-Type: application/json` og
-  `Accept: application/json, text/event-stream`. Uten `Accept` svarer
-  MCP-klienter/servere 406.
+- Requesten må sende `Content-Type: application/json` og en `Accept` som
+  faktisk tilbyr BÅDE `application/json` og `text/event-stream` med `q > 0`.
+  Bare én av dem, eller `q=0`, gir 406. Wildcards (`*/*`, `application/*`,
+  `text/*`) godtas når de har `q > 0`; eksakt medietype slår wildcard.
+- Origin: manglende `Origin` tillates (desktop-/CLI-/serverklienter).
+  `Origin: null` er en tilstedeværende, ugyldig origin og gir 403. Kun eksakt
+  `PUBLIC_APP_ORIGIN` slippes inn fra nettleser. Samme regel gjelder OPTIONS:
+  fremmed/`null` origin gir 403, kjent origin gir 204 med snevre CORS-headere,
+  manglende origin gir 204 uten CORS.
+- `id: null` er IKKE en notifikasjon. MCP RequestId er `string | integer`, og
+  `id: null` avvises som `-32600`. Fravær av `id` er notifikasjon (202).
+- En ytre fail-closed feilgrense fanger alle uventede unntak og svarer generisk
+  `-32603` uten stack, token, body, argumenter eller databasetekst.
 - Svar enten `application/json` eller `text/event-stream` avhengig av om
   metoden strømmer.
 - Obligatoriske metoder: `initialize`, `tools/list`, `tools/call`.
@@ -51,7 +67,18 @@ autorisasjonsflyten (punkt 3), ikke som et verktøykall som returnerer en
 hemmelighet.
 
 Hvert verktøy har `inputSchema` som JSON Schema. `tools/list` er identisk for
-alle fire overflater; det er samme server.
+alle fem overflater; det er samme server. `karrierenmin_status` sitt
+`outputSchema` krever alle feltene som faktisk returneres, inkludert
+`capabilities_verified` og `last_verified_at`.
+
+### Adgangsinvarianter
+
+- Et access token gir adgang KUN når integrasjonen er `active`. Første
+  vellykkede tokenutstedelse aktiverer integrasjonen atomisk, så `connecting`
+  trenger ingen dataadgang. `draft`, `degraded` og `disconnected` avvises.
+- Tokenets scopes kryssjekkes mot grantets nåværende scopes ved hvert kall.
+  Effektive scopes er skjæringsmengden, og et token med et scope som er trukket
+  tilbake avvises (fail closed).
 
 ## 2. OAuth 2.1 discovery
 
