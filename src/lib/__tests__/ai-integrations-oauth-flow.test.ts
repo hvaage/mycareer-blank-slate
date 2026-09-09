@@ -445,7 +445,7 @@ describe("OAuth access token", () => {
   it("avviser utløpt token", async () => {
     const issued = (await issueOauthAccessToken({ ...issueInput, ttlSeconds: 1 }))!;
     const later = new Date(Date.now() + 5000);
-    const r = await verifyOauthAccessToken(issued.token, { resource: RESOURCE, now: later });
+    const r = await verifyOauthAccessToken(issued.token, { resource: RESOURCE, issuer: ISSUER, now: later });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("expired");
   });
@@ -544,14 +544,16 @@ describe("token- og revokeringsruter", () => {
     expect(OAUTH_CODE_TTL_SECONDS).toBe(60);
   });
 
-  it("DCR er av som standard og krever HTTPS uten fragment", () => {
+  it("DCR er av som standard og godtar bare allowlistede callbacker", () => {
     expect(routeSources.register).toContain("if (!dynamicRegistrationEnabled())");
-    expect(isRegistrableRedirectUri("https://klient.no/cb", false)).toBe(true);
+    expect(isRegistrableRedirectUri("https://chatgpt.com/connector_platform_oauth_redirect")).toBe(
+      true,
+    );
     for (const bad of [
+      "https://klient.no/cb",
       "http://klient.no/cb",
-      "https://klient.no/cb#frag",
+      "https://chatgpt.com/connector_platform_oauth_redirect#frag",
       "https://klient.no/*",
-      "https://klient.no/userinfo",
       "http://localhost:3000/cb",
       "https://127.0.0.1/cb",
       "https://10.0.0.5/cb",
@@ -559,9 +561,8 @@ describe("token- og revokeringsruter", () => {
       "",
       null,
     ]) {
-      expect(isRegistrableRedirectUri(bad, false), String(bad)).toBe(false);
+      expect(isRegistrableRedirectUri(bad), String(bad)).toBe(false);
     }
-    expect(isRegistrableRedirectUri("http://localhost:3000/cb", true)).toBe(true);
   });
 
   it("DCR utsteder aldri client secret", () => {

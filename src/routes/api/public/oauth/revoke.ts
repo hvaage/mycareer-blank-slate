@@ -58,6 +58,7 @@ export const Route = createFileRoute("/api/public/oauth/revoke")({
           // Access token er signert; vi trekker grantet det peker på.
           const verified = await verifyOauthAccessToken(token, {
             resource: oauthUrls(origin.origin).resource,
+            issuer: oauthUrls(origin.origin).issuer,
           });
           if (verified.ok && verified.payload.client_id === client.client_id) {
             await db.rpc("oauth_revoke_grants", {
