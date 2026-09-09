@@ -98,16 +98,32 @@ export type OauthTokenVerification =
   | { ok: true; payload: OauthAccessTokenPayload }
   | {
       ok: false;
-      reason: "not_configured" | "malformed" | "bad_signature" | "expired" | "audience" | "scope";
+      reason:
+        | "not_configured"
+        | "malformed"
+        | "bad_signature"
+        | "expired"
+        | "not_yet_valid"
+        | "issuer"
+        | "audience"
+        | "scope";
     };
 
 /**
- * Signatur, type, audience/resource og utløp. Grant-, integrasjons- og
- * revokeringsstatus sjekkes i databasen av kalleren (oauth-auth.server.ts).
+ * Tillatt klokkeskeivhet mellom utsteder og verifikator. 60 sekunder er
+ * nok til vanlig NTP-drift, og kort nok til at et token med framtidig
+ * iat ikke kan brukes til å forlenge levetiden i praksis.
+ */
+export const OAUTH_CLOCK_SKEW_SECONDS = 60;
+
+/**
+ * Signatur, type, issuer, audience/resource, iat/nbf, utløp og scope.
+ * Grant-, klient-, integrasjons- og revokeringsstatus sjekkes i databasen
+ * av kalleren (oauth-auth.server.ts).
  */
 export async function verifyOauthAccessToken(
   token: string,
-  options: { resource: string; now?: Date; requiredScope?: string },
+  options: { resource: string; issuer: string; now?: Date; requiredScope?: string },
 ): Promise<OauthTokenVerification> {
   const secret = readOauthSecret();
   if (!secret) return { ok: false, reason: "not_configured" };
@@ -136,19 +152,28 @@ export async function verifyOauthAccessToken(
     !payload.iid ||
     !payload.sub ||
     !payload.grant_id ||
+    !payload.client_id ||
+    !payload.provider ||
     !payload.jti ||
     !Array.isArray(payload.scopes) ||
-    typeof payload.exp !== "number"
+    typeof payload.exp !== "number" ||
+    typeof payload.iat !== "number"
   ) {
     return { ok: false, reason: "malformed" };
   }
+  if (payload.iss !== options.issuer) return { ok: false, reason: "issuer" };
   if (payload.aud !== options.resource || payload.resource !== options.resource) {
     return { ok: false, reason: "audience" };
   }
   const nowSeconds = Math.floor((options.now ?? new Date()).getTime() / 1000);
-  if (payload.exp <= nowSeconds) return { ok: false, reason: "expired" };
+  // nbf finnes ikke som eget felt; iat er «ikke gyldig før»-grensen.
+  if (payload.iat > nowSeconds + OAUTH_CLOCK_SKEW_SECONDS) {
+    return { ok: false, reason: "not_yet_valid" };
+  }
+  if (payload.exp <= nowSeconds - OAUTH_CLOCK_SKEW_SECONDS) return { ok: false, reason: "expired" };
   if (options.requiredScope && !payload.scopes.includes(options.requiredScope)) {
     return { ok: false, reason: "scope" };
   }
   return { ok: true, payload };
 }
+

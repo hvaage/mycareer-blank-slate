@@ -16,13 +16,17 @@ import {
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase", "migrations");
 
+/**
+ * Slår sammen ALLE migrasjoner som nevner uttrykket. Definisjonen kan bli
+ * utvidet av en senere migrasjon, og da skal begge telle med.
+ */
 function migrationContaining(needle: string): string {
-  const files = readdirSync(MIGRATIONS_DIR).sort();
-  for (const file of files.reverse()) {
-    const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf8");
-    if (sql.includes(needle)) return sql;
-  }
-  throw new Error(`fant ingen migrasjon med ${needle}`);
+  const parts = readdirSync(MIGRATIONS_DIR)
+    .sort()
+    .map((file) => readFileSync(join(MIGRATIONS_DIR, file), "utf8"))
+    .filter((sql) => sql.includes(needle));
+  if (parts.length === 0) throw new Error(`fant ingen migrasjon med ${needle}`);
+  return parts.join("\n");
 }
 
 describe("scope-sett", () => {

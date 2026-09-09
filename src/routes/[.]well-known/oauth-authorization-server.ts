@@ -40,7 +40,11 @@ export const Route = createFileRoute("/.well-known/oauth-authorization-server")(
           revocation_endpoint_auth_methods_supported: ["none"],
           authorization_response_iss_parameter_supported: true,
           resource_indicators_supported: true,
+          // CIMD er den foretrukne veien: client_id kan være en https-URL
+          // til klientens eget metadatadokument.
+          client_id_metadata_document_supported: true,
           service_documentation: `${origin.origin}/personvern`,
+
         };
         if (dynamicRegistrationEnabled()) {
           metadata["registration_endpoint"] = urls.registration_endpoint;

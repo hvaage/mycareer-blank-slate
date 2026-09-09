@@ -41,6 +41,7 @@ function AuthorizePage() {
   const [csrf, setCsrf] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loopback, setLoopback] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +100,7 @@ function AuthorizePage() {
       setScopes(consent.scopes ?? []);
       setCsrf(consent.csrf_token);
       setIntegrations(consent.integrations ?? []);
+      setLoopback(consent.loopback_redirect === true);
       if ((consent.integrations ?? []).length === 1) setChosen(consent.integrations[0].id);
     };
 
@@ -166,6 +168,13 @@ function AuthorizePage() {
                 {clientName} ber om tilgang til karrierearbeidet ditt i Karrierenmin. Du kan når som
                 helst koble fra igjen under Innstillinger.
               </p>
+
+              {loopback && (
+                <p className="mt-4 rounded-md border border-border bg-muted p-3 text-sm text-foreground">
+                  Tilgangen sendes til et program som kjører på din egen maskin. Fortsett bare hvis
+                  du nettopp startet tilkoblingen selv, på denne maskinen.
+                </p>
+              )}
 
               <h2 className="mt-6 text-sm font-medium text-foreground">Dette gir du tilgang til</h2>
               <ul className="mt-2 space-y-2 text-sm text-muted-foreground">

@@ -62,6 +62,7 @@ function stripComments(source: string): string {
 
 const ORIGIN = "https://karrierenmin.no";
 const RESOURCE = `${ORIGIN}${OAUTH_PATHS.resource}`;
+const ISSUER = ORIGIN;
 
 const CLIENT: ClientRecord = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -405,7 +406,7 @@ describe("OAuth access token", () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
     expect(issued.expiresIn).toBe(OAUTH_ACCESS_TOKEN_TTL_SECONDS);
     expect(OAUTH_ACCESS_TOKEN_TTL_SECONDS).toBe(3600);
-    const verified = await verifyOauthAccessToken(issued.token, { resource: RESOURCE });
+    const verified = await verifyOauthAccessToken(issued.token, { resource: RESOURCE, issuer: ISSUER });
     expect(verified.ok).toBe(true);
     if (!verified.ok) return;
     for (const key of [
@@ -430,30 +431,41 @@ describe("OAuth access token", () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
     const [body] = issued.token.split(".");
     const forged = `${body}.${"A".repeat(43)}`;
-    const r = await verifyOauthAccessToken(forged, { resource: RESOURCE });
+    const r = await verifyOauthAccessToken(forged, { resource: RESOURCE, issuer: ISSUER });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("bad_signature");
   });
 
   it("avviser feil audience/resource", async () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
-    const r = await verifyOauthAccessToken(issued.token, { resource: "https://annen.no/mcp" });
+    const r = await verifyOauthAccessToken(issued.token, { resource: "https://annen.no/mcp", issuer: ISSUER });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("audience");
   });
 
   it("avviser utløpt token", async () => {
     const issued = (await issueOauthAccessToken({ ...issueInput, ttlSeconds: 1 }))!;
-    const later = new Date(Date.now() + 5000);
-    const r = await verifyOauthAccessToken(issued.token, { resource: RESOURCE, now: later });
+    const later = new Date(Date.now() + 5 * 60 * 1000);
+    const r = await verifyOauthAccessToken(issued.token, { resource: RESOURCE, issuer: ISSUER, now: later });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("expired");
+  });
+
+  it("avviser feil issuer", async () => {
+    const issued = (await issueOauthAccessToken(issueInput))!;
+    const r = await verifyOauthAccessToken(issued.token, {
+      resource: RESOURCE,
+      issuer: "https://annen.no",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("issuer");
   });
 
   it("avviser manglende scope", async () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
     const r = await verifyOauthAccessToken(issued.token, {
       resource: RESOURCE,
+      issuer: ISSUER,
       requiredScope: "karriere.workflow.run",
     });
     expect(r.ok).toBe(false);
@@ -469,7 +481,7 @@ describe("OAuth access token", () => {
       provider: "claude",
     }))!;
     // Et legacy claim-token skal ALDRI passere som OAuth-token.
-    const r = await verifyOauthAccessToken(legacy.token, { resource: RESOURCE });
+    const r = await verifyOauthAccessToken(legacy.token, { resource: RESOURCE, issuer: ISSUER });
     expect(r.ok).toBe(false);
 
     // ...og et OAuth-token skal ikke passere som agenttoken.
@@ -482,7 +494,7 @@ describe("OAuth access token", () => {
     const saved = process.env["AI_INTEGRATION_OAUTH_SECRET"];
     delete process.env["AI_INTEGRATION_OAUTH_SECRET"];
     expect(await issueOauthAccessToken(issueInput)).toBeNull();
-    const r = await verifyOauthAccessToken("a.b", { resource: RESOURCE });
+    const r = await verifyOauthAccessToken("a.b", { resource: RESOURCE, issuer: ISSUER });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("not_configured");
     process.env["AI_INTEGRATION_OAUTH_SECRET"] = saved;
@@ -544,14 +556,16 @@ describe("token- og revokeringsruter", () => {
     expect(OAUTH_CODE_TTL_SECONDS).toBe(60);
   });
 
-  it("DCR er av som standard og krever HTTPS uten fragment", () => {
+  it("DCR er av som standard og godtar bare allowlistede callbacker", () => {
     expect(routeSources.register).toContain("if (!dynamicRegistrationEnabled())");
-    expect(isRegistrableRedirectUri("https://klient.no/cb", false)).toBe(true);
+    expect(isRegistrableRedirectUri("https://chatgpt.com/connector_platform_oauth_redirect")).toBe(
+      true,
+    );
     for (const bad of [
+      "https://klient.no/cb",
       "http://klient.no/cb",
-      "https://klient.no/cb#frag",
+      "https://chatgpt.com/connector_platform_oauth_redirect#frag",
       "https://klient.no/*",
-      "https://klient.no/userinfo",
       "http://localhost:3000/cb",
       "https://127.0.0.1/cb",
       "https://10.0.0.5/cb",
@@ -559,9 +573,8 @@ describe("token- og revokeringsruter", () => {
       "",
       null,
     ]) {
-      expect(isRegistrableRedirectUri(bad, false), String(bad)).toBe(false);
+      expect(isRegistrableRedirectUri(bad), String(bad)).toBe(false);
     }
-    expect(isRegistrableRedirectUri("http://localhost:3000/cb", true)).toBe(true);
   });
 
   it("DCR utsteder aldri client secret", () => {

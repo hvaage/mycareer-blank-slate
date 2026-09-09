@@ -35,6 +35,7 @@ import {
   verifyCsrfToken,
 } from "@/lib/ai-integrations/oauth-state.server";
 import { admin, eligibleIntegrations } from "@/lib/ai-integrations/oauth-store.server";
+import { isClaudeLoopbackRedirect } from "@/lib/ai-integrations/oauth-client-policy";
 
 const noStore = { "Cache-Control": "no-store", Pragma: "no-cache" };
 
@@ -63,6 +64,10 @@ export const Route = createFileRoute("/api/oauth/consent")({
             })),
             integrations,
             csrf_token: csrf,
+            redirect_uri: sealed.redirect_uri,
+            // Loopback betyr at koden sendes til et program som kjører på
+            // brukerens egen maskin. Det vises tydelig på samtykkesiden.
+            loopback_redirect: isClaudeLoopbackRedirect(sealed.redirect_uri),
           },
           { headers: { ...noStore, "Set-Cookie": csrfCookieHeader(csrf) } },
         );
@@ -148,6 +153,7 @@ export const Route = createFileRoute("/api/oauth/consent")({
           scopes: sealed.scopes,
           code_challenge: sealed.code_challenge,
           code_challenge_method: "S256",
+          resource: sealed.resource,
           expires_at: new Date(Date.now() + OAUTH_CODE_TTL_SECONDS * 1000).toISOString(),
         });
         if (error) return apiFail(500, "database_error", "Kunne ikke fullføre godkjenningen.");
