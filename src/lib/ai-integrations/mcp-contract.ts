@@ -393,8 +393,8 @@ export function validateMethodParams(
     ...(params === undefined ? {} : { params }),
   });
   if (!result.success) return { ok: false };
-  return { ok: true, params: ((result.data as { params?: unknown }).params ?? {}) as Record<
-    string,
-    unknown
-  > };
+  return {
+    ok: true,
+    params: ((result.data as { params?: unknown }).params ?? {}) as Record<string, unknown>,
+  };
 }

@@ -32,7 +32,6 @@ import { RequestIdSchema } from "@modelcontextprotocol/sdk/types.js";
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { OAUTH_PATHS } from "@/lib/ai-integrations/oauth-config.server";
 
-
 const ORIGIN = "https://karrierenmin.no";
 const URL_MCP = `${ORIGIN}${MCP_ENDPOINT_PATH}`;
 
@@ -57,7 +56,6 @@ vi.mock("@/lib/ai-integrations/oauth-auth.server", () => ({
     return Promise.resolve(authResult);
   },
 }));
-
 
 let preferences: Record<string, boolean> = {
   job_email_import_enabled: true,
@@ -153,7 +151,6 @@ beforeEach(() => {
   };
   authThrows = false;
   authSpy.mockClear();
-
 });
 
 describe("kanonisk ressurs og kontrakt", () => {
@@ -232,9 +229,9 @@ describe("kanonisk ressurs og kontrakt", () => {
       method: "ping",
       params: undefined,
     });
-    expect(
-      parseJsonRpcMessage({ jsonrpc: "2.0", method: "notifications/initialized" }).kind,
-    ).toBe("notification");
+    expect(parseJsonRpcMessage({ jsonrpc: "2.0", method: "notifications/initialized" }).kind).toBe(
+      "notification",
+    );
     // Feil jsonrpc-versjon avvises av SDK-skjemaet, ikke av oss.
     expect(parseJsonRpcMessage({ jsonrpc: "1.0", id: 1, method: "ping" }).kind).toBe("invalid");
     // tools/call uten name avvises av CallToolRequestSchema.
@@ -288,7 +285,6 @@ describe("kanonisk ressurs og kontrakt", () => {
     ).toBe(false);
   });
 });
-
 
 describe("HTTP-semantikk", () => {
   it("GET og DELETE gir 405 med Allow: POST, OPTIONS", async () => {
@@ -396,7 +392,6 @@ describe("protokoll og JSON-RPC", () => {
     expect(body.error.code).toBe(JSONRPC_INVALID_REQUEST);
     expect(body.error.message).toContain("Ugyldig id");
   });
-
 
   it("ukjent protokollversjon i headeren avvises med 400", async () => {
     const res = await post(rpc("ping"), { headers: { "mcp-protocol-version": "1999-01-01" } });

@@ -82,7 +82,6 @@ export async function authenticateOauthRequest(
   const effectiveScopes = payload.scopes.filter((scope) => grantScopes.includes(scope));
   if (effectiveScopes.length === 0) return invalid;
 
-
   // Klienten må fortsatt finnes, være aktiv og ikke utløpt.
   const { data: client } = await db
     .from("oauth_clients")
@@ -126,5 +125,4 @@ export async function authenticateOauthRequest(
     grantId: payload.grant_id,
     scopes: effectiveScopes,
   };
-
 }

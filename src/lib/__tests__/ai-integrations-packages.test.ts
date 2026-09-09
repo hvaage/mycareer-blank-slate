@@ -92,7 +92,6 @@ describe("fem likestilte pakker mot én leverandørnøytral MCP-server", () => {
         expect(body).toContain("OAuth 2.1");
       });
 
-
       it("påstår ikke automatisk lagring av tokenet", () => {
         const text = readAll(dir).toLowerCase();
         expect(text).toMatch(/lagres ikke automatisk|kopiere det inn|kopiere det|manuelt/);
@@ -210,10 +209,7 @@ describe("leverandørspesifikk installasjonssannhet", () => {
     expect(manifest.oauth.resource).toBe(ENDPOINT);
     expect(manifest.oauth.static_token).toBe(false);
     expect(manifest.protocol_versions).toEqual(["2025-11-25", "2025-06-18"]);
-    expect(manifest.tools.map((t) => t.name)).toEqual([
-      "karrierenmin_status",
-      "karrierenmin_run",
-    ]);
+    expect(manifest.tools.map((t) => t.name)).toEqual(["karrierenmin_status", "karrierenmin_run"]);
   });
 
   it("Claude Code får .mcp.json-formatet med remote HTTP", () => {
