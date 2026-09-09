@@ -36,34 +36,20 @@ describe("norske perioder", () => {
   });
 
   it("belegges av datoer i egne supporting atoms", () => {
-    const acc = accountClaims(
-      [claim("Periode april 1998 til juni 2006", ["atom-role"])],
-      [roleAtom()],
-    );
+    const acc = accountClaims([claim("Periode april 1998 til juni 2006", ["atom-role"])], [roleAtom()]);
     expect(acc.entries[0].verification).toBe("supported");
     expect(acc.entries[0].reason).toContain("period_match");
   });
 
   it("avvist når datoene ikke stemmer", () => {
-    const acc = accountClaims(
-      [claim("Periode april 1999 til juni 2006", ["atom-role"])],
-      [roleAtom()],
-    );
+    const acc = accountClaims([claim("Periode april 1999 til juni 2006", ["atom-role"])], [roleAtom()]);
     expect(acc.entries[0].verification).toBe("unsupported");
   });
 
   it("dato i et annet atom belegger ikke claimen", () => {
     const other = roleAtom({ id: "atom-other" });
-    const scoped = roleAtom({
-      id: "atom-role",
-      structured_data: {} as never,
-      content_no: "Rolle",
-      content_en: null,
-    });
-    const acc = accountClaims(
-      [claim("Periode april 1998 til juni 2006", ["atom-role"])],
-      [scoped, other],
-    );
+    const scoped = roleAtom({ id: "atom-role", structured_data: {} as never, content_no: "Rolle", content_en: null });
+    const acc = accountClaims([claim("Periode april 1998 til juni 2006", ["atom-role"])], [scoped, other]);
     expect(acc.entries[0].verification).not.toBe("supported");
   });
 });

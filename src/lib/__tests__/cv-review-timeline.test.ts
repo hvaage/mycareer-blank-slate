@@ -126,26 +126,14 @@ describe("detectGaps", () => {
   it("markerer ikke hull rundt en pågående rolle", () => {
     expect(
       detectGaps([
-        role({
-          id: "a",
-          startIso: "2015-01-01",
-          endIso: null,
-          endPrecision: null,
-          isCurrent: true,
-        }),
+        role({ id: "a", startIso: "2015-01-01", endIso: null, endPrecision: null, isCurrent: true }),
         role({ id: "b", startIso: "2016-07-01", endIso: "2017-01-01" }),
       ]),
     ).toEqual([]);
     expect(
       detectGaps([
         role({ id: "a", startIso: "2015-01-01", endIso: "2016-01-01" }),
-        role({
-          id: "b",
-          startIso: "2016-07-01",
-          endIso: null,
-          endPrecision: null,
-          isCurrent: true,
-        }),
+        role({ id: "b", startIso: "2016-07-01", endIso: null, endPrecision: null, isCurrent: true }),
       ]),
     ).toEqual([]);
   });
@@ -199,6 +187,7 @@ describe("candidateSetSignature", () => {
   });
 });
 
+
 describe("monthsBetween", () => {
   it("regner i hele måneder", () => {
     expect(monthsBetween("2020-01-01", "2020-07-01")).toBe(6);
@@ -215,8 +204,7 @@ describe("extractRoleTitle", () => {
   it("avviser rollebeskrivelser som tittel", () => {
     expect(
       extractRoleTitle({
-        title:
-          "Ledet den kommersielle omstillingen fra produktsalg til abonnement, og bygde nytt team.",
+        title: "Ledet den kommersielle omstillingen fra produktsalg til abonnement, og bygde nytt team.",
       }),
     ).toBeNull();
     expect(extractRoleTitle({})).toBeNull();
