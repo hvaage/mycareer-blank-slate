@@ -11,18 +11,27 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AI_PROVIDERS } from "@/lib/ai-integrations/contract";
 import {
+  JSONRPC_INVALID_REQUEST,
   MCP_ENDPOINT_PATH,
   MCP_MAX_BODY_BYTES,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
   MCP_TOOLS,
   MCP_TOOL_SCOPE,
-  acceptsJson,
+  acceptsMediaType,
+  acceptsStreamableHttp,
+  hasOriginHeader,
   isAllowedOrigin,
   isJsonContentType,
+  isKnownBySdk,
   isSupportedProtocolVersion,
+  parseJsonRpcMessage,
   supportsBatch,
+  validateMethodParams,
 } from "@/lib/ai-integrations/mcp-contract";
+import { RequestIdSchema } from "@modelcontextprotocol/sdk/types.js";
+import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv.js";
 import { OAUTH_PATHS } from "@/lib/ai-integrations/oauth-config.server";
+
 
 const ORIGIN = "https://karrierenmin.no";
 const URL_MCP = `${ORIGIN}${MCP_ENDPOINT_PATH}`;
