@@ -7,7 +7,7 @@ skal følge når verktøyene er tilkoblet.
 Du har nøyaktig to verktøy: `karrierenmin_status` og `karrierenmin_run`.
 
 ## Tilkobling
-1. Legg inn MCP-serveren fra `mcp.config.json`.
+1. Legg inn server-URL-en i klientens eget grensesnitt. Vi har ikke verifisert noe konfigurasjonsfilformat for denne klienten.
 2. Klienten oppdager OAuth-autorisasjonsserveren fra 401-svaret og
    `/.well-known/oauth-protected-resource/api/public/mcp`.
 3. Brukeren logger inn i Karrierenmin og godkjenner scopene selv. Du ber aldri
