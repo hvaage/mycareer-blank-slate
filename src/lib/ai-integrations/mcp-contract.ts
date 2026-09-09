@@ -1,21 +1,43 @@
 // ============================================================
-// Leverandørnøytral MCP-kontrakt for Karrierenmin. Ingen I/O.
+// Leverandørnøytral MCP-kontrakt for Karrierenmin.
 //
 // Ett endepunkt, ett verktøysett, identisk for ChatGPT/Codex, Claude,
 // Gemini, Grok og Microsoft Copilot. Ingen leverandør har egne verktøy,
 // egne felter eller egne rettigheter.
 //
-// HVORFOR EGEN ADAPTER OG IKKE SDK-TRANSPORTEN:
-// `@modelcontextprotocol/sdk` er installert og brukes for typer, skjemaer
-// og protokollkonstanter. Selve HTTP-laget er skrevet her fordi kravene
-// avviker fra SDK-transportens standardoppførsel på punkter vi ikke kan
-// fravike: fullstendig sesjonsløs drift (ingen Mcp-Session-Id, ingen
-// DELETE-terminering), GET/DELETE som 405 med `Allow: POST, OPTIONS`,
-// OAuth-autentisering med eksakt WWW-Authenticate FØR meldingen tolkes,
-// og scope-kontroll per verktøy. SDK-transporten eier sin egen
-// Response-generering og kan ikke gi disse svarene uendret.
+// HVA FRA `@modelcontextprotocol/sdk@1.30.0` SOM FAKTISK BRUKES:
+// Zod-skjemaene under er i kjørebanen for hver eneste forespørsel:
+//   - `JSONRPCRequestSchema`      — validerer request-konvolutten
+//   - `JSONRPCNotificationSchema` — validerer notifikasjonskonvolutten
+//   - `RequestIdSchema`           — RequestId er string | integer, aldri null
+//   - `InitializeRequestSchema`   — validerer initialize-params
+//   - `ListToolsRequestSchema`    — validerer tools/list-params
+//   - `CallToolRequestSchema`     — validerer tools/call-params
+//   - `PingRequestSchema`         — validerer ping
+//   - `SUPPORTED_PROTOCOL_VERSIONS`, `LATEST_PROTOCOL_VERSION` — versjonsliste
+//
+// HVA SOM IKKE BRUKES, OG HVORFOR:
+// SDK-ens `Server`/`McpServer` og `WebStandardStreamableHTTPServerTransport`
+// er ikke i bruk. Transporten eier sin egen Response-generering og kan ikke
+// gi svarene kravene stiller: fullstendig sesjonsløs drift (ingen
+// Mcp-Session-Id, ingen DELETE-terminering), GET/DELETE som 405 med
+// `Allow: POST, OPTIONS`, OAuth-autentisering med eksakt `WWW-Authenticate`
+// FØR meldingen tolkes, og scope-kontroll per verktøy. HTTP-laget er derfor
+// vår egen adapter, mens all protokollvalidering er SDK-ens.
+// SDK-ens AJV-validator brukes ikke i kjørebanen (verktøyskjemaene er
+// statiske og validert i test) — kun i testene.
 // ============================================================
 
+import {
+  CallToolRequestSchema,
+  InitializeRequestSchema,
+  JSONRPCNotificationSchema,
+  JSONRPCRequestSchema,
+  ListToolsRequestSchema,
+  PingRequestSchema,
+  RequestIdSchema,
+  SUPPORTED_PROTOCOL_VERSIONS as SDK_SUPPORTED_PROTOCOL_VERSIONS,
+} from "@modelcontextprotocol/sdk/types.js";
 import type { OauthScope } from "@/lib/ai-integrations/oauth-contract";
 import { AGENT_WORKFLOW_KINDS } from "@/lib/ai-integrations/claim-contract";
 
@@ -26,12 +48,17 @@ export const MCP_ENDPOINT_PATH = "/api/public/mcp";
 export const MCP_RESOURCE_PATH = MCP_ENDPOINT_PATH;
 
 /**
- * Protokollversjoner vi faktisk validerer mot. `2026-07-28` finnes ikke i
- * SDK-en som er installert (1.30.0) og annonseres derfor ikke — vi later
- * ikke som om vi støtter en versjon vi ikke kan validere.
+ * Protokollversjoner vi faktisk validerer mot. Begge finnes i SDK-ens
+ * `SUPPORTED_PROTOCOL_VERSIONS`. `2026-07-28` annonseres ikke — den finnes
+ * ikke i SDK-en og vi later ikke som om vi kan validere den.
  */
 export const MCP_SUPPORTED_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18"] as const;
 export type McpProtocolVersion = (typeof MCP_SUPPORTED_PROTOCOL_VERSIONS)[number];
+
+/** Sannhetskontroll mot SDK-en: vi annonserer aldri en versjon SDK-en ikke kjenner. */
+export function isKnownBySdk(version: string): boolean {
+  return (SDK_SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(version);
+}
 
 /** Brukes når klienten ikke oppgir versjon i det hele tatt. */
 export const MCP_DEFAULT_PROTOCOL_VERSION: McpProtocolVersion = "2025-06-18";
@@ -46,8 +73,7 @@ export function isSupportedProtocolVersion(value: unknown): value is McpProtocol
 
 /**
  * JSON-RPC-batch ble fjernet i 2025-06-18. Begge versjonene vi støtter er
- * dermed uten batch, og en array-body avvises alltid. Funksjonen finnes
- * likevel eksplisitt slik at regelen er versjonsstyrt, ikke skjult.
+ * dermed uten batch, og en array-body avvises alltid.
  */
 export function supportsBatch(version: McpProtocolVersion): boolean {
   return version < "2025-06-18";
@@ -116,7 +142,15 @@ export const MCP_TOOLS = [
             capabilities_verified: { type: "boolean" },
             last_verified_at: { type: ["string", "null"] },
           },
-          required: ["provider", "status", "effective_mode", "capabilities"],
+          // Alle feltene returneres alltid.
+          required: [
+            "provider",
+            "status",
+            "effective_mode",
+            "capabilities",
+            "capabilities_verified",
+            "last_verified_at",
+          ],
           additionalProperties: false,
         },
         workflows: {
@@ -192,17 +226,59 @@ export const MCP_TOOLS = [
   },
 ] as const;
 
-/**
- * Accept-kravet i spesifikasjonen. Vi svarer alltid med JSON, men en klient
- * som ikke kan ta imot JSON kan ikke snakke med serveren i det hele tatt.
- */
-export function acceptsJson(header: string | null): boolean {
+// ---------------------------------------------------------------
+// Accept-forhandling
+// ---------------------------------------------------------------
+
+type MediaRange = { type: string; subtype: string; q: number };
+
+/** Tolker Accept med parametre og q-verdier. Ugyldig q behandles som 1. */
+export function parseAcceptHeader(header: string | null): MediaRange[] {
   const value = (header ?? "").trim();
-  if (value === "") return false;
-  return value
-    .split(",")
-    .map((part) => (part.split(";")[0] ?? "").trim().toLowerCase())
-    .some((type) => type === "application/json" || type === "application/*" || type === "*/*");
+  if (value === "") return [];
+  const ranges: MediaRange[] = [];
+  for (const part of value.split(",")) {
+    const segments = part.split(";");
+    const media = (segments[0] ?? "").trim().toLowerCase();
+    if (media === "") continue;
+    const [type, subtype] = media.split("/");
+    if (!type || !subtype) continue;
+    let q = 1;
+    for (const param of segments.slice(1)) {
+      const [rawKey, rawValue] = param.split("=");
+      if ((rawKey ?? "").trim().toLowerCase() !== "q") continue;
+      const parsed = Number((rawValue ?? "").trim());
+      if (Number.isFinite(parsed)) q = parsed;
+    }
+    ranges.push({ type, subtype, q });
+  }
+  return ranges;
+}
+
+/** Sann bare når klienten faktisk aksepterer medietypen med q > 0. */
+export function acceptsMediaType(header: string | null, mediaType: string): boolean {
+  const [wantType, wantSubtype] = mediaType.toLowerCase().split("/");
+  const ranges = parseAcceptHeader(header);
+  if (ranges.length === 0) return false;
+  // Mest spesifikke match vinner: eksakt -> type/* -> */*
+  const exact = ranges.find((r) => r.type === wantType && r.subtype === wantSubtype);
+  if (exact) return exact.q > 0;
+  const subtypeWildcard = ranges.find((r) => r.type === wantType && r.subtype === "*");
+  if (subtypeWildcard) return subtypeWildcard.q > 0;
+  const wildcard = ranges.find((r) => r.type === "*" && r.subtype === "*");
+  if (wildcard) return wildcard.q > 0;
+  return false;
+}
+
+/**
+ * Streamable HTTP (2025-06-18 og 2025-11-25) krever at POST tilbyr BÅDE
+ * `application/json` og `text/event-stream`. Vi svarer alltid med JSON,
+ * men kravet håndheves slik spesifikasjonen sier.
+ */
+export function acceptsStreamableHttp(header: string | null): boolean {
+  return (
+    acceptsMediaType(header, "application/json") && acceptsMediaType(header, "text/event-stream")
+  );
 }
 
 export function isJsonContentType(header: string | null): boolean {
@@ -212,10 +288,113 @@ export function isJsonContentType(header: string | null): boolean {
 
 /**
  * DNS-rebinding: en nettleserklient på et annet opphav slippes ikke inn.
- * Klienter uten Origin (desktop, CLI, serverside) er tillatt — de er ikke
- * utsatt for rebinding.
+ * Klienter uten Origin-header (desktop, CLI, serverside) er tillatt — de er
+ * ikke utsatt for rebinding. `Origin: null` er derimot en TILSTEDEVÆRENDE,
+ * ugyldig origin (sandkasset iframe, data:, omdirigert cross-origin) og
+ * avvises.
  */
 export function isAllowedOrigin(origin: string | null, appOrigin: string): boolean {
-  if (origin === null || origin.trim() === "" || origin === "null") return true;
-  return origin === appOrigin;
+  if (origin === null) return true;
+  const value = origin.trim();
+  if (value === "") return true;
+  return value === appOrigin;
+}
+
+/** Sann når klienten faktisk sendte en Origin-header med innhold. */
+export function hasOriginHeader(origin: string | null): boolean {
+  return origin !== null && origin.trim() !== "";
+}
+
+// ---------------------------------------------------------------
+// JSON-RPC-konvolutt, validert med SDK-ens skjemaer
+// ---------------------------------------------------------------
+
+export type ParsedIncoming =
+  | { kind: "request"; id: string | number; method: string; params?: unknown }
+  | { kind: "notification"; method: string; params?: unknown }
+  | { kind: "invalid"; code: number; message: string };
+
+/**
+ * Validerer konvolutten med SDK-ens Zod-skjemaer. `id: null` er IKKE en
+ * notifikasjon: MCP RequestId er string | integer, og null avvises som
+ * ugyldig forespørsel. Fravær av `id` er notifikasjon.
+ */
+export function parseJsonRpcMessage(parsed: unknown): ParsedIncoming {
+  if (Array.isArray(parsed)) {
+    return {
+      kind: "invalid",
+      code: JSONRPC_INVALID_REQUEST,
+      message: "JSON-RPC-batch støttes ikke i denne protokollversjonen.",
+    };
+  }
+  if (typeof parsed !== "object" || parsed === null) {
+    return {
+      kind: "invalid",
+      code: JSONRPC_INVALID_REQUEST,
+      message: "Forventet et JSON-RPC-objekt.",
+    };
+  }
+  const record = parsed as Record<string, unknown>;
+
+  if ("id" in record) {
+    if (!RequestIdSchema.safeParse(record["id"]).success) {
+      return {
+        kind: "invalid",
+        code: JSONRPC_INVALID_REQUEST,
+        message: "Ugyldig id: MCP krever en streng eller et heltall.",
+      };
+    }
+    const result = JSONRPCRequestSchema.safeParse(record);
+    if (!result.success) {
+      return {
+        kind: "invalid",
+        code: JSONRPC_INVALID_REQUEST,
+        message: "Ugyldig JSON-RPC-melding.",
+      };
+    }
+    const message = result.data;
+    return {
+      kind: "request",
+      id: message.id,
+      method: message.method,
+      params: (message as { params?: unknown }).params,
+    };
+  }
+
+  const result = JSONRPCNotificationSchema.safeParse(record);
+  if (!result.success) {
+    return {
+      kind: "invalid",
+      code: JSONRPC_INVALID_REQUEST,
+      message: "Ugyldig JSON-RPC-melding.",
+    };
+  }
+  return {
+    kind: "notification",
+    method: result.data.method,
+    params: (result.data as { params?: unknown }).params,
+  };
+}
+
+/** Params-validering per metode, også dette med SDK-ens skjemaer. */
+export const MCP_METHOD_SCHEMAS = {
+  initialize: InitializeRequestSchema,
+  ping: PingRequestSchema,
+  "tools/list": ListToolsRequestSchema,
+  "tools/call": CallToolRequestSchema,
+} as const;
+
+export function validateMethodParams(
+  method: keyof typeof MCP_METHOD_SCHEMAS,
+  params: unknown,
+): { ok: true; params: Record<string, unknown> } | { ok: false } {
+  const result = MCP_METHOD_SCHEMAS[method].safeParse({
+    method,
+    ...(params === undefined ? {} : { params }),
+  });
+  if (!result.success) return { ok: false };
+  return { ok: true, params: ((result.data as { params?: unknown }).params ?? {}) as Record<
+    string,
+    unknown
+  > };
 }
