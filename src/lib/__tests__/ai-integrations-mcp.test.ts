@@ -151,7 +151,9 @@ beforeEach(() => {
     capabilities: {},
     last_verified_at: "2026-01-01T00:00:00.000Z",
   };
+  authThrows = false;
   authSpy.mockClear();
+
 });
 
 describe("kanonisk ressurs og kontrakt", () => {
