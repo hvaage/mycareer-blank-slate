@@ -23,7 +23,8 @@ scopes. Ingen leverandør har egne verktøy, egne felter eller egne rettigheter.
   den filen.
 - **Konfigurasjonsfil finnes bare der formatet er dokumentert:** `claude/mcp.json`
   (Claude Code, lagres som `.mcp.json`) og `gemini/settings.example.json`
-  (Gemini CLI, feltet `httpUrl`). Ingen av dem er live-verifisert.
+  (Gemini CLI, feltet `httpUrl`). Ingen av dem er verifisert ende-til-ende hos leverandøren, og de er derfor
+  ikke verifisert som installasjon.
 - **Installasjon i grensesnitt, ikke fil:** ChatGPT/Codex (koblinger/utviklermodus),
   Microsoft Copilot Studio (MCP-veiviser) og Grok (ingen dokumentert filformat vi
   har verifisert) settes opp med server-URL i klientens eget grensesnitt.
