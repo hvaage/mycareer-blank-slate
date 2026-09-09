@@ -363,14 +363,35 @@ describe("autentisering", () => {
 });
 
 describe("protokoll og JSON-RPC", () => {
+  const initParams = {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "testklient", version: "1.0.0" },
+  };
+
   it("initialize forhandler versjon og oppgir serverinfo", async () => {
-    const res = await post(rpc("initialize", { protocolVersion: "2025-06-18" }));
+    const res = await post(rpc("initialize", initParams));
     const body = (await res.json()) as { result: Record<string, unknown>; id: number };
     expect(res.status).toBe(200);
     expect(body.id).toBe(1);
     expect(body.result["protocolVersion"]).toBe("2025-06-18");
     expect((body.result["serverInfo"] as Record<string, string>)["name"]).toBe("karrierenmin");
   });
+
+  it("initialize uten SDK-påkrevde params gir -32602", async () => {
+    const res = await post(rpc("initialize", { protocolVersion: "2025-06-18" }));
+    const body = (await res.json()) as { error: { code: number } };
+    expect(body.error.code).toBe(-32602);
+  });
+
+  it("id: null avvises som ugyldig forespørsel, ikke som notifikasjon", async () => {
+    const res = await post({ jsonrpc: "2.0", id: null, method: "ping" });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: number; message: string } };
+    expect(body.error.code).toBe(JSONRPC_INVALID_REQUEST);
+    expect(body.error.message).toContain("Ugyldig id");
+  });
+
 
   it("ukjent protokollversjon i headeren avvises med 400", async () => {
     const res = await post(rpc("ping"), { headers: { "mcp-protocol-version": "1999-01-01" } });
