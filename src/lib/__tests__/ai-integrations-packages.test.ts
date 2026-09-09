@@ -74,21 +74,24 @@ describe("fem likestilte pakker mot én leverandørnøytral MCP-server", () => {
         expect(readme).not.toContain("verifisert installasjon");
       });
 
-      it("peker på det ene leverandørnøytrale MCP-endepunktet", () => {
-        const config = JSON.parse(readFileSync(join(dir, "mcp.config.json"), "utf8")) as {
-          mcpServers: Record<string, { type: string; url: string }>;
-        };
-        const server = config.mcpServers["karrierenmin"]!;
-        expect(server.type).toBe("http");
-        expect(server.url).toBe("https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp");
+      it("peker på det ene leverandørnøytrale MCP-endepunktet i README", () => {
+        const readme = readFileSync(join(dir, "README.md"), "utf8");
+        expect(readme).toContain("https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp");
+        expect(readme).toContain("## Installasjon hos denne leverandøren");
       });
 
-      it("legger ingen statisk nøkkel i MCP-konfigurasjonen", () => {
-        const body = readFileSync(join(dir, "mcp.config.json"), "utf8");
-        expect(body).not.toContain("Authorization");
-        expect(body).not.toContain("KARRIERENMIN_INTEGRATION_TOKEN");
+      it("har ingen generisk mcp.config.json", () => {
+        // Filformatet er ikke gyldig for alle fem klientene, og skal ikke
+        // ligge der som om det var det.
+        expect(existsSync(join(dir, "mcp.config.json"))).toBe(false);
+      });
+
+      it("legger ingen statisk nøkkel i pakken", () => {
+        const body = readAll(dir);
+        expect(body).not.toContain("KARRIERENMIN_INTEGRATION_TOKEN=");
         expect(body).toContain("OAuth 2.1");
       });
+
 
       it("påstår ikke automatisk lagring av tokenet", () => {
         const text = readAll(dir).toLowerCase();
