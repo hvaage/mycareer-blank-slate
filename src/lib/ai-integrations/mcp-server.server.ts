@@ -5,6 +5,10 @@
 // og returnerer JSON-RPC-svaret (eller null for en notifikasjon).
 // Ingen tilstand lagres mellom kall. Ingen sesjons-id finnes.
 //
+// All params-validering går gjennom SDK-ens Zod-skjemaer
+// (`InitializeRequestSchema`, `PingRequestSchema`, `ListToolsRequestSchema`,
+// `CallToolRequestSchema`) via `validateMethodParams`.
+//
 // Identiteten kommer utelukkende fra OAuth-tokenet. Verken user_id,
 // integration_id eller scope leses noen gang fra meldingen.
 // ============================================================
@@ -18,6 +22,7 @@ import {
   MCP_TOOL_SCOPE,
   isMcpToolName,
   isSupportedProtocolVersion,
+  validateMethodParams,
   MCP_LATEST_PROTOCOL_VERSION,
   type McpProtocolVersion,
   type McpToolName,
@@ -82,7 +87,7 @@ function toolOk(id: JsonRpcId, structured: unknown): JsonRpcResult {
 
 type IncomingMessage = {
   jsonrpc: "2.0";
-  id?: JsonRpcId | null;
+  id?: JsonRpcId;
   method: string;
   params?: unknown;
 };
@@ -95,15 +100,17 @@ export async function dispatchMcpMessage(
   message: IncomingMessage,
   ctx: McpContext,
 ): Promise<JsonRpcOutgoing | null> {
-  const isNotification = message.id === undefined || message.id === null;
+  const isNotification = message.id === undefined;
   const id = (message.id ?? null) as JsonRpcId | null;
 
   switch (message.method) {
     case "initialize": {
       if (isNotification) return null;
-      const requested = (message.params as Record<string, unknown> | undefined)?.[
-        "protocolVersion"
-      ];
+      const validated = validateMethodParams("initialize", message.params);
+      if (!validated.ok) {
+        return rpcError(id, JSONRPC_INVALID_PARAMS, "Ugyldige initialize-parametre.");
+      }
+      const requested = validated.params["protocolVersion"];
       const negotiated = isSupportedProtocolVersion(requested)
         ? requested
         : MCP_LATEST_PROTOCOL_VERSION;
@@ -119,17 +126,29 @@ export async function dispatchMcpMessage(
     case "notifications/cancelled":
       return null;
 
-    case "ping":
-      return isNotification ? null : rpcResult(id as JsonRpcId, {});
+    case "ping": {
+      if (isNotification) return null;
+      const validated = validateMethodParams("ping", message.params);
+      if (!validated.ok) return rpcError(id, JSONRPC_INVALID_PARAMS, "Ugyldige ping-parametre.");
+      return rpcResult(id as JsonRpcId, {});
+    }
 
     case "tools/list": {
       if (isNotification) return null;
+      const validated = validateMethodParams("tools/list", message.params);
+      if (!validated.ok) {
+        return rpcError(id, JSONRPC_INVALID_PARAMS, "Ugyldige tools/list-parametre.");
+      }
       return rpcResult(id as JsonRpcId, { tools: MCP_TOOLS });
     }
 
     case "tools/call": {
       if (isNotification) return null;
-      return callTool(id as JsonRpcId, message.params, ctx);
+      const validated = validateMethodParams("tools/call", message.params);
+      if (!validated.ok) {
+        return rpcError(id, JSONRPC_INVALID_PARAMS, "Ugyldige tools/call-parametre.");
+      }
+      return callTool(id as JsonRpcId, validated.params, ctx);
     }
 
     default:
@@ -138,16 +157,16 @@ export async function dispatchMcpMessage(
   }
 }
 
-async function callTool(id: JsonRpcId, params: unknown, ctx: McpContext): Promise<JsonRpcOutgoing> {
-  if (typeof params !== "object" || params === null || Array.isArray(params)) {
-    return rpcError(id, JSONRPC_INVALID_PARAMS, "params må være et objekt.");
-  }
-  const record = params as Record<string, unknown>;
-  const name = record["name"];
+async function callTool(
+  id: JsonRpcId,
+  params: Record<string, unknown>,
+  ctx: McpContext,
+): Promise<JsonRpcOutgoing> {
+  const name = params["name"];
   if (!isMcpToolName(name)) {
     return rpcError(id, JSONRPC_INVALID_PARAMS, "Ukjent verktøy.");
   }
-  const args = record["arguments"];
+  const args = params["arguments"];
   if (args !== undefined && (typeof args !== "object" || args === null || Array.isArray(args))) {
     return rpcError(id, JSONRPC_INVALID_PARAMS, "arguments må være et objekt.");
   }
