@@ -214,17 +214,114 @@ stanser nye autorisasjoner umiddelbart; eksisterende tilganger trekkes med
 4. Ved mistanke om kompromittering: rotér nøkkelen **og** kjør
    `oauth_revoke_grants` for berørte brukere eller integrasjoner.
 
+## Klientregistrering: CIMD først, DCR som fallback
+
+### 1. CIMD (Client ID Metadata Document) — foretrukket
+
+`client_id` er selve https-adressen til klientens metadatadokument. Ingen
+forhåndsregistrering trengs. Discovery annonserer
+`client_id_metadata_document_supported: true` og
+`token_endpoint_auth_methods_supported: ["none"]`.
+
+Tillatte adresser (ingen andre hentes):
+
+| Klient | Adresse |
+| --- | --- |
+| ChatGPT | `https://chatgpt.com/oauth/client.json` |
+| ChatGPT (callback-modus) | `https://chatgpt.com/oauth/{callback_id}/client.json` |
+| Claude Code | `https://claude.ai/oauth/claude-code-client-metadata` |
+
+Hentingen er rammet inn: `redirect: "error"` (ingen omdirigering følges),
+3 sekunders timeout, maks 32 kB, `application/json` kreves, dokumentet må
+normalisere til nøyaktig samme adresse, og ingen userinfo, spørring, fragment
+eller port godtas. Metadataen kan aldri utvide serverens tillatelser:
+`client_id` (hvis satt) må være adressen selv, `token_endpoint_auth_method`
+må være `none`, grant types begrenses til `authorization_code` og
+`refresh_token`, response type til `code`, og scopes til serverens to.
+Redirect-URI-er må ligge på klientens egen vert.
+
+Resultatet lagres som en klientrad med `registration_method = 'cimd'`,
+`metadata_url`, `metadata_validated_at` og `metadata_expires_at` (6 timer).
+Utløpt eller ugyldig metadata revalideres før bruk, og en utløpt CIMD-klient
+avvises i innløsingen. En forhåndsregistrert (`manual`) klient overstyres
+aldri av et hentet dokument.
+
+**Claude Code-loopback** (`http://localhost:<port>/callback` og
+`http://127.0.0.1:<port>/callback`) godtas KUN når metadataen kom fra den
+verifiserte Claude-adressen, med eksakt vert og bane og port over 1023.
+Samtykkesiden viser da en tydelig advarsel om at tilgangen sendes til et
+program på brukerens egen maskin. Generisk loopback er ikke åpnet for noen
+annen klient og ikke for DCR.
+
+### 2. DCR (RFC 7591) — kompatibilitetsfallback
+
+Fortsatt av som standard (`OAUTH_DYNAMIC_REGISTRATION=enabled`). Kun public
+clients; det utstedes aldri en `client_secret`. Redirect-URI-er må treffe en
+eksakt allowliste:
+
+| Klient | Callback |
+| --- | --- |
+| ChatGPT (hosted) | `https://chatgpt.com/connector_platform_oauth_redirect` |
+| ChatGPT (callback-modus) | `https://chatgpt.com/connector/oauth/{callback_id}` |
+| Claude (hosted) | `https://claude.ai/api/mcp/auth_callback` |
+
+Microsoft Copilot og Grok har **ingen** innebygde adresser. Vi dikter ikke opp
+et Microsoft- eller xAI-domene. Drift må legge den faktiske adressen inn i
+`OAUTH_EXTRA_REDIRECT_URIS` (mellomrom- eller kommaseparerte eksakte
+https-adresser) før registrering kan brukes.
+
+Øvrige grenser: maks 8 kB body, maks 20 metadatafelt, maks 3 redirect-URI-er,
+klientnavn maks 120 tegn, scopes kun fra serverens allowliste, distribuert
+ratebegrensning i databasen (`claim_rate_check`), `registration_method='dcr'`
+og `expires_at` 30 dager. `oauth_cleanup_expired_clients()` deaktiverer
+utløpte klienter og sletter dem 30 dager senere når de ikke har aktive grants.
+Autorisasjon og token avviser inaktive og utløpte klienter.
+
+## Statusflyt og atomisitet
+
+- Bare integrasjoner i `connecting` eller `active` kan autorisere og få
+  tokener. `disconnected` og `error` blokkeres.
+- Første vellykkede `authorization_code`-utveksling setter `connecting ->
+  active` i SAMME transaksjon som koden konsumeres
+  (`oauth_redeem_authorization_code_v2`). `active` forblir `active`.
+- `capabilities` og `effective_mode` røres aldri av OAuth. Tokensvaret sier
+  ingenting om egenskaper. `last_verified_at` betyr bekreftet forbindelse.
+- **Preflight-invariant:** signeringshemmeligheten kontrolleres FØR koden
+  eller refresh-tokenet konsumeres. Feiler konfigurasjonen, svarer vi 500 uten
+  å ha endret databasen, og klienten beholder tokenet sitt.
+- Gjenbruk av authorization code gir `invalid_grant` og en audit-hendelse i
+  `oauth_security_events`, men trekker IKKE andre aktive grants.
+- Refresh-rotasjon er atomisk med advisory lock. Ved replay trekkes kun
+  tokenfamilien, med audit — grantet står.
+- Access-tokenverifikasjon kontrollerer eksakt `iss`, `aud`/`resource`, `exp`
+  og `iat` med **60 sekunders** dokumentert klokkeskeivhet, scope, aktiv
+  klient, aktivt grant, aktiv integrasjon og at tokenets provider stemmer med
+  databasen.
+- `resource` følger fra authorize, lagres på autorisasjonskoden og
+  sammenlignes eksakt ved innløsing før den blir `aud` i tokenet.
+- Innloggingens callback logger aldri adresse, spørrestreng, kode, state eller
+  token. Det er dekket av en regresjonstest.
+
+## Microsoft Copilot
+
+Copilot er den femte likestilte assistenten i kontrakter, validering,
+onboarding, databasebegrensninger og kildepakker, uten forhåndsvalg. Pakken i
+`integrations/karrierenmin-agents/copilot/` er en design-/kildemal — det finnes
+ingen installerbar MCP-transport, og pakken påstår ikke noe annet. Verken
+valg, claim eller OAuth bekrefter capabilities.
+
 ## Sikkerhetsegenskaper som er testet
 
 - Discovery annonserer bare implementerte funksjoner; ingen OIDC, `openid`,
-  `email`, `userinfo` eller CIMD. `iss` returneres i alle authorization
+  `email` eller `userinfo`. CIMD annonseres nå eksplisitt. `iss` returneres i alle authorization
   responses, derfor er `authorization_response_iss_parameter_supported: true`.
 - Eksakt redirect-URI. Ingen prefiks, wildcard, ekstra spørring eller fragment.
   Feil som oppstår før redirect-URI er bekreftet kan aldri videresendes.
 - PKCE S256 er obligatorisk; verifier valideres på lengde (43–128) og alfabet.
 - Authorization code lever i 60 sekunder, lagres kun som SHA-256-hash og
-  konsumeres atomisk med advisory lock. Gjenbruk trekker grantet.
-- Refresh token roteres atomisk; gjenbruk trekker hele familien og grantet.
+  konsumeres atomisk med advisory lock. Gjenbruk gir `invalid_grant` og audit,
+  uten å trekke andre grants.
+- Refresh token roteres atomisk; replay trekker kun tokenfamilien, med audit.
 - Access token har 60 minutters levetid og egen `typ`, `aud`/`resource`, `jti`
   og `grant_id`. Et gammelt agenttoken kan aldri passere som OAuth-token.
 - Alle tokensvar er `no-store` / `no-cache`.
@@ -234,12 +331,18 @@ stanser nye autorisasjoner umiddelbart; eksisterende tilganger trekkes med
 ## Testprosedyre
 
 ```bash
-bunx vitest run src/lib/__tests__/ai-integrations-oauth-flow.test.ts   # 60 tester
+bunx vitest run src/lib/__tests__/ai-integrations-oauth-flow.test.ts       # kontraktstester
+bunx vitest run src/lib/__tests__/ai-integrations-oauth-hardening.test.ts  # CIMD, DCR, callback
 bunx vitest run                                                        # hele suiten
 bunx tsgo --noEmit -p tsconfig.json
 bun run build
 ```
 
-Ende-til-ende mot ChatGPT/Codex, Claude, Grok eller Gemini er **IKKE KJØRT** og
+Databasetestene (statusovergang, capability-uforanderlighet, gjenbruk av kode,
+refresh-replay, ressursbinding, frakoblet integrasjon, utløpt klient og
+opprydding) kjøres som én transaksjon mot databasen som rulles tilbake, slik at
+ingen testdata blir liggende igjen.
+
+Ende-til-ende mot ChatGPT/Codex, Claude, Copilot, Grok eller Gemini er **IKKE KJØRT** og
 er blokkert inntil en faktisk klient er forhåndsregistrert og appen er
 publisert på den kanoniske originen.
