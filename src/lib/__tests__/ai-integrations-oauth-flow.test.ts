@@ -406,7 +406,7 @@ describe("OAuth access token", () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
     expect(issued.expiresIn).toBe(OAUTH_ACCESS_TOKEN_TTL_SECONDS);
     expect(OAUTH_ACCESS_TOKEN_TTL_SECONDS).toBe(3600);
-    const verified = await verifyOauthAccessToken(issued.token, { resource: RESOURCE });
+    const verified = await verifyOauthAccessToken(issued.token, { resource: RESOURCE, issuer: ISSUER });
     expect(verified.ok).toBe(true);
     if (!verified.ok) return;
     for (const key of [
@@ -431,7 +431,7 @@ describe("OAuth access token", () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
     const [body] = issued.token.split(".");
     const forged = `${body}.${"A".repeat(43)}`;
-    const r = await verifyOauthAccessToken(forged, { resource: RESOURCE });
+    const r = await verifyOauthAccessToken(forged, { resource: RESOURCE, issuer: ISSUER });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("bad_signature");
   });
@@ -470,7 +470,7 @@ describe("OAuth access token", () => {
       provider: "claude",
     }))!;
     // Et legacy claim-token skal ALDRI passere som OAuth-token.
-    const r = await verifyOauthAccessToken(legacy.token, { resource: RESOURCE });
+    const r = await verifyOauthAccessToken(legacy.token, { resource: RESOURCE, issuer: ISSUER });
     expect(r.ok).toBe(false);
 
     // ...og et OAuth-token skal ikke passere som agenttoken.
@@ -483,7 +483,7 @@ describe("OAuth access token", () => {
     const saved = process.env["AI_INTEGRATION_OAUTH_SECRET"];
     delete process.env["AI_INTEGRATION_OAUTH_SECRET"];
     expect(await issueOauthAccessToken(issueInput)).toBeNull();
-    const r = await verifyOauthAccessToken("a.b", { resource: RESOURCE });
+    const r = await verifyOauthAccessToken("a.b", { resource: RESOURCE, issuer: ISSUER });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("not_configured");
     process.env["AI_INTEGRATION_OAUTH_SECRET"] = saved;
