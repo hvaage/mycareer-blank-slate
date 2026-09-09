@@ -172,14 +172,109 @@ describe("kanonisk ressurs og kontrakt", () => {
   it("headerhjelperne er strenge", () => {
     expect(isJsonContentType("application/json; charset=utf-8")).toBe(true);
     expect(isJsonContentType("text/plain")).toBe(false);
-    expect(acceptsJson("application/json, text/event-stream")).toBe(true);
-    expect(acceptsJson("text/html")).toBe(false);
-    expect(acceptsJson(null)).toBe(false);
+  });
+
+  it("Accept krever BÅDE application/json og text/event-stream med q>0", () => {
+    expect(acceptsStreamableHttp("application/json, text/event-stream")).toBe(true);
+    expect(acceptsStreamableHttp("APPLICATION/JSON, TEXT/EVENT-STREAM")).toBe(true);
+    expect(acceptsStreamableHttp("application/json;q=0.9, text/event-stream;q=0.1")).toBe(true);
+    expect(acceptsStreamableHttp("*/*")).toBe(true);
+    expect(acceptsStreamableHttp("application/*, text/*")).toBe(true);
+    // Bare én av de to typene.
+    expect(acceptsStreamableHttp("application/json")).toBe(false);
+    expect(acceptsStreamableHttp("text/event-stream")).toBe(false);
+    // q=0 betyr «ikke akseptert».
+    expect(acceptsStreamableHttp("application/json, text/event-stream;q=0")).toBe(false);
+    expect(acceptsStreamableHttp("application/json;q=0, text/event-stream")).toBe(false);
+    expect(acceptsStreamableHttp("*/*;q=0")).toBe(false);
+    expect(acceptsStreamableHttp("text/html")).toBe(false);
+    expect(acceptsStreamableHttp(null)).toBe(false);
+    // Eksakt match slår wildcard.
+    expect(acceptsMediaType("*/*, text/event-stream;q=0", "text/event-stream")).toBe(false);
+  });
+
+  it("Origin: manglende tillates, «null» og fremmede avvises", () => {
     expect(isAllowedOrigin(null, ORIGIN)).toBe(true);
+    expect(isAllowedOrigin("", ORIGIN)).toBe(true);
+    expect(isAllowedOrigin("null", ORIGIN)).toBe(false);
     expect(isAllowedOrigin("https://evil.example", ORIGIN)).toBe(false);
     expect(isAllowedOrigin(ORIGIN, ORIGIN)).toBe(true);
+    expect(hasOriginHeader(null)).toBe(false);
+    expect(hasOriginHeader("null")).toBe(true);
+  });
+
+  it("bruker SDK-ens skjemaer i kjørebanen for konvolutten", () => {
+    // id: null er ikke en notifikasjon — RequestIdSchema avviser null.
+    expect(RequestIdSchema.safeParse(null).success).toBe(false);
+    const invalid = parseJsonRpcMessage({ jsonrpc: "2.0", id: null, method: "ping" });
+    expect(invalid).toEqual({
+      kind: "invalid",
+      code: JSONRPC_INVALID_REQUEST,
+      message: expect.stringContaining("Ugyldig id"),
+    });
+    expect(parseJsonRpcMessage({ jsonrpc: "2.0", id: 7, method: "ping" })).toEqual({
+      kind: "request",
+      id: 7,
+      method: "ping",
+      params: undefined,
+    });
+    expect(
+      parseJsonRpcMessage({ jsonrpc: "2.0", method: "notifications/initialized" }).kind,
+    ).toBe("notification");
+    // Feil jsonrpc-versjon avvises av SDK-skjemaet, ikke av oss.
+    expect(parseJsonRpcMessage({ jsonrpc: "1.0", id: 1, method: "ping" }).kind).toBe("invalid");
+    // tools/call uten name avvises av CallToolRequestSchema.
+    expect(validateMethodParams("tools/call", { arguments: {} }).ok).toBe(false);
+    expect(validateMethodParams("tools/call", { name: "karrierenmin_status" }).ok).toBe(true);
+    // Vi annonserer bare versjoner SDK-en faktisk kjenner.
+    for (const version of MCP_SUPPORTED_PROTOCOL_VERSIONS) {
+      expect(isKnownBySdk(version)).toBe(true);
+    }
+    expect(isKnownBySdk("2026-07-28")).toBe(false);
+  });
+
+  it("status-outputSchema krever alle feltene som faktisk returneres", () => {
+    const validator = new AjvJsonSchemaValidator();
+    const tool = MCP_TOOLS.find((t) => t.name === "karrierenmin_status")!;
+    const required = tool.outputSchema.properties.integration.required as readonly string[];
+    expect([...required]).toEqual(
+      expect.arrayContaining(["capabilities_verified", "last_verified_at"]),
+    );
+    const validate = validator.getValidator(
+      tool.outputSchema as unknown as Parameters<typeof validator.getValidator>[0],
+    );
+    // Et faktisk statusresultat mangler ingen påkrevde felt.
+    expect(
+      validate({
+        api_version: "1",
+        integration: {
+          provider: "claude",
+          status: "active",
+          effective_mode: "guided",
+          capabilities: {},
+          capabilities_verified: false,
+          last_verified_at: null,
+        },
+        workflows: [],
+      }).valid,
+    ).toBe(true);
+    // Utelatt capabilities_verified skal nå være ugyldig.
+    expect(
+      validate({
+        api_version: "1",
+        integration: {
+          provider: "claude",
+          status: "active",
+          effective_mode: "guided",
+          capabilities: {},
+          last_verified_at: null,
+        },
+        workflows: [],
+      }).valid,
+    ).toBe(false);
   });
 });
+
 
 describe("HTTP-semantikk", () => {
   it("GET og DELETE gir 405 med Allow: POST, OPTIONS", async () => {
