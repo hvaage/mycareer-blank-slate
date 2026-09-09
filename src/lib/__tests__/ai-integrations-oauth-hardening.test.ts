@@ -18,7 +18,11 @@ import {
   isCleanHttpsUri,
   parseExtraRedirectAllowlist,
   validateCimdMetadata,
+  isClaudeLoopbackTemplate,
+  redirectUriAllowedForClient,
+  allowsPortAgnosticLoopback,
 } from "@/lib/ai-integrations/oauth-client-policy";
+import { DCR_MAX_BODY_BYTES, utf8ByteLength } from "@/routes/api/public/oauth/register";
 import {
   AI_PROVIDERS,
   AI_PROVIDER_LABELS,
@@ -258,5 +262,112 @@ describe("kildekontroll: CIMD-henting er rammet inn", () => {
   it("revaliderer utløpt cache", () => {
     expect(src).toContain("metadata_expires_at");
     expect(src).toContain("oauth_upsert_cimd_client");
+  });
+});
+
+// ---------- Claude Code: portløs metadata-mal, portert authorize-redirect ----------
+
+describe("Claude Code loopback", () => {
+  const claudePolicy = CIMD_HOST_POLICIES.find((p) => p.host === "claude.ai")!;
+  const claudeUrl = "https://claude.ai/oauth/claude-code-client-metadata";
+  const officialTemplates = ["http://localhost/callback", "http://127.0.0.1/callback"];
+
+  const claudeClient = {
+    registration_method: "cimd",
+    client_id: claudeUrl,
+    metadata_url: claudeUrl,
+    redirect_uris: officialTemplates,
+  };
+
+  it("godtar det offisielle portløse metadataformatet", () => {
+    const result = validateCimdMetadata(
+      { redirect_uris: officialTemplates },
+      { url: claudeUrl, policy: claudePolicy },
+    );
+    expect(result.ok).toBe(true);
+    for (const t of officialTemplates) expect(isClaudeLoopbackTemplate(t)).toBe(true);
+    expect(isClaudeLoopbackTemplate("http://127.0.0.1:54321/callback")).toBe(false);
+  });
+
+  it("matcher en tilfeldig ephemeral port i authorize-forespørselen", () => {
+    for (const port of [1024, 8912, 54321, 65535]) {
+      expect(redirectUriAllowedForClient(`http://127.0.0.1:${port}/callback`, claudeClient)).toBe(
+        true,
+      );
+      expect(redirectUriAllowedForClient(`http://localhost:${port}/callback`, claudeClient)).toBe(
+        true,
+      );
+    }
+  });
+
+  it("avviser privilegert port, feil bane og https mot malen", () => {
+    for (const uri of [
+      "http://127.0.0.1:80/callback",
+      "http://127.0.0.1:54321/cb",
+      "https://127.0.0.1:54321/callback",
+      "http://192.168.1.5:54321/callback",
+    ]) {
+      expect(redirectUriAllowedForClient(uri, claudeClient)).toBe(false);
+    }
+  });
+
+  it("gir ingen loopback til DCR, manual, ChatGPT eller Claude-lignende client_id", () => {
+    const requested = "http://127.0.0.1:54321/callback";
+    const others = [
+      { ...claudeClient, registration_method: "dcr" },
+      { ...claudeClient, registration_method: "manual" },
+      {
+        registration_method: "cimd",
+        client_id: "https://chatgpt.com/oauth/client.json",
+        metadata_url: "https://chatgpt.com/oauth/client.json",
+        redirect_uris: officialTemplates,
+      },
+      {
+        registration_method: "cimd",
+        client_id: "https://claude.ai/oauth/claude-code-client-metadata-x",
+        metadata_url: "https://claude.ai/oauth/claude-code-client-metadata-x",
+        redirect_uris: officialTemplates,
+      },
+      { ...claudeClient, metadata_url: null },
+    ];
+    for (const client of others) {
+      expect(allowsPortAgnosticLoopback(client)).toBe(false);
+      expect(redirectUriAllowedForClient(requested, client)).toBe(false);
+    }
+  });
+
+  it("eksakt registrert redirect fungerer fortsatt for alle", () => {
+    const dcr = {
+      registration_method: "dcr",
+      client_id: "dcr_abc",
+      metadata_url: null,
+      redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"],
+    };
+    expect(
+      redirectUriAllowedForClient("https://chatgpt.com/connector_platform_oauth_redirect", dcr),
+    ).toBe(true);
+    expect(redirectUriAllowedForClient("https://chatgpt.com/annet", dcr)).toBe(false);
+  });
+});
+
+describe("DCR-body måles i UTF-8-byte", () => {
+  it("teller multibyte riktig", () => {
+    expect(utf8ByteLength("abc")).toBe(3);
+    expect(utf8ByteLength("æøå")).toBe(6);
+    expect(utf8ByteLength("🙂")).toBe(4);
+    const nearLimit = "æ".repeat(4096); // 8192 byte = nøyaktig grensen
+    expect(utf8ByteLength(nearLimit)).toBe(DCR_MAX_BODY_BYTES);
+    expect(utf8ByteLength(nearLimit + "æ")).toBeGreaterThan(DCR_MAX_BODY_BYTES);
+    expect(nearLimit.length).toBeLessThan(DCR_MAX_BODY_BYTES);
+  });
+});
+
+describe("kildekontroll: DCR rydder og fail-closer", () => {
+  const src = read("src/routes/api/public/oauth/register.ts");
+  it("kaller opprydding og avbryter ved feil", () => {
+    expect(src).toContain('db.rpc("oauth_cleanup_expired_clients")');
+    expect(src).toContain("cleanup.error");
+    expect(src.indexOf("cleanup.error")).toBeLessThan(src.indexOf('.from("oauth_clients")'));
+    expect(src).toContain("content-length");
   });
 });

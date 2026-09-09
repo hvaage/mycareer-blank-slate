@@ -103,21 +103,87 @@ export function checkCimdUrl(value: unknown): CimdUrlCheck {
   return { ok: true, url: value, policy };
 }
 
-/** Claude Code-loopback: eksakt vert og bane, port er tilfeldig. */
-export function isClaudeLoopbackRedirect(value: unknown): boolean {
-  if (typeof value !== "string") return false;
+/** Den ene metadata-adressen som kan gi portagnostisk loopback. */
+export const CLAUDE_CIMD_URL = "https://claude.ai/oauth/claude-code-client-metadata";
+
+function loopbackShape(value: unknown): URL | null {
+  if (typeof value !== "string") return null;
   let url: URL;
   try {
     url = new URL(value);
   } catch {
-    return false;
+    return null;
   }
-  if (url.protocol !== "http:") return false;
-  if (url.username || url.password || url.hash || url.search) return false;
-  if (url.hostname !== "localhost" && url.hostname !== "127.0.0.1") return false;
-  if (url.pathname !== "/callback") return false;
+  if (url.protocol !== "http:") return null;
+  if (url.username || url.password || url.hash || url.search) return null;
+  if (url.hostname !== "localhost" && url.hostname !== "127.0.0.1") return null;
+  if (url.pathname !== "/callback") return null;
+  return url;
+}
+
+/**
+ * Metadata-mal slik Anthropic faktisk publiserer den: UTEN port.
+ *   http://localhost/callback
+ *   http://127.0.0.1/callback
+ */
+export function isClaudeLoopbackTemplate(value: unknown): boolean {
+  const url = loopbackShape(value);
+  return url !== null && url.port === "";
+}
+
+/** Faktisk redirect i authorize-forespørselen: samme vert/bane, men med ephemeral port. */
+export function isClaudeLoopbackRedirect(value: unknown): boolean {
+  const url = loopbackShape(value);
+  if (!url) return false;
   const port = Number(url.port);
   return Number.isInteger(port) && port >= 1024 && port <= 65535;
+}
+
+/** Malen og den faktiske adressen må ha samme vert og bane. */
+export function loopbackMatchesTemplate(requested: unknown, template: unknown): boolean {
+  if (!isClaudeLoopbackRedirect(requested) || !isClaudeLoopbackTemplate(template)) return false;
+  const a = new URL(String(requested));
+  const b = new URL(String(template));
+  return a.hostname === b.hostname && a.pathname === b.pathname;
+}
+
+export type LoopbackClientContext = {
+  registration_method?: string | null;
+  client_id?: string | null;
+  metadata_url?: string | null;
+  redirect_uris?: unknown;
+};
+
+/**
+ * Portagnostisk loopback-match er KUN tillatt for den verifiserte
+ * Claude Code-CIMD-klienten, og bare mot portløse maler som kom fra
+ * det verifiserte metadatadokumentet. DCR, manual og alle andre
+ * CIMD-klienter må ha eksakt redirect-match.
+ */
+export function allowsPortAgnosticLoopback(client: LoopbackClientContext | null): boolean {
+  if (!client) return false;
+  return (
+    client.registration_method === "cimd" &&
+    client.client_id === CLAUDE_CIMD_URL &&
+    client.metadata_url === CLAUDE_CIMD_URL
+  );
+}
+
+/**
+ * Fullstendig redirect-regel for authorize: eksakt treff for alle,
+ * pluss portagnostisk loopback for den verifiserte Claude Code-klienten.
+ */
+export function redirectUriAllowedForClient(
+  requested: unknown,
+  client: LoopbackClientContext | null,
+): boolean {
+  if (typeof requested !== "string" || requested === "") return false;
+  const registered = Array.isArray(client?.redirect_uris)
+    ? (client!.redirect_uris as unknown[]).map(String)
+    : [];
+  if (registered.includes(requested)) return true;
+  if (!allowsPortAgnosticLoopback(client)) return false;
+  return registered.some((template) => loopbackMatchesTemplate(requested, template));
 }
 
 export type CimdMetadata = {
@@ -179,8 +245,10 @@ export function validateCimdMetadata(
   }
   for (const uri of uris) {
     const httpsOk = isCleanHttpsUri(uri) && new URL(String(uri)).hostname === context.policy.host;
+    // Anthropic publiserer portløse maler; en konkret port godtas også.
     const loopbackOk =
-      context.policy.allowLoopbackCallback === true && isClaudeLoopbackRedirect(uri);
+      context.policy.allowLoopbackCallback === true &&
+      (isClaudeLoopbackTemplate(uri) || isClaudeLoopbackRedirect(uri));
     if (!httpsOk && !loopbackOk) return { ok: false, reason: "redirect_uri_rejected" };
   }
 

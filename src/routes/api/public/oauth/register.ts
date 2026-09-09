@@ -40,6 +40,11 @@ export function isRegistrableRedirectUri(value: unknown, extraAllowlist: string[
   return isAllowlistedDcrRedirect(value, extraAllowlist);
 }
 
+/** Eksporteres for test: faktisk UTF-8-lengde, ikke antall JS-tegn. */
+export function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).length;
+}
+
 export const Route = createFileRoute("/api/public/oauth/register")({
   server: {
     handlers: {
@@ -60,8 +65,18 @@ export const Route = createFileRoute("/api/public/oauth/register")({
           );
         }
 
+        // Åpenbart for stor body avvises FØR den leses.
+        const declared = Number(request.headers.get("content-length") ?? "");
+        if (Number.isFinite(declared) && declared > DCR_MAX_BODY_BYTES) {
+          return Response.json(
+            { error: "invalid_client_metadata" },
+            { status: 413, headers: noStore },
+          );
+        }
+
         const raw = await request.text();
-        if (raw.length > DCR_MAX_BODY_BYTES) {
+        // Grensen er UTF-8-byte, ikke JavaScript-tegn (multibyte teller riktig).
+        if (utf8ByteLength(raw) > DCR_MAX_BODY_BYTES) {
           return Response.json(
             { error: "invalid_client_metadata" },
             { status: 413, headers: noStore },
@@ -127,6 +142,14 @@ export const Route = createFileRoute("/api/public/oauth/register")({
           Date.now() + DCR_CLIENT_TTL_DAYS * 24 * 60 * 60 * 1000,
         ).toISOString();
         const db = await admin();
+
+        // Opportunistisk opprydding av utløpte DCR-klienter. Fail closed:
+        // klarer vi ikke å rydde, registrerer vi heller ikke en ny klient.
+        const cleanup = await db.rpc("oauth_cleanup_expired_clients");
+        if (cleanup.error) {
+          return Response.json({ error: "server_error" }, { status: 503, headers: noStore });
+        }
+
         const { data: inserted, error } = await db
           .from("oauth_clients")
           .insert({

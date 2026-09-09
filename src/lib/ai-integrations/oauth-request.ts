@@ -5,7 +5,8 @@
 // gjør oppslag når forespørselen allerede er formelt riktig.
 // ============================================================
 
-import { isValidScopeSet, scopesWithinClient, isExactRedirectUri } from "./oauth-contract";
+import { isValidScopeSet, scopesWithinClient } from "./oauth-contract";
+import { redirectUriAllowedForClient } from "./oauth-client-policy";
 
 export type AuthorizeParams = {
   response_type?: string | null;
@@ -113,6 +114,9 @@ export type ClientRecord = {
   is_active: boolean;
   redirect_uris: string[];
   allowed_scopes: string[];
+  /** manual | cimd | dcr — avgjør om portagnostisk loopback er tillatt. */
+  registration_method?: string | null;
+  metadata_url?: string | null;
 };
 
 /**
@@ -133,8 +137,10 @@ export function validateAgainstClient(
   if (!client || !client.is_active) {
     return fail("unauthorized_client", "Ukjent klient.");
   }
-  if (!isExactRedirectUri(request.redirect_uri, client.redirect_uris)) {
-    // Aldri videresend til en adresse vi ikke har godkjent eksakt.
+  if (!redirectUriAllowedForClient(request.redirect_uri, client)) {
+    // Eksakt treff for alle. Eneste unntak: den verifiserte Claude Code-
+    // CIMD-klienten, som deklarerer portløs loopback-mal og bruker en
+    // tilfeldig port i selve forespørselen.
     return fail("invalid_request", "redirect_uri er ikke registrert for klienten.");
   }
   if (request.resource !== canonicalResource) {

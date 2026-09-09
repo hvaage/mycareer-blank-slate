@@ -17,7 +17,7 @@ export async function loadClient(clientId: string): Promise<ClientRecord | null>
   const { data } = await db
     .from("oauth_clients")
     .select(
-      "id, client_id, client_name, client_type, is_active, redirect_uris, allowed_scopes, registration_method, expires_at",
+      "id, client_id, client_name, client_type, is_active, redirect_uris, allowed_scopes, registration_method, metadata_url, expires_at",
     )
 
     .eq("client_id", clientId)
