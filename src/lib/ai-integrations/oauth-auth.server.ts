@@ -74,6 +74,15 @@ export async function authenticateOauthRequest(
     return invalid;
   }
 
+  // Scope kryssjekkes mot grantets nåværende scopes ved hvert kall. Blir et
+  // scope trukket tilbake etter tokenutstedelse, avvises tokenet (fail closed).
+  const grantScopes = Array.isArray(grant.scopes) ? (grant.scopes as string[]) : [];
+  if (grantScopes.length === 0) return invalid;
+  if (payload.scopes.some((scope) => !grantScopes.includes(scope))) return invalid;
+  const effectiveScopes = payload.scopes.filter((scope) => grantScopes.includes(scope));
+  if (effectiveScopes.length === 0) return invalid;
+
+
   // Klienten må fortsatt finnes, være aktiv og ikke utløpt.
   const { data: client } = await db
     .from("oauth_clients")
