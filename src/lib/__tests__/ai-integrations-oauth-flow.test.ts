@@ -438,23 +438,34 @@ describe("OAuth access token", () => {
 
   it("avviser feil audience/resource", async () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
-    const r = await verifyOauthAccessToken(issued.token, { resource: "https://annen.no/mcp" });
+    const r = await verifyOauthAccessToken(issued.token, { resource: "https://annen.no/mcp", issuer: ISSUER });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("audience");
   });
 
   it("avviser utløpt token", async () => {
     const issued = (await issueOauthAccessToken({ ...issueInput, ttlSeconds: 1 }))!;
-    const later = new Date(Date.now() + 5000);
+    const later = new Date(Date.now() + 5 * 60 * 1000);
     const r = await verifyOauthAccessToken(issued.token, { resource: RESOURCE, issuer: ISSUER, now: later });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("expired");
+  });
+
+  it("avviser feil issuer", async () => {
+    const issued = (await issueOauthAccessToken(issueInput))!;
+    const r = await verifyOauthAccessToken(issued.token, {
+      resource: RESOURCE,
+      issuer: "https://annen.no",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("issuer");
   });
 
   it("avviser manglende scope", async () => {
     const issued = (await issueOauthAccessToken(issueInput))!;
     const r = await verifyOauthAccessToken(issued.token, {
       resource: RESOURCE,
+      issuer: ISSUER,
       requiredScope: "karriere.workflow.run",
     });
     expect(r.ok).toBe(false);
