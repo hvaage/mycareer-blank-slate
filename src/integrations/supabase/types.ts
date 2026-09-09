@@ -7633,7 +7633,7 @@ export type Database = {
           expires_at: string
           id: string
           redirect_uri: string
-          resource: string | null
+          resource: string
           scopes: string[]
           user_id: string
         }
@@ -7648,7 +7648,7 @@ export type Database = {
           expires_at: string
           id?: string
           redirect_uri: string
-          resource?: string | null
+          resource: string
           scopes: string[]
           user_id: string
         }
@@ -7663,7 +7663,7 @@ export type Database = {
           expires_at?: string
           id?: string
           redirect_uri?: string
-          resource?: string | null
+          resource?: string
           scopes?: string[]
           user_id?: string
         }
@@ -11625,7 +11625,9 @@ export type Database = {
           client_type: string
           id: string
           is_active: boolean
+          metadata_url: string
           redirect_uris: string[]
+          registration_method: string
         }[]
       }
       opportunity_fingerprint: {
