@@ -185,12 +185,16 @@ describe("kanonisk ressurs og kontrakt", () => {
     expect(isJsonContentType("text/plain")).toBe(false);
   });
 
-  it("Accept krever BÅDE application/json og text/event-stream med q>0", () => {
+  it("Accept krever BÅDE application/json og text/event-stream eksplisitt med gyldig q>0", () => {
     expect(acceptsStreamableHttp("application/json, text/event-stream")).toBe(true);
     expect(acceptsStreamableHttp("APPLICATION/JSON, TEXT/EVENT-STREAM")).toBe(true);
     expect(acceptsStreamableHttp("application/json;q=0.9, text/event-stream;q=0.1")).toBe(true);
-    expect(acceptsStreamableHttp("*/*")).toBe(true);
-    expect(acceptsStreamableHttp("application/*, text/*")).toBe(true);
+    expect(acceptsStreamableHttp("application/json;q=1, text/event-stream;q=1.0")).toBe(true);
+    expect(acceptsStreamableHttp("application/json;q=0.001, text/event-stream")).toBe(true);
+    // Wildcard alene er ikke «begge».
+    expect(acceptsStreamableHttp("*/*")).toBe(false);
+    expect(acceptsStreamableHttp("application/*, text/*")).toBe(false);
+    expect(acceptsStreamableHttp("*/*, application/json")).toBe(false);
     // Bare én av de to typene.
     expect(acceptsStreamableHttp("application/json")).toBe(false);
     expect(acceptsStreamableHttp("text/event-stream")).toBe(false);
@@ -198,19 +202,29 @@ describe("kanonisk ressurs og kontrakt", () => {
     expect(acceptsStreamableHttp("application/json, text/event-stream;q=0")).toBe(false);
     expect(acceptsStreamableHttp("application/json;q=0, text/event-stream")).toBe(false);
     expect(acceptsStreamableHttp("*/*;q=0")).toBe(false);
+    // Ugyldig q er fail-closed, ikke q=1.
+    expect(acceptsStreamableHttp("application/json;q=abc, text/event-stream")).toBe(false);
+    expect(acceptsStreamableHttp("application/json;q=1.1, text/event-stream")).toBe(false);
+    expect(acceptsStreamableHttp("application/json;q=-0.1, text/event-stream")).toBe(false);
+    expect(acceptsStreamableHttp("application/json;q=, text/event-stream")).toBe(false);
+    expect(acceptsMediaType("application/json;q=abc", "application/json")).toBe(false);
+    expect(acceptsMediaType("application/json;q=1.1", "application/json")).toBe(false);
     expect(acceptsStreamableHttp("text/html")).toBe(false);
     expect(acceptsStreamableHttp(null)).toBe(false);
     // Eksakt match slår wildcard.
     expect(acceptsMediaType("*/*, text/event-stream;q=0", "text/event-stream")).toBe(false);
   });
 
-  it("Origin: manglende tillates, «null» og fremmede avvises", () => {
+  it("Origin: kun fullstendig manglende header tillates uten eksakt match", () => {
     expect(isAllowedOrigin(null, ORIGIN)).toBe(true);
-    expect(isAllowedOrigin("", ORIGIN)).toBe(true);
+    expect(isAllowedOrigin("", ORIGIN)).toBe(false);
+    expect(isAllowedOrigin("   ", ORIGIN)).toBe(false);
     expect(isAllowedOrigin("null", ORIGIN)).toBe(false);
+    expect(isAllowedOrigin(` ${ORIGIN} `, ORIGIN)).toBe(false);
     expect(isAllowedOrigin("https://evil.example", ORIGIN)).toBe(false);
     expect(isAllowedOrigin(ORIGIN, ORIGIN)).toBe(true);
     expect(hasOriginHeader(null)).toBe(false);
+    expect(hasOriginHeader("")).toBe(true);
     expect(hasOriginHeader("null")).toBe(true);
   });
 
@@ -612,17 +626,19 @@ describe("OPTIONS og ytre feilgrense", () => {
     expect(res.headers.get("vary")).toBe("Origin");
   });
 
-  it("OPTIONS med fremmed eller null Origin gir 403", async () => {
-    for (const origin of ["https://evil.example", "null"]) {
+  it("OPTIONS med fremmed, tom eller null Origin gir 403", async () => {
+    for (const origin of ["https://evil.example", "null", "", "   "]) {
       const res = await options({ origin });
       expect(res.status).toBe(403);
       expect(res.headers.get("access-control-allow-origin")).toBeNull();
     }
   });
 
-  it("POST med Origin: null gir 403", async () => {
-    const res = await post(rpc("ping"), { headers: { origin: "null" } });
-    expect(res.status).toBe(403);
+  it("POST med Origin: null, tom eller whitespace gir 403", async () => {
+    for (const origin of ["null", "", "   "]) {
+      const res = await post(rpc("ping"), { headers: { origin } });
+      expect(res.status).toBe(403);
+    }
   });
 
   it("uventet unntak gir generisk intern feil uten lekkasje", async () => {

@@ -14,7 +14,8 @@
 //   - `ListToolsRequestSchema`    — validerer tools/list-params
 //   - `CallToolRequestSchema`     — validerer tools/call-params
 //   - `PingRequestSchema`         — validerer ping
-//   - `SUPPORTED_PROTOCOL_VERSIONS`, `LATEST_PROTOCOL_VERSION` — versjonsliste
+//   - `SUPPORTED_PROTOCOL_VERSIONS` — versjonsliste vi kontrollerer mot
+//   - `LATEST_PROTOCOL_VERSION`     — velger nyeste versjon vi annonserer
 //
 // HVA SOM IKKE BRUKES, OG HVORFOR:
 // SDK-ens `Server`/`McpServer` og `WebStandardStreamableHTTPServerTransport`
@@ -37,6 +38,7 @@ import {
   PingRequestSchema,
   RequestIdSchema,
   SUPPORTED_PROTOCOL_VERSIONS as SDK_SUPPORTED_PROTOCOL_VERSIONS,
+  LATEST_PROTOCOL_VERSION as SDK_LATEST_PROTOCOL_VERSION,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { OauthScope } from "@/lib/ai-integrations/oauth-contract";
 import { AGENT_WORKFLOW_KINDS } from "@/lib/ai-integrations/claim-contract";
@@ -62,7 +64,16 @@ export function isKnownBySdk(version: string): boolean {
 
 /** Brukes når klienten ikke oppgir versjon i det hele tatt. */
 export const MCP_DEFAULT_PROTOCOL_VERSION: McpProtocolVersion = "2025-06-18";
-export const MCP_LATEST_PROTOCOL_VERSION: McpProtocolVersion = "2025-11-25";
+/**
+ * Nyeste versjon vi annonserer. SDK-ens `LATEST_PROTOCOL_VERSION` brukes bare
+ * når den også finnes i vår egen støtteliste — vi annonserer aldri en versjon
+ * vi ikke validerer selv.
+ */
+export const MCP_LATEST_PROTOCOL_VERSION: McpProtocolVersion = isSupportedProtocolVersion(
+  SDK_LATEST_PROTOCOL_VERSION,
+)
+  ? SDK_LATEST_PROTOCOL_VERSION
+  : "2025-06-18";
 
 export function isSupportedProtocolVersion(value: unknown): value is McpProtocolVersion {
   return (
@@ -230,9 +241,13 @@ export const MCP_TOOLS = [
 // Accept-forhandling
 // ---------------------------------------------------------------
 
-type MediaRange = { type: string; subtype: string; q: number };
+type MediaRange = { type: string; subtype: string; q: number; explicitQ: boolean; valid: boolean };
 
-/** Tolker Accept med parametre og q-verdier. Ugyldig q behandles som 1. */
+/**
+ * Tolker Accept fail-closed: en eksplisitt q-parameter må være syntaktisk
+ * gyldig RFC 9110-kvalitet i [0,1]. Er den ikke det, er hele media-rangen
+ * ubrukelig (`valid: false`) — den regnes aldri som akseptert.
+ */
 export function parseAcceptHeader(header: string | null): MediaRange[] {
   const value = (header ?? "").trim();
   if (value === "") return [];
@@ -244,40 +259,58 @@ export function parseAcceptHeader(header: string | null): MediaRange[] {
     const [type, subtype] = media.split("/");
     if (!type || !subtype) continue;
     let q = 1;
+    let explicitQ = false;
+    let valid = true;
     for (const param of segments.slice(1)) {
       const [rawKey, rawValue] = param.split("=");
       if ((rawKey ?? "").trim().toLowerCase() !== "q") continue;
-      const parsed = Number((rawValue ?? "").trim());
-      if (Number.isFinite(parsed)) q = parsed;
+      explicitQ = true;
+      const raw = (rawValue ?? "").trim();
+      // RFC 9110: qvalue = ( "0" [ "." 0*3DIGIT ] ) / ( "1" [ "." 0*3("0") ] )
+      if (!/^(?:0(?:\.\d{1,3})?|1(?:\.0{1,3})?)$/.test(raw)) {
+        valid = false;
+        q = 0;
+        continue;
+      }
+      q = Number(raw);
     }
-    ranges.push({ type, subtype, q });
+    ranges.push({ type, subtype, q, explicitQ, valid });
   }
   return ranges;
 }
 
-/** Sann bare når klienten faktisk aksepterer medietypen med q > 0. */
+/** Sann bare når klienten faktisk aksepterer medietypen med gyldig q > 0. */
 export function acceptsMediaType(header: string | null, mediaType: string): boolean {
   const [wantType, wantSubtype] = mediaType.toLowerCase().split("/");
   const ranges = parseAcceptHeader(header);
   if (ranges.length === 0) return false;
   // Mest spesifikke match vinner: eksakt -> type/* -> */*
   const exact = ranges.find((r) => r.type === wantType && r.subtype === wantSubtype);
-  if (exact) return exact.q > 0;
+  if (exact) return exact.valid && exact.q > 0;
   const subtypeWildcard = ranges.find((r) => r.type === wantType && r.subtype === "*");
-  if (subtypeWildcard) return subtypeWildcard.q > 0;
+  if (subtypeWildcard) return subtypeWildcard.valid && subtypeWildcard.q > 0;
   const wildcard = ranges.find((r) => r.type === "*" && r.subtype === "*");
-  if (wildcard) return wildcard.q > 0;
+  if (wildcard) return wildcard.valid && wildcard.q > 0;
   return false;
+}
+
+/** Sann bare ved en EKSPLISITT media-range for typen, med gyldig q > 0. */
+function acceptsMediaTypeExplicitly(ranges: MediaRange[], mediaType: string): boolean {
+  const [wantType, wantSubtype] = mediaType.toLowerCase().split("/");
+  const exact = ranges.find((r) => r.type === wantType && r.subtype === wantSubtype);
+  return exact !== undefined && exact.valid && exact.q > 0;
 }
 
 /**
  * Streamable HTTP (2025-06-18 og 2025-11-25) krever at POST tilbyr BÅDE
- * `application/json` og `text/event-stream`. Vi svarer alltid med JSON,
- * men kravet håndheves slik spesifikasjonen sier.
+ * `application/json` og `text/event-stream` EKSPLISITT. Wildcard alene
+ * (full wildcard eller typewildcard) er ikke nok.
  */
 export function acceptsStreamableHttp(header: string | null): boolean {
+  const ranges = parseAcceptHeader(header);
   return (
-    acceptsMediaType(header, "application/json") && acceptsMediaType(header, "text/event-stream")
+    acceptsMediaTypeExplicitly(ranges, "application/json") &&
+    acceptsMediaTypeExplicitly(ranges, "text/event-stream")
   );
 }
 
@@ -289,20 +322,17 @@ export function isJsonContentType(header: string | null): boolean {
 /**
  * DNS-rebinding: en nettleserklient på et annet opphav slippes ikke inn.
  * Klienter uten Origin-header (desktop, CLI, serverside) er tillatt — de er
- * ikke utsatt for rebinding. `Origin: null` er derimot en TILSTEDEVÆRENDE,
- * ugyldig origin (sandkasset iframe, data:, omdirigert cross-origin) og
- * avvises.
+ * ikke utsatt for rebinding. Enhver TILSTEDEVÆRENDE verdi — inkludert tom
+ * streng, whitespace og `null` — må være eksakt PUBLIC_APP_ORIGIN.
  */
 export function isAllowedOrigin(origin: string | null, appOrigin: string): boolean {
   if (origin === null) return true;
-  const value = origin.trim();
-  if (value === "") return true;
-  return value === appOrigin;
+  return origin === appOrigin;
 }
 
-/** Sann når klienten faktisk sendte en Origin-header med innhold. */
+/** Sann når klienten sendte en Origin-header i det hele tatt. */
 export function hasOriginHeader(origin: string | null): boolean {
-  return origin !== null && origin.trim() !== "";
+  return origin !== null;
 }
 
 // ---------------------------------------------------------------

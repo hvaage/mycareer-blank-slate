@@ -38,7 +38,7 @@ const BASE_HEADERS: Record<string, string> = {
 };
 
 function corsHeaders(origin: string | null, appOrigin: string): Record<string, string> {
-  if (!origin || origin.trim() !== appOrigin) return {};
+  if (origin === null || origin !== appOrigin) return {};
   return {
     "Access-Control-Allow-Origin": appOrigin,
     "Access-Control-Allow-Headers": "authorization, content-type, mcp-protocol-version, accept",
