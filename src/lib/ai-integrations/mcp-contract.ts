@@ -303,8 +303,8 @@ function acceptsMediaTypeExplicitly(ranges: MediaRange[], mediaType: string): bo
 
 /**
  * Streamable HTTP (2025-06-18 og 2025-11-25) krever at POST tilbyr BÅDE
- * `application/json` og `text/event-stream` EKSPLISITT. `*/*` eller
- * `application/*` alene er ikke nok.
+ * `application/json` og `text/event-stream` EKSPLISITT. Wildcard alene
+ * (full wildcard eller typewildcard) er ikke nok.
  */
 export function acceptsStreamableHttp(header: string | null): boolean {
   const ranges = parseAcceptHeader(header);
