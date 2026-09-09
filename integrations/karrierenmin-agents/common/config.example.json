@@ -1,5 +1,5 @@
 {
-  "$status": "KONFIGURASJONSMAL. Den kanoniske tilkoblingen er MCP over Streamable HTTP med OAuth 2.1 — se mcp.config.json i leverandørmappen. Feltene under gjelder kompatibilitetslaget (REST) for eksisterende integrasjonstokener.",
+  "$status": "KONFIGURASJONSMAL. Den kanoniske tilkoblingen er MCP over Streamable HTTP med OAuth 2.1 — se common/connection.json og installasjonsavsnittet i leverandørens README. Feltene under gjelder kompatibilitetslaget (REST) for eksisterende integrasjonstokener.",
   "$mcp": {
     "endpoint": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp",
     "auth": "oauth2.1-pkce",
