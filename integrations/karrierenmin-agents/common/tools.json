@@ -1,36 +1,60 @@
 {
-  "$status": "DESIGNMAL, IKKE EN INSTALLERBAR VERKTØYKONFIGURASJON. Beskriver semantikken til to REST-kall. Dette er ikke MCP, og filen kan ikke lastes inn i en MCP-klient.",
+  "$status": "KANONISK VERKTØYSEMANTIKK FOR MCP-SERVEREN. Serveren er bygget og testet på POST /api/public/mcp (Streamable HTTP, JSON-RPC 2.0). Denne filen dokumenterer semantikken; den er ikke i seg selv en klientkonfigurasjon — bruk mcp.config.json i leverandørmappen.",
+  "$transport": {
+    "type": "streamable-http",
+    "endpoint": "/api/public/mcp",
+    "methods": ["initialize", "notifications/initialized", "ping", "tools/list", "tools/call"],
+    "protocol_versions": ["2025-11-25", "2025-06-18"],
+    "stateless": true,
+    "batch": false
+  },
+  "$auth": {
+    "type": "oauth2.1",
+    "resource": "{KARRIERENMIN_BASE_URL}/api/public/mcp",
+    "metadata": "/.well-known/oauth-protected-resource/api/public/mcp",
+    "scopes": ["karriere.status.read", "karriere.workflow.run"],
+    "$note": "Ingen statisk nøkkel. Brukeren godkjenner scopene selv i Karrierenmin."
+  },
   "tools": [
     {
-      "name": "karrierenmin_claim",
-      "description": "Aktiverer assistenten mot brukerens Karrierenmin-konto med en engangskode brukeren har hentet i Karrierenmin. Kjøres én gang, uten token. Koden skal aldri gjentas i svar eller logg.",
-      "http": {
-        "method": "POST",
-        "path": "/api/public/ai-integrations/claim",
-        "auth": "none"
-      },
-      "parameters": {
-        "type": "object",
-        "required": ["provider", "setup_code"],
-        "properties": {
-          "provider": { "type": "string", "enum": ["grok", "claude", "openai", "gemini"] },
-          "setup_code": { "type": "string", "description": "Engangskode fra Karrierenmin. Bindestreker og små bokstaver er tillatt." }
-        }
-      },
-      "$capabilities_note": "Capabilities er bevisst ikke en parameter. Serveren ignorerer enhver klientpåstand og lagrer alltid tomme, ubekreftede egenskaper ved claim. Bekreftelse krever en serverkontrollert verifisering i en senere fase.",
-      "on_success": "Forbindelsen er aktiv, men ingen egenskaper er bekreftet. Tokenet lagres ikke automatisk: brukeren eller et installasjonsprogram må kopiere det inn i klientens secret-/miljøoppsett. Ikke vis tokenet.",
-      "on_error": "Vis backendens melding uendret. Ikke gjett årsak. Koden er oppbrukt uansett, så be brukeren lage en ny kode."
+      "name": "karrierenmin_status",
+      "scope": "karriere.status.read",
+      "description": "Henter status, driftsform, ubekreftede egenskaper og hvilke arbeidsflyter brukeren har slått på.",
+      "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "annotations": { "readOnlyHint": true, "idempotentHint": true, "openWorldHint": false },
+      "on_error": "Ved integration_inactive: stopp all videre kontakt. Ved insufficient_scope: be brukeren godkjenne tilgangen på nytt."
     },
     {
-      "name": "karrierenmin_status",
-      "description": "Henter status, bekreftede capabilities, effective_mode og tilgjengelige arbeidsflyter for den aktiverte integrasjonen.",
-      "http": {
-        "method": "GET",
-        "path": "/api/public/ai-integrations/v1/status",
-        "auth": "bearer:integration_token"
+      "name": "karrierenmin_run",
+      "scope": "karriere.workflow.run",
+      "description": "Ber om en arbeidsflyt. Oppretter aldri en kjøring og svarer alltid not_enabled eller not_available.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["workflow_kind"],
+        "properties": {
+          "workflow_kind": {
+            "type": "string",
+            "enum": ["job_import", "career_log", "linkedin_ready"]
+          }
+        },
+        "additionalProperties": false
       },
-      "parameters": { "type": "object", "properties": {} },
-      "on_error": "Ved integration_inactive: slett lagret token og stopp."
+      "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": false },
+      "on_success": "Finnes ikke. Verktøyet svarer alltid med en feilkode. Presenter aldri svaret som en utført jobb."
     }
-  ]
+  ],
+  "$legacy_rest": {
+    "$note": "Kompatibilitetslag for eksisterende integrasjonstokener. Ikke MCP.",
+    "karrierenmin_claim": {
+      "method": "POST",
+      "path": "/api/public/ai-integrations/claim",
+      "auth": "none",
+      "$capabilities_note": "Capabilities sendes ikke. Serveren ignorerer klientpåstander og lagrer tomme, ubekreftede egenskaper. Aldri utledet fra abonnement."
+    },
+    "karrierenmin_status": {
+      "method": "GET",
+      "path": "/api/public/ai-integrations/v1/status",
+      "auth": "bearer:integration_token"
+    }
+  }
 }

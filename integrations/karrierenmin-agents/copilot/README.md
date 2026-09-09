@@ -1,46 +1,65 @@
 # Karrierenmin for Microsoft Copilot
 
-**Status: portabel designmal. Ikke installerbar før transport og autentisering
-er implementert og en verifisert plattformmekanisme finnes.**
+**Status: MCP-serveren er bygget og testet. Installasjon hos Microsoft Copilot er ikke
+verifisert ende-til-ende — ingen live-test er kjørt mot leverandøren.**
 
-Mappen inneholder ingen fungerende MCP-server og ingen verifisert
-installasjonsform for denne plattformen. `tools.example.json` er en designmal,
-ikke en konfigurasjon som virker som den står.
+Karrierenmin eksponerer én leverandørnøytral MCP-server over Streamable HTTP:
 
-## Tre nivåer
+```
+POST https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp
+```
 
-1. **REST-backendkontrakt** — implementert og testet (`../common/CONTRACT.md`).
-2. **Design-/kildepakke** — denne mappen.
-3. **Installerbar pakke** — finnes ikke ennå.
+Alle fem assistentene (Claude, ChatGPT/Codex, Gemini, Grok, Microsoft Copilot)
+bruker nøyaktig samme endepunkt, samme to verktøy og samme rettigheter. Ingen
+leverandør er standard, anbefalt eller privilegert.
+
+## Verktøy
+
+| Verktøy | Scope | Hva det gjør |
+| --- | --- | --- |
+| `karrierenmin_status` | `karriere.status.read` | Status, driftsform, bekreftede egenskaper og hvilke arbeidsflyter brukeren har slått på |
+| `karrierenmin_run` | `karriere.workflow.run` | Ber om en arbeidsflyt. Svarer alltid `not_enabled` eller `not_available` og oppretter aldri en kjøring |
+
+Ingen arbeidsflyt kan startes av en assistent i dag. Presenter aldri et
+`karrierenmin_run`-svar som en utført jobb.
 
 ## Autentisering
 
-Claim er uten token og utsteder tokenet. Det er onboarding, ikke varig
-autentisering. Copilot tar ikke automatisk imot et token fra et verktøysvar og
-lagrer det som en hemmelighet; pakken påstår ikke at den gjør det. Inntil en
-verifisert mekanisme finnes, står pakken som portabel designmal.
+MCP-serveren bruker OAuth 2.1 med PKCE. Klienten oppdager autorisasjonsserveren
+fra `401`-svaret og
+`https://REPLACE-WITH-YOUR-PUBLIC-HOST/.well-known/oauth-protected-resource/api/public/mcp`.
+Brukeren logger inn i Karrierenmin og godkjenner scopene selv. Ingen statisk
+nøkkel legges i konfigurasjonen. Se `mcp.config.json`.
 
-For OAuth-veien gjelder én ekstra begrensning: Karrierenmin har ingen
-innebygd callback-adresse for Copilot. Vi dikter ikke opp et Microsoft-domene.
-Den faktiske adressen fra Copilot Studio må legges inn av drift i
-`OAUTH_EXTRA_REDIRECT_URIS` før dynamisk registrering kan brukes. Uten det
-avvises registreringen.
+Tokenet skal aldri stå i prompt, samtalelogg, feilmelding eller URL — kun i
+`Authorization`-headeren, som klienten setter selv.
 
-Full spesifikasjon: `docs/operations/ai-integrations-mcp-oauth-spec.md`.
+## Registrering av Copilots redirect-URI
 
-## Capabilities
+Microsoft Copilot har ingen forhåndsgodkjent redirect-URI i Karrierenmin. Den
+eksakte callback-adressen må legges inn i `OAUTH_EXTRA_REDIRECT_URIS` som en
+eksakt URL. Prefiks, wildcard og generisk loopback godtas ikke.
 
-Claim bekrefter ingen egenskaper. Klientpåstander ignoreres, og aldri utledet
-fra abonnement. Bekreftelse krever en serverkontrollert verifisering senere.
+## Kompatibilitetslag (REST, ikke MCP)
 
-## Dagens REST-endepunkter (referanse)
+De eldre REST-rutene beholdes for eksisterende integrasjonstokener og bruker
+samme domenelag som MCP:
 
 | Handling | Kall |
 | --- | --- |
 | `karrierenmin_claim` | `POST /api/public/ai-integrations/claim` (uten token) |
 | `karrierenmin_status` | `GET /api/public/ai-integrations/v1/status` (Bearer integrasjonstoken) |
 
-Tokenet sendes kun i `Authorization`-headeren — aldri i URL, prompt eller logg.
-Sikkerhetsregler: `../common/SECURITY.md`.
+Nye installasjoner bør bruke MCP og OAuth, ikke engangskode.
 
-Ingen automatisk LinkedIn-innlogging, eksportbestilling eller nedlasting.
+## Capabilities
+
+Capabilities bekreftes aldri av claim, og aldri av abonnement. En klientpåstand
+ignoreres, og egenskapene står som ubekreftede til en serverkontrollert
+verifisering har vist hva installasjonen faktisk kan.
+
+## Sikkerhet
+
+Ingen automatisk LinkedIn-innlogging, bestilling eller nedlasting. LinkedIn-data
+kommer kun fra brukerens egen offisielle ZIP-eksport. Felles regler:
+`../common/SECURITY.md`. Verktøysemantikk: `../common/tools.json`.

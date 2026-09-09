@@ -1,5 +1,5 @@
 {
-  "$status": "DESIGNMAL, IKKE INSTALLERBAR. Ikke MCP. Beskriver to REST-kall og kan ikke lastes inn som en fungerende verktøykonfigurasjon.",
+  "$status": "KOMPATIBILITETSLAG (REST), IKKE MCP. Den kanoniske transporten er MCP på /api/public/mcp — se mcp.config.json. Denne filen beskriver de eldre REST-kallene for eksisterende integrasjonstokener.",
   "$token_note": "Tokenet lagres ikke automatisk fra claim-svaret. Brukeren må selv legge det i plattformens secret-lager.",
   "base_url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST",
   "auth": {

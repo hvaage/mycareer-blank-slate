@@ -184,9 +184,9 @@ describe("Copilot er likestilt", () => {
     expect(AI_PROVIDER_LABELS.copilot).toBe("Microsoft Copilot");
   });
 
-  it("har en egen design-/kildepakke som ikke påstår installasjon", () => {
+  it("har en egen pakke som ikke påstår verifisert installasjon", () => {
     const readme = read("integrations/karrierenmin-agents/copilot/README.md");
-    expect(readme).toContain("Ikke installerbar");
+    expect(readme.replace(/\s+/g, " ")).toContain("ikke verifisert ende-til-ende");
     expect(readme).toContain("OAUTH_EXTRA_REDIRECT_URIS");
   });
 });

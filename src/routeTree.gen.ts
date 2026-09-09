@@ -66,6 +66,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/selskapsanalyse.analysedatabase.$id'
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
+import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
 import { Route as ApiOauthConsentRouteImport } from './routes/api/oauth/consent'
 import { Route as ApiLinkedinImportsRouteImport } from './routes/api/linkedin/imports'
@@ -139,6 +140,7 @@ import { Route as AuthenticatedNettverkKontakterImportRouteImport } from './rout
 import { Route as AuthenticatedNettverkKontakterIdRouteImport } from './routes/_authenticated/nettverk.kontakter.$id'
 import { Route as ApiPublicAiIntegrationsV1StatusRouteImport } from './routes/api/public/ai-integrations/v1/status'
 import { Route as ApiPublicAiIntegrationsV1RunRouteImport } from './routes/api/public/ai-integrations/v1/run'
+import { Route as DotwellKnownOauthProtectedResourceApiPublicMcpRouteImport } from './routes/[.]well-known/oauth-protected-resource.api.public.mcp'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -450,6 +452,11 @@ const RekruttererundersokelseResultaterFullRoute =
 const LovableEmailEventsRoute = LovableEmailEventsRouteImport.update({
   id: '/lovable/email/events',
   path: '/lovable/email/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicMcpRoute = ApiPublicMcpRouteImport.update({
+  id: '/api/public/mcp',
+  path: '/api/public/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicIngestReportRoute = ApiPublicIngestReportRouteImport.update({
@@ -872,6 +879,12 @@ const ApiPublicAiIntegrationsV1RunRoute =
     path: '/api/public/ai-integrations/v1/run',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DotwellKnownOauthProtectedResourceApiPublicMcpRoute =
+  DotwellKnownOauthProtectedResourceApiPublicMcpRouteImport.update({
+    id: '/api/public/mcp',
+    path: '/api/public/mcp',
+    getParentRoute: () => DotwellKnownOauthProtectedResourceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -885,7 +898,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
-  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -954,6 +967,7 @@ export interface FileRoutesByFullPath {
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
   '/api/oauth/consent': typeof ApiOauthConsentRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
@@ -1001,6 +1015,7 @@ export interface FileRoutesByFullPath {
   '/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
   '/nettverk/muligheter/': typeof AuthenticatedNettverkMuligheterIndexRoute
   '/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
+  '/.well-known/oauth-protected-resource/api/public/mcp': typeof DotwellKnownOauthProtectedResourceApiPublicMcpRoute
   '/api/public/ai-integrations/v1/run': typeof ApiPublicAiIntegrationsV1RunRoute
   '/api/public/ai-integrations/v1/status': typeof ApiPublicAiIntegrationsV1StatusRoute
 }
@@ -1013,7 +1028,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
-  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/about-me': typeof AuthenticatedAboutMeRoute
   '/app': typeof AuthenticatedAppRoute
   '/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -1081,6 +1096,7 @@ export interface FileRoutesByTo {
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
   '/api/oauth/consent': typeof ApiOauthConsentRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
@@ -1128,6 +1144,7 @@ export interface FileRoutesByTo {
   '/nettverk/kontakter': typeof AuthenticatedNettverkKontakterIndexRoute
   '/nettverk/muligheter': typeof AuthenticatedNettverkMuligheterIndexRoute
   '/nettverk/selskaper': typeof AuthenticatedNettverkSelskaperIndexRoute
+  '/.well-known/oauth-protected-resource/api/public/mcp': typeof DotwellKnownOauthProtectedResourceApiPublicMcpRoute
   '/api/public/ai-integrations/v1/run': typeof ApiPublicAiIntegrationsV1RunRoute
   '/api/public/ai-integrations/v1/status': typeof ApiPublicAiIntegrationsV1StatusRoute
 }
@@ -1145,7 +1162,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
-  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/_authenticated/about-me': typeof AuthenticatedAboutMeRoute
   '/_authenticated/app': typeof AuthenticatedAppRoute
   '/_authenticated/cover-letters': typeof AuthenticatedCoverLettersRoute
@@ -1214,6 +1231,7 @@ export interface FileRoutesById {
   '/api/linkedin/imports': typeof ApiLinkedinImportsRoute
   '/api/oauth/consent': typeof ApiOauthConsentRoute
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
+  '/api/public/mcp': typeof ApiPublicMcpRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
@@ -1261,6 +1279,7 @@ export interface FileRoutesById {
   '/_authenticated/nettverk/kontakter/': typeof AuthenticatedNettverkKontakterIndexRoute
   '/_authenticated/nettverk/muligheter/': typeof AuthenticatedNettverkMuligheterIndexRoute
   '/_authenticated/nettverk/selskaper/': typeof AuthenticatedNettverkSelskaperIndexRoute
+  '/.well-known/oauth-protected-resource/api/public/mcp': typeof DotwellKnownOauthProtectedResourceApiPublicMcpRoute
   '/api/public/ai-integrations/v1/run': typeof ApiPublicAiIntegrationsV1RunRoute
   '/api/public/ai-integrations/v1/status': typeof ApiPublicAiIntegrationsV1StatusRoute
 }
@@ -1347,6 +1366,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/imports'
     | '/api/oauth/consent'
     | '/api/public/ingest-report'
+    | '/api/public/mcp'
     | '/lovable/email/events'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
@@ -1394,6 +1414,7 @@ export interface FileRouteTypes {
     | '/nettverk/kontakter/'
     | '/nettverk/muligheter/'
     | '/nettverk/selskaper/'
+    | '/.well-known/oauth-protected-resource/api/public/mcp'
     | '/api/public/ai-integrations/v1/run'
     | '/api/public/ai-integrations/v1/status'
   fileRoutesByTo: FileRoutesByTo
@@ -1474,6 +1495,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/imports'
     | '/api/oauth/consent'
     | '/api/public/ingest-report'
+    | '/api/public/mcp'
     | '/lovable/email/events'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
@@ -1521,6 +1543,7 @@ export interface FileRouteTypes {
     | '/nettverk/kontakter'
     | '/nettverk/muligheter'
     | '/nettverk/selskaper'
+    | '/.well-known/oauth-protected-resource/api/public/mcp'
     | '/api/public/ai-integrations/v1/run'
     | '/api/public/ai-integrations/v1/status'
   id:
@@ -1606,6 +1629,7 @@ export interface FileRouteTypes {
     | '/api/linkedin/imports'
     | '/api/oauth/consent'
     | '/api/public/ingest-report'
+    | '/api/public/mcp'
     | '/lovable/email/events'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
@@ -1653,6 +1677,7 @@ export interface FileRouteTypes {
     | '/_authenticated/nettverk/kontakter/'
     | '/_authenticated/nettverk/muligheter/'
     | '/_authenticated/nettverk/selskaper/'
+    | '/.well-known/oauth-protected-resource/api/public/mcp'
     | '/api/public/ai-integrations/v1/run'
     | '/api/public/ai-integrations/v1/status'
   fileRoutesById: FileRoutesById
@@ -1670,7 +1695,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
-  DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
+  DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   AuthNyttPassordRoute: typeof AuthNyttPassordRoute
@@ -1685,6 +1710,7 @@ export interface RootRouteChildren {
   ApiLinkedinImportsRoute: typeof ApiLinkedinImportsRoute
   ApiOauthConsentRoute: typeof ApiOauthConsentRoute
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
+  ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
   ApiAiIntegrationsIndexRoute: typeof ApiAiIntegrationsIndexRoute
   ApiPublicAiIntegrationsClaimRoute: typeof ApiPublicAiIntegrationsClaimRoute
@@ -2105,6 +2131,13 @@ declare module '@tanstack/react-router' {
       path: '/lovable/email/events'
       fullPath: '/lovable/email/events'
       preLoaderRoute: typeof LovableEmailEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/mcp': {
+      id: '/api/public/mcp'
+      path: '/api/public/mcp'
+      fullPath: '/api/public/mcp'
+      preLoaderRoute: typeof ApiPublicMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/ingest-report': {
@@ -2618,6 +2651,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAiIntegrationsV1RunRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/oauth-protected-resource/api/public/mcp': {
+      id: '/.well-known/oauth-protected-resource/api/public/mcp'
+      path: '/api/public/mcp'
+      fullPath: '/.well-known/oauth-protected-resource/api/public/mcp'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceApiPublicMcpRouteImport
+      parentRoute: typeof DotwellKnownOauthProtectedResourceRoute
+    }
   }
 }
 
@@ -2861,6 +2901,21 @@ const SelskapsanalyseRouteWithChildren = SelskapsanalyseRoute._addFileChildren(
   SelskapsanalyseRouteChildren,
 )
 
+interface DotwellKnownOauthProtectedResourceRouteChildren {
+  DotwellKnownOauthProtectedResourceApiPublicMcpRoute: typeof DotwellKnownOauthProtectedResourceApiPublicMcpRoute
+}
+
+const DotwellKnownOauthProtectedResourceRouteChildren: DotwellKnownOauthProtectedResourceRouteChildren =
+  {
+    DotwellKnownOauthProtectedResourceApiPublicMcpRoute:
+      DotwellKnownOauthProtectedResourceApiPublicMcpRoute,
+  }
+
+const DotwellKnownOauthProtectedResourceRouteWithChildren =
+  DotwellKnownOauthProtectedResourceRoute._addFileChildren(
+    DotwellKnownOauthProtectedResourceRouteChildren,
+  )
+
 interface ApiCvAtomizationJobsRouteChildren {
   ApiCvAtomizationJobsJobIdRoute: typeof ApiCvAtomizationJobsJobIdRoute
 }
@@ -2898,7 +2953,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotwellKnownOauthAuthorizationServerRoute:
     DotwellKnownOauthAuthorizationServerRoute,
   DotwellKnownOauthProtectedResourceRoute:
-    DotwellKnownOauthProtectedResourceRoute,
+    DotwellKnownOauthProtectedResourceRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   AuthNyttPassordRoute: AuthNyttPassordRoute,
@@ -2914,6 +2969,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLinkedinImportsRoute: ApiLinkedinImportsRoute,
   ApiOauthConsentRoute: ApiOauthConsentRoute,
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
+  ApiPublicMcpRoute: ApiPublicMcpRoute,
   LovableEmailEventsRoute: LovableEmailEventsRoute,
   ApiAiIntegrationsIndexRoute: ApiAiIntegrationsIndexRoute,
   ApiPublicAiIntegrationsClaimRoute: ApiPublicAiIntegrationsClaimRoute,

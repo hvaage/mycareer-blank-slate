@@ -1,10 +1,28 @@
 # Spesifikasjon: ekte MCP-transport og OAuth 2.1 for Karrierenmin
 
-Status: **OAuth 2.1/PKCE (fase 3) er implementert. MCP-transporten er fortsatt ikke bygget. Se statusoppdateringen nederst i dokumentet.**
+Status: **OAuth 2.1/PKCE er implementert, og MCP-transporten er bygget og
+testet på `POST /api/public/mcp`. Installasjon hos den enkelte leverandøren er
+ikke verifisert ende-til-ende — ingen live-test er kjørt.**
 
-Dagens `/api/public/ai-integrations/*` er vanlige REST-ruter. De implementerer
-ikke MCP. Denne filen beskriver hva som må bygges før noen pakke kan kalles
-installerbar.
+`/api/public/ai-integrations/*` er beholdt som REST-kompatibilitetslag for
+eksisterende integrasjonstokener, og bruker samme delte domenelag som MCP.
+
+## 0. Slik ble transporten bygget
+
+- Sesjonsløs Streamable HTTP: ingen sesjonsheader, ingen sesjonstabell, ingen
+  SSE-strøm. Hver forespørsel autentiseres på nytt.
+- `@modelcontextprotocol/sdk@1.30.0` er installert og brukt som referanse for
+  typer, skjemaer og protokollkonstanter. HTTP-laget er skrevet i
+  `src/routes/api/public/mcp.ts` fordi SDK-transporten eier sin egen
+  Response-generering og ikke kan gi de påkrevde svarene uendret: `405` med
+  `Allow: POST, OPTIONS` på GET/DELETE, OAuth-autentisering med eksakt
+  `WWW-Authenticate` før meldingen tolkes, og scope-kontroll per verktøy.
+- Protokollversjoner: `2025-11-25` og `2025-06-18`. `2026-07-28` annonseres
+  ikke — SDK-en som er installert kan ikke validere den, og vi annonserer ingen
+  versjon vi ikke validerer.
+- Kanonisk OAuth-`resource` er nøyaktig `/api/public/mcp`.
+- Domenelaget ligger i `src/lib/ai-integrations/agent-domain.server.ts` og deles
+  av MCP og REST.
 
 ## 1. MCP-transport
 

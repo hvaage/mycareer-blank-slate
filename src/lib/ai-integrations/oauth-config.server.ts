@@ -17,8 +17,13 @@ export const OAUTH_PATHS = {
   token: "/api/public/oauth/token",
   revoke: "/api/public/oauth/revoke",
   register: "/api/public/oauth/register",
-  /** Den beskyttede ressursen: agent-API-et som allerede finnes. */
-  resource: "/api/public/ai-integrations/v1",
+  /**
+   * Den beskyttede ressursen er MCP-endepunktet. Kanonisk resource er
+   * nøyaktig denne strengen, og REST-rutene under
+   * /api/public/ai-integrations/v1 er bare et kompatibilitetslag over
+   * samme domenelag — de er ikke en egen OAuth-ressurs.
+   */
+  resource: "/api/public/mcp",
 } as const;
 
 export type OauthOrigin = { ok: true; origin: string } | { ok: false; reason: string };
@@ -52,6 +57,7 @@ export function oauthUrls(origin: string) {
   return {
     issuer: origin,
     resource: `${origin}${OAUTH_PATHS.resource}`,
+    resourcePath: OAUTH_PATHS.resource,
     authorization_endpoint: `${origin}${OAUTH_PATHS.authorize}`,
     token_endpoint: `${origin}${OAUTH_PATHS.token}`,
     revocation_endpoint: `${origin}${OAUTH_PATHS.revoke}`,

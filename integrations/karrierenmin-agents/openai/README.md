@@ -1,44 +1,59 @@
 # Karrierenmin for ChatGPT / Codex
 
-**Status: design-/kildepakke. Ikke installerbar før transport og autentisering
-er implementert.**
+**Status: MCP-serveren er bygget og testet. Installasjon hos ChatGPT / Codex er ikke
+verifisert ende-til-ende — ingen live-test er kjørt mot leverandøren.**
 
-Denne mappen inneholder ingen fungerende MCP-server og ingen fungerende plugin.
-`mcp.config.SKETCH.json` er merket som ikke-fungerende skisse fordi
-Karrierenmins nåværende endepunkter er vanlige REST-ruter uten MCP JSON-RPC,
-`tools/list` eller `tools/call`.
+Karrierenmin eksponerer én leverandørnøytral MCP-server over Streamable HTTP:
 
-## Tre nivåer
+```
+POST https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp
+```
 
-1. **REST-backendkontrakt** — implementert og testet (`../common/CONTRACT.md`).
-2. **Design-/kildepakke** — denne mappen.
-3. **Installerbar MCP/plugin** — finnes ikke ennå.
+Alle fem assistentene (Claude, ChatGPT/Codex, Gemini, Grok, Microsoft Copilot)
+bruker nøyaktig samme endepunkt, samme to verktøy og samme rettigheter. Ingen
+leverandør er standard, anbefalt eller privilegert.
 
-## Planlagt autentisering
+## Verktøy
 
-ChatGPT-plugin skal følge den offisielle OAuth 2.1-kontrakten for MCP:
-discovery, authorization endpoint, token endpoint, PKCE og state. Engangskoden
-fra Karrierenmin brukes **inne i** autorisasjons-/account-linking-flyten.
-ChatGPT skal ikke måtte ta imot et bearer-token fra et verktøysvar og lagre det
-som en hemmelighet — det er ikke en støttet mekanisme og beskrives derfor ikke
-som en installasjonsflyt.
+| Verktøy | Scope | Hva det gjør |
+| --- | --- | --- |
+| `karrierenmin_status` | `karriere.status.read` | Status, driftsform, bekreftede egenskaper og hvilke arbeidsflyter brukeren har slått på |
+| `karrierenmin_run` | `karriere.workflow.run` | Ber om en arbeidsflyt. Svarer alltid `not_enabled` eller `not_available` og oppretter aldri en kjøring |
 
-Full spesifikasjon: `docs/operations/ai-integrations-mcp-oauth-spec.md`.
+Ingen arbeidsflyt kan startes av en assistent i dag. Presenter aldri et
+`karrierenmin_run`-svar som en utført jobb.
 
-## Capabilities
+## Autentisering
 
-Claim bekrefter ingen egenskaper. `background_execution`, `scheduled_runs` og
-`email_forward_or_send` lagres alltid som ubekreftede ved claim, uansett hva
-klienten påstår og uansett abonnement. Bekreftelse krever en serverkontrollert
-verifisering i en senere fase.
+MCP-serveren bruker OAuth 2.1 med PKCE. Klienten oppdager autorisasjonsserveren
+fra `401`-svaret og
+`https://REPLACE-WITH-YOUR-PUBLIC-HOST/.well-known/oauth-protected-resource/api/public/mcp`.
+Brukeren logger inn i Karrierenmin og godkjenner scopene selv. Ingen statisk
+nøkkel legges i konfigurasjonen. Se `mcp.config.json`.
 
-## Dagens REST-endepunkter (referanse, ikke MCP)
+Tokenet skal aldri stå i prompt, samtalelogg, feilmelding eller URL — kun i
+`Authorization`-headeren, som klienten setter selv.
+
+## Kompatibilitetslag (REST, ikke MCP)
+
+De eldre REST-rutene beholdes for eksisterende integrasjonstokener og bruker
+samme domenelag som MCP:
 
 | Handling | Kall |
 | --- | --- |
 | `karrierenmin_claim` | `POST /api/public/ai-integrations/claim` (uten token) |
 | `karrierenmin_status` | `GET /api/public/ai-integrations/v1/status` (Bearer integrasjonstoken) |
 
-Tokenet sendes kun i `Authorization`-headeren — aldri i URL, prompt eller logg.
-`INSTRUCTIONS.md` er bruksregler, ikke en sikkerhetsmekanisme, og skal aldri
-være eneste kontroll.
+Nye installasjoner bør bruke MCP og OAuth, ikke engangskode.
+
+## Capabilities
+
+Capabilities bekreftes aldri av claim, og aldri av abonnement. En klientpåstand
+ignoreres, og egenskapene står som ubekreftede til en serverkontrollert
+verifisering har vist hva installasjonen faktisk kan.
+
+## Sikkerhet
+
+Ingen automatisk LinkedIn-innlogging, bestilling eller nedlasting. LinkedIn-data
+kommer kun fra brukerens egen offisielle ZIP-eksport. Felles regler:
+`../common/SECURITY.md`. Verktøysemantikk: `../common/tools.json`.

@@ -20,9 +20,14 @@ export type OauthAuthResult =
 
 const invalid: OauthAuthResult = { ok: false, status: 401, error: "invalid_token" };
 
+/**
+ * `requiredScope = null` autentiserer uten å kreve et bestemt scope. Det
+ * brukes av MCP-transporten, som må kunne svare på initialize/tools/list
+ * med et gyldig token og deretter håndheve scope per verktøy.
+ */
 export async function authenticateOauthRequest(
   request: Request,
-  requiredScope: string,
+  requiredScope: string | null,
 ): Promise<OauthAuthResult> {
   const origin = publicAppOrigin();
   if (!origin.ok) return { ok: false, status: 500, error: "server_error" };
@@ -34,7 +39,7 @@ export async function authenticateOauthRequest(
   const verified = await verifyOauthAccessToken(header.slice(7).trim(), {
     resource: urls.resource,
     issuer: urls.issuer,
-    requiredScope,
+    ...(requiredScope ? { requiredScope } : {}),
   });
   if (!verified.ok) {
     if (verified.reason === "not_configured")

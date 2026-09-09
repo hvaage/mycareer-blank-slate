@@ -54,20 +54,30 @@ Forutsetninger som alle må være oppfylt før tabellen tas i bruk:
 | L7 | `run` med workflow slått av i preferansene | avvist | kjøres likevel |
 | L8 | Capabilities etter claim | alle egenskaper står som ubekreftet, uansett hva klienten påstår | en egenskap er `true` uten fullført serverkontrollert challenge |
 | L10 | Capability-challenge (når implementert) | egenskap settes `true` først etter at serveren har observert den faktisk utført | verdi utledet av abonnement eller klientpåstand |
+| M1 | MCP `initialize` + `tools/list` i klienten | begge verktøyene vises med riktige scopes og annotations | verktøy mangler eller har feil navn |
+| M2 | OAuth-oppdagelse fra `401` | klienten finner autorisasjonsserveren via `WWW-Authenticate` og fullfører PKCE | klienten ber om en statisk nøkkel |
+| M3 | `karrierenmin_status` over MCP | samme innhold som REST-statusen | avvik mellom lagene |
+| M4 | `karrierenmin_run` over MCP | `not_enabled` eller `not_available`, ingen kjøring opprettet | falsk suksess |
+| M5 | Tilgang uten `karriere.workflow.run` | HTTP 200 med verktøyfeil `insufficient_scope` | verktøyet kjører likevel |
+| M6 | Frakobling midt i en økt | neste kall gir `401` | agenten har fortsatt tilgang |
 | L9 | Lekkasjekontroll | verken kode eller token finnes i agentens logg, svar eller URL | funnet noe sted |
 
 ## 3. Blokkeringer
 
-- **Live E2E:** sperret. Krever ekte MCP-/plugin-transport, autentisering,
-  installasjon og konto hos leverandøren. Ingen av delene finnes. Ikke gjort.
-- **MCP:** ikke implementert. Spesifikasjon i `ai-integrations-mcp-oauth-spec.md`.
+- **Live E2E:** IKKE KJØRT. MCP-transporten og OAuth finnes nå, men en live
+  test krever installasjon og ekte konto hos ChatGPT/Codex, Claude, Gemini, Grok
+  eller Microsoft Copilot, samt en publisert kanonisk origin. Ingen av delene er
+  gjort i denne leveransen.
+- **MCP:** implementert. Sesjonsløs Streamable HTTP på `POST /api/public/mcp`,
+  verktøyene `karrierenmin_status` og `karrierenmin_run`, scope per verktøy.
+  Dekket av handler-, protokoll-, sikkerhets- og leverandørmatrise-tester.
 - **Capability-verifisering:** ikke implementert. Claim lagrer alltid tomme,
   ubekreftede egenskaper.
 - **Marketplace:** ingen av pakkene er innsendt til noen offisiell katalog.
 - **Innkommende e-post:** DNS og `INBOUND_EMAIL_DOMAIN` er ikke satt.
   Se `inbound-email-domain-setup.md`. Grensesnittet viser nøytral ventestatus.
-- **Rate limiting:** per serverinstans, i minnet. Ikke distribuert. Robust
-  variant krever egen tabell, altså skjemaendring, som ikke er autorisert.
+- **Rate limiting:** claim bruker distribuert `claim_rate_events`. MCP-laget har
+  ingen egen ratebegrensning utover OAuth-tokenets levetid og revokering.
 - **Ikke-kjørt migrasjon:** ingen. Ingen ny migrasjonsfil var nødvendig.
 - **Publisering:** ikke gjort.
 

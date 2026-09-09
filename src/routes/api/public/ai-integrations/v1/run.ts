@@ -1,15 +1,15 @@
 // POST /api/public/ai-integrations/v1/run
 //
-// Ber om en kjøring av en allowlistet arbeidsflyt. Tokenet identifiserer
-// integrasjon og bruker; user_id og integration_id fra forespørselen leses aldri.
+// KOMPATIBILITETSLAG. Den kanoniske transporten er MCP på
+// /api/public/mcp (verktøyet `karrierenmin_run`). Ruten bruker nøyaktig
+// samme domenelag og samme feilsemantikk.
 //
-// ÆRLIGHET FRAMFOR FASADE: denne fasen har ingen eksisterende, sikker
-// backendfunksjon for agentutløst jobbimport eller karrierelogg. Inntak skjer
-// via signert e-post-webhook og brukerens egen LinkedIn-ZIP-import. Ruten
-// returnerer derfor eksplisitt not_available og later ALDRI som om noe kjørte.
+// ÆRLIGHET FRAMFOR FASADE: ingen arbeidsflyt kan startes av en assistent i
+// denne fasen. Inntak skjer via signert e-post-webhook og brukerens egen
+// LinkedIn-ZIP-import. Ruten later ALDRI som om noe kjørte.
 
 import { createFileRoute } from "@tanstack/react-router";
-import { isAgentWorkflowKind, WORKFLOW_PREFERENCE_KEY } from "@/lib/ai-integrations/claim-contract";
+import { isAgentWorkflowKind } from "@/lib/ai-integrations/claim-contract";
 
 export const Route = createFileRoute("/api/public/ai-integrations/v1/run")({
   server: {
@@ -19,7 +19,6 @@ export const Route = createFileRoute("/api/public/ai-integrations/v1/run")({
           await import("@/lib/ai-integrations/agent-auth.server");
         const auth = await authenticateAgentRequest(request);
         if ("error" in auth) return auth.error;
-        const { integration } = auth;
 
         let body: unknown;
         try {
@@ -33,34 +32,10 @@ export const Route = createFileRoute("/api/public/ai-integrations/v1/run")({
           return agentFail(400, "invalid_input", "Ukjent arbeidsflyt.");
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: prefs } = await supabaseAdmin
-          .from("automation_preferences")
-          .select(
-            "job_email_import_enabled, career_email_suggestions_enabled, linkedin_ready_detection_enabled",
-          )
-          .eq("user_id", integration.userId)
-          .maybeSingle();
-
-        const enabled =
-          ((prefs ?? {}) as Record<string, boolean | undefined>)[WORKFLOW_PREFERENCE_KEY[kind]] ===
-          true;
-        if (!enabled) {
-          return agentFail(403, "not_enabled", "Brukeren har ikke slått på denne arbeidsflyten.");
-        }
-
-        return Response.json(
-          {
-            ok: false,
-            error: {
-              code: "not_available",
-              message:
-                "Arbeidsflyten kan ikke startes av en assistent ennå. Ingen kjøring ble opprettet.",
-            },
-            workflow_kind: kind,
-          },
-          { status: 501 },
-        );
+        const { requestWorkflowRun, RUN_ERROR_HTTP_STATUS } =
+          await import("@/lib/ai-integrations/agent-domain.server");
+        const result = await requestWorkflowRun(auth.integration.userId, kind);
+        return Response.json(result, { status: RUN_ERROR_HTTP_STATUS[result.error.code] });
       },
     },
   },
