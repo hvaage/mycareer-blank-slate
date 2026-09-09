@@ -244,14 +244,16 @@ describe("leverandørspesifikk installasjonssannhet", () => {
       const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
       // Kun REST-kompatibilitetseksempelet kan finnes — ingen MCP-klientkonfigurasjon.
       expect(files.filter((f) => f !== "tools.example.json")).toEqual([]);
-      const readme = readFileSync(join(dir, "README.md"), "utf8");
+      const readme = readFileSync(join(dir, "README.md"), "utf8").replace(/\s+/g, " ");
       expect(readme).toContain("ingen importerbar konfigurasjonsfil");
     });
   }
 
   it("ingen pakke påstår live E2E-verifisering", () => {
     for (const dir of Object.values(PACKAGE_DIR)) {
-      const readme = readFileSync(join(ROOT, dir, "README.md"), "utf8").toLowerCase();
+      const readme = readFileSync(join(ROOT, dir, "README.md"), "utf8")
+        .toLowerCase()
+        .replace(/\s+/g, " ");
       expect(readme).toContain("ikke verifisert ende-til-ende");
     }
   });
