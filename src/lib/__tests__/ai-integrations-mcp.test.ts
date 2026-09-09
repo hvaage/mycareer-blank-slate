@@ -29,7 +29,7 @@ import {
   validateMethodParams,
 } from "@/lib/ai-integrations/mcp-contract";
 import { RequestIdSchema } from "@modelcontextprotocol/sdk/types.js";
-import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv.js";
+import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { OAUTH_PATHS } from "@/lib/ai-integrations/oauth-config.server";
 
 
