@@ -1,0 +1,31 @@
+{
+  "$status": "DESIGNMAL, IKKE INSTALLERBAR. Ikke MCP. Beskriver to REST-kall og kan ikke lastes inn som en fungerende verktøykonfigurasjon.",
+  "$token_note": "Tokenet lagres ikke automatisk fra claim-svaret. Brukeren må selv legge det i plattformens secret-lager.",
+  "$oauth_note": "Ingen innebygd callback for Copilot. Drift må konfigurere den faktiske adressen fra Copilot Studio i OAUTH_EXTRA_REDIRECT_URIS.",
+  "base_url": "https://REPLACE-WITH-YOUR-PUBLIC-HOST",
+  "auth": {
+    "type": "bearer",
+    "header": "Authorization",
+    "value_from_secret": "KARRIERENMIN_INTEGRATION_TOKEN",
+    "$note": "Gjelder kun status. Claim kalles uten token."
+  },
+  "tools": [
+    {
+      "name": "karrierenmin_claim",
+      "method": "POST",
+      "path": "/api/public/ai-integrations/claim",
+      "auth": "none",
+      "body": {
+        "provider": "copilot",
+        "setup_code": "<engangskode fra brukeren>"
+      },
+      "$capabilities_note": "Capabilities sendes ikke. Serveren ignorerer klientpåstander og lagrer tomme, ubekreftede egenskaper. Aldri utledet fra abonnement."
+    },
+    {
+      "name": "karrierenmin_status",
+      "method": "GET",
+      "path": "/api/public/ai-integrations/v1/status",
+      "auth": "bearer"
+    }
+  ]
+}

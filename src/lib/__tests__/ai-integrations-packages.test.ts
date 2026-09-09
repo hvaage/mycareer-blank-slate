@@ -11,6 +11,7 @@ const PACKAGE_DIR: Record<string, string> = {
   claude: "claude",
   openai: "openai",
   gemini: "gemini",
+  copilot: "copilot",
 };
 
 function readAll(dir: string): string {
@@ -20,7 +21,7 @@ function readAll(dir: string): string {
     .join("\n");
 }
 
-describe("fire likestilte design-/kildepakker (ikke installerbare)", () => {
+describe("fem likestilte design-/kildepakker (ikke installerbare)", () => {
   it("har felles kontrakt og sikkerhetsregler", () => {
     for (const file of ["CONTRACT.md", "SECURITY.md", "tools.json", "config.example.json"]) {
       expect(existsSync(join(ROOT, "common", file))).toBe(true);

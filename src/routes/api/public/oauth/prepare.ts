@@ -22,7 +22,7 @@ import {
   type AuthorizeParams,
 } from "@/lib/ai-integrations/oauth-request";
 import { sealAuthorizeRequest, sealReturnState } from "@/lib/ai-integrations/oauth-state.server";
-import { loadClient } from "@/lib/ai-integrations/oauth-store.server";
+import { loadClientForRequest } from "@/lib/ai-integrations/oauth-store.server";
 
 const noStore = { "Cache-Control": "no-store", Pragma: "no-cache" };
 
@@ -57,7 +57,7 @@ export const Route = createFileRoute("/api/public/oauth/prepare")({
           );
         }
 
-        const client = await loadClient(shape.value.client_id);
+        const client = await loadClientForRequest(shape.value.client_id);
         const checked = validateAgainstClient(shape.value, client, urls.resource);
         if (!checked.ok) {
           // Bare når redirect_uri allerede er bekreftet eksakt kan feilen

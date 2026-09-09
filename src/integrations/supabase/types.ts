@@ -7633,6 +7633,7 @@ export type Database = {
           expires_at: string
           id: string
           redirect_uri: string
+          resource: string | null
           scopes: string[]
           user_id: string
         }
@@ -7647,6 +7648,7 @@ export type Database = {
           expires_at: string
           id?: string
           redirect_uri: string
+          resource?: string | null
           scopes: string[]
           user_id: string
         }
@@ -7661,6 +7663,7 @@ export type Database = {
           expires_at?: string
           id?: string
           redirect_uri?: string
+          resource?: string | null
           scopes?: string[]
           user_id?: string
         }
@@ -7689,9 +7692,15 @@ export type Database = {
           client_secret_hash: string | null
           client_type: string
           created_at: string
+          expires_at: string | null
           id: string
           is_active: boolean
+          last_used_at: string | null
+          metadata_expires_at: string | null
+          metadata_url: string | null
+          metadata_validated_at: string | null
           redirect_uris: string[]
+          registration_method: string
           updated_at: string
         }
         Insert: {
@@ -7701,9 +7710,15 @@ export type Database = {
           client_secret_hash?: string | null
           client_type: string
           created_at?: string
+          expires_at?: string | null
           id?: string
           is_active?: boolean
+          last_used_at?: string | null
+          metadata_expires_at?: string | null
+          metadata_url?: string | null
+          metadata_validated_at?: string | null
           redirect_uris: string[]
+          registration_method?: string
           updated_at?: string
         }
         Update: {
@@ -7713,9 +7728,15 @@ export type Database = {
           client_secret_hash?: string | null
           client_type?: string
           created_at?: string
+          expires_at?: string | null
           id?: string
           is_active?: boolean
+          last_used_at?: string | null
+          metadata_expires_at?: string | null
+          metadata_url?: string | null
+          metadata_validated_at?: string | null
           redirect_uris?: string[]
+          registration_method?: string
           updated_at?: string
         }
         Relationships: []
@@ -7827,6 +7848,51 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "oauth_refresh_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_security_events: {
+        Row: {
+          client_row_id: string | null
+          detail: Json
+          event_type: string
+          grant_id: string | null
+          id: string
+          occurred_at: string
+          user_id: string | null
+        }
+        Insert: {
+          client_row_id?: string | null
+          detail?: Json
+          event_type: string
+          grant_id?: string | null
+          id?: string
+          occurred_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          client_row_id?: string | null
+          detail?: Json
+          event_type?: string
+          grant_id?: string | null
+          id?: string
+          occurred_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_security_events_client_row_id_fkey"
+            columns: ["client_row_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_security_events_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_grants"
             referencedColumns: ["id"]
           },
         ]
@@ -11444,6 +11510,7 @@ export type Database = {
         }
         Returns: string
       }
+      oauth_cleanup_expired_clients: { Args: never; Returns: number }
       oauth_is_valid_scope_set: {
         Args: { p_scopes: string[] }
         Returns: boolean
@@ -11463,6 +11530,27 @@ export type Database = {
           family_id: string
           grant_id: string
           ok: boolean
+          reason: string
+          scopes: string[]
+          user_id: string
+        }[]
+      }
+      oauth_redeem_authorization_code_v2: {
+        Args: {
+          p_client_row_id: string
+          p_code_challenge: string
+          p_code_hash: string
+          p_redirect_uri: string
+          p_refresh_expires_at: string
+          p_refresh_token_hash: string
+          p_resource: string
+        }
+        Returns: {
+          ai_integration_id: string
+          family_id: string
+          grant_id: string
+          ok: boolean
+          provider: string
           reason: string
           scopes: string[]
           user_id: string
@@ -11501,6 +11589,43 @@ export type Database = {
           reason: string
           scopes: string[]
           user_id: string
+        }[]
+      }
+      oauth_rotate_refresh_token_v2: {
+        Args: {
+          p_client_row_id: string
+          p_new_expires_at: string
+          p_new_token_hash: string
+          p_token_hash: string
+        }
+        Returns: {
+          ai_integration_id: string
+          family_id: string
+          grant_id: string
+          ok: boolean
+          provider: string
+          reason: string
+          scopes: string[]
+          user_id: string
+        }[]
+      }
+      oauth_upsert_cimd_client: {
+        Args: {
+          p_allowed_scopes: string[]
+          p_client_id: string
+          p_client_name: string
+          p_metadata_expires_at: string
+          p_metadata_url: string
+          p_redirect_uris: string[]
+        }
+        Returns: {
+          allowed_scopes: string[]
+          client_id: string
+          client_name: string
+          client_type: string
+          id: string
+          is_active: boolean
+          redirect_uris: string[]
         }[]
       }
       opportunity_fingerprint: {

@@ -24,12 +24,9 @@ function AuthCallback() {
       const accessToken = hashParams.get("access_token");
       const refreshToken = hashParams.get("refresh_token");
 
-      console.info("auth callback input", {
-        href: window.location.href.split("#")[0],
-        hasCode: url.searchParams.has("code"),
-        hasHash: Boolean(window.location.hash),
-        hashKeys: rawHash ? Array.from(new URLSearchParams(rawHash).keys()) : [],
-      });
+      // MERK: her logges det bevisst ingenting. Adresse, spørrestreng,
+      // kode, state og tokener er legitimasjon og skal aldri i konsollen.
+
 
       try {
         let session: { user?: { id?: string } } | null = null;
@@ -40,7 +37,7 @@ function AuthCallback() {
             refresh_token: refreshToken,
           });
           if (setErr) {
-            console.error("setSession failed", setErr?.message);
+            console.error("innlogging: kunne ikke etablere økt", setErr?.message);
             if (!cancelled) setError("Vi klarte ikke å fullføre innloggingen. Prøv igjen.");
             return;
           }
@@ -49,7 +46,7 @@ function AuthCallback() {
         } else if (code) {
           const { data, error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeErr) {
-            console.error("exchangeCodeForSession failed", exchangeErr?.message);
+            console.error("innlogging: utveksling feilet", exchangeErr?.message);
             if (!cancelled) setError("Vi klarte ikke å fullføre innloggingen. Prøv igjen.");
             return;
           }
@@ -59,15 +56,11 @@ function AuthCallback() {
         if (!session) {
           const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
           if (sessionError) {
-            console.error("getSession failed", sessionError?.message);
+            console.error("innlogging: oppslag av økt feilet", sessionError?.message);
           }
           session = sessionData?.session ?? null;
         }
 
-        console.info("auth callback session", {
-          hasSession: Boolean(session),
-          hasUser: Boolean(session?.user?.id),
-        });
 
         if (cancelled) return;
 
@@ -101,7 +94,7 @@ function AuthCallback() {
         navigate({ to: target, replace: true });
       } catch (e) {
         if (cancelled) return;
-        console.error("auth/callback unexpected", (e as Error)?.message);
+        console.error("innlogging: uventet feil", (e as Error)?.message);
         setError("Vi klarte ikke å fullføre innloggingen. Prøv igjen.");
       }
     };

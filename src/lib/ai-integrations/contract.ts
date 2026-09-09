@@ -7,7 +7,7 @@
 // bekreftede capabilities. Brukeren velger aldri driftsform selv.
 // ============================================================
 
-export const AI_PROVIDERS = ["grok", "claude", "openai", "gemini"] as const;
+export const AI_PROVIDERS = ["grok", "claude", "openai", "gemini", "copilot"] as const;
 export type AiProvider = (typeof AI_PROVIDERS)[number];
 
 /** Visningsnavn. Rekkefølgen er alfabetisk på visningsnavn — ingen anbefaling. */
@@ -16,10 +16,18 @@ export const AI_PROVIDER_LABELS: Record<AiProvider, string> = {
   openai: "ChatGPT / Codex",
   gemini: "Gemini",
   grok: "Grok",
+  copilot: "Microsoft Copilot",
 };
 
-/** Fire likestilte valg, vist i fast nøytral rekkefølge. */
-export const AI_PROVIDER_ORDER: readonly AiProvider[] = ["claude", "openai", "gemini", "grok"];
+/** Fem likestilte valg, vist i fast nøytral rekkefølge. Ingen er forhåndsvalgt. */
+export const AI_PROVIDER_ORDER: readonly AiProvider[] = [
+  "claude",
+  "openai",
+  "gemini",
+  "grok",
+  "copilot",
+];
+
 
 export const AI_PLAN_TIERS = ["free", "paid", "unknown"] as const;
 export type AiPlanTier = (typeof AI_PLAN_TIERS)[number];

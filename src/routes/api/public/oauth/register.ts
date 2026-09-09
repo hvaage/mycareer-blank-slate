@@ -1,46 +1,43 @@
-// POST /api/public/oauth/register (RFC 7591)
+// POST /api/public/oauth/register (RFC 7591) — KOMPATIBILITETSFALLBACK
 //
-// AV SOM STANDARD. Uten OAUTH_DYNAMIC_REGISTRATION=enabled svarer ruten
-// 404, og registration_endpoint annonseres da heller ikke i discovery.
+// Foretrukket vei er CIMD: client_id er en https-URL til klientens eget
+// metadatadokument, og ingen registrering trengs. DCR finnes bare for
+// klienter som ikke støtter CIMD, og er AV som standard. Uten
+// OAUTH_DYNAMIC_REGISTRATION=enabled svarer ruten 404, og
+// registration_endpoint annonseres da heller ikke i discovery.
 //
 // Når den er slått på:
-//   - kun public clients (ingen client_secret utstedes noen gang)
-//   - kun HTTPS redirect URI, uten fragment
-//   - ingen wildcard, ingen private/loopback-adresser (med mindre
-//     OAUTH_ALLOW_LOOPBACK_REDIRECTS=1 i utviklingsmiljø)
-//   - distribuert ratebegrensning via den eksisterende atomiske telleren
+//   - kun public clients; det utstedes aldri en client_secret
+//   - redirect_uris må treffe en EKSAKT allowliste (kjente callbacker
+//     for ChatGPT og Claude, pluss driftsstyrte adresser)
+//   - ingen loopback, ingen private adresser, ingen wildcard, ingen
+//     userinfo, fragment eller ukjent port
+//   - Microsoft Copilot og Grok har ingen innebygde adresser og er
+//     blokkert til drift konfigurerer en faktisk callback
+//   - klienten får kort utløp og ryddes bort automatisk
+//   - distribuert ratebegrensning via den atomiske databasetelleren
 
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  allowLoopbackRedirects,
-  dynamicRegistrationEnabled,
-} from "@/lib/ai-integrations/oauth-config.server";
+import { dynamicRegistrationEnabled } from "@/lib/ai-integrations/oauth-config.server";
 import { OAUTH_SCOPES, isValidScopeSet } from "@/lib/ai-integrations/oauth-contract";
+import {
+  isAllowlistedDcrRedirect,
+  parseExtraRedirectAllowlist,
+} from "@/lib/ai-integrations/oauth-client-policy";
 import { randomToken } from "@/lib/ai-integrations/oauth-crypto.server";
 import { claimRateCheck } from "@/lib/ai-integrations/claim-rate-limit.server";
 import { admin } from "@/lib/ai-integrations/oauth-store.server";
 
 const noStore = { "Cache-Control": "no-store", Pragma: "no-cache" };
 
-const PRIVATE_HOST =
-  /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?)/i;
+/** Maks størrelse på registreringsforespørselen. */
+export const DCR_MAX_BODY_BYTES = 8 * 1024;
+/** Registrerte DCR-klienter lever kort og revalideres ved behov. */
+export const DCR_CLIENT_TTL_DAYS = 30;
 
-/** Eksporteres for test: én enkelt redirect URI. */
-export function isRegistrableRedirectUri(value: unknown, allowLoopback: boolean): boolean {
-  if (typeof value !== "string" || value.trim() === "") return false;
-  if (value.includes("*")) return false;
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return false;
-  }
-  if (url.hash) return false;
-  if (/userinfo/i.test(url.pathname)) return false;
-  if (url.username || url.password) return false;
-  const loopback = PRIVATE_HOST.test(url.hostname) || PRIVATE_HOST.test(url.host);
-  if (loopback) return allowLoopback;
-  return url.protocol === "https:";
+/** Eksporteres for test: én enkelt redirect URI mot allowlisten. */
+export function isRegistrableRedirectUri(value: unknown, extraAllowlist: string[] = []): boolean {
+  return isAllowlistedDcrRedirect(value, extraAllowlist);
 }
 
 export const Route = createFileRoute("/api/public/oauth/register")({
@@ -63,10 +60,24 @@ export const Route = createFileRoute("/api/public/oauth/register")({
           );
         }
 
+        const raw = await request.text();
+        if (raw.length > DCR_MAX_BODY_BYTES) {
+          return Response.json(
+            { error: "invalid_client_metadata" },
+            { status: 413, headers: noStore },
+          );
+        }
+
         let body: Record<string, unknown>;
         try {
-          body = (await request.json()) as Record<string, unknown>;
+          body = JSON.parse(raw) as Record<string, unknown>;
         } catch {
+          return Response.json(
+            { error: "invalid_client_metadata" },
+            { status: 400, headers: noStore },
+          );
+        }
+        if (!body || typeof body !== "object" || Object.keys(body).length > 20) {
           return Response.json(
             { error: "invalid_client_metadata" },
             { status: 400, headers: noStore },
@@ -75,18 +86,27 @@ export const Route = createFileRoute("/api/public/oauth/register")({
 
         const name = body["client_name"];
         const uris = body["redirect_uris"];
+        const authMethod = body["token_endpoint_auth_method"];
         if (typeof name !== "string" || name.trim() === "" || name.length > 120) {
           return Response.json(
             { error: "invalid_client_metadata" },
             { status: 400, headers: noStore },
           );
         }
+        if (authMethod !== undefined && authMethod !== "none") {
+          return Response.json(
+            { error: "invalid_client_metadata" },
+            { status: 400, headers: noStore },
+          );
+        }
+
+        const extra = parseExtraRedirectAllowlist(process.env["OAUTH_EXTRA_REDIRECT_URIS"]);
         if (
           !Array.isArray(uris) ||
           uris.length === 0 ||
-          uris.length > 5 ||
+          uris.length > 3 ||
           new Set(uris).size !== uris.length ||
-          !uris.every((u) => isRegistrableRedirectUri(u, allowLoopbackRedirects()))
+          !uris.every((u) => isRegistrableRedirectUri(u, extra))
         ) {
           return Response.json(
             { error: "invalid_redirect_uri" },
@@ -103,20 +123,36 @@ export const Route = createFileRoute("/api/public/oauth/register")({
         }
 
         const clientId = `dcr_${randomToken(16)}`;
+        const expiresAt = new Date(
+          Date.now() + DCR_CLIENT_TTL_DAYS * 24 * 60 * 60 * 1000,
+        ).toISOString();
         const db = await admin();
-        const { error } = await db.from("oauth_clients").insert({
-          client_id: clientId,
-          client_name: name.trim(),
-          client_type: "public",
-          redirect_uris: uris as string[],
-          allowed_scopes: requested,
-        });
-        if (error) {
+        const { data: inserted, error } = await db
+          .from("oauth_clients")
+          .insert({
+            client_id: clientId,
+            client_name: name.trim(),
+            client_type: "public",
+            redirect_uris: uris as string[],
+            allowed_scopes: requested,
+            registration_method: "dcr",
+            expires_at: expiresAt,
+          })
+          .select("id")
+          .maybeSingle();
+        if (error || !inserted) {
           return Response.json(
             { error: "invalid_client_metadata" },
             { status: 400, headers: noStore },
           );
         }
+
+        // Sikkerhetslogg uten hemmeligheter eller persondata.
+        await db.from("oauth_security_events").insert({
+          event_type: "dcr_client_registered",
+          client_row_id: (inserted as { id: string }).id,
+          detail: { redirect_uri_count: uris.length },
+        });
 
         return Response.json(
           {
@@ -127,6 +163,8 @@ export const Route = createFileRoute("/api/public/oauth/register")({
             response_types: ["code"],
             token_endpoint_auth_method: "none",
             scope: requested.join(" "),
+            client_id_issued_at: Math.floor(Date.now() / 1000),
+            client_secret_expires_at: 0,
           },
           { status: 201, headers: noStore },
         );
