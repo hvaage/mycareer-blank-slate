@@ -191,3 +191,68 @@ describe("ingen hemmeligheter i repoet", () => {
     expect(all).not.toMatch(/sb_(secret|publishable)_/);
   });
 });
+
+describe("leverandørspesifikk installasjonssannhet", () => {
+  const ENDPOINT = "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp";
+
+  it("common/connection.json er et dokumentasjonsmanifest, ikke en importerbar fil", () => {
+    const manifest = JSON.parse(readFileSync(join(ROOT, "common", "connection.json"), "utf8")) as {
+      $dette_er_dokumentasjon: string;
+      endpoint: string;
+      transport: string;
+      oauth: { resource: string; static_token: boolean };
+      protocol_versions: string[];
+      tools: { name: string; scope: string }[];
+    };
+    expect(manifest.$dette_er_dokumentasjon).toContain("IKKE en fil noen klient kan importere");
+    expect(manifest.endpoint).toBe(ENDPOINT);
+    expect(manifest.transport).toBe("streamable-http");
+    expect(manifest.oauth.resource).toBe(ENDPOINT);
+    expect(manifest.oauth.static_token).toBe(false);
+    expect(manifest.protocol_versions).toEqual(["2025-11-25", "2025-06-18"]);
+    expect(manifest.tools.map((t) => t.name)).toEqual([
+      "karrierenmin_status",
+      "karrierenmin_run",
+    ]);
+  });
+
+  it("Claude Code får .mcp.json-formatet med remote HTTP", () => {
+    const path = join(ROOT, "claude", "mcp.json");
+    const config = JSON.parse(readFileSync(path, "utf8")) as {
+      mcpServers: Record<string, { type: string; url: string }>;
+    };
+    expect(config.mcpServers["karrierenmin"]).toEqual({ type: "http", url: ENDPOINT });
+    const body = readFileSync(path, "utf8");
+    expect(body).toContain(".mcp.json");
+    expect(body.toLowerCase()).toContain("ikke lokal stdio");
+  });
+
+  it("Gemini CLI får settings.json med httpUrl, ikke type/url", () => {
+    const path = join(ROOT, "gemini", "settings.example.json");
+    const config = JSON.parse(readFileSync(path, "utf8")) as {
+      mcpServers: Record<string, Record<string, unknown>>;
+    };
+    const server = config.mcpServers["karrierenmin"]!;
+    expect(server["httpUrl"]).toBe(ENDPOINT);
+    expect(server["url"]).toBeUndefined();
+    expect(server["type"]).toBeUndefined();
+  });
+
+  for (const provider of ["openai", "copilot", "grok"] as const) {
+    it(`${provider} får UI-veiledning, ikke en oppdiktet konfigurasjonsfil`, () => {
+      const dir = join(ROOT, provider);
+      const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+      // Kun REST-kompatibilitetseksempelet kan finnes — ingen MCP-klientkonfigurasjon.
+      expect(files.filter((f) => f !== "tools.example.json")).toEqual([]);
+      const readme = readFileSync(join(dir, "README.md"), "utf8");
+      expect(readme).toContain("ingen importerbar konfigurasjonsfil");
+    });
+  }
+
+  it("ingen pakke påstår live E2E-verifisering", () => {
+    for (const dir of Object.values(PACKAGE_DIR)) {
+      const readme = readFileSync(join(ROOT, dir, "README.md"), "utf8").toLowerCase();
+      expect(readme).toContain("ikke verifisert ende-til-ende");
+    }
+  });
+});
