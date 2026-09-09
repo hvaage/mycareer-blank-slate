@@ -49,12 +49,15 @@ let authResult: AuthResult = {
 };
 
 const authSpy = vi.fn();
+let authThrows = false;
 vi.mock("@/lib/ai-integrations/oauth-auth.server", () => ({
   authenticateOauthRequest: (request: Request, scope: string | null) => {
     authSpy(request, scope);
+    if (authThrows) throw new Error("hemmelig db-tekst: token abc123");
     return Promise.resolve(authResult);
   },
 }));
+
 
 let preferences: Record<string, boolean> = {
   job_email_import_enabled: true,
