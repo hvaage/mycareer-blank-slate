@@ -1,0 +1,10 @@
+{
+  "$bruk": "Gemini CLI leser ~/.gemini/settings.json (eller .gemini/settings.json i prosjektet). Slå innholdet under sammen med din egen fil. Streamable HTTP-feltet heter httpUrl.",
+  "$status": "Formatet er dokumentert av Gemini CLI. Installasjonen er IKKE live-verifisert hos leverandøren.",
+  "$auth": "OAuth 2.1 med PKCE. Ingen statisk nøkkel settes her; klienten følger 401-svaret fra endepunktet.",
+  "mcpServers": {
+    "karrierenmin": {
+      "httpUrl": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp"
+    }
+  }
+}
