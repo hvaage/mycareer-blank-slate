@@ -1,0 +1,27 @@
+{
+  "$dette_er_dokumentasjon": "Dette er IKKE en fil noen klient kan importere. Den beskriver tilkoblingen i ett format slik at hver leverandørmappe kan vise samme sannhet. Bruk verdiene under i leverandørens egen konfigurasjonsfil eller installasjonsveiviser.",
+  "$live_e2e": "Ikke live-verifisert hos noen leverandør.",
+  "server_name": "karrierenmin",
+  "transport": "streamable-http",
+  "endpoint": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp",
+  "http_method": "POST",
+  "oauth": {
+    "type": "oauth2.1-pkce",
+    "resource": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/api/public/mcp",
+    "protected_resource_metadata": "https://REPLACE-WITH-YOUR-PUBLIC-HOST/.well-known/oauth-protected-resource/api/public/mcp",
+    "discovery": "401 + WWW-Authenticate fra endepunktet",
+    "static_token": false
+  },
+  "protocol_versions": ["2025-11-25", "2025-06-18"],
+  "tools": [
+    { "name": "karrierenmin_status", "scope": "karriere.status.read" },
+    { "name": "karrierenmin_run", "scope": "karriere.workflow.run" }
+  ],
+  "provider_setup": {
+    "claude": "Fil: lagre claude/mcp.json som .mcp.json i prosjektroten, eller kjør `claude mcp add --transport http karrierenmin <endpoint>`.",
+    "gemini": "Fil: slå gemini/settings.example.json sammen med ~/.gemini/settings.json. Streamable HTTP-feltet heter httpUrl.",
+    "openai": "Ingen importerbar fil. Legges inn i ChatGPT/Codex sitt eget grensesnitt for koblinger/utviklermodus med server-URL.",
+    "copilot": "Ingen importerbar fil. Legges inn via Copilot Studio sin MCP-veiviser / egendefinert kobling med server-URL.",
+    "grok": "Ingen dokumentert konfigurasjonsfil vi har verifisert. Legg inn server-URL i klientens eget grensesnitt."
+  }
+}
