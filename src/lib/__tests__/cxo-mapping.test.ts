@@ -29,7 +29,21 @@ describe("CxO-mapping", () => {
 
   it("inneholder alle forventede CxO-er", () => {
     const abbrs = new Set(getAllCxOMappings().map((m) => m.abbreviation));
-    for (const expected of ["CEO", "CFO", "COO", "CTO", "CIO", "CISO", "CMO", "CRO", "CCO", "CHRO", "CPO", "CDO", "CLO"]) {
+    for (const expected of [
+      "CEO",
+      "CFO",
+      "COO",
+      "CTO",
+      "CIO",
+      "CISO",
+      "CMO",
+      "CRO",
+      "CCO",
+      "CHRO",
+      "CPO",
+      "CDO",
+      "CLO",
+    ]) {
       expect(abbrs.has(expected)).toBe(true);
     }
   });

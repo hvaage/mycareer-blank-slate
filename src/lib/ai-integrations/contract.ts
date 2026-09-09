@@ -28,7 +28,6 @@ export const AI_PROVIDER_ORDER: readonly AiProvider[] = [
   "copilot",
 ];
 
-
 export const AI_PLAN_TIERS = ["free", "paid", "unknown"] as const;
 export type AiPlanTier = (typeof AI_PLAN_TIERS)[number];
 

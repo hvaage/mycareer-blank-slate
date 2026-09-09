@@ -19,7 +19,11 @@ import {
   parseExtraRedirectAllowlist,
   validateCimdMetadata,
 } from "@/lib/ai-integrations/oauth-client-policy";
-import { AI_PROVIDERS, AI_PROVIDER_LABELS, AI_PROVIDER_ORDER } from "@/lib/ai-integrations/contract";
+import {
+  AI_PROVIDERS,
+  AI_PROVIDER_LABELS,
+  AI_PROVIDER_ORDER,
+} from "@/lib/ai-integrations/contract";
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
@@ -192,7 +196,7 @@ describe("kildekontroll: callback lekker ingen credentials", () => {
     expect(src).not.toContain("console.info");
     expect(src).not.toMatch(/console\.(log|debug)/);
     for (const forbidden of [
-      "console.error(\"auth callback input",
+      'console.error("auth callback input',
       "window.location.href.split",
       "hashKeys",
     ]) {

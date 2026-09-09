@@ -70,10 +70,12 @@ export async function resolveCimdClient(clientIdUrl: string): Promise<CimdResult
     .eq("client_id", clientIdUrl)
     .maybeSingle();
 
-  const cachedRow = cached as (ClientRecord & {
-    registration_method?: string;
-    metadata_expires_at?: string | null;
-  }) | null;
+  const cachedRow = cached as
+    | (ClientRecord & {
+        registration_method?: string;
+        metadata_expires_at?: string | null;
+      })
+    | null;
 
   if (cachedRow?.registration_method === "manual") {
     // En forhåndsregistrert klient overstyres aldri av et hentet dokument.

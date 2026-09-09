@@ -45,7 +45,6 @@ export async function loadClientForRequest(clientId: string): Promise<ClientReco
   return client;
 }
 
-
 /** Aktive integrasjoner brukeren kan koble klienten til. */
 export async function eligibleIntegrations(userId: string) {
   const db = await admin();

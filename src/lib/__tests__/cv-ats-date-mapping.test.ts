@@ -56,7 +56,11 @@ const contact = {
 
 describe("parseSourceDate", () => {
   it("beholder måned når grunnlaget har den", () => {
-    expect(parseSourceDate("2019-04")).toEqual({ atsValue: "2019-04", precision: "month", reason: null });
+    expect(parseSourceDate("2019-04")).toEqual({
+      atsValue: "2019-04",
+      precision: "month",
+      reason: null,
+    });
   });
   it("dikter ikke opp måned for år-only", () => {
     expect(parseSourceDate("2019")).toEqual({
@@ -76,7 +80,16 @@ describe("parseSourceDate", () => {
 describe("buildAtsRoleDateMapping", () => {
   it("henter dato fra atomet, ikke fra teksten", () => {
     const s = snapshot([
-      { id: "a1", structured_data: { title: "Country Manager", employer: "Symantec", start_date: "1998-04", end_date: "2006-06", is_current: false } },
+      {
+        id: "a1",
+        structured_data: {
+          title: "Country Manager",
+          employer: "Symantec",
+          start_date: "1998-04",
+          end_date: "2006-06",
+          is_current: false,
+        },
+      },
     ]);
     const [m] = buildAtsRoleDateMapping([block("b1", 1, "a1")], s);
     expect(m!.startDate).toBe("1998-04");
@@ -87,7 +100,16 @@ describe("buildAtsRoleDateMapping", () => {
 
   it("formaterer pågående rolle uten oppdiktet sluttdato", () => {
     const s = snapshot([
-      { id: "a1", structured_data: { title: "CCO", employer: "Bember", start_date: "2024-08", end_date: null, is_current: true } },
+      {
+        id: "a1",
+        structured_data: {
+          title: "CCO",
+          employer: "Bember",
+          start_date: "2024-08",
+          end_date: null,
+          is_current: true,
+        },
+      },
     ]);
     const [m] = buildAtsRoleDateMapping([block("b1", 1, "a1")], s);
     expect(m!.isCurrent).toBe(true);
@@ -96,7 +118,15 @@ describe("buildAtsRoleDateMapping", () => {
 
   it("gir null med årsak når grunnlaget mangler dato", () => {
     const s = snapshot([
-      { id: "a1", structured_data: { title: "CEO", employer: "Profound Putters", start_date: "1900-01", end_date: null } },
+      {
+        id: "a1",
+        structured_data: {
+          title: "CEO",
+          employer: "Profound Putters",
+          start_date: "1900-01",
+          end_date: null,
+        },
+      },
     ]);
     const [m] = buildAtsRoleDateMapping([block("b1", 1, "a1")], s);
     expect(m!.startDate).toBeNull();
@@ -108,10 +138,32 @@ describe("buildAtsRoleDateMapping", () => {
 describe("buildAtsDraft", () => {
   it("overfører alle datoer fra grunnlaget til ATS-strukturen uten mapping_error", () => {
     const s = snapshot([
-      { id: "a1", structured_data: { title: "Country Manager", employer: "Symantec", start_date: "1998-04", end_date: "2006-06", is_current: false } },
-      { id: "a2", structured_data: { title: "CCO", employer: "Bember", start_date: "2024-08", end_date: null, is_current: true } },
+      {
+        id: "a1",
+        structured_data: {
+          title: "Country Manager",
+          employer: "Symantec",
+          start_date: "1998-04",
+          end_date: "2006-06",
+          is_current: false,
+        },
+      },
+      {
+        id: "a2",
+        structured_data: {
+          title: "CCO",
+          employer: "Bember",
+          start_date: "2024-08",
+          end_date: null,
+          is_current: true,
+        },
+      },
     ]);
-    const { draft, dateMapping } = buildAtsDraft([block("b1", 1, "a1"), block("b2", 2, "a2")], contact, s);
+    const { draft, dateMapping } = buildAtsDraft(
+      [block("b1", 1, "a1"), block("b2", 2, "a2")],
+      contact,
+      s,
+    );
     expect(draft.roles[0]!.start_date).toBe("1998-04");
     expect(draft.roles[0]!.end_date).toBe("2006-06");
     expect(draft.roles[1]!.start_date).toBe("2024-08");

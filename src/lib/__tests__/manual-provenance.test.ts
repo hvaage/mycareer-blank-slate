@@ -65,10 +65,10 @@ describe("manuelt resultat går gjennom den kanoniske lenkeflyten", () => {
   });
 
   it("RPC-en projiserer parent_atom_id via career_atom_project_parent", () => {
-    expect(manualResultFn).toMatch(
-      /PERFORM public\.career_atom_project_parent\(v_atom_id\)/,
+    expect(manualResultFn).toMatch(/PERFORM public\.career_atom_project_parent\(v_atom_id\)/);
+    expect(manualResultFn).not.toMatch(
+      /INSERT INTO public\.career_atoms[\s\S]{0,600}parent_atom_id/,
     );
-    expect(manualResultFn).not.toMatch(/INSERT INTO public\.career_atoms[\s\S]{0,600}parent_atom_id/);
   });
 
   it("endret eller arkivert rolle utløser trenger_ny_vurdering og ny projeksjon", () => {

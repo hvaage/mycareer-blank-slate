@@ -15,7 +15,12 @@ describe("cv-skills-kontrakt", () => {
   });
 
   it("frontendkontrakten inneholder ikke autoritativ backendlogikk", () => {
-    for (const forbidden of ["isEligibleAtom", "assessReadiness", "eligibleAtoms", "career_atoms"]) {
+    for (const forbidden of [
+      "isEligibleAtom",
+      "assessReadiness",
+      "eligibleAtoms",
+      "career_atoms",
+    ]) {
       expect(frontend).not.toContain(forbidden);
     }
   });

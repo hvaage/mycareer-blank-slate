@@ -179,7 +179,8 @@ export function validateCimdMetadata(
   }
   for (const uri of uris) {
     const httpsOk = isCleanHttpsUri(uri) && new URL(String(uri)).hostname === context.policy.host;
-    const loopbackOk = context.policy.allowLoopbackCallback === true && isClaudeLoopbackRedirect(uri);
+    const loopbackOk =
+      context.policy.allowLoopbackCallback === true && isClaudeLoopbackRedirect(uri);
     if (!httpsOk && !loopbackOk) return { ok: false, reason: "redirect_uri_rejected" };
   }
 

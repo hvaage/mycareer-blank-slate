@@ -53,7 +53,9 @@ describe("groupResultsByRole", () => {
 
 describe("isResultCandidate", () => {
   it("tar bare med resultattyper", () => {
-    expect(isResultCandidate(candidate({ id: "a", suggested_atom_type: "achievement" }))).toBe(true);
+    expect(isResultCandidate(candidate({ id: "a", suggested_atom_type: "achievement" }))).toBe(
+      true,
+    );
     expect(isResultCandidate(candidate({ id: "b", suggested_atom_type: "skill" }))).toBe(false);
   });
 });
