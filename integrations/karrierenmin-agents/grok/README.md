@@ -33,8 +33,8 @@ nøkkel legges i konfigurasjonen.
 
 ## Installasjon hos denne leverandøren
 
-Vi har ikke verifisert noe dokumentert konfigurasjonsfilformat for denne
-klienten, og legger derfor ingen slik fil her. Legg server-URL-en over inn i
+Det finnes ingen importerbar konfigurasjonsfil her: vi har ikke verifisert noe
+dokumentert konfigurasjonsfilformat for denne klienten. Legg server-URL-en over inn i
 klientens eget grensesnitt.
 
 Felles, leverandørnøytralt manifest (dokumentasjon, ikke importerbart):
