@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Copy, Info, KeyRound, Loader2, Mail, Linkedin, Unplug } from "lucide-react";
+import { Copy, Info, Loader2, Mail, Linkedin, Unplug } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
