@@ -18,10 +18,10 @@ brukes ikke lenger som webhook-signatur her.
 
 Handleren returnerer `503 inbound_not_configured` så lenge én av disse mangler:
 
-| Navn | Rolle |
-| --- | --- |
-| `INBOUND_EMAIL_DOMAIN` | Mottaksdomenet, f.eks. `jobb.karrierenmin.no`. Alias godtas kun på nøyaktig dette domenet. |
-| `MAILGUN_WEBHOOK_SIGNING_KEY` | Mailguns signeringsnøkkel for webhooken. |
+| Navn                          | Rolle                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------ |
+| `INBOUND_EMAIL_DOMAIN`        | Mottaksdomenet, f.eks. `jobb.karrierenmin.no`. Alias godtas kun på nøyaktig dette domenet. |
+| `MAILGUN_WEBHOOK_SIGNING_KEY` | Mailguns signeringsnøkkel for webhooken.                                                   |
 
 Legges inn under Prosjektinnstillinger → Secrets. Aldri i repo, aldri i chat.
 
@@ -37,12 +37,12 @@ Legges inn under Prosjektinnstillinger → Secrets. Aldri i repo, aldri i chat.
 Alle verdier hentes fra Mailguns eget dashboard. Ingen verdier er oppgitt her,
 fordi oppdiktede MX-, SPF- eller DKIM-verdier ville vært verre enn ingen.
 
-| Type | Navn | Verdi hentes fra |
-| --- | --- | --- |
-| MX (to poster, ulik prioritet) | `jobb.karrierenmin.no` | Mailgun «Receiving / Inbound domain» |
-| TXT (SPF) | `jobb.karrierenmin.no` | Mailguns SPF-streng |
-| TXT (DKIM) | `<selector>._domainkey.jobb.karrierenmin.no` | Mailguns DKIM-nøkkel |
-| TXT (domenebekreftelse) | som Mailgun angir | Mailguns verifiseringssteg |
+| Type                           | Navn                                         | Verdi hentes fra                     |
+| ------------------------------ | -------------------------------------------- | ------------------------------------ |
+| MX (to poster, ulik prioritet) | `jobb.karrierenmin.no`                       | Mailgun «Receiving / Inbound domain» |
+| TXT (SPF)                      | `jobb.karrierenmin.no`                       | Mailguns SPF-streng                  |
+| TXT (DKIM)                     | `<selector>._domainkey.jobb.karrierenmin.no` | Mailguns DKIM-nøkkel                 |
+| TXT (domenebekreftelse)        | som Mailgun angir                            | Mailguns verifiseringssteg           |
 
 Domenet må stå som verifisert hos Mailgun før noe testes.
 
@@ -108,6 +108,6 @@ Hver leveranse har nøyaktig én rad i `inbound_email_deliveries` per
   bare lese sine egne rader.
 - **Krasjvinduet** mellom opprettet import og terminal `accepted` er lukket av
   en unik databaseindeks på `imported_job_emails (email_job_source_id,
-  provider_message_id)`; en retry gjenbruker eksisterende import.
+provider_message_id)`; en retry gjenbruker eksisterende import.
 - **Tilgang**: begge funksjonene er SECURITY INVOKER med fast `search_path` og
   `EXECUTE` kun for `service_role`. Verifisert: anon får `42501`.

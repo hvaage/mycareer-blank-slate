@@ -92,29 +92,29 @@ export async function ingestParsedEmail(params: {
   const { data: insertedEmail, error: importError } = existingImport
     ? { data: existingImport, error: null }
     : await supabaseAdmin
-    .from("imported_job_emails")
-    .insert({
-      user_id: userId,
-      email_connection_id: emailConnectionId ?? null,
-      email_job_source_id: emailJobSourceId,
-      source_system: sourceSystem,
-      intake_mode: intakeMode,
-      provider_message_id: providerMessageId,
-      provider_internal_date: receivedAt,
-      from_address: fromAddress,
-      to_address: toAddress,
-      subject: subject,
-      received_at: receivedAt,
-      raw_text: rawText,
-      raw_html: rawHtml,
-      size_bytes: sizeBytes,
-      parse_status: "parsed",
-      parse_confidence: parseConfidence,
-      reject_reason: rejectReason,
-      parsed_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
+        .from("imported_job_emails")
+        .insert({
+          user_id: userId,
+          email_connection_id: emailConnectionId ?? null,
+          email_job_source_id: emailJobSourceId,
+          source_system: sourceSystem,
+          intake_mode: intakeMode,
+          provider_message_id: providerMessageId,
+          provider_internal_date: receivedAt,
+          from_address: fromAddress,
+          to_address: toAddress,
+          subject: subject,
+          received_at: receivedAt,
+          raw_text: rawText,
+          raw_html: rawHtml,
+          size_bytes: sizeBytes,
+          parse_status: "parsed",
+          parse_confidence: parseConfidence,
+          reject_reason: rejectReason,
+          parsed_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
 
   let importedEmail = insertedEmail as { id: string } | null;
 
@@ -142,37 +142,34 @@ export async function ingestParsedEmail(params: {
   let leadsCreated = 0;
   let leadsDeduped = 0;
 
-  const { leadId: insertedId, wasInserted } = await insertJobLeadDeduped(
-    supabaseAdmin,
-    {
-      user_id: userId,
-      email_connection_id: emailConnectionId ?? null,
-      source_message_id: providerMessageId,
-      source_email_from: fromAddress,
-      source_subject: subject,
-      received_at: receivedAt,
-      // posted_text er en kort etikett (f.eks. «Publisert for 2 dager siden») — aldri hele annonseteksten. Den ligger i raw_snippet.
-      posted_text: null,
-      title: parsed.title,
-      company: parsed.company,
-      location: parsed.location,
-      work_type: parsed.work_type,
-      salary_text: parsed.salary,
-      job_url: parsed.job_url,
-      raw_snippet: parsed.raw_text.slice(0, 2000),
-      source_system: parsed.source_system,
-      source_url_hash: urlHash,
-      source_observed_at: receivedAt,
-      qualification_status: qualificationStatus,
-      qualification_score: Math.round(parseConfidence * 100),
-      qualification_reason: parsed.reason,
-      application_due: parsed.application_due,
-      raw_payload: parsed as unknown as Record<string, unknown>,
-      parse_confidence: parseConfidence,
-      reject_reason: rejectReason,
-      imported_job_email_id: importedEmail.id,
-    },
-  );
+  const { leadId: insertedId, wasInserted } = await insertJobLeadDeduped(supabaseAdmin, {
+    user_id: userId,
+    email_connection_id: emailConnectionId ?? null,
+    source_message_id: providerMessageId,
+    source_email_from: fromAddress,
+    source_subject: subject,
+    received_at: receivedAt,
+    // posted_text er en kort etikett (f.eks. «Publisert for 2 dager siden») — aldri hele annonseteksten. Den ligger i raw_snippet.
+    posted_text: null,
+    title: parsed.title,
+    company: parsed.company,
+    location: parsed.location,
+    work_type: parsed.work_type,
+    salary_text: parsed.salary,
+    job_url: parsed.job_url,
+    raw_snippet: parsed.raw_text.slice(0, 2000),
+    source_system: parsed.source_system,
+    source_url_hash: urlHash,
+    source_observed_at: receivedAt,
+    qualification_status: qualificationStatus,
+    qualification_score: Math.round(parseConfidence * 100),
+    qualification_reason: parsed.reason,
+    application_due: parsed.application_due,
+    raw_payload: parsed as unknown as Record<string, unknown>,
+    parse_confidence: parseConfidence,
+    reject_reason: rejectReason,
+    imported_job_email_id: importedEmail.id,
+  });
 
   const leadId = wasInserted ? insertedId : null;
   if (wasInserted) {
@@ -193,7 +190,6 @@ export async function ingestParsedEmail(params: {
       refId: leadId,
     });
   }
-
 
   // Update lead_count on imported_job_email.
   await supabaseAdmin
