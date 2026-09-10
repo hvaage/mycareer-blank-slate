@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  CLAIM_OUTCOME,
   aliasTokenForRecipient,
   claimInboundDelivery,
   fromDomain,
   readInboundConfig,
 } from "@/lib/job-leads/inbound-email.server";
+
+/** Mirrors inbound_email_deliveries_outcome_check in the database. */
+const DB_ALLOWED_OUTCOMES = ["accepted", "duplicate", "parse_failed", "ingest_failed"];
 
 const ALIAS = "abcdefghijklmnopqrstuvwxyz";
 const DOMAIN = "jobb.karrierenmin.no";
@@ -128,6 +132,18 @@ describe("claimInboundDelivery", () => {
     expect(first.status).toBe("claimed");
     expect(replay.status).toBe("duplicate");
   });
+
+  /** The DB CHECK only allows accepted | duplicate | parse_failed | ingest_failed. */
+  it("reserves with an outcome the database CHECK allows", async () => {
+    const admin = makeAdmin();
+    await claimInboundDelivery(admin as never, claimValues);
+    expect(CLAIM_OUTCOME).toBe("accepted");
+    expect(admin.rows).toHaveLength(1);
+    expect(admin.rows[0].outcome).toBe("accepted");
+    expect(DB_ALLOWED_OUTCOMES).toContain(admin.rows[0].outcome as string);
+    expect(admin.rows[0].provider).toBe("mailgun");
+  });
+
 
   it("lets exactly one of many concurrent webhooks proceed to ingest", async () => {
     const admin = makeAdmin();
