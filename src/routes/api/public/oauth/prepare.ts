@@ -59,7 +59,11 @@ export const Route = createFileRoute("/api/public/oauth/prepare")({
         }
 
         const client = await loadClientForRequest(shape.value.client_id);
-        const checked = validateAgainstClient(shape.value, client, mcpResourceIdentifiers(origin.origin));
+        const checked = validateAgainstClient(
+          shape.value,
+          client,
+          mcpResourceIdentifiers(origin.origin),
+        );
         if (!checked.ok) {
           // Bare når redirect_uri allerede er bekreftet eksakt kan feilen
           // sendes tilbake til klienten. Ellers vises den som side.

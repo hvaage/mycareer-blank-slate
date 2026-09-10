@@ -9,10 +9,7 @@
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { ListToolsResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import {
-  MCP_ALIAS_ENDPOINT_PATH,
-  MCP_ENDPOINT_PATH,
-} from "@/lib/ai-integrations/mcp-contract";
+import { MCP_ALIAS_ENDPOINT_PATH, MCP_ENDPOINT_PATH } from "@/lib/ai-integrations/mcp-contract";
 
 const ORIGIN = "https://karrierenmin.no";
 
@@ -66,9 +63,7 @@ type Handlers = Record<string, (ctx: { request: Request }) => Promise<Response>>
 
 async function handlers(path: "alias" | "canonical"): Promise<Handlers> {
   const mod =
-    path === "alias"
-      ? await import("@/routes/mcp/index")
-      : await import("@/routes/api/public/mcp");
+    path === "alias" ? await import("@/routes/mcp/index") : await import("@/routes/api/public/mcp");
   return (mod.Route as unknown as { options: { server: { handlers: Handlers } } }).options.server
     .handlers;
 }
@@ -171,9 +166,8 @@ describe("MCP-alias /mcp", () => {
 
 describe("Protected-resource-metadata for aliaset", () => {
   it("oppgir aliasets eksakte URL, samme issuer og samme scopes", async () => {
-    const { protectedResourceMetadataResponse } = await import(
-      "@/lib/ai-integrations/oauth-resource-metadata.server"
-    );
+    const { protectedResourceMetadataResponse } =
+      await import("@/lib/ai-integrations/oauth-resource-metadata.server");
     const res = protectedResourceMetadataResponse(MCP_ALIAS_ENDPOINT_PATH);
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -189,17 +183,14 @@ describe("Protected-resource-metadata for aliaset", () => {
 
 describe("Resource-binding for begge URL-ene", () => {
   it("godtar nøyaktig de to identifikatorene og ingenting annet", async () => {
-    const { mcpResourceIdentifiers, resolveMcpResource } = await import(
-      "@/lib/ai-integrations/oauth-config.server"
-    );
+    const { mcpResourceIdentifiers, resolveMcpResource } =
+      await import("@/lib/ai-integrations/oauth-config.server");
     expect(mcpResourceIdentifiers(ORIGIN)).toEqual([
       `${ORIGIN}${MCP_ENDPOINT_PATH}`,
       `${ORIGIN}${MCP_ALIAS_ENDPOINT_PATH}`,
     ]);
     expect(resolveMcpResource(ORIGIN, `${ORIGIN}/mcp`)).toBe(`${ORIGIN}/mcp`);
-    expect(resolveMcpResource(ORIGIN, `${ORIGIN}/api/public/mcp`)).toBe(
-      `${ORIGIN}/api/public/mcp`,
-    );
+    expect(resolveMcpResource(ORIGIN, `${ORIGIN}/api/public/mcp`)).toBe(`${ORIGIN}/api/public/mcp`);
     // Ingen prefiksmatching, ingen normalisering, ingen fremmed vert.
     expect(resolveMcpResource(ORIGIN, `${ORIGIN}/mcp/`)).toBeNull();
     expect(resolveMcpResource(ORIGIN, `${ORIGIN}/mcp?x=1`)).toBeNull();
@@ -209,9 +200,8 @@ describe("Resource-binding for begge URL-ene", () => {
   });
 
   it("tokenverifisering krever fortsatt eksakt aud som er lik resource", async () => {
-    const { verifyOauthAccessToken } = await import(
-      "@/lib/ai-integrations/oauth-access-token.server"
-    );
+    const { verifyOauthAccessToken } =
+      await import("@/lib/ai-integrations/oauth-access-token.server");
     const res = await verifyOauthAccessToken("ikke-et-token", {
       resource: [`${ORIGIN}/api/public/mcp`, `${ORIGIN}/mcp`],
       issuer: ORIGIN,

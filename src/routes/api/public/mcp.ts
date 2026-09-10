@@ -18,15 +18,11 @@ export const Route = createFileRoute("/api/public/mcp")({
         return handleMcpPost(request, MCP_ENDPOINT_PATH);
       },
       GET: async () => {
-        const { handleMcpMethodNotAllowed } = await import(
-          "@/lib/ai-integrations/mcp-http.server"
-        );
+        const { handleMcpMethodNotAllowed } = await import("@/lib/ai-integrations/mcp-http.server");
         return handleMcpMethodNotAllowed();
       },
       DELETE: async () => {
-        const { handleMcpMethodNotAllowed } = await import(
-          "@/lib/ai-integrations/mcp-http.server"
-        );
+        const { handleMcpMethodNotAllowed } = await import("@/lib/ai-integrations/mcp-http.server");
         return handleMcpMethodNotAllowed();
       },
       OPTIONS: async ({ request }) => {

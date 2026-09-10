@@ -12,9 +12,8 @@ export const Route = createFileRoute("/.well-known/oauth-protected-resource/mcp"
   server: {
     handlers: {
       GET: async () => {
-        const { protectedResourceMetadataResponse } = await import(
-          "@/lib/ai-integrations/oauth-resource-metadata.server"
-        );
+        const { protectedResourceMetadataResponse } =
+          await import("@/lib/ai-integrations/oauth-resource-metadata.server");
         return protectedResourceMetadataResponse(MCP_ALIAS_ENDPOINT_PATH);
       },
     },

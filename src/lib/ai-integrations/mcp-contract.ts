@@ -471,4 +471,3 @@ export function buildMcpRejectionLog(
     ...(protocolVersion === undefined ? {} : { protocol_version: protocolVersion }),
   };
 }
-
