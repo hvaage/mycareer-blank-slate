@@ -172,7 +172,7 @@ describe("kanonisk ressurs og kontrakt", () => {
     expect(MCP_TOOLS.map((t) => t.name)).toEqual(["karrierenmin_status", "karrierenmin_run"]);
     for (const tool of MCP_TOOLS) {
       expect(tool.inputSchema.additionalProperties).toBe(false);
-      expect(tool).not.toHaveProperty("outputSchema");
+      expect(tool.outputSchema.additionalProperties).toBe(false);
       expect(tool.annotations.openWorldHint).toBe(false);
       expect(typeof tool.description).toBe("string");
     }
@@ -258,12 +258,10 @@ describe("kanonisk ressurs og kontrakt", () => {
     expect(isKnownBySdk("2026-07-28")).toBe(false);
   });
 
-  it("ingen verktøy oppgir outputSchema", () => {
-    // `outputSchema` er valgfritt, og en klient som ser det MÅ validere
-    // `structuredContent` mot det. Feilresultater har en annen form, og
-    // ChatGPT-koblingens verktøyoppdagelse feiler på slike verktøy.
+  it("begge verktøy oppgir outputSchema for det vellykkede resultatet", () => {
     for (const tool of MCP_TOOLS) {
-      expect(tool).not.toHaveProperty("outputSchema");
+      expect(tool.outputSchema.type).toBe("object");
+      expect(Array.isArray(tool.outputSchema.required)).toBe(true);
     }
   });
 });
