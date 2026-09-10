@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  CLAIM_OUTCOME,
   aliasTokenForRecipient,
   claimInboundDelivery,
+  finalizeInboundDelivery,
   fromDomain,
   readInboundConfig,
+  stableProviderMessageId,
 } from "@/lib/job-leads/inbound-email.server";
-
-/** Mirrors inbound_email_deliveries_outcome_check in the database. */
-const DB_ALLOWED_OUTCOMES = ["accepted", "duplicate", "parse_failed", "ingest_failed"];
 
 const ALIAS = "abcdefghijklmnopqrstuvwxyz";
 const DOMAIN = "jobb.karrierenmin.no";
