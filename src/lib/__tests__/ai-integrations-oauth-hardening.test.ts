@@ -169,7 +169,9 @@ describe("token_endpoint_auth_method-forhandling", () => {
   });
 
   it("beholder legacy-oppførsel uten pluralfelt", () => {
-    expect(validateCimdMetadata({ ...base, token_endpoint_auth_method: "none" }, ctx).ok).toBe(true);
+    expect(validateCimdMetadata({ ...base, token_endpoint_auth_method: "none" }, ctx).ok).toBe(
+      true,
+    );
     expect(
       validateCimdMetadata({ ...base, token_endpoint_auth_method: "private_key_jwt" }, ctx).ok,
     ).toBe(false);
