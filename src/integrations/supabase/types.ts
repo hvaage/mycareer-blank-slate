@@ -4161,11 +4161,15 @@ export type Database = {
       inbound_email_deliveries: {
         Row: {
           alias_token: string
+          attempt_count: number
+          claim_token: string | null
           created_at: string
           email_job_source_id: string
           from_domain: string | null
           id: string
           imported_job_email_id: string | null
+          last_attempt_at: string | null
+          lease_expires_at: string | null
           outcome: string
           provider: string
           provider_message_id: string
@@ -4177,11 +4181,15 @@ export type Database = {
         }
         Insert: {
           alias_token: string
+          attempt_count?: number
+          claim_token?: string | null
           created_at?: string
           email_job_source_id: string
           from_domain?: string | null
           id?: string
           imported_job_email_id?: string | null
+          last_attempt_at?: string | null
+          lease_expires_at?: string | null
           outcome: string
           provider: string
           provider_message_id: string
@@ -4193,11 +4201,15 @@ export type Database = {
         }
         Update: {
           alias_token?: string
+          attempt_count?: number
+          claim_token?: string | null
           created_at?: string
           email_job_source_id?: string
           from_domain?: string | null
           id?: string
           imported_job_email_id?: string | null
+          last_attempt_at?: string | null
+          lease_expires_at?: string | null
           outcome?: string
           provider?: string
           provider_message_id?: string
@@ -4221,6 +4233,53 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "email_job_sources"
             referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
+      inbound_email_delivery_attempts: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          delivery_id: string
+          finished_at: string | null
+          id: string
+          outcome: string
+          reject_reason: string | null
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_number: number
+          created_at?: string
+          delivery_id: string
+          finished_at?: string | null
+          id?: string
+          outcome: string
+          reject_reason?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          delivery_id?: string
+          finished_at?: string | null
+          id?: string
+          outcome?: string
+          reject_reason?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_email_delivery_attempts_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_email_deliveries"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -10792,6 +10851,38 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      inbound_email_claim_delivery: {
+        Args: {
+          p_alias_token: string
+          p_email_job_source_id: string
+          p_from_domain?: string
+          p_lease_seconds?: number
+          p_provider: string
+          p_provider_message_id: string
+          p_size_bytes?: number
+          p_user_id: string
+        }
+        Returns: {
+          attempt_number: number
+          claim_token: string
+          delivery_id: string
+          imported_job_email_id: string
+          status: string
+        }[]
+      }
+      inbound_email_finalize_delivery: {
+        Args: {
+          p_claim_token: string
+          p_delivery_id: string
+          p_imported_job_email_id?: string
+          p_outcome: string
+          p_reject_reason?: string
+        }
+        Returns: {
+          outcome: string
+          status: string
+        }[]
       }
       insert_job_lead_dedup: {
         Args: { p_payload: Json }

@@ -8,8 +8,10 @@ import {
   INBOUND_PROVIDER,
   aliasTokenForRecipient,
   claimInboundDelivery,
+  finalizeInboundDelivery,
   fromDomain,
   readInboundConfig,
+  stableProviderMessageId,
 } from "@/lib/job-leads/inbound-email.server";
 
 const CORS_HEADERS = {
@@ -216,15 +218,20 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           return finalize("rejected", 403, { error: "inactive_source" });
         }
 
-        const messageId =
-          p["Message-Id"] ||
-          p["message-id"] ||
-          `${emailInput.from}|${p.recipient}|${p.subject}|${p.timestamp}`;
-        const providerMessageId = createHash("sha256").update(messageId).digest("hex");
+        // Stable message identity: Mailgun's Message-Id when present, else a
+        // hash over immutable message content only (never the receive time).
+        const providerMessageId = stableProviderMessageId({
+          messageIdHeader: p["Message-Id"] || p["message-id"] || null,
+          from: emailInput.from,
+          to: p.recipient,
+          subject: p.subject,
+          bodyText: rawText,
+          bodyHtml: rawHtml,
+        });
 
-        // 7. Atomic idempotency claim BEFORE ingestion. The unique index on
-        // (email_job_source_id, provider, provider_message_id) means only one
-        // concurrent delivery of the same message proceeds to ingest.
+        // 7. Atomic lease claim BEFORE ingestion. `processing` is the only
+        // active lease state, so only one concurrent delivery of the same
+        // message proceeds; failed or crashed attempts can be retried later.
         const claim = await claimInboundDelivery(supabaseAdmin as never, {
           user_id: source.user_id,
           email_job_source_id: source.id,
@@ -237,18 +244,25 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
         if (claim.status === "duplicate") {
           return finalize("accepted", 200, { ok: true, duplicate: true });
         }
+        if (claim.status === "in_progress") {
+          return finalize("accepted", 200, { ok: true, duplicate: true, in_progress: true });
+        }
         if (claim.status === "error") {
           console.error("[inbound/job-email] delivery claim failed", claim.message);
           return finalize("rejected", 500, { error: "internal_error" });
         }
 
+        const { deliveryId, claimToken } = claim;
+
         // 8. Parse the email into a lead.
         const parseResult = parseEmail(emailInput);
         if (!parseResult.ok) {
-          await supabaseAdmin
-            .from("inbound_email_deliveries")
-            .update({ outcome: "parse_failed", reject_reason: parseResult.rejectReason })
-            .eq("id", claim.deliveryId);
+          await finalizeInboundDelivery(supabaseAdmin as never, {
+            deliveryId,
+            claimToken,
+            outcome: "parse_failed",
+            rejectReason: parseResult.rejectReason,
+          });
           return finalize("rejected", 422, { error: parseResult.rejectReason });
         }
 
@@ -271,19 +285,21 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
             parsed: parseResult.lead,
             parseConfidence: parseResult.lead.confidence,
           });
-          await supabaseAdmin
-            .from("inbound_email_deliveries")
-            .update({
-              outcome: "accepted",
-              imported_job_email_id: result.importedJobEmailId,
-            })
-            .eq("id", claim.deliveryId);
+          // Terminal `accepted` only after import AND job lead are persisted.
+          await finalizeInboundDelivery(supabaseAdmin as never, {
+            deliveryId,
+            claimToken,
+            outcome: "accepted",
+            importedJobEmailId: result.importedJobEmailId,
+          });
         } catch (err) {
           console.error("[inbound/job-email] ingest failed", err);
-          await supabaseAdmin
-            .from("inbound_email_deliveries")
-            .update({ outcome: "ingest_failed", reject_reason: "ingest_failed" })
-            .eq("id", claim.deliveryId);
+          await finalizeInboundDelivery(supabaseAdmin as never, {
+            deliveryId,
+            claimToken,
+            outcome: "ingest_failed",
+            rejectReason: "ingest_failed",
+          });
           return finalize("rejected", 500, { error: "ingest_failed" });
         }
 

@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  CLAIM_OUTCOME,
   aliasTokenForRecipient,
   claimInboundDelivery,
+  finalizeInboundDelivery,
   fromDomain,
   readInboundConfig,
+  stableProviderMessageId,
 } from "@/lib/job-leads/inbound-email.server";
-
-/** Mirrors inbound_email_deliveries_outcome_check in the database. */
-const DB_ALLOWED_OUTCOMES = ["accepted", "duplicate", "parse_failed", "ingest_failed"];
 
 const ALIAS = "abcdefghijklmnopqrstuvwxyz";
 const DOMAIN = "jobb.karrierenmin.no";
@@ -77,40 +75,140 @@ describe("fromDomain", () => {
   });
 });
 
-/** In-memory stand-in for the unique index on the deliveries table. */
-function makeAdmin() {
-  const seen = new Set<string>();
-  const rows: Record<string, unknown>[] = [];
+describe("stableProviderMessageId", () => {
+  const base = {
+    from: "jobb@finn.no",
+    to: `${ALIAS}@${DOMAIN}`,
+    subject: "Ny stilling",
+    bodyText: "Innhold",
+    bodyHtml: null,
+  };
+
+  it("is stable across redeliveries of the same message", () => {
+    expect(stableProviderMessageId({ ...base, messageIdHeader: "<abc@finn.no>" })).toBe(
+      stableProviderMessageId({ ...base, messageIdHeader: "<abc@finn.no>" }),
+    );
+  });
+
+  it("prefers the Message-Id header over content", () => {
+    const withHeader = stableProviderMessageId({ ...base, messageIdHeader: "<abc@finn.no>" });
+    const otherBody = stableProviderMessageId({
+      ...base,
+      bodyText: "Helt annet innhold",
+      messageIdHeader: "<abc@finn.no>",
+    });
+    expect(withHeader).toBe(otherBody);
+  });
+
+  it("falls back to immutable content only, never receive time", () => {
+    const a = stableProviderMessageId({ ...base, messageIdHeader: null });
+    const b = stableProviderMessageId({ ...base, messageIdHeader: "  " });
+    expect(a).toBe(b);
+    expect(a).not.toBe(stableProviderMessageId({ ...base, subject: "Annen tittel" }));
+  });
+});
+
+/**
+ * In-memory stand-in for the database state machine implemented by
+ * inbound_email_claim_delivery / inbound_email_finalize_delivery.
+ */
+function makeAdmin(now = () => Date.now()) {
+  type Row = {
+    id: string;
+    key: string;
+    outcome: string;
+    claim_token: string | null;
+    lease_expires_at: number | null;
+    attempt_count: number;
+    imported_job_email_id: string | null;
+  };
+  const rows = new Map<string, Row>();
   let nextId = 0;
+  let nextToken = 0;
+  const calls: { fn: string; args: Record<string, unknown> }[] = [];
+
   return {
-    inserted: seen,
     rows,
-    from() {
-      return {
-        insert(values: Record<string, unknown>) {
-          rows.push(values);
-          const key = `${values.email_job_source_id}|${values.provider}|${values.provider_message_id}`;
+    calls,
+    async rpc(fn: string, args: Record<string, unknown>) {
+      // Yield so concurrent callers interleave before the state check.
+      await Promise.resolve();
+      calls.push({ fn, args });
+
+      if (fn === "inbound_email_claim_delivery") {
+        const key = `${args.p_email_job_source_id}|${args.p_provider}|${args.p_provider_message_id}`;
+        const lease = Number(args.p_lease_seconds ?? 300) * 1000;
+        const existing = rows.get(key);
+        if (!existing) {
+          nextId += 1;
+          nextToken += 1;
+          const token = `token-${nextToken}`;
+          rows.set(key, {
+            id: `delivery-${nextId}`,
+            key,
+            outcome: "processing",
+            claim_token: token,
+            lease_expires_at: now() + lease,
+            attempt_count: 1,
+            imported_job_email_id: null,
+          });
           return {
-            select() {
-              return {
-                async maybeSingle() {
-                  // Yield so concurrent callers interleave before the check.
-                  await Promise.resolve();
-                  if (seen.has(key)) {
-                    return {
-                      data: null,
-                      error: { code: "23505", message: "duplicate key value" },
-                    };
-                  }
-                  seen.add(key);
-                  nextId += 1;
-                  return { data: { id: `delivery-${nextId}` }, error: null };
-                },
-              };
-            },
+            data: [
+              {
+                status: "claimed",
+                delivery_id: `delivery-${nextId}`,
+                claim_token: token,
+                attempt_number: 1,
+              },
+            ],
+            error: null,
           };
-        },
-      };
+        }
+        if (existing.outcome === "accepted") {
+          return {
+            data: [{ status: "duplicate", delivery_id: existing.id, claim_token: null }],
+            error: null,
+          };
+        }
+        if (existing.outcome === "processing" && (existing.lease_expires_at ?? 0) > now()) {
+          return {
+            data: [{ status: "in_progress", delivery_id: existing.id, claim_token: null }],
+            error: null,
+          };
+        }
+        nextToken += 1;
+        const token = `token-${nextToken}`;
+        existing.outcome = "processing";
+        existing.claim_token = token;
+        existing.lease_expires_at = now() + lease;
+        existing.attempt_count += 1;
+        return {
+          data: [
+            {
+              status: "claimed",
+              delivery_id: existing.id,
+              claim_token: token,
+              attempt_number: existing.attempt_count,
+            },
+          ],
+          error: null,
+        };
+      }
+
+      if (fn === "inbound_email_finalize_delivery") {
+        const row = [...rows.values()].find((r) => r.id === args.p_delivery_id);
+        if (!row) return { data: [{ status: "not_found" }], error: null };
+        if (row.outcome !== "processing" || row.claim_token !== args.p_claim_token) {
+          return { data: [{ status: "lease_lost" }], error: null };
+        }
+        row.outcome = String(args.p_outcome);
+        row.claim_token = null;
+        row.lease_expires_at = null;
+        row.imported_job_email_id = (args.p_imported_job_email_id as string | null) ?? null;
+        return { data: [{ status: "finalized", outcome: row.outcome }], error: null };
+      }
+
+      return { data: null, error: { message: `unknown rpc ${fn}` } };
     },
   };
 }
@@ -124,42 +222,105 @@ const claimValues = {
   size_bytes: 100,
 };
 
+async function succeed(admin: ReturnType<typeof makeAdmin>) {
+  const claim = await claimInboundDelivery(admin as never, claimValues);
+  if (claim.status !== "claimed") throw new Error(`expected claim, got ${claim.status}`);
+  return finalizeInboundDelivery(admin as never, {
+    deliveryId: claim.deliveryId,
+    claimToken: claim.claimToken,
+    outcome: "accepted",
+    importedJobEmailId: "import-1",
+  });
+}
+
 describe("claimInboundDelivery", () => {
-  it("claims once and reports replays as duplicates", async () => {
+  it("claims through the atomic database function with the right arguments", async () => {
     const admin = makeAdmin();
-    const first = await claimInboundDelivery(admin as never, claimValues);
+    await claimInboundDelivery(admin as never, claimValues);
+    expect(admin.calls[0].fn).toBe("inbound_email_claim_delivery");
+    expect(admin.calls[0].args.p_provider).toBe("mailgun");
+  });
+
+  it("reserves as processing, not accepted, before ingest", async () => {
+    const admin = makeAdmin();
+    await claimInboundDelivery(admin as never, claimValues);
+    expect([...admin.rows.values()][0].outcome).toBe("processing");
+  });
+
+  it("reports replays after success as duplicates", async () => {
+    const admin = makeAdmin();
+    await succeed(admin);
     const replay = await claimInboundDelivery(admin as never, claimValues);
-    expect(first.status).toBe("claimed");
     expect(replay.status).toBe("duplicate");
   });
 
-  /** The DB CHECK only allows accepted | duplicate | parse_failed | ingest_failed. */
-  it("reserves with an outcome the database CHECK allows", async () => {
+  it("reports a live concurrent lease as in_progress", async () => {
     const admin = makeAdmin();
     await claimInboundDelivery(admin as never, claimValues);
-    expect(CLAIM_OUTCOME).toBe("accepted");
-    expect(admin.rows).toHaveLength(1);
-    expect(admin.rows[0].outcome).toBe("accepted");
-    expect(DB_ALLOWED_OUTCOMES).toContain(admin.rows[0].outcome as string);
-    expect(admin.rows[0].provider).toBe("mailgun");
+    const replay = await claimInboundDelivery(admin as never, claimValues);
+    expect(replay.status).toBe("in_progress");
   });
 
   it("lets exactly one of many concurrent webhooks proceed to ingest", async () => {
     const admin = makeAdmin();
-    let ingestCount = 0;
-
     const results = await Promise.all(
       Array.from({ length: 25 }, async () => {
         const claim = await claimInboundDelivery(admin as never, claimValues);
-        if (claim.status === "claimed") ingestCount += 1;
         return claim.status;
       }),
     );
-
     expect(results.filter((s) => s === "claimed")).toHaveLength(1);
-    expect(results.filter((s) => s === "duplicate")).toHaveLength(24);
-    expect(ingestCount).toBe(1);
-    expect(admin.inserted.size).toBe(1);
+    expect(results.filter((s) => s !== "claimed")).toHaveLength(24);
+    expect(admin.rows.size).toBe(1);
+  });
+
+  it("allows a retry after ingest_failed and then terminal accepted", async () => {
+    const admin = makeAdmin();
+    const first = await claimInboundDelivery(admin as never, claimValues);
+    if (first.status !== "claimed") throw new Error("expected claim");
+    await finalizeInboundDelivery(admin as never, {
+      deliveryId: first.deliveryId,
+      claimToken: first.claimToken,
+      outcome: "ingest_failed",
+      rejectReason: "ingest_failed",
+    });
+    const retry = await claimInboundDelivery(admin as never, claimValues);
+    expect(retry.status).toBe("claimed");
+    expect(await succeedFrom(admin, retry)).toEqual({ status: "finalized", outcome: "accepted" });
+    expect((await claimInboundDelivery(admin as never, claimValues)).status).toBe("duplicate");
+  });
+
+  it("allows a retry after parse_failed", async () => {
+    const admin = makeAdmin();
+    const first = await claimInboundDelivery(admin as never, claimValues);
+    if (first.status !== "claimed") throw new Error("expected claim");
+    await finalizeInboundDelivery(admin as never, {
+      deliveryId: first.deliveryId,
+      claimToken: first.claimToken,
+      outcome: "parse_failed",
+      rejectReason: "not_a_job",
+    });
+    const retry = await claimInboundDelivery(admin as never, claimValues);
+    expect(retry.status).toBe("claimed");
+  });
+
+  it("lets an expired lease be taken over, and the old token cannot finalize", async () => {
+    let clock = 1_000_000;
+    const admin = makeAdmin(() => clock);
+    const first = await claimInboundDelivery(admin as never, {
+      ...claimValues,
+      lease_seconds: 60,
+    });
+    if (first.status !== "claimed") throw new Error("expected claim");
+    clock += 61_000;
+    const takeover = await claimInboundDelivery(admin as never, claimValues);
+    expect(takeover.status).toBe("claimed");
+    const stale = await finalizeInboundDelivery(admin as never, {
+      deliveryId: first.deliveryId,
+      claimToken: first.claimToken,
+      outcome: "accepted",
+    });
+    expect(stale).toEqual({ status: "lease_lost" });
   });
 
   it("distinguishes different messages on the same source", async () => {
@@ -173,20 +334,24 @@ describe("claimInboundDelivery", () => {
     expect(b.status).toBe("claimed");
   });
 
-  it("surfaces non-uniqueness errors instead of silently deduping", async () => {
+  it("surfaces database errors instead of silently deduping", async () => {
     const admin = {
-      from: () => ({
-        insert: () => ({
-          select: () => ({
-            maybeSingle: async () => ({
-              data: null,
-              error: { code: "42501", message: "permission denied" },
-            }),
-          }),
-        }),
-      }),
+      rpc: async () => ({ data: null, error: { code: "42501", message: "permission denied" } }),
     };
     const result = await claimInboundDelivery(admin as never, claimValues);
     expect(result).toEqual({ status: "error", message: "permission denied" });
   });
 });
+
+async function succeedFrom(
+  admin: ReturnType<typeof makeAdmin>,
+  claim: Awaited<ReturnType<typeof claimInboundDelivery>>,
+) {
+  if (claim.status !== "claimed") throw new Error("expected claim");
+  return finalizeInboundDelivery(admin as never, {
+    deliveryId: claim.deliveryId,
+    claimToken: claim.claimToken,
+    outcome: "accepted",
+    importedJobEmailId: "import-1",
+  });
+}
