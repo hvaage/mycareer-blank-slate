@@ -4158,6 +4158,72 @@ export type Database = {
           },
         ]
       }
+      inbound_email_deliveries: {
+        Row: {
+          alias_token: string
+          created_at: string
+          email_job_source_id: string
+          from_domain: string | null
+          id: string
+          imported_job_email_id: string | null
+          outcome: string
+          provider: string
+          provider_message_id: string
+          received_at: string
+          reject_reason: string | null
+          size_bytes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alias_token: string
+          created_at?: string
+          email_job_source_id: string
+          from_domain?: string | null
+          id?: string
+          imported_job_email_id?: string | null
+          outcome: string
+          provider: string
+          provider_message_id: string
+          received_at?: string
+          reject_reason?: string | null
+          size_bytes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alias_token?: string
+          created_at?: string
+          email_job_source_id?: string
+          from_domain?: string | null
+          id?: string
+          imported_job_email_id?: string | null
+          outcome?: string
+          provider?: string
+          provider_message_id?: string
+          received_at?: string
+          reject_reason?: string | null
+          size_bytes?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_email_deliveries_email_fkey"
+            columns: ["user_id", "imported_job_email_id"]
+            isOneToOne: false
+            referencedRelation: "imported_job_emails"
+            referencedColumns: ["user_id", "id"]
+          },
+          {
+            foreignKeyName: "inbound_email_deliveries_source_fkey"
+            columns: ["user_id", "email_job_source_id"]
+            isOneToOne: false
+            referencedRelation: "email_job_sources"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       inbound_email_rate_events: {
         Row: {
           alias_token: string | null

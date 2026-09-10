@@ -46,6 +46,7 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAboutMeRouteImport } from './routes/_authenticated/about-me'
 import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known/oauth-protected-resource'
 import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known/oauth-authorization-server'
+import { Route as DotwellKnownAiPluginDotjsonRouteImport } from './routes/[.]well-known/ai-plugin[.]json'
 import { Route as SelskapsanalyseAnalysedatabaseIndexRouteImport } from './routes/selskapsanalyse.analysedatabase.index'
 import { Route as RekruttererundersokelseResultaterIndexRouteImport } from './routes/rekruttererundersokelse.resultater.index'
 import { Route as ApiAiIntegrationsIndexRouteImport } from './routes/api/ai-integrations/index'
@@ -79,6 +80,7 @@ import { Route as ApiCvProposeCvAtomsRouteImport } from './routes/api/cv/propose
 import { Route as ApiCvGenerationsRouteImport } from './routes/api/cv/generations'
 import { Route as ApiCvAtomizationJobsRouteImport } from './routes/api/cv/atomization-jobs'
 import { Route as ApiAiIntegrationsSetupSessionRouteImport } from './routes/api/ai-integrations/setup-session'
+import { Route as ApiAiIntegrationsInboundAddressRouteImport } from './routes/api/ai-integrations/inbound-address'
 import { Route as AuthenticatedVurderingAvArbeidsgivereCompanyIdRouteImport } from './routes/_authenticated/vurdering-av-arbeidsgivere/$companyId'
 import { Route as AuthenticatedNettverkOversiktRouteImport } from './routes/_authenticated/nettverk.oversikt'
 import { Route as AuthenticatedMinProfilOpplysningerRouteImport } from './routes/_authenticated/min-profil/opplysninger'
@@ -339,6 +341,12 @@ const DotwellKnownOauthAuthorizationServerRoute =
     path: '/.well-known/oauth-authorization-server',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DotwellKnownAiPluginDotjsonRoute =
+  DotwellKnownAiPluginDotjsonRouteImport.update({
+    id: '/.well-known/ai-plugin.json',
+    path: '/.well-known/ai-plugin.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const SelskapsanalyseAnalysedatabaseIndexRoute =
   SelskapsanalyseAnalysedatabaseIndexRouteImport.update({
     id: '/analysedatabase/',
@@ -525,6 +533,12 @@ const ApiAiIntegrationsSetupSessionRoute =
   ApiAiIntegrationsSetupSessionRouteImport.update({
     id: '/api/ai-integrations/setup-session',
     path: '/api/ai-integrations/setup-session',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAiIntegrationsInboundAddressRoute =
+  ApiAiIntegrationsInboundAddressRouteImport.update({
+    id: '/api/ai-integrations/inbound-address',
+    path: '/api/ai-integrations/inbound-address',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute =
@@ -917,6 +931,7 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/ai-plugin.json': typeof DotwellKnownAiPluginDotjsonRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/about-me': typeof AuthenticatedAboutMeRoute
@@ -979,6 +994,7 @@ export interface FileRoutesByFullPath {
   '/min-profil/opplysninger': typeof AuthenticatedMinProfilOpplysningerRoute
   '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
+  '/api/ai-integrations/inbound-address': typeof ApiAiIntegrationsInboundAddressRoute
   '/api/ai-integrations/setup-session': typeof ApiAiIntegrationsSetupSessionRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
@@ -1050,6 +1066,7 @@ export interface FileRoutesByTo {
   '/personvern': typeof PersonvernRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/ai-plugin.json': typeof DotwellKnownAiPluginDotjsonRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/about-me': typeof AuthenticatedAboutMeRoute
@@ -1111,6 +1128,7 @@ export interface FileRoutesByTo {
   '/min-profil/opplysninger': typeof AuthenticatedMinProfilOpplysningerRoute
   '/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
+  '/api/ai-integrations/inbound-address': typeof ApiAiIntegrationsInboundAddressRoute
   '/api/ai-integrations/setup-session': typeof ApiAiIntegrationsSetupSessionRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
@@ -1187,6 +1205,7 @@ export interface FileRoutesById {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/.well-known/ai-plugin.json': typeof DotwellKnownAiPluginDotjsonRoute
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/_authenticated/about-me': typeof AuthenticatedAboutMeRoute
@@ -1249,6 +1268,7 @@ export interface FileRoutesById {
   '/_authenticated/min-profil/opplysninger': typeof AuthenticatedMinProfilOpplysningerRoute
   '/_authenticated/nettverk/oversikt': typeof AuthenticatedNettverkOversiktRoute
   '/_authenticated/vurdering-av-arbeidsgivere/$companyId': typeof AuthenticatedVurderingAvArbeidsgivereCompanyIdRoute
+  '/api/ai-integrations/inbound-address': typeof ApiAiIntegrationsInboundAddressRoute
   '/api/ai-integrations/setup-session': typeof ApiAiIntegrationsSetupSessionRoute
   '/api/cv/atomization-jobs': typeof ApiCvAtomizationJobsRouteWithChildren
   '/api/cv/generations': typeof ApiCvGenerationsRouteWithChildren
@@ -1325,6 +1345,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
+    | '/.well-known/ai-plugin.json'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/about-me'
@@ -1387,6 +1408,7 @@ export interface FileRouteTypes {
     | '/min-profil/opplysninger'
     | '/nettverk/oversikt'
     | '/vurdering-av-arbeidsgivere/$companyId'
+    | '/api/ai-integrations/inbound-address'
     | '/api/ai-integrations/setup-session'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
@@ -1458,6 +1480,7 @@ export interface FileRouteTypes {
     | '/personvern'
     | '/signup'
     | '/sitemap.xml'
+    | '/.well-known/ai-plugin.json'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/about-me'
@@ -1519,6 +1542,7 @@ export interface FileRouteTypes {
     | '/min-profil/opplysninger'
     | '/nettverk/oversikt'
     | '/vurdering-av-arbeidsgivere/$companyId'
+    | '/api/ai-integrations/inbound-address'
     | '/api/ai-integrations/setup-session'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
@@ -1594,6 +1618,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
+    | '/.well-known/ai-plugin.json'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/about-me'
@@ -1656,6 +1681,7 @@ export interface FileRouteTypes {
     | '/_authenticated/min-profil/opplysninger'
     | '/_authenticated/nettverk/oversikt'
     | '/_authenticated/vurdering-av-arbeidsgivere/$companyId'
+    | '/api/ai-integrations/inbound-address'
     | '/api/ai-integrations/setup-session'
     | '/api/cv/atomization-jobs'
     | '/api/cv/generations'
@@ -1732,6 +1758,7 @@ export interface RootRouteChildren {
   SelskapsanalyseRoute: typeof SelskapsanalyseRouteWithChildren
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  DotwellKnownAiPluginDotjsonRoute: typeof DotwellKnownAiPluginDotjsonRoute
   DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
   DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -1739,6 +1766,7 @@ export interface RootRouteChildren {
   AuthNyttPassordRoute: typeof AuthNyttPassordRoute
   OauthAuthorizeRoute: typeof OauthAuthorizeRoute
   McpIndexRoute: typeof McpIndexRoute
+  ApiAiIntegrationsInboundAddressRoute: typeof ApiAiIntegrationsInboundAddressRoute
   ApiAiIntegrationsSetupSessionRoute: typeof ApiAiIntegrationsSetupSessionRoute
   ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRouteWithChildren
   ApiCvGenerationsRoute: typeof ApiCvGenerationsRouteWithChildren
@@ -2033,6 +2061,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotwellKnownOauthAuthorizationServerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/ai-plugin.json': {
+      id: '/.well-known/ai-plugin.json'
+      path: '/.well-known/ai-plugin.json'
+      fullPath: '/.well-known/ai-plugin.json'
+      preLoaderRoute: typeof DotwellKnownAiPluginDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/selskapsanalyse/analysedatabase/': {
       id: '/selskapsanalyse/analysedatabase/'
       path: '/analysedatabase'
@@ -2262,6 +2297,13 @@ declare module '@tanstack/react-router' {
       path: '/api/ai-integrations/setup-session'
       fullPath: '/api/ai-integrations/setup-session'
       preLoaderRoute: typeof ApiAiIntegrationsSetupSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai-integrations/inbound-address': {
+      id: '/api/ai-integrations/inbound-address'
+      path: '/api/ai-integrations/inbound-address'
+      fullPath: '/api/ai-integrations/inbound-address'
+      preLoaderRoute: typeof ApiAiIntegrationsInboundAddressRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/vurdering-av-arbeidsgivere/$companyId': {
@@ -3014,6 +3056,7 @@ const rootRouteChildren: RootRouteChildren = {
   SelskapsanalyseRoute: SelskapsanalyseRouteWithChildren,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  DotwellKnownAiPluginDotjsonRoute: DotwellKnownAiPluginDotjsonRoute,
   DotwellKnownOauthAuthorizationServerRoute:
     DotwellKnownOauthAuthorizationServerRoute,
   DotwellKnownOauthProtectedResourceRoute:
@@ -3023,6 +3066,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthNyttPassordRoute: AuthNyttPassordRoute,
   OauthAuthorizeRoute: OauthAuthorizeRoute,
   McpIndexRoute: McpIndexRoute,
+  ApiAiIntegrationsInboundAddressRoute: ApiAiIntegrationsInboundAddressRoute,
   ApiAiIntegrationsSetupSessionRoute: ApiAiIntegrationsSetupSessionRoute,
   ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRouteWithChildren,
   ApiCvGenerationsRoute: ApiCvGenerationsRouteWithChildren,

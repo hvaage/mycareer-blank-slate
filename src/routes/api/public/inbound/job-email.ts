@@ -5,6 +5,14 @@ import { WebhookError, verifyWebhookRequest } from "@lovable.dev/webhooks-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { parseEmail, type EmailInput } from "@/lib/job-leads/parse";
 import { ingestParsedEmail } from "@/lib/job-leads/ingest";
+import { aliasTokenFromAddress } from "@/lib/job-leads/inbound-alias";
+import {
+  inboundIntakeConfig,
+  recordInboundDelivery,
+  senderDomain,
+  type InboundProvider,
+} from "@/lib/job-leads/inbound-intake.server";
+
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -64,10 +72,9 @@ function ipHash(ip: string): string {
 }
 
 function extractAliasToken(email: string): string | null {
-  const local = email.split("@")[0];
-  if (!local) return null;
-  return local.trim().toLowerCase();
+  return aliasTokenFromAddress(email);
 }
+
 
 async function verifyMailgunSignature(
   timestamp: string,
@@ -103,6 +110,15 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS_HEADERS }),
 
       POST: async ({ request }) => {
+        // 0a. Konfigurasjonsport: mottak er av til domene og leverandør er satt.
+        const intakeConfig = inboundIntakeConfig();
+        if (!intakeConfig.ready) {
+          return Response.json(
+            { error: "inbound_not_configured" },
+            { status: 503, headers: CORS_HEADERS },
+          );
+        }
+
         // 0. Size guard — first step, before any parsing or DB work.
         const contentLength = Number(request.headers.get("content-length") ?? "0");
         if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
@@ -111,6 +127,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
             { status: 413, headers: CORS_HEADERS },
           );
         }
+
 
         const ip = getClientIp(request);
         const ipH = ipHash(ip);
@@ -266,18 +283,35 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
         }
 
         // 6. Parse the email into a lead.
+        const provider: InboundProvider = isLovableWebhook ? "lovable" : "mailgun";
+        const sizeBytes = rawText.length + (rawHtml?.length ?? 0);
+        const providerMessageId = createHash("sha256")
+          .update(
+            `${emailInput.from}|${emailInput.to}|${emailInput.subject}|${emailInput.receivedAt}`,
+          )
+          .digest("hex");
+
         const parseResult = parseEmail(emailInput);
         if (!parseResult.ok) {
+          await recordInboundDelivery({
+            userId: source.user_id,
+            emailJobSourceId: source.id,
+            provider,
+            providerMessageId,
+            aliasToken: aliasToken as string,
+            fromDomain: senderDomain(emailInput.from),
+            sizeBytes,
+            outcome: "parse_failed",
+            rejectReason: parseResult.rejectReason,
+            receivedAt: emailInput.receivedAt,
+          });
           return finalize("rejected", 422, { error: parseResult.rejectReason });
         }
 
-        const providerMessageId = createHash("sha256")
-          .update(`${emailInput.from}|${emailInput.to}|${emailInput.subject}|${emailInput.receivedAt}`)
-          .digest("hex");
-
         // 7. Persist parsed lead and create job_lead row.
+        let importedJobEmailId: string | null = null;
         try {
-          await ingestParsedEmail({
+          const ingestResult = await ingestParsedEmail({
             userId: source.user_id,
             emailJobSourceId: source.id,
             sourceSystem: source.source_system,
@@ -290,17 +324,44 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
             receivedAt: emailInput.receivedAt,
             rawText,
             rawHtml,
-            sizeBytes: rawText.length + (rawHtml?.length ?? 0),
+            sizeBytes,
             parsed: parseResult.lead,
             parseConfidence: parseResult.lead.confidence,
           });
+          importedJobEmailId = ingestResult.importedJobEmailId;
         } catch (err) {
           console.error("[inbound/job-email] ingest failed", err);
+          await recordInboundDelivery({
+            userId: source.user_id,
+            emailJobSourceId: source.id,
+            provider,
+            providerMessageId,
+            aliasToken: aliasToken as string,
+            fromDomain: senderDomain(emailInput.from),
+            sizeBytes,
+            outcome: "ingest_failed",
+            receivedAt: emailInput.receivedAt,
+          });
           return finalize("rejected", 500, { error: "ingest_failed" });
         }
 
-        return finalize("accepted", 200, { ok: true });
+        // 8. Revisjonsspor + idempotens: samme melding registreres kun én gang.
+        const { duplicate } = await recordInboundDelivery({
+          userId: source.user_id,
+          emailJobSourceId: source.id,
+          provider,
+          providerMessageId,
+          aliasToken: aliasToken as string,
+          fromDomain: senderDomain(emailInput.from),
+          sizeBytes,
+          outcome: "accepted",
+          importedJobEmailId,
+          receivedAt: emailInput.receivedAt,
+        });
+
+        return finalize("accepted", 200, { ok: true, duplicate });
       },
     },
   },
+
 });
