@@ -169,19 +169,20 @@ export type LoopbackClientContext = {
 };
 
 /**
- * Portagnostisk loopback-match er KUN tillatt for den verifiserte
- * Claude Code-CIMD-klienten, og bare mot portløse maler som kom fra
- * det verifiserte metadatadokumentet. DCR, manual og alle andre
- * CIMD-klienter må ha eksakt redirect-match.
+ * Portagnostisk loopback-match er KUN tillatt for de verifiserte
+ * loopback-CIMD-klientene (Claude Code og Codex), og bare mot portløse
+ * maler som kom fra det verifiserte metadatadokumentet. DCR, manual og
+ * alle andre CIMD-klienter må ha eksakt redirect-match.
  */
 export function allowsPortAgnosticLoopback(client: LoopbackClientContext | null): boolean {
   if (!client) return false;
+  if (client.registration_method !== "cimd") return false;
+  const id = client.client_id;
   return (
-    client.registration_method === "cimd" &&
-    client.client_id === CLAUDE_CIMD_URL &&
-    client.metadata_url === CLAUDE_CIMD_URL
+    typeof id === "string" && LOOPBACK_CIMD_URLS.includes(id) && client.metadata_url === id
   );
 }
+
 
 /**
  * Fullstendig redirect-regel for authorize: eksakt treff for alle,
