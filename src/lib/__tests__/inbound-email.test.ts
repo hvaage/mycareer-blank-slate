@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  CLAIM_OUTCOME,
   aliasTokenForRecipient,
   claimInboundDelivery,
   fromDomain,
   readInboundConfig,
 } from "@/lib/job-leads/inbound-email.server";
+
+/** Mirrors inbound_email_deliveries_outcome_check in the database. */
+const DB_ALLOWED_OUTCOMES = ["accepted", "duplicate", "parse_failed", "ingest_failed"];
 
 const ALIAS = "abcdefghijklmnopqrstuvwxyz";
 const DOMAIN = "jobb.karrierenmin.no";
@@ -76,12 +80,15 @@ describe("fromDomain", () => {
 /** In-memory stand-in for the unique index on the deliveries table. */
 function makeAdmin() {
   const seen = new Set<string>();
+  const rows: Record<string, unknown>[] = [];
   let nextId = 0;
   return {
     inserted: seen,
+    rows,
     from() {
       return {
         insert(values: Record<string, unknown>) {
+          rows.push(values);
           const key = `${values.email_job_source_id}|${values.provider}|${values.provider_message_id}`;
           return {
             select() {
@@ -124,6 +131,17 @@ describe("claimInboundDelivery", () => {
     const replay = await claimInboundDelivery(admin as never, claimValues);
     expect(first.status).toBe("claimed");
     expect(replay.status).toBe("duplicate");
+  });
+
+  /** The DB CHECK only allows accepted | duplicate | parse_failed | ingest_failed. */
+  it("reserves with an outcome the database CHECK allows", async () => {
+    const admin = makeAdmin();
+    await claimInboundDelivery(admin as never, claimValues);
+    expect(CLAIM_OUTCOME).toBe("accepted");
+    expect(admin.rows).toHaveLength(1);
+    expect(admin.rows[0].outcome).toBe("accepted");
+    expect(DB_ALLOWED_OUTCOMES).toContain(admin.rows[0].outcome as string);
+    expect(admin.rows[0].provider).toBe("mailgun");
   });
 
   it("lets exactly one of many concurrent webhooks proceed to ingest", async () => {

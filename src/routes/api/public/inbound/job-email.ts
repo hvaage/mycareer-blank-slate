@@ -235,7 +235,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
         });
 
         if (claim.status === "duplicate") {
-          return finalize("duplicate", 200, { ok: true, duplicate: true });
+          return finalize("accepted", 200, { ok: true, duplicate: true });
         }
         if (claim.status === "error") {
           console.error("[inbound/job-email] delivery claim failed", claim.message);
@@ -247,7 +247,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
         if (!parseResult.ok) {
           await supabaseAdmin
             .from("inbound_email_deliveries")
-            .update({ outcome: "rejected", reject_reason: parseResult.rejectReason })
+            .update({ outcome: "parse_failed", reject_reason: parseResult.rejectReason })
             .eq("id", claim.deliveryId);
           return finalize("rejected", 422, { error: parseResult.rejectReason });
         }
@@ -282,7 +282,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           console.error("[inbound/job-email] ingest failed", err);
           await supabaseAdmin
             .from("inbound_email_deliveries")
-            .update({ outcome: "failed", reject_reason: "ingest_failed" })
+            .update({ outcome: "ingest_failed", reject_reason: "ingest_failed" })
             .eq("id", claim.deliveryId);
           return finalize("rejected", 500, { error: "ingest_failed" });
         }
