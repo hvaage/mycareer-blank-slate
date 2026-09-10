@@ -7,7 +7,7 @@ Samme leverandørmelding skal kunne prøves på nytt etter `parse_failed`, `inge
 ## Tilstandsmodell
 
 - Behold `inbound_email_deliveries` som den kanoniske raden per `(email_job_source_id, provider, provider_message_id)`.
-- Utvid statusene med `processing`, og legg til et tilfeldig claim-token, lease-utløp og forsøksteller.
+- Utvid statusene med `processing` som eneste aktive lease-status, og legg til et tilfeldig claim-token, lease-utløp og forsøksteller. `accepted` settes først etter at både import og jobb-lead er fullført.
 - Opprett en egen append-only forsøkstabell som bevarer hvert claim, feilutfall, begrunnelse og tidspunkt.
 - En databasefunksjon utfører claim atomisk under transaksjonslås:
   - `accepted` gir alltid `duplicate`.
@@ -18,7 +18,8 @@ Samme leverandørmelding skal kunne prøves på nytt etter `parse_failed`, `inge
 
 ## Beskyttelse mot krasj etter delvis ingest
 
-- Legg en unik databaseidentitet på importert e-post per kilde og provider-message-id.
+- Den unike importidentiteten håndheves i databasen på importlaget (unik indeks på kilde + provider-message-id), ikke bare i webhook-koden.
+- Meldingsidentiteten er stabil: Mailguns `Message-Id` når den finnes, ellers en dokumentert fallback over uforanderlig meldingsinnhold. Mottakstidspunkt inngår aldri.
 - Gjør `ingestParsedEmail` gjenopptakbar: ved retry gjenbrukes eksisterende import, og eksisterende lead-deduplisering hindrer et ekstra jobb-lead.
 - Først når hele ingestløpet er ferdig, ferdigstilles leveransen som terminal `accepted`.
 
@@ -26,7 +27,7 @@ Samme leverandørmelding skal kunne prøves på nytt etter `parse_failed`, `inge
 
 - Lag én additiv migrasjon med nye kolonner, forsøkstabell, indekser og atomiske claim/finalize-funksjoner.
 - Forsøkstabellen får eksplisitte grants, RLS og kun eierlesing for innloggede brukere; webhook-skriving skjer kun server-side.
-- Funksjonene får minste nødvendige execute-rettighet og fast `search_path`.
+- Claim- og finalize-funksjonene er SECURITY INVOKER, med fast `search_path` og execute kun for `service_role`. Ingen klient kan claime eller ferdigstille direkte.
 - Oppdater genererte databasetyper etter anvendt migrasjon.
 
 ## Kode og dokumentasjon

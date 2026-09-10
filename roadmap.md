@@ -59,3 +59,12 @@
 - [ ] MCP Inspector mot en publisert origin er ikke kjørt: transporten krever `PUBLIC_APP_ORIGIN` og en offentlig HTTPS-adresse, og publisering er ikke tillatt i denne leveransen.
 - [ ] Live E2E mot ChatGPT/Claude/Copilot/Grok/Gemini: IKKE KJØRT. Krever ekte konto og installasjon hos leverandør. Gjelder også etter at MCP-transporten er bygget.
 - [ ] Migrasjonskravet «én ny migrasjon» ble i praksis fire filer: hovedherding (`20260909141023_...`), retting av tvetydig `family_id` (`20260909142117_...`) og indeksering (`20260909143412_...`), i tillegg til fase 3-basen. Alle er additive.
+
+## Innkommende e-post: retrybar tilstandsmodell (fra commit 235a8b0b)
+
+- [ ] Stabil meldingsidentitet: Mailgun `Message-Id` først, ellers dokumentert fallback over uforanderlig meldingsinnhold. Aldri mottakstidspunkt.
+- [ ] `processing` er eneste aktive lease-status; `accepted` settes først etter fullført import og jobb-lead.
+- [ ] Claim/finalize som SECURITY INVOKER med fast `search_path` og execute kun for `service_role`.
+- [ ] Unik importidentitet håndhevet i databasen på importlaget.
+- [ ] Reelle samtidighetstester: 1 suksess + 24 replay, ingest_failed→retry, parse_failed→retry, utløpt lease.
+- [ ] RLS/privilegier kontrollert; full test, typecheck, lint, build. Ingen publisering.
