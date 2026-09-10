@@ -26,6 +26,30 @@ export const OAUTH_PATHS = {
   resource: "/api/public/mcp",
 } as const;
 
+/**
+ * Den beskyttede MCP-ressursen har to gyldige URL-er: den kanoniske
+ * /api/public/mcp og aliaset /mcp. Begge identifiserer NØYAKTIG samme
+ * ressurs med samme scopes og samme tilgangskontroll. Audience-regelen
+ * svekkes ikke: et token må fortsatt ha `aud` lik én av disse to eksakte
+ * strengene — ingen prefiksmatching, ingen verdier utledet fra Host.
+ */
+export const OAUTH_RESOURCE_PATHS = [OAUTH_PATHS.resource, "/mcp"] as const;
+
+/** De eksakte, gyldige resource-identifikatorene for MCP-ressursen. */
+export function mcpResourceIdentifiers(origin: string): string[] {
+  return OAUTH_RESOURCE_PATHS.map((path) => `${origin}${path}`);
+}
+
+/**
+ * Returnerer den forespurte resource-identifikatoren uendret hvis den er
+ * en av de gyldige, ellers null. Ingen normalisering: sammenligningen er
+ * eksakt.
+ */
+export function resolveMcpResource(origin: string, requested: unknown): string | null {
+  if (typeof requested !== "string") return null;
+  return mcpResourceIdentifiers(origin).includes(requested) ? requested : null;
+}
+
 export type OauthOrigin = { ok: true; origin: string } | { ok: false; reason: string };
 
 /**

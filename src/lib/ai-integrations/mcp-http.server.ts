@@ -26,6 +26,7 @@ import {
   JSONRPC_INTERNAL_ERROR,
   JSONRPC_PARSE_ERROR,
   MCP_MAX_BODY_BYTES,
+  buildMcpRejectionLog,
   MCP_DEFAULT_PROTOCOL_VERSION,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
   acceptsStreamableHttp,
@@ -36,8 +37,6 @@ import {
   parseJsonRpcMessage,
   type McpProtocolVersion,
 } from "@/lib/ai-integrations/mcp-contract";
-
-import { buildMcpRejectionLog } from "@/lib/ai-integrations/mcp-contract";
 
 const BASE_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store",

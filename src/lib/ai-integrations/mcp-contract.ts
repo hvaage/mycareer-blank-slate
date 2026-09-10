@@ -48,6 +48,16 @@ import { AGENT_WORKFLOW_KINDS } from "@/lib/ai-integrations/claim-contract";
 /** Ett offentlig, leverandørnøytralt endepunkt. */
 export const MCP_ENDPOINT_PATH = "/api/public/mcp";
 
+/**
+ * Alias-sti. ChatGPT kaller `POST /mcp` direkte. Aliaset betjenes av
+ * nøyaktig samme transport og peker på nøyaktig samme beskyttede ressurs;
+ * det er ikke et eget verktøysett og ikke en egen tilgangsmodell.
+ */
+export const MCP_ALIAS_ENDPOINT_PATH = "/mcp";
+
+/** Alle stier transporten svarer på. Første er den kanoniske. */
+export const MCP_ENDPOINT_PATHS = [MCP_ENDPOINT_PATH, MCP_ALIAS_ENDPOINT_PATH] as const;
+
 /** Kanonisk OAuth-resource er nøyaktig MCP-endepunktet. */
 export const MCP_RESOURCE_PATH = MCP_ENDPOINT_PATH;
 

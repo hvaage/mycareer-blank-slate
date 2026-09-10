@@ -12,6 +12,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   oauthUrls,
   publicAppOrigin,
+  mcpResourceIdentifiers,
   OAUTH_CONSENT_STATE_TTL_SECONDS,
 } from "@/lib/ai-integrations/oauth-config.server";
 import {
@@ -58,7 +59,7 @@ export const Route = createFileRoute("/api/public/oauth/prepare")({
         }
 
         const client = await loadClientForRequest(shape.value.client_id);
-        const checked = validateAgainstClient(shape.value, client, urls.resource);
+        const checked = validateAgainstClient(shape.value, client, mcpResourceIdentifiers(origin.origin));
         if (!checked.ok) {
           // Bare når redirect_uri allerede er bekreftet eksakt kan feilen
           // sendes tilbake til klienten. Ellers vises den som side.
