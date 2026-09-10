@@ -141,9 +141,7 @@ describe("ChatGPT-oppdagelse over Streamable HTTP", () => {
         // outputSchema beskriver det vellykkede resultatet og må være et
         // kompilerbart JSON-skjema.
         expect(tool.outputSchema.type).toBe("object");
-        expect(() =>
-          new AjvJsonSchemaValidator().getValidator(tool.outputSchema),
-        ).not.toThrow();
+        expect(() => new AjvJsonSchemaValidator().getValidator(tool.outputSchema)).not.toThrow();
       }
 
       // ChatGPT kaller disse rett etter tools/list og avbryter oppdagelsen

@@ -164,11 +164,7 @@ export async function dispatchMcpMessage(
       if (isNotification) return null;
       const validated = validateMethodParams("resources/templates/list", message.params);
       if (!validated.ok) {
-        return rpcError(
-          id,
-          JSONRPC_INVALID_PARAMS,
-          "Ugyldige resources/templates/list-parametre.",
-        );
+        return rpcError(id, JSONRPC_INVALID_PARAMS, "Ugyldige resources/templates/list-parametre.");
       }
       return rpcResult(id as JsonRpcId, { resourceTemplates: [] });
     }
