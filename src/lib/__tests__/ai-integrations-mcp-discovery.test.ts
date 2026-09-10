@@ -6,13 +6,20 @@
 // med de headerne en ekstern (ikke-nettleser) klient sender: ingen Origin,
 // `Accept: application/json, text/event-stream`, `MCP-Protocol-Version`.
 //
-// Testen ville ha fanget oppdagelsesfeilen: den krever at verktøyene i
-// tools/list er fri for `outputSchema` og at hele svaret validerer mot
-// SDK-ens `ListToolsResultSchema`.
+// Testen dekker den observerte oppdagelsesfeilen: ChatGPT kaller
+// resources/list og resources/templates/list etter tools/list og avbryter
+// på -32601. Alle fire svar valideres mot SDK-ens resultatskjemaer, og
+// verktøyenes structuredContent valideres mot deres outputSchema.
 // ============================================================
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { InitializeResultSchema, ListToolsResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  InitializeResultSchema,
+  ListResourcesResultSchema,
+  ListResourceTemplatesResultSchema,
+  ListToolsResultSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import Ajv from "ajv";
 import { MCP_ENDPOINT_PATH } from "@/lib/ai-integrations/mcp-contract";
 import { buildMcpRejectionLog } from "@/routes/api/public/mcp";
 
