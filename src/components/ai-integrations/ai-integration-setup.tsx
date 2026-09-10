@@ -164,7 +164,6 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
       });
     },
     onSuccess: () => {
-      setSetupCode(null);
       queryClient.invalidateQueries({ queryKey: ["ai-integration-setup"] });
       toast.success("Assistenten er koblet fra. Karrieredataene dine er urørt.");
     },
@@ -174,7 +173,6 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
   const chooseLater = () => {
     // Ingen databasekall: valget er bevisst lokalt og skal aldri blokkere.
     setProvider(null);
-    setSetupCode(null);
     setDecideLater(true);
   };
 
@@ -211,7 +209,6 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
                   onClick={() => {
                     setProvider(p);
                     setDecideLater(false);
-                    setSetupCode(null);
                   }}
                   className={cn(
                     "rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
@@ -436,41 +433,13 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
             </div>
 
             <p className="max-w-prose text-xs text-muted-foreground">
-              Dette krever handling av deg: fullfør oppsettet inne i assistenten med engangskoden
-              under, og godkjenn forslag til karriereloggen etter hvert som de kommer.
+              Dette krever handling av deg: fullfør oppsettet inne i assistenten ved å legge til
+              Karrierenmin og logge inn med Karrierenmin-kontoen din. Du godkjenner tilgangen selv
+              og kan trekke den tilbake når som helst. Godkjenn forslag til karriereloggen etter
+              hvert som de kommer.
             </p>
 
-            {setupCode ? (
-              <Alert>
-                <KeyRound className="h-4 w-4" aria-hidden />
-                <AlertDescription className="space-y-1 text-sm">
-                  <p className="font-mono break-all text-base tracking-wide">{setupCode.code}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Vises bare denne ene gangen. Gyldig til{" "}
-                    {new Date(setupCode.expiresAt).toLocaleTimeString("nb-NO", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                    .
-                  </p>
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
             <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => newCode.mutate()}
-                disabled={newCode.isPending}
-              >
-                {newCode.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <KeyRound className="mr-2 h-4 w-4" aria-hidden />
-                )}
-                Lag ny engangskode
-              </Button>
               {current.status !== "disconnected" ? (
                 <Button
                   size="sm"
