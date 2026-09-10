@@ -102,7 +102,6 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
   const [planTier, setPlanTier] = useState<AiPlanTier>("unknown");
   const [emailProvider, setEmailProvider] = useState<EmailProviderChoice>("gmail");
   const [automation, setAutomation] = useState<AutomationChoices>(DEFAULT_AUTOMATION_CHOICES);
-  const [setupCode, setSetupCode] = useState<{ code: string; expiresAt: string } | null>(null);
 
   const setup = useQuery({
     queryKey: ["ai-integration-setup"],
@@ -152,21 +151,6 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
       if (result.partial) toast.warning(result.message);
       else if (provider) toast.success("Oppsettet er lagret");
       else toast.success("E-post- og LinkedIn-valgene dine er lagret");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const newCode = useMutation({
-    mutationFn: async () => {
-      if (!provider) throw new Error("Velg en assistent først.");
-      return (await authedJson("/api/ai-integrations/setup-session", {
-        method: "POST",
-        body: JSON.stringify({ provider }),
-      })) as { setup_code: string; expires_at: string };
-    },
-    onSuccess: (json) => {
-      setSetupCode({ code: json.setup_code, expiresAt: json.expires_at });
-      toast.success("Ny engangskode er klar. Den vises bare denne ene gangen.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
