@@ -279,12 +279,8 @@ export function validateCimdMetadata(
   if (metadata.client_id !== undefined && metadata.client_id !== context.url) {
     return { ok: false, reason: "client_id_mismatch" };
   }
-  if (
-    metadata.token_endpoint_auth_method !== undefined &&
-    metadata.token_endpoint_auth_method !== "none"
-  ) {
-    return { ok: false, reason: "confidential_client" };
-  }
+  const authMethod = negotiateTokenEndpointAuthMethod(metadata);
+  if (!authMethod.ok) return { ok: false, reason: authMethod.reason };
   const grants = metadata.grant_types;
   if (grants !== undefined) {
     if (!Array.isArray(grants) || grants.some((g) => !ALLOWED_GRANTS.has(String(g)))) {
