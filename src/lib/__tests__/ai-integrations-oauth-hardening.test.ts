@@ -68,7 +68,7 @@ describe("CIMD-URL-policy", () => {
 
 describe("CIMD-metadata", () => {
   const claude = CIMD_HOST_POLICIES.find((p) => p.host === "claude.ai")!;
-  const chatgpt = CIMD_HOST_POLICIES.find((p) => p.host === "chatgpt.com")!;
+  const chatgpt = CIMD_HOST_POLICIES.find((p) => p.label === "ChatGPT")!;
   const claudeUrl = "https://claude.ai/oauth/claude-code-client-metadata";
   const chatgptUrl = "https://chatgpt.com/oauth/client.json";
 
@@ -118,7 +118,7 @@ describe("CIMD-metadata", () => {
 // ---------------- token endpoint auth method-forhandling ----------------
 
 describe("token_endpoint_auth_method-forhandling", () => {
-  const chatgpt = CIMD_HOST_POLICIES.find((p) => p.host === "chatgpt.com")!;
+  const chatgpt = CIMD_HOST_POLICIES.find((p) => p.label === "ChatGPT")!;
   const ctx = { url: "https://chatgpt.com/oauth/client.json", policy: chatgpt };
   const base = { redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"] };
 
@@ -479,5 +479,113 @@ describe("kildekontroll: DCR rydder og fail-closer", () => {
     expect(src).toContain("cleanup.error");
     expect(src.indexOf("cleanup.error")).toBeLessThan(src.indexOf('.from("oauth_clients")'));
     expect(src).toContain("content-length");
+  });
+});
+
+// ---------------- Codex Work MCP: eksakt CIMD-identitet + loopback ----------------
+
+describe("Codex loopback (chatgpt.com/oauth/codex/client.json)", () => {
+  const codexUrl = "https://chatgpt.com/oauth/codex/client.json";
+  const codexPayload = {
+    client_id: codexUrl,
+    client_uri: "https://chatgpt.com/codex",
+    application_type: "native",
+    redirect_uris: ["http://127.0.0.1/callback", "http://localhost/callback"],
+    token_endpoint_auth_method: "none",
+    token_endpoint_auth_methods_supported: ["none"],
+    grant_types: ["authorization_code", "refresh_token"],
+    response_types: ["code"],
+    client_name: "Codex",
+    logo_uri: "https://persistent.oaistatic.com/sonic/misc/openai-logo.png",
+  };
+
+  const codexClient = {
+    registration_method: "cimd",
+    client_id: codexUrl,
+    metadata_url: codexUrl,
+    redirect_uris: codexPayload.redirect_uris,
+  };
+
+  it("velger den eksakte Codex-policyen, ikke den generelle ChatGPT-policyen", () => {
+    const check = checkCimdUrl(codexUrl);
+    expect(check.ok).toBe(true);
+    if (!check.ok) return;
+    expect(check.policy.label).toBe("Codex");
+    expect(check.policy.allowLoopbackCallback).toBe(true);
+    // Den generelle ChatGPT-policyen er uendret og uten loopback.
+    const generic = checkCimdUrl("https://chatgpt.com/oauth/client.json");
+    expect(generic.ok).toBe(true);
+    if (!generic.ok) return;
+    expect(generic.policy.label).toBe("ChatGPT");
+    expect(generic.policy.allowLoopbackCallback).toBeUndefined();
+    expect(checkCimdUrl("https://chatgpt.com/oauth/annet/client.json").ok).toBe(true);
+  });
+
+  it("godtar hele den faktiske Codex-payloaden og velger none", () => {
+    const check = checkCimdUrl(codexUrl);
+    expect(check.ok).toBe(true);
+    if (!check.ok) return;
+    const result = validateCimdMetadata(codexPayload, { url: codexUrl, policy: check.policy });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.tokenEndpointAuthMethod).toBe("none");
+    expect(result.clientName).toBe("Codex");
+    expect(result.redirectUris).toEqual(codexPayload.redirect_uris);
+  });
+
+  it("godtar den faktiske live-redirecten http://127.0.0.1:56304/callback", () => {
+    expect(allowsPortAgnosticLoopback(codexClient)).toBe(true);
+    expect(redirectUriAllowedForClient("http://127.0.0.1:56304/callback", codexClient)).toBe(true);
+    expect(redirectUriAllowedForClient("http://localhost:56304/callback", codexClient)).toBe(true);
+    for (const port of [1024, 65535]) {
+      expect(redirectUriAllowedForClient(`http://127.0.0.1:${port}/callback`, codexClient)).toBe(
+        true,
+      );
+    }
+  });
+
+  it("avviser ugyldige loopback-varianter for Codex", () => {
+    for (const uri of [
+      "http://127.0.0.1/callback", // portløs mal: eksakt registrert, derfor tillatt
+      "http://127.0.0.1:80/callback",
+      "http://127.0.0.1:1023/callback",
+      "http://127.0.0.1:70000/callback",
+      "http://127.0.0.1:56304/cb",
+      "http://127.0.0.1:56304/callback?x=1",
+      "http://127.0.0.1:56304/callback#a",
+      "http://user:pw@127.0.0.1:56304/callback",
+      "http://192.168.1.5:56304/callback",
+      "https://127.0.0.1:56304/callback",
+    ]) {
+      const allowed = redirectUriAllowedForClient(uri, codexClient);
+      // Portløs mal er eksakt registrert og derfor tillatt; alt annet avvises.
+      expect(allowed).toBe(uri === "http://127.0.0.1/callback");
+    }
+  });
+
+  it("gir ikke loopback til andre identiteter eller registreringsmetoder", () => {
+    const requested = "http://127.0.0.1:56304/callback";
+    for (const client of [
+      { ...codexClient, registration_method: "dcr" },
+      { ...codexClient, registration_method: "manual" },
+      { ...codexClient, metadata_url: "https://chatgpt.com/oauth/client.json" },
+      { ...codexClient, client_id: "https://chatgpt.com/oauth/client.json" },
+      {
+        registration_method: "cimd",
+        client_id: "https://chatgpt.com/oauth/codexx/client.json",
+        metadata_url: "https://chatgpt.com/oauth/codexx/client.json",
+        redirect_uris: codexPayload.redirect_uris,
+      },
+    ]) {
+      expect(allowsPortAgnosticLoopback(client)).toBe(false);
+      expect(redirectUriAllowedForClient(requested, client)).toBe(false);
+    }
+  });
+
+  it("krever at malen har samme vert og bane som forespørselen", () => {
+    const mismatched = { ...codexClient, redirect_uris: ["http://localhost/cb"] };
+    expect(redirectUriAllowedForClient("http://127.0.0.1:56304/callback", mismatched)).toBe(false);
+    const httpsOnly = { ...codexClient, redirect_uris: ["https://chatgpt.com/callback"] };
+    expect(redirectUriAllowedForClient("http://127.0.0.1:56304/callback", httpsOnly)).toBe(false);
   });
 });
