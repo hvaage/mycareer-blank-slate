@@ -76,12 +76,15 @@ describe("fromDomain", () => {
 /** In-memory stand-in for the unique index on the deliveries table. */
 function makeAdmin() {
   const seen = new Set<string>();
+  const rows: Record<string, unknown>[] = [];
   let nextId = 0;
   return {
     inserted: seen,
+    rows,
     from() {
       return {
         insert(values: Record<string, unknown>) {
+          rows.push(values);
           const key = `${values.email_job_source_id}|${values.provider}|${values.provider_message_id}`;
           return {
             select() {
