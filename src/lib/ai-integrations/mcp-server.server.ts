@@ -68,12 +68,15 @@ export function rpcError(
   };
 }
 
-/** Verktøyfeil er et gyldig resultat på JSON-RPC-nivå, ikke en protokollfeil. */
+/**
+ * Verktøyfeil er et gyldig resultat på JSON-RPC-nivå, ikke en protokollfeil.
+ * Uten `structuredContent`: verktøyenes `outputSchema` beskriver kun det
+ * vellykkede resultatet, og et feilobjekt ville aldri validert mot det.
+ */
 function toolError(id: JsonRpcId, code: string, message: string): JsonRpcResult {
   return rpcResult(id, {
     isError: true,
-    content: [{ type: "text", text: message }],
-    structuredContent: { ok: false, error: { code, message } },
+    content: [{ type: "text", text: `${code}: ${message}` }],
   });
 }
 
