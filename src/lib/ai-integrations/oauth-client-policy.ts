@@ -190,6 +190,10 @@ export function redirectUriAllowedForClient(
   client: LoopbackClientContext | null,
 ): boolean {
   if (typeof requested !== "string" || requested === "") return false;
+  // Portløs loopback er bare en metadata-mal og godtas aldri som
+  // konkret authorize-redirect, heller ikke ved eksakt strengtreff.
+  // Faktisk loopback krever eksplisitt port 1024–65535.
+  if (isClaudeLoopbackTemplate(requested)) return false;
   const registered = Array.isArray(client?.redirect_uris)
     ? (client!.redirect_uris as unknown[]).map(String)
     : [];
