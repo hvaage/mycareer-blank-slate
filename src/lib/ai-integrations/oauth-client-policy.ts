@@ -191,16 +191,81 @@ export type CimdMetadata = {
   client_name?: unknown;
   redirect_uris?: unknown;
   token_endpoint_auth_method?: unknown;
+  token_endpoint_auth_methods_supported?: unknown;
   grant_types?: unknown;
   response_types?: unknown;
   scope?: unknown;
 };
 
 export type CimdValidation =
-  | { ok: true; clientName: string; redirectUris: string[]; scopes: string[] }
+  | {
+      ok: true;
+      clientName: string;
+      redirectUris: string[];
+      scopes: string[];
+      tokenEndpointAuthMethod: ServerTokenAuthMethod;
+    }
   | { ok: false; reason: string };
 
 const ALLOWED_GRANTS = new Set(["authorization_code", "refresh_token"]);
+
+// ---------- token endpoint auth method ----------
+
+/**
+ * Serveren annonserer og implementerer BARE "none" (public clients + PKCE).
+ * private_key_jwt er bevisst ikke implementert.
+ */
+export const SERVER_TOKEN_AUTH_METHODS = ["none"] as const;
+export type ServerTokenAuthMethod = (typeof SERVER_TOKEN_AUTH_METHODS)[number];
+
+/** Fornuftig øvre grense på pluralfeltet. */
+export const MAX_TOKEN_AUTH_METHODS = 10;
+
+export type TokenAuthMethodNegotiation =
+  | { ok: true; method: ServerTokenAuthMethod }
+  | { ok: false; reason: string };
+
+/**
+ * Forhandler token-endepunktmetode etter OpenAI-kontrakten: når klienten
+ * publiserer pluralfeltet token_endpoint_auth_methods_supported, velges
+ * metoden fra skjæringspunktet med serverens metoder. Singularfeltet er
+ * legacy og får ikke overstyre et gyldig pluralfelt.
+ */
+export function negotiateTokenEndpointAuthMethod(
+  metadata: Pick<
+    CimdMetadata,
+    "token_endpoint_auth_method" | "token_endpoint_auth_methods_supported"
+  >,
+): TokenAuthMethodNegotiation {
+  const plural = metadata.token_endpoint_auth_methods_supported;
+  if (plural !== undefined) {
+    if (!Array.isArray(plural) || plural.length === 0 || plural.length > MAX_TOKEN_AUTH_METHODS) {
+      return { ok: false, reason: "token_endpoint_auth_methods" };
+    }
+    const cleaned: string[] = [];
+    for (const entry of plural) {
+      if (typeof entry !== "string") return { ok: false, reason: "token_endpoint_auth_methods" };
+      const value = entry.trim();
+      if (value === "" || value.length > 64) {
+        return { ok: false, reason: "token_endpoint_auth_methods" };
+      }
+      cleaned.push(value);
+    }
+    if (new Set(cleaned).size !== cleaned.length) {
+      return { ok: false, reason: "token_endpoint_auth_methods" };
+    }
+    const match = (SERVER_TOKEN_AUTH_METHODS as readonly string[]).find((m) =>
+      cleaned.includes(m),
+    ) as ServerTokenAuthMethod | undefined;
+    if (!match) return { ok: false, reason: "confidential_client" };
+    return { ok: true, method: match };
+  }
+
+  // Legacy: bare fravær eller "none" godtas.
+  const singular = metadata.token_endpoint_auth_method;
+  if (singular === undefined || singular === "none") return { ok: true, method: "none" };
+  return { ok: false, reason: "confidential_client" };
+}
 
 /**
  * Metadataen får ALDRI utvide serverens egne tillatelser: ukjente
@@ -214,12 +279,8 @@ export function validateCimdMetadata(
   if (metadata.client_id !== undefined && metadata.client_id !== context.url) {
     return { ok: false, reason: "client_id_mismatch" };
   }
-  if (
-    metadata.token_endpoint_auth_method !== undefined &&
-    metadata.token_endpoint_auth_method !== "none"
-  ) {
-    return { ok: false, reason: "confidential_client" };
-  }
+  const authMethod = negotiateTokenEndpointAuthMethod(metadata);
+  if (!authMethod.ok) return { ok: false, reason: authMethod.reason };
   const grants = metadata.grant_types;
   if (grants !== undefined) {
     if (!Array.isArray(grants) || grants.some((g) => !ALLOWED_GRANTS.has(String(g)))) {
@@ -258,7 +319,13 @@ export function validateCimdMetadata(
     if (!isValidScopeSet(scopes)) return { ok: false, reason: "scope" };
   }
 
-  return { ok: true, clientName, redirectUris: uris.map(String), scopes };
+  return {
+    ok: true,
+    clientName,
+    redirectUris: uris.map(String),
+    scopes,
+    tokenEndpointAuthMethod: authMethod.method,
+  };
 }
 
 // ---------- DCR-allowliste ----------

@@ -21,6 +21,7 @@ import {
   isClaudeLoopbackTemplate,
   redirectUriAllowedForClient,
   allowsPortAgnosticLoopback,
+  negotiateTokenEndpointAuthMethod,
 } from "@/lib/ai-integrations/oauth-client-policy";
 import { DCR_MAX_BODY_BYTES, utf8ByteLength } from "@/routes/api/public/oauth/register";
 import {
@@ -111,6 +112,85 @@ describe("CIMD-metadata", () => {
   it("krever redirect på klientens egen vert", () => {
     const ctx = { url: chatgptUrl, policy: chatgpt };
     expect(validateCimdMetadata({ redirect_uris: ["https://evil.com/cb"] }, ctx).ok).toBe(false);
+  });
+});
+
+// ---------------- token endpoint auth method-forhandling ----------------
+
+describe("token_endpoint_auth_method-forhandling", () => {
+  const chatgpt = CIMD_HOST_POLICIES.find((p) => p.host === "chatgpt.com")!;
+  const ctx = { url: "https://chatgpt.com/oauth/client.json", policy: chatgpt };
+  const base = { redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"] };
+
+  it("godtar ChatGPTs overgangspayload og velger none", () => {
+    const result = validateCimdMetadata(
+      {
+        ...base,
+        token_endpoint_auth_methods_supported: ["none", "private_key_jwt"],
+        token_endpoint_auth_method: "private_key_jwt",
+      },
+      ctx,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.tokenEndpointAuthMethod).toBe("none");
+      expect(result.redirectUris).toEqual([
+        "https://chatgpt.com/connector_platform_oauth_redirect",
+      ]);
+    }
+  });
+
+  it("avviser plural uten none i skjæringspunktet", () => {
+    expect(
+      validateCimdMetadata(
+        { ...base, token_endpoint_auth_methods_supported: ["private_key_jwt"] },
+        ctx,
+      ).ok,
+    ).toBe(false);
+  });
+
+  it("avviser ugyldig eller tom plural-array", () => {
+    for (const plural of [
+      [],
+      "none",
+      [123],
+      [""],
+      ["none", "none"],
+      ["n".repeat(65)],
+      Array.from({ length: 11 }, (_, i) => `m${i}`),
+    ]) {
+      expect(
+        validateCimdMetadata(
+          { ...base, token_endpoint_auth_methods_supported: plural as unknown },
+          ctx,
+        ).ok,
+      ).toBe(false);
+    }
+  });
+
+  it("beholder legacy-oppførsel uten pluralfelt", () => {
+    expect(validateCimdMetadata({ ...base, token_endpoint_auth_method: "none" }, ctx).ok).toBe(
+      true,
+    );
+    expect(
+      validateCimdMetadata({ ...base, token_endpoint_auth_method: "private_key_jwt" }, ctx).ok,
+    ).toBe(false);
+    expect(validateCimdMetadata(base, ctx).ok).toBe(true);
+  });
+
+  it("forhandler direkte mot serverens metoder", () => {
+    expect(negotiateTokenEndpointAuthMethod({})).toEqual({ ok: true, method: "none" });
+    expect(
+      negotiateTokenEndpointAuthMethod({
+        token_endpoint_auth_methods_supported: [" none "],
+        token_endpoint_auth_method: "private_key_jwt",
+      }),
+    ).toEqual({ ok: true, method: "none" });
+    expect(
+      negotiateTokenEndpointAuthMethod({
+        token_endpoint_auth_methods_supported: ["client_secret_basic"],
+      }).ok,
+    ).toBe(false);
   });
 });
 
