@@ -26,6 +26,27 @@ export const CIMD_CACHE_TTL_SECONDS = 60 * 60 * 6;
 
 export type CimdResult = { ok: true; client: ClientRecord } | { ok: false; reason: string };
 
+/**
+ * Serverkjøretiden (Cloudflare workerd) støtter kun `follow` og `manual` som
+ * redirect-modus; `error` kaster TypeError før forespørselen sendes. Vi bruker
+ * derfor `manual` og avviser enhver omdirigering selv — samme sikkerhetsregel
+ * som før: vi følger aldri en omdirigering.
+ */
+export function buildCimdFetchInit(signal: AbortSignal): RequestInit {
+  return {
+    method: "GET",
+    redirect: "manual",
+    headers: { Accept: "application/json" },
+    signal,
+  };
+}
+
+/** True når svaret er en omdirigering og derfor må avvises. */
+export function isCimdRedirectResponse(response: { status: number; type?: string }): boolean {
+  if (response.type === "opaqueredirect") return true;
+  return response.status >= 300 && response.status < 400;
+}
+
 async function readLimited(response: Response): Promise<string | null> {
   const body = response.body;
   if (!body) return null;
@@ -139,18 +160,15 @@ async function resolveCimdClientInner(clientIdUrl: string): Promise<CimdResult> 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CIMD_TIMEOUT_MS);
   try {
-    response = await fetch(check.url, {
-      method: "GET",
-      redirect: "error",
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    });
+    response = await fetch(check.url, buildCimdFetchInit(controller.signal));
   } catch {
     return { ok: false, reason: "fetch_failed" };
   } finally {
     clearTimeout(timer);
   }
 
+  // En omdirigering følges aldri; den avvises eksplisitt.
+  if (isCimdRedirectResponse(response)) return { ok: false, reason: "redirect" };
   if (!response.ok) return { ok: false, reason: "fetch_status" };
   const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
   if (!contentType.includes("application/json")) return { ok: false, reason: "content_type" };
