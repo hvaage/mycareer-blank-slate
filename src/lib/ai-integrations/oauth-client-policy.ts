@@ -114,10 +114,11 @@ export function checkCimdUrl(value: unknown): CimdUrlCheck {
   if (url.toString() !== value) return { ok: false, reason: "not_normalized" };
   return { ok: true, url: value, policy };
 }
-
-
-/** Den ene metadata-adressen som kan gi portagnostisk loopback. */
+/** Metadata-adresser som kan gi portagnostisk loopback. */
 export const CLAUDE_CIMD_URL = "https://claude.ai/oauth/claude-code-client-metadata";
+export const CODEX_CIMD_URL = "https://chatgpt.com/oauth/codex/client.json";
+export const LOOPBACK_CIMD_URLS: readonly string[] = [CLAUDE_CIMD_URL, CODEX_CIMD_URL] as const;
+
 
 function loopbackShape(value: unknown): URL | null {
   if (typeof value !== "string") return null;
