@@ -442,6 +442,9 @@ describe("verktøy og scope", () => {
     expect(jobImport.enabled_by_user).toBe(true);
     // Ingen arbeidsflyt er tilgjengelig som agentutløst kjøring.
     expect(body.result.structuredContent.workflows.every((w) => !w.available)).toBe(true);
+    expect(validateAgainstOutputSchema("karrierenmin_status", body.result.structuredContent)).toBe(
+      true,
+    );
   });
 
   it("karrierenmin_run gir not_enabled uten å opprette en kjøring", async () => {
@@ -455,6 +458,9 @@ describe("verktøy og scope", () => {
     expect(body.result.isError).toBe(true);
     expect(body.result.structuredContent.ok).toBe(false);
     expect(body.result.structuredContent.error.code).toBe("not_enabled");
+    expect(validateAgainstOutputSchema("karrierenmin_run", body.result.structuredContent)).toBe(
+      true,
+    );
   });
 
   it("karrierenmin_run gir not_available når brukeren har slått den på", async () => {
