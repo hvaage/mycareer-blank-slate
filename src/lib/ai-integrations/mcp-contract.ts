@@ -440,3 +440,25 @@ export function validateMethodParams(
     params: ((result.data as { params?: unknown }).params ?? {}) as Record<string, unknown>,
   };
 }
+
+/**
+ * Server-only observabilitet. Kun stabile, trygge felt: hvorfor kallet ble
+ * avvist, hvilken JSON-RPC-metode det gjaldt og hvilken protokollversjon som
+ * ble forhandlet. Aldri token, headere, body, argumenter, id-er eller
+ * feiltekst fra databasen. Vellykkede kall logges ikke.
+ */
+export function buildMcpRejectionLog(
+  reason: string,
+  method?: string,
+  jsonrpcCode?: number,
+  protocolVersion?: string,
+): Record<string, unknown> {
+  return {
+    event: "mcp_request_rejected",
+    reason,
+    ...(method === undefined ? {} : { method }),
+    ...(jsonrpcCode === undefined ? {} : { jsonrpc_code: jsonrpcCode }),
+    ...(protocolVersion === undefined ? {} : { protocol_version: protocolVersion }),
+  };
+}
+

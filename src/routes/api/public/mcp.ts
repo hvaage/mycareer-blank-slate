@@ -10,8 +10,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MCP_ENDPOINT_PATH } from "@/lib/ai-integrations/mcp-contract";
 
-export { buildMcpRejectionLog } from "@/lib/ai-integrations/mcp-http.server";
-
 export const Route = createFileRoute("/api/public/mcp")({
   server: {
     handlers: {

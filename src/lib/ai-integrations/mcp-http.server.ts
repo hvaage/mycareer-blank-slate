@@ -37,6 +37,8 @@ import {
   type McpProtocolVersion,
 } from "@/lib/ai-integrations/mcp-contract";
 
+import { buildMcpRejectionLog } from "@/lib/ai-integrations/mcp-contract";
+
 const BASE_HEADERS: Record<string, string> = {
   "Cache-Control": "no-store",
   "Content-Type": "application/json",
@@ -71,27 +73,6 @@ function rpcErrorResponse(
 
 function methodNotAllowed(): Response {
   return json({ error: "method_not_allowed" }, 405, { Allow: "POST, OPTIONS" });
-}
-
-/**
- * Server-only observabilitet. Kun stabile, trygge felt: hvorfor kallet ble
- * avvist, hvilken JSON-RPC-metode det gjaldt og hvilken protokollversjon som
- * ble forhandlet. Aldri token, headere, body, argumenter, id-er eller
- * feiltekst fra databasen. Vellykkede kall logges ikke.
- */
-export function buildMcpRejectionLog(
-  reason: string,
-  method?: string,
-  jsonrpcCode?: number,
-  protocolVersion?: string,
-): Record<string, unknown> {
-  return {
-    event: "mcp_request_rejected",
-    reason,
-    ...(method === undefined ? {} : { method }),
-    ...(jsonrpcCode === undefined ? {} : { jsonrpc_code: jsonrpcCode }),
-    ...(protocolVersion === undefined ? {} : { protocol_version: protocolVersion }),
-  };
 }
 
 function logMcpRejected(
