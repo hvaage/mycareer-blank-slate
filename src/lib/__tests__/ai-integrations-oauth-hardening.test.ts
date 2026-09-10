@@ -546,7 +546,8 @@ describe("Codex loopback (chatgpt.com/oauth/codex/client.json)", () => {
 
   it("avviser ugyldige loopback-varianter for Codex", () => {
     for (const uri of [
-      "http://127.0.0.1/callback", // portløs mal: eksakt registrert, derfor tillatt
+      "http://127.0.0.1/callback", // portløs mal: avvises selv som eksakt registrert treff
+      "http://localhost/callback", // samme for localhost
       "http://127.0.0.1:80/callback",
       "http://127.0.0.1:1023/callback",
       "http://127.0.0.1:70000/callback",
@@ -557,10 +558,35 @@ describe("Codex loopback (chatgpt.com/oauth/codex/client.json)", () => {
       "http://192.168.1.5:56304/callback",
       "https://127.0.0.1:56304/callback",
     ]) {
-      const allowed = redirectUriAllowedForClient(uri, codexClient);
-      // Portløs mal er eksakt registrert og derfor tillatt; alt annet avvises.
-      expect(allowed).toBe(uri === "http://127.0.0.1/callback");
+      // Konkret authorize-redirect må alltid ha eksplisitt port 1024–65535.
+      expect(redirectUriAllowedForClient(uri, codexClient)).toBe(false);
     }
+  });
+
+  it("avviser portløs loopback selv ved eksakt strengtreff i registered", () => {
+    const claudeShapeClient = {
+      registration_method: "cimd",
+      client_id: "https://claude.ai/oauth/claude-code-client-metadata",
+      metadata_url: "https://claude.ai/oauth/claude-code-client-metadata",
+      redirect_uris: ["http://localhost/callback", "http://127.0.0.1/callback"],
+    };
+    for (const uri of ["http://127.0.0.1/callback", "http://localhost/callback"]) {
+      expect(redirectUriAllowedForClient(uri, codexClient)).toBe(false);
+      expect(redirectUriAllowedForClient(uri, claudeShapeClient)).toBe(false);
+    }
+    // Gyldig HTTPS exact match er uendret.
+    const httpsClient = {
+      registration_method: "cimd",
+      client_id: "https://chatgpt.com/oauth/client.json",
+      metadata_url: "https://chatgpt.com/oauth/client.json",
+      redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"],
+    };
+    expect(
+      redirectUriAllowedForClient(
+        "https://chatgpt.com/connector_platform_oauth_redirect",
+        httpsClient,
+      ),
+    ).toBe(true);
   });
 
   it("gir ikke loopback til andre identiteter eller registreringsmetoder", () => {
