@@ -163,18 +163,15 @@ async function resolveCimdClientInner(clientIdUrl: string): Promise<CimdResult> 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CIMD_TIMEOUT_MS);
   try {
-    response = await fetch(check.url, {
-      method: "GET",
-      redirect: "error",
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    });
+    response = await fetch(check.url, buildCimdFetchInit(controller.signal));
   } catch {
     return { ok: false, reason: "fetch_failed" };
   } finally {
     clearTimeout(timer);
   }
 
+  // En omdirigering følges aldri; den avvises eksplisitt.
+  if (isCimdRedirectResponse(response)) return { ok: false, reason: "redirect" };
   if (!response.ok) return { ok: false, reason: "fetch_status" };
   const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
   if (!contentType.includes("application/json")) return { ok: false, reason: "content_type" };
