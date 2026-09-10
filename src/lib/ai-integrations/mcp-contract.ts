@@ -34,6 +34,8 @@ import {
   InitializeRequestSchema,
   JSONRPCNotificationSchema,
   JSONRPCRequestSchema,
+  ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ListToolsRequestSchema,
   PingRequestSchema,
   RequestIdSchema,
@@ -368,6 +370,8 @@ export const MCP_METHOD_SCHEMAS = {
   ping: PingRequestSchema,
   "tools/list": ListToolsRequestSchema,
   "tools/call": CallToolRequestSchema,
+  "resources/list": ListResourcesRequestSchema,
+  "resources/templates/list": ListResourceTemplatesRequestSchema,
 } as const;
 
 export function validateMethodParams(
