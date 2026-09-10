@@ -113,6 +113,7 @@ import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminIngestionRouteImport } from './routes/_authenticated/admin.ingestion'
 import { Route as AuthenticatedAdminCvTestRouteImport } from './routes/_authenticated/admin.cv-test'
 import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authenticated/admin.changelog'
+import { Route as DotwellKnownOauthProtectedResourceMcpRouteImport } from './routes/[.]well-known/oauth-protected-resource.mcp'
 import { Route as AuthenticatedNettverkSelskaperIndexRouteImport } from './routes/_authenticated/nettverk.selskaper.index'
 import { Route as AuthenticatedNettverkMuligheterIndexRouteImport } from './routes/_authenticated/nettverk.muligheter.index'
 import { Route as AuthenticatedNettverkKontakterIndexRouteImport } from './routes/_authenticated/nettverk.kontakter.index'
@@ -725,6 +726,12 @@ const AuthenticatedAdminChangelogRoute =
     path: '/admin/changelog',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const DotwellKnownOauthProtectedResourceMcpRoute =
+  DotwellKnownOauthProtectedResourceMcpRouteImport.update({
+    id: '/mcp',
+    path: '/mcp',
+    getParentRoute: () => DotwellKnownOauthProtectedResourceRoute,
+  } as any)
 const AuthenticatedNettverkSelskaperIndexRoute =
   AuthenticatedNettverkSelskaperIndexRouteImport.update({
     id: '/selskaper/',
@@ -929,6 +936,7 @@ export interface FileRoutesByFullPath {
   '/mcp/': typeof McpIndexRoute
   '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
+  '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/ingestion': typeof AuthenticatedAdminIngestionRoute
@@ -1059,6 +1067,7 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpIndexRoute
   '/rekruttererundersokelse': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
+  '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/ingestion': typeof AuthenticatedAdminIngestionRoute
@@ -1195,6 +1204,7 @@ export interface FileRoutesById {
   '/mcp/': typeof McpIndexRoute
   '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
+  '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/_authenticated/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/_authenticated/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/_authenticated/admin/ingestion': typeof AuthenticatedAdminIngestionRoute
@@ -1331,6 +1341,7 @@ export interface FileRouteTypes {
     | '/mcp/'
     | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
+    | '/.well-known/oauth-protected-resource/mcp'
     | '/admin/changelog'
     | '/admin/cv-test'
     | '/admin/ingestion'
@@ -1461,6 +1472,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/rekruttererundersokelse'
     | '/selskapsanalyse'
+    | '/.well-known/oauth-protected-resource/mcp'
     | '/admin/changelog'
     | '/admin/cv-test'
     | '/admin/ingestion'
@@ -1596,6 +1608,7 @@ export interface FileRouteTypes {
     | '/mcp/'
     | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
+    | '/.well-known/oauth-protected-resource/mcp'
     | '/_authenticated/admin/changelog'
     | '/_authenticated/admin/cv-test'
     | '/_authenticated/admin/ingestion'
@@ -2475,6 +2488,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminChangelogRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/.well-known/oauth-protected-resource/mcp': {
+      id: '/.well-known/oauth-protected-resource/mcp'
+      path: '/mcp'
+      fullPath: '/.well-known/oauth-protected-resource/mcp'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceMcpRouteImport
+      parentRoute: typeof DotwellKnownOauthProtectedResourceRoute
+    }
     '/_authenticated/nettverk/selskaper/': {
       id: '/_authenticated/nettverk/selskaper/'
       path: '/selskaper'
@@ -2922,11 +2942,14 @@ const SelskapsanalyseRouteWithChildren = SelskapsanalyseRoute._addFileChildren(
 )
 
 interface DotwellKnownOauthProtectedResourceRouteChildren {
+  DotwellKnownOauthProtectedResourceMcpRoute: typeof DotwellKnownOauthProtectedResourceMcpRoute
   DotwellKnownOauthProtectedResourceApiPublicMcpRoute: typeof DotwellKnownOauthProtectedResourceApiPublicMcpRoute
 }
 
 const DotwellKnownOauthProtectedResourceRouteChildren: DotwellKnownOauthProtectedResourceRouteChildren =
   {
+    DotwellKnownOauthProtectedResourceMcpRoute:
+      DotwellKnownOauthProtectedResourceMcpRoute,
     DotwellKnownOauthProtectedResourceApiPublicMcpRoute:
       DotwellKnownOauthProtectedResourceApiPublicMcpRoute,
   }
