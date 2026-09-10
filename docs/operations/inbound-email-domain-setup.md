@@ -1,74 +1,84 @@
 # Oppsett av innkommende e-postdomene (jobb.karrierenmin.no)
 
-**Status: IKKE KONFIGURERT.** Verken DNS eller serverhemmeligheter er endret av
-dette oppdraget. `INBOUND_EMAIL_DOMAIN` er ikke satt. Dokumentet beskriver hva
-som må gjøres, ikke hva som er gjort.
+**Status: IKKE KONFIGURERT.** Verken DNS eller serverhemmeligheter er endret.
+`INBOUND_EMAIL_DOMAIN` og `MAILGUN_WEBHOOK_SIGNING_KEY` er ikke satt, og
+mottaket er derfor avslått i koden. Dokumentet beskriver hva som må gjøres.
 
-## 1. Mottaksleverandør — basert på eksisterende webhook
+## 1. Mottaksleverandør — kun Mailgun
 
-Webhooken `src/routes/api/public/inbound/job-email.ts` støtter i dag to signerte
-inngangsveier, og oppsettet må velge én av dem:
+Webhooken `src/routes/api/public/inbound/job-email.ts` støtter **én** vei:
+Mailgun med HMAC-SHA256-signatur over `timestamp + token`, verifisert mot
+`MAILGUN_WEBHOOK_SIGNING_KEY`.
 
-| Vei | Signaturverifisering | Nødvendig hemmelighet |
-| --- | --- | --- |
-| Lovable-styrt e-postmottak | `verifyWebhookRequest` fra `@lovable.dev/webhooks-js`, headere `x-lovable-signature` / `x-lovable-timestamp` | `LOVABLE_API_KEY` (finnes allerede) |
-| Mailgun direkte | HMAC-SHA256 over `timestamp + token` | `MAILGUN_WEBHOOK_SIGNING_KEY` |
+Den tidligere «Lovable-veien» er fjernet. `LOVABLE_API_KEY` er en API-nøkkel
+for plattformtjenester, ikke en signeringsnøkkel for innkommende e-post, og
+brukes ikke lenger som webhook-signatur her.
 
-Anbefaling: bruk Lovable-veien hvis plattformens e-postmottak dekker et eget
-subdomene, siden hemmeligheten allerede finnes og koden allerede verifiserer den.
-Velges Mailgun, må Mailgun-ruten peke på samme webhook-URL.
+## 2. Konfigurasjonsport
 
-## 2. DNS — posttyper som må opprettes
+Handleren returnerer `503 inbound_not_configured` så lenge én av disse mangler:
 
-Alle verdier hentes fra den valgte leverandørens eget dashboard. **Ingen verdier
-er oppgitt her, fordi oppdiktede MX-, SPF- eller DKIM-verdier ville vært verre
-enn ingen.**
+| Navn | Rolle |
+| --- | --- |
+| `INBOUND_EMAIL_DOMAIN` | Mottaksdomenet, f.eks. `jobb.karrierenmin.no`. Alias godtas kun på nøyaktig dette domenet. |
+| `MAILGUN_WEBHOOK_SIGNING_KEY` | Mailguns signeringsnøkkel for webhooken. |
+
+Legges inn under Prosjektinnstillinger → Secrets. Aldri i repo, aldri i chat.
+
+## 3. Aliasregler
+
+- Adressen er `<token>@<INBOUND_EMAIL_DOMAIN>`.
+- Token er 26–64 tegn lowercase base32 (`a–z`, `2–7`).
+- Subdomener, overdomener, suffiks-varianter (`...no.evil.com`),
+  plussadressering og ukjente verter avvises som `unknown_alias` (404).
+
+## 4. DNS — posttyper som må opprettes
+
+Alle verdier hentes fra Mailguns eget dashboard. Ingen verdier er oppgitt her,
+fordi oppdiktede MX-, SPF- eller DKIM-verdier ville vært verre enn ingen.
 
 | Type | Navn | Verdi hentes fra |
 | --- | --- | --- |
-| MX (to poster, ulik prioritet) | `jobb.karrierenmin.no` | leverandørens «Receiving / Inbound domain»-side |
-| TXT (SPF) | `jobb.karrierenmin.no` | leverandørens SPF-streng for mottaksdomenet |
-| TXT (DKIM) | `<selector>._domainkey.jobb.karrierenmin.no` | DKIM-nøkkelen leverandøren genererer for domenet |
-| TXT (domenebekreftelse) | som leverandøren angir | leverandørens verifiseringssteg |
+| MX (to poster, ulik prioritet) | `jobb.karrierenmin.no` | Mailgun «Receiving / Inbound domain» |
+| TXT (SPF) | `jobb.karrierenmin.no` | Mailguns SPF-streng |
+| TXT (DKIM) | `<selector>._domainkey.jobb.karrierenmin.no` | Mailguns DKIM-nøkkel |
+| TXT (domenebekreftelse) | som Mailgun angir | Mailguns verifiseringssteg |
 
-Domenet må stå som verifisert i leverandørens dashboard før noe testes.
+Domenet må stå som verifisert hos Mailgun før noe testes.
 
-## 3. Webhook-URL
+## 5. Webhook-URL
 
 ```
 https://<produksjonsdomene>/api/public/inbound/job-email
 ```
 
-Stabil produksjonsadresse kan brukes i stedet for et omdøpbart domenenavn.
-Ruten ligger under `/api/public/`, men verifiserer signatur selv.
+Mailgun-ruten («Store and notify» / «Forward») peker hit. Ruten ligger under
+`/api/public/`, men verifiserer signatur selv.
 
-## 4. Nødvendige serverhemmeligheter (navn, aldri verdier)
+## 6. Idempotens
 
-| Navn | Rolle |
-| --- | --- |
-| `INBOUND_EMAIL_DOMAIN` | Settes til `jobb.karrierenmin.no`. Uten denne vises ingen importadresse i grensesnittet. |
-| `LOVABLE_API_KEY` | Signaturverifisering for Lovable-veien. Finnes allerede. |
-| `MAILGUN_WEBHOOK_SIGNING_KEY` | Kun hvis Mailgun-veien velges. |
+Hver leveranse krever først en rad i `inbound_email_deliveries`, unikt på
+`(email_job_source_id, provider, provider_message_id)`. Kravet skjer **før**
+`ingestParsedEmail`, så replay og samtidige leveranser av samme melding gir
+maksimalt én import og én jobb-lead. Duplikater svarer `200 { duplicate: true }`.
 
-Legges inn under Prosjektinnstillinger → Secrets. Aldri i repo, aldri i chat.
+## 7. Verifikasjonstest
 
-## 5. Verifikasjonstest
-
-1. Sett hemmelighetene og vent til DNS har propagert.
+1. Sett begge hemmelighetene og vent til DNS har propagert.
 2. Logg inn som testbruker og les den private importadressen i
-   Innstillinger → Integrasjoner. Adressen vises bare når både domenet er satt
-   og brukeren har en aliasnøkkel.
-3. Send en ekte jobbvarsel-e-post fra en **ekstern** avsender (ikke fra
-   systemet selv) til den private adressen.
+   Innstillinger → Integrasjoner.
+3. Send en ekte jobbvarsel-e-post fra en **ekstern** avsender til adressen.
 4. Godkjent når: webhooken svarer 200, e-posten er registrert som mottatt for
    riktig bruker, og lead-en dukker opp i Jobb-leads.
-5. Underkjent når: 401 (signatur), 404/ukjent alias, eller ingen lead.
+5. Underkjent når: 503 (ikke konfigurert), 401 (signatur), 404 (ukjent alias)
+   eller ingen lead.
+6. Send samme melding på nytt: forventet `200 { duplicate: true }` og ingen ny
+   lead.
 
-## 6. Rollback
+## 8. Rollback
 
-1. Fjern `INBOUND_EMAIL_DOMAIN`. Grensesnittet faller tilbake til nøytral tekst
-   uten å love at adressen er aktiv.
-2. Sett mottaksruten hos leverandøren på pause.
-3. Fjern MX-postene for `jobb.karrierenmin.no`. La SPF/DKIM stå til domenet
-   eventuelt avvikles helt.
+1. Fjern `INBOUND_EMAIL_DOMAIN` (eller `MAILGUN_WEBHOOK_SIGNING_KEY`). Mottaket
+   slår seg av med 503, og grensesnittet faller tilbake til nøytral tekst.
+2. Sett mottaksruten hos Mailgun på pause.
+3. Fjern MX-postene for `jobb.karrierenmin.no`. La SPF/DKIM stå.
 4. Ingen brukerdata slettes; allerede mottatte leads er upåvirket.
