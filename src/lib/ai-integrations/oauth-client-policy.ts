@@ -319,7 +319,13 @@ export function validateCimdMetadata(
     if (!isValidScopeSet(scopes)) return { ok: false, reason: "scope" };
   }
 
-  return { ok: true, clientName, redirectUris: uris.map(String), scopes };
+  return {
+    ok: true,
+    clientName,
+    redirectUris: uris.map(String),
+    scopes,
+    tokenEndpointAuthMethod: authMethod.method,
+  };
 }
 
 // ---------- DCR-allowliste ----------
