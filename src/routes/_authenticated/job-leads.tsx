@@ -43,10 +43,12 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
 });
 
-/** Locked contract: only NAV/Careerjet rows with an accepted version + non-null screening_status are V2-evaluated. */
-const MATCH_SCORE_VERSION = "job_match_v7_2026_08_26";
-/** Eldre scoringer før full annonsetekst ble lest fra uttrekket. Vises, men merkes. */
-const MATCH_SCORE_VERSION_LEGACY_V0 = "job_match_v6_2026_08_25";
+/** Locked contract: only rows with current version + non-null screening_status are current-evaluated. */
+const MATCH_SCORE_VERSION = "job_match_v8_2026_09_10";
+/** Eldre scoringer før UNKNOWN/NOT_SATISFIED ble skilt. Vises kun som utdaterte. */
+const MATCH_SCORE_VERSION_LEGACY_V0 = "job_match_v7_2026_08_26";
+/** Eldre scoringer før full annonsetekst ble lest fra uttrekket. Vises kun som utdaterte. */
+const MATCH_SCORE_VERSION_LEGACY_V1 = "job_match_v6_2026_08_25";
 /** Eldre scoringer før CxO-/forkortelsestaksonomien. Vises, men merkes. */
 const MATCH_SCORE_VERSION_LEGACY = "job_match_v5_2026_08_25";
 /** Eldre scoringer før rollefamilie-taksonomien. Vises, men merkes. */
@@ -54,9 +56,9 @@ const MATCH_SCORE_VERSION_LEGACY_V2 = "job_match_v4_2026_08_23";
 /** Eldre scoringer mot et bredere evidensgrunnlag. Vises, men merkes. */
 const MATCH_SCORE_VERSION_LEGACY_V3 = "job_match_v3_2026_08_15";
 const MATCH_SCORE_VERSION_LEGACY_V4 = "job_match_v2_2026_06_24";
-const ACCEPTED_MATCH_SCORE_VERSIONS = new Set<string>([
-  MATCH_SCORE_VERSION,
+const LEGACY_MATCH_SCORE_VERSIONS = new Set<string>([
   MATCH_SCORE_VERSION_LEGACY_V0,
+  MATCH_SCORE_VERSION_LEGACY_V1,
   MATCH_SCORE_VERSION_LEGACY,
   MATCH_SCORE_VERSION_LEGACY_V2,
   MATCH_SCORE_VERSION_LEGACY_V3,
@@ -80,12 +82,14 @@ type ScreeningReason = {
   code?: string | null;
   label?: string | null;
   detail?: string | null;
+  evaluation_status?: "SATISFIED" | "UNVERIFIED" | "NOT_SATISFIED" | null;
 };
 
 type RequirementItem = {
   level?: "mandatory" | "preferred" | "context" | null;
   label?: string | null;
   met?: boolean | null;
+  evaluation_status?: "SATISFIED" | "UNVERIFIED" | "NOT_SATISFIED" | null;
   matched_evidence_refs?: string[] | null;
 };
 
@@ -163,18 +167,12 @@ function reasonLabelNb(r: ScreeningReason): string {
   return REASON_LABELS_NB[code] ?? (code || "Uspesifisert årsak");
 }
 
-function isV2EvaluatedRaw(version: string | null | undefined, status: ScreeningStatus): boolean {
-  return !!version && ACCEPTED_MATCH_SCORE_VERSIONS.has(version) && status != null;
+function isCurrentMatchEvaluatedRaw(version: string | null | undefined, status: ScreeningStatus): boolean {
+  return version === MATCH_SCORE_VERSION && status != null;
 }
 
 function isLegacyScoreVersion(version: string | null | undefined): boolean {
-  return (
-    version === MATCH_SCORE_VERSION_LEGACY_V0 ||
-    version === MATCH_SCORE_VERSION_LEGACY ||
-    version === MATCH_SCORE_VERSION_LEGACY_V2 ||
-    version === MATCH_SCORE_VERSION_LEGACY_V3 ||
-    version === MATCH_SCORE_VERSION_LEGACY_V4
-  );
+  return !!version && LEGACY_MATCH_SCORE_VERSIONS.has(version);
 }
 
 function relevanceBadge(score: number | null) {
@@ -195,7 +193,7 @@ function leadBadge(lead: Lead) {
     return relevanceBadge(lead.score);
   }
   // NAV / Careerjet — V2
-  if (!isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null)) {
+  if (!isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null)) {
     return { label: "Ikke vurdert", cls: "bg-sky-600/15 text-sky-950 dark:text-sky-100 border border-sky-500/25" };
   }
   if (lead.screeningStatus === "excluded") {
@@ -418,7 +416,7 @@ function JobLeadsPage() {
       const matchScoreVersion: string | null = isManual
         ? ((r as any).match_score_version ?? null)
         : null;
-      const v2 = isManual && isV2EvaluatedRaw(matchScoreVersion, screeningStatus);
+      const v2 = isManual && isCurrentMatchEvaluatedRaw(matchScoreVersion, screeningStatus);
       const aiEvaluated = isManual
         ? v2
         : rawSource === "linkedin"
@@ -436,6 +434,7 @@ function JobLeadsPage() {
       // For excluded/needs_review: ikke vis gamle ai_match_highlights som positiv match.
       const manualExcludedOrNeeds = v2 &&
         (screeningStatus === "excluded" || screeningStatus === "needs_review");
+      const manualScreeningStatus = v2 ? screeningStatus : null;
       out.push({
         id: `${idPrefix}-${(r as any).id}`,
         rowKind: rawSource,
@@ -452,15 +451,17 @@ function JobLeadsPage() {
         score: aiEvaluated ? ((r as any).ai_score as number) : null,
         aiEvaluated,
         url: (r as any).job_url,
-        ai_reasoning: (r as any).ai_reasoning,
-        ai_match_highlights: manualExcludedOrNeeds ? null : (r as any).ai_match_highlights,
-        ai_concerns: (r as any).ai_concerns,
+        ai_reasoning: isManual ? (v2 ? (r as any).ai_reasoning : null) : (r as any).ai_reasoning,
+        ai_match_highlights: isManual
+          ? (v2 && !manualExcludedOrNeeds ? (r as any).ai_match_highlights : null)
+          : (r as any).ai_match_highlights,
+        ai_concerns: isManual ? (v2 ? (r as any).ai_concerns : null) : (r as any).ai_concerns,
         raw_snippet: (r as any).raw_snippet,
         source_email_from: (r as any).source_email_from,
         source_subject: (r as any).source_subject,
-        screeningStatus,
-        screeningReasons: manualScreeningReasons,
-        requirementSummary: isManual
+        screeningStatus: manualScreeningStatus,
+        screeningReasons: v2 ? manualScreeningReasons : [],
+        requirementSummary: isManual && v2
           ? (((r as any).requirement_summary as RequirementSummary) ?? null)
           : undefined,
         matchScoreVersion,
@@ -481,7 +482,7 @@ function JobLeadsPage() {
 
       const screeningStatus: ScreeningStatus = (screening?.screening_status as any) ?? null;
       const matchScoreVersion: string | null = screening?.match_score_version ?? null;
-      const v2 = isV2EvaluatedRaw(matchScoreVersion, screeningStatus);
+      const v2 = isCurrentMatchEvaluatedRaw(matchScoreVersion, screeningStatus);
 
       const rawAiScore = (row as any).ai_score;
       // Gamle V1-score nulles ut for NAV/Careerjet med mindre V2-vurdert.
@@ -503,7 +504,8 @@ function JobLeadsPage() {
 
       // For excluded/needs_review: ikke vis gamle ai_match_highlights som positiv match.
       const isExcludedOrNeeds = v2 && (screeningStatus === "excluded" || screeningStatus === "needs_review");
-      const highlights = isExcludedOrNeeds ? null : ((row as any).ai_match_highlights ?? null);
+      const currentScreeningStatus = v2 ? screeningStatus : null;
+      const highlights = v2 && !isExcludedOrNeeds ? ((row as any).ai_match_highlights ?? null) : null;
 
       let screeningReasons: ScreeningReason[] = [];
       const rawReasons = screening?.screening_reasons;
@@ -539,12 +541,12 @@ function JobLeadsPage() {
         isExpired: (row as any).is_expired === true,
         work_extent: (row as any).work_extent ?? null,
         engagement_type: (row as any).engagement_type ?? null,
-        ai_reasoning: (row as any).ai_reasoning ?? null,
+        ai_reasoning: v2 ? ((row as any).ai_reasoning ?? null) : null,
         ai_match_highlights: highlights,
-        ai_concerns: (row as any).ai_concerns ?? null,
-        screeningStatus,
-        screeningReasons,
-        requirementSummary: (screening?.requirement_summary as RequirementSummary) ?? null,
+        ai_concerns: v2 ? ((row as any).ai_concerns ?? null) : null,
+        screeningStatus: currentScreeningStatus,
+        screeningReasons: v2 ? screeningReasons : [],
+        requirementSummary: v2 ? ((screening?.requirement_summary as RequirementSummary) ?? null) : null,
         matchScoreVersion,
         matchScoredModel: screening?.match_scored_model ?? null,
         screeningEvaluatedAt: screening?.screening_evaluated_at ?? null,
@@ -564,7 +566,7 @@ function JobLeadsPage() {
           return lead.aiEvaluated && typeof lead.score === "number" && lead.score >= RELEVANT_MIN;
         }
         return (
-          isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
+          isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
           lead.screeningStatus === "eligible" &&
           typeof lead.score === "number" &&
           lead.score >= RELEVANT_MIN
@@ -576,7 +578,7 @@ function JobLeadsPage() {
           return lead.aiEvaluated && typeof lead.score === "number" && lead.score >= HIGH_MATCH_MIN;
         }
         return (
-          isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
+          isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
           lead.screeningStatus === "eligible" &&
           typeof lead.score === "number" &&
           lead.score >= HIGH_MATCH_MIN
@@ -586,13 +588,13 @@ function JobLeadsPage() {
       afterRelevance = out.filter(
         (lead) =>
           lead.source !== "linkedin" &&
-          isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
+          isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
           lead.screeningStatus === "needs_review",
       );
     } else if (relevanceView === "unreviewed") {
       afterRelevance = out.filter((lead) => {
         if (lead.source === "linkedin") return !lead.aiEvaluated;
-        return !isV2EvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null);
+        return !isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null);
       });
     } else {
       // "all" — alle vurderinger, inkluderer excluded
@@ -1385,11 +1387,17 @@ function RequirementSummarySection({ summary }: { summary: RequirementSummary })
                 : 0;
               let statusLabel = "Må verifiseres";
               let statusCls = "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-100";
-              if (req.met === true && evidenceCount > 0) {
+              const evaluationStatus = req.evaluation_status ??
+                (req.met === true && evidenceCount > 0
+                  ? "SATISFIED"
+                  : req.met === false
+                  ? "NOT_SATISFIED"
+                  : "UNVERIFIED");
+              if (evaluationStatus === "SATISFIED") {
                 statusLabel = "Dokumentert";
                 statusCls = "bg-emerald-500/15 text-emerald-900 dark:text-emerald-100 border border-emerald-500/30";
-              } else if (req.met === false) {
-                statusLabel = "Ikke dokumentert";
+              } else if (evaluationStatus === "NOT_SATISFIED") {
+                statusLabel = "Ikke oppfylt";
                 statusCls = "bg-amber-500/15 text-amber-900 dark:text-amber-100 border border-amber-500/30";
               }
               return (
@@ -1408,6 +1416,7 @@ function RequirementSummarySection({ summary }: { summary: RequirementSummary })
 
 function ScreeningReasonsBlock({ lead }: { lead: Lead }) {
   if (lead.source === "linkedin") return null;
+  if (!lead.aiEvaluated) return null;
   if (lead.screeningStatus !== "excluded" && lead.screeningStatus !== "needs_review") return null;
   const reasons = Array.isArray(lead.screeningReasons) ? lead.screeningReasons : [];
   if (reasons.length === 0) return null;
@@ -1529,8 +1538,8 @@ function LeadCard({
         <RequirementSummarySection summary={lead.requirementSummary ?? null} />
         {isLegacyScoreVersion(lead.matchScoreVersion) && (
           <div className="text-[11px] text-muted-foreground mt-1">
-            Vurdert mot et eldre evidensgrunnlag ({lead.matchScoreVersion}). Kjør ny
-            vurdering for å score mot bekreftede karriereatomer.
+            Vurderingen er laget med en eldre matchmotor ({lead.matchScoreVersion}).
+            Kjør ny vurdering for å bruke den oppdaterte kravlogikken.
           </div>
         )}
 

@@ -9,20 +9,68 @@
 // BD/KAM/AE/AM/SDR/BDR/FoU). Familien «Prosjektledelse» manglet og er lagt inn.
 // Normaliseringen translitterer nå æ/ø/å — tidligere ble «Markedsføring» til
 // «markedsf ring» og traff aldri familienøkkelen, og «direktør»-aliaser var døde.
-export const MATCH_SCORE_VERSION = "job_match_v7_2026_08_26";
-/** Forrige versjon. Rader med denne er scoret før forkortelsestaksonomien. */
-export const MATCH_SCORE_VERSION_LEGACY = "job_match_v6_2026_08_25";
+// 2026-09-10 (v8): kravvurdering skiller eksplisitt mellom oppfylt, uavklart og
+// ikke oppfylt. Manglende evidens kan ikke lenger ekskludere.
+export const MATCH_SCORE_VERSION = "job_match_v8_2026_09_10";
+/** Forrige versjon. Rader med denne kan ha blandet manglende evidens og avslag. */
+export const MATCH_SCORE_VERSION_LEGACY = "job_match_v7_2026_08_26";
+/** Eldre versjon. Rader med denne er scoret før forkortelsestaksonomien. */
+export const MATCH_SCORE_VERSION_LEGACY_V2 = "job_match_v6_2026_08_25";
 /** Eldre versjon. Rader med denne er scoret før rollefamilie-taksonomien. */
-export const MATCH_SCORE_VERSION_LEGACY_V2 = "job_match_v4_2026_08_23";
+export const MATCH_SCORE_VERSION_LEGACY_V3 = "job_match_v4_2026_08_23";
 
 export type ScreeningStatus = "eligible" | "excluded" | "needs_review";
 export type ScreeningSeverity = "hard_filter" | "review";
+export type RequirementEvaluationStatus =
+  | "SATISFIED"
+  | "UNVERIFIED"
+  | "NOT_SATISFIED";
+export type EvidenceKind = "explicit" | "derived" | "inferred" | "unknown";
+export type ComputedExperienceCategory =
+  | "total"
+  | "sales"
+  | "technology"
+  | "technology_sales"
+  | "leadership"
+  | "enterprise"
+  | "saas_cloud"
+  | "partner_channel"
+  | "distributed_teams";
+
+export type ComputedExperience = {
+  category: ComputedExperienceCategory;
+  months: number;
+  years: number;
+  source_refs: string[];
+  evidence_kind: EvidenceKind;
+  intervals: Array<{
+    ref: string;
+    label: string;
+    start: string;
+    end: string;
+    evidence_kind: EvidenceKind;
+  }>;
+};
+
+export type NormalizedRequirement = {
+  modality: "mandatory" | "preferred" | "context";
+  min_years: number | null;
+  mentioned_years_upper: number | null;
+  upper_is_max: boolean;
+  allows_equivalent: boolean;
+  experience_category: ComputedExperienceCategory | null;
+};
 
 export type ScreeningReason = {
   code: string;
   label: string;
   severity: ScreeningSeverity;
   evidence?: string;
+  evaluation_status?: RequirementEvaluationStatus;
+  requirement_level?: AiRequirement["level"];
+  requirement_type?: AiRequirement["type"];
+  matched_evidence_refs?: string[];
+  evidence_kind?: EvidenceKind;
 };
 
 export type EvidenceItem = {
@@ -30,6 +78,15 @@ export type EvidenceItem = {
   category: string;
   label: string;
   description?: string | null;
+  atom_type?: string | null;
+  parent_atom_id?: string | null;
+  structured_data?: Record<string, unknown> | null;
+  source_quote?: string | null;
+  confidence?: string | null;
+  attestation?: string | null;
+  user_confirmed?: boolean | null;
+  evidence_kind?: EvidenceKind;
+  computed_experience?: ComputedExperience;
 };
 
 export type ScreeningProfile = {
@@ -70,7 +127,10 @@ export type AiRequirement = {
   label: string;
   evidence_quote: string;
   met: boolean | null;
+  evaluation_status: RequirementEvaluationStatus;
   matched_evidence_refs: string[];
+  evidence_kind?: EvidenceKind;
+  normalized?: NormalizedRequirement;
 };
 
 export type AiEvaluation = {
@@ -96,6 +156,36 @@ const REMOTE_RE =
   /\b(remote|fully remote|fjernarbeid|hjemmekontor|arbeid fra hvor som helst)\b/i;
 const REPORTING_RE =
   /\b(report(?:s|ing)?(?: directly)? to|rapporterer(?: direkte)? til|reports directly to|underlagt|tett samarbeid med)\b/i;
+const SALES_RE =
+  /\b(sales|salg\w*|selger|account|key account|commercial|kommersiell\w*|business development|revenue|gtm|go to market|presales|pre sales|customer success)\b/i;
+const TECHNOLOGY_RE =
+  /\b(technology|technolog\w*|teknolog\w*|tech|it|ikt|software|programvare|saas|cloud|sky\w*|cyber\w*|security|sikkerhet|digital\w*|data|platform|plattform|infrastruktur|network|nettverk|cisco|netapp|symantec|microsoft|aws|amazon web services|google cloud|oracle|sap|salesforce|vmware|dell|hewlett packard|hpe|ibm|servicenow|snowflake|red hat|palo alto|fortinet|juniper)\b/i;
+const LEADERSHIP_RE =
+  /\b(leder\w*|ledelse|ledet|leadership|manager|director|direktor|vp|vice president|chief|head of|team lead|people manager|managed|management|mentored|coached|personalansvar)\b/i;
+const ENTERPRISE_RE =
+  /\b(enterprise|strategic account|key account|major account|large account|global account|storbedrift\w*|konsern|b2b|fortune|large enterprise)\b/i;
+const SAAS_CLOUD_RE =
+  /\b(saas|cloud|sky\w*|azure|aws|amazon web services|gcp|google cloud|microsoft 365|software as a service|iaas|paas)\b/i;
+const PARTNER_CHANNEL_RE =
+  /\b(partner|channel|kanal\w*|distributor|distribusjon|distribution|reseller|forhandler|alliances?|allianse\w*|var)\b/i;
+const DISTRIBUTED_TEAMS_RE =
+  /\b(distributed|distribuert|remote teams?|fjernledelse|global team|globalt team|international team|internasjonalt team|matrix|matrise|cross functional|tverrfaglig|nordic team|nordisk team|emea)\b/i;
+const EXPERIENCE_RE =
+  /\b(experience|erfaring|background|bakgrunn|years?|yrs?|ar|aar)\b/i;
+const UNSUPPORTED_SPECIFIC_DOMAIN_RE =
+  /\b(public sector|offentlig sektor|government|statlig|kommunal|healthcare|helse|pharma|banking|bank|insurance|forsikring|retail|varehandel|manufacturing|industri)\b/i;
+
+const EXPERIENCE_LABELS: Record<ComputedExperienceCategory, string> = {
+  total: "total erfaring",
+  sales: "salgserfaring",
+  technology: "teknologibransje-erfaring",
+  technology_sales: "teknologisalg",
+  leadership: "ledererfaring",
+  enterprise: "enterprise-erfaring",
+  saas_cloud: "SaaS/cloud-erfaring",
+  partner_channel: "partner- og kanalerfaring",
+  distributed_teams: "erfaring med distribuerte team",
+};
 
 // CxO- og tittelforkortelser: hver gruppe samler forkortelsen, engelske
 // fullformer og norske motparter. Gruppene virker begge veier — både når
@@ -106,21 +196,106 @@ const REPORTING_RE =
 // porten er bevisst raus — presisjonen ivaretas av KI-scoringen etterpå.
 const ROLE_EXPANSIONS: Record<string, string[]> = {
   // — C-suite —
-  ceo: ["ceo", "chief executive officer", "administrerende direktor", "adm dir", "daglig leder", "managing director"],
-  cfo: ["cfo", "chief financial officer", "finansdirektor", "finanssjef", "okonomidirektor", "okonomisjef"],
-  coo: ["coo", "chief operating officer", "chief operations officer", "driftsdirektor", "driftssjef", "operasjonsdirektor"],
-  cto: ["cto", "chief technology officer", "teknologidirektor", "teknologisjef", "teknisk direktor"],
-  cmo: ["cmo", "chief marketing officer", "markedsdirektor", "markedssjef", "markedsforingssjef"],
-  cpo: ["cpo", "chief product officer", "produktdirektor", "produktsjef", "chief people officer", "chief procurement officer"],
-  cco: ["cco", "chief commercial officer", "kommersiell leder", "kommersiell direktor", "chief compliance officer", "chief communications officer"],
-  cro: ["cro", "chief revenue officer", "inntektsdirektor", "chief risk officer", "risikodirektor"],
+  ceo: [
+    "ceo",
+    "chief executive officer",
+    "administrerende direktor",
+    "adm dir",
+    "daglig leder",
+    "managing director",
+  ],
+  cfo: [
+    "cfo",
+    "chief financial officer",
+    "finansdirektor",
+    "finanssjef",
+    "okonomidirektor",
+    "okonomisjef",
+  ],
+  coo: [
+    "coo",
+    "chief operating officer",
+    "chief operations officer",
+    "driftsdirektor",
+    "driftssjef",
+    "operasjonsdirektor",
+  ],
+  cto: [
+    "cto",
+    "chief technology officer",
+    "teknologidirektor",
+    "teknologisjef",
+    "teknisk direktor",
+  ],
+  cmo: [
+    "cmo",
+    "chief marketing officer",
+    "markedsdirektor",
+    "markedssjef",
+    "markedsforingssjef",
+  ],
+  cpo: [
+    "cpo",
+    "chief product officer",
+    "produktdirektor",
+    "produktsjef",
+    "chief people officer",
+    "chief procurement officer",
+  ],
+  cco: [
+    "cco",
+    "chief commercial officer",
+    "kommersiell leder",
+    "kommersiell direktor",
+    "chief compliance officer",
+    "chief communications officer",
+  ],
+  cro: [
+    "cro",
+    "chief revenue officer",
+    "inntektsdirektor",
+    "chief risk officer",
+    "risikodirektor",
+  ],
   cio: ["cio", "chief information officer", "it direktor", "it sjef"],
-  ciso: ["ciso", "chief information security officer", "informasjonssikkerhetsdirektor", "sikkerhetsdirektor"],
-  cdo: ["cdo", "chief data officer", "chief digital officer", "datadirektor", "digitaliseringsdirektor", "chief design officer"],
-  chro: ["chro", "chief human resources officer", "hr direktor", "personaldirektor", "personalsjef"],
-  cso: ["cso", "chief sales officer", "salgsdirektor", "chief strategy officer", "strategidirektor", "chief sustainability officer", "barekraftsdirektor"],
+  ciso: [
+    "ciso",
+    "chief information security officer",
+    "informasjonssikkerhetsdirektor",
+    "sikkerhetsdirektor",
+  ],
+  cdo: [
+    "cdo",
+    "chief data officer",
+    "chief digital officer",
+    "datadirektor",
+    "digitaliseringsdirektor",
+    "chief design officer",
+  ],
+  chro: [
+    "chro",
+    "chief human resources officer",
+    "hr direktor",
+    "personaldirektor",
+    "personalsjef",
+  ],
+  cso: [
+    "cso",
+    "chief sales officer",
+    "salgsdirektor",
+    "chief strategy officer",
+    "strategidirektor",
+    "chief sustainability officer",
+    "barekraftsdirektor",
+  ],
   cgo: ["cgo", "chief growth officer", "vekstdirektor"],
-  clo: ["clo", "chief legal officer", "general counsel", "juridisk direktor", "konsernadvokat"],
+  clo: [
+    "clo",
+    "chief legal officer",
+    "general counsel",
+    "juridisk direktor",
+    "konsernadvokat",
+  ],
   caio: ["caio", "chief ai officer", "chief artificial intelligence officer"],
   // — Direktør-/VP-nivå —
   evp: ["evp", "executive vice president", "konserndirektor"],
@@ -129,7 +304,13 @@ const ROLE_EXPANSIONS: Record<string, string[]> = {
   gm: ["gm", "general manager"],
   // — Ledelse og leveranse —
   em: ["em", "engineering manager", "utviklingssjef", "teknisk leder"],
-  pm: ["pm", "project manager", "product manager", "prosjektleder", "produktleder"],
+  pm: [
+    "pm",
+    "project manager",
+    "product manager",
+    "prosjektleder",
+    "produktleder",
+  ],
   po: ["po", "product owner", "produkteier"],
   // — Fagroller —
   ba: ["ba", "business analyst", "forretningsanalytiker"],
@@ -456,10 +637,19 @@ function containsPhrase(text: string, phrase: string): boolean {
 }
 
 function statusFromReasons(reasons: ScreeningReason[]): ScreeningStatus {
-  if (reasons.some((reason) => reason.severity === "hard_filter")) {
+  if (
+    reasons.some((reason) =>
+      reason.severity === "hard_filter" &&
+      reason.evaluation_status === "NOT_SATISFIED"
+    )
+  ) {
     return "excluded";
   }
-  if (reasons.some((reason) => reason.severity === "review")) {
+  if (
+    reasons.some((reason) =>
+      reason.severity === "review" || reason.severity === "hard_filter"
+    )
+  ) {
     return "needs_review";
   }
   return "eligible";
@@ -468,8 +658,260 @@ function statusFromReasons(reasons: ScreeningReason[]): ScreeningStatus {
 function evidenceCorpus(evidence: EvidenceItem[]): string {
   return normalizeScreeningText(
     evidence.map((item) =>
-      `${item.category} ${item.label} ${item.description ?? ""}`
+      `${item.category} ${item.label} ${item.description ?? ""} ${
+        item.source_quote ?? ""
+      } ${JSON.stringify(item.structured_data ?? {})}`
     ).join(" "),
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function compactText(parts: unknown[]): string {
+  return parts
+    .filter((part): part is string =>
+      typeof part === "string" && part.trim().length > 0
+    )
+    .map((part) => part.trim())
+    .join(" ");
+}
+
+function evidenceKindFromAtom(item: EvidenceItem): EvidenceKind {
+  if (item.evidence_kind) return item.evidence_kind;
+  if (item.confidence === "inferred") return "inferred";
+  if (
+    item.user_confirmed === true ||
+    item.confidence === "verified" ||
+    item.confidence === "imported" ||
+    item.attestation
+  ) {
+    return "explicit";
+  }
+  return "unknown";
+}
+
+function strongestEvidenceKind(values: EvidenceKind[]): EvidenceKind {
+  if (values.length === 0) return "unknown";
+  if (values.includes("unknown")) return "unknown";
+  if (values.includes("inferred")) return "inferred";
+  if (values.includes("derived")) return "derived";
+  return "explicit";
+}
+
+function parseYearMonthIndex(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{4})(?:-(0?[1-9]|1[0-2]))?(?:-\d{2})?$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = match[2] ? Number(match[2]) : 1;
+  if (!Number.isInteger(year) || year < 1950 || year > 2100) return null;
+  return year * 12 + month - 1;
+}
+
+function monthIndexToYearMonth(index: number): string {
+  const year = Math.floor(index / 12);
+  const month = index % 12 + 1;
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function currentMonthExclusive(now: Date): number {
+  return now.getFullYear() * 12 + now.getMonth() + 1;
+}
+
+function unionMonths(
+  intervals: Array<{ start: number; end: number }>,
+): number {
+  const sorted = intervals
+    .filter((item) => item.end > item.start)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  let total = 0;
+  let current: { start: number; end: number } | null = null;
+  for (const interval of sorted) {
+    if (!current) {
+      current = { ...interval };
+      continue;
+    }
+    if (interval.start <= current.end) {
+      current.end = Math.max(current.end, interval.end);
+      continue;
+    }
+    total += current.end - current.start;
+    current = { ...interval };
+  }
+  if (current) total += current.end - current.start;
+  return total;
+}
+
+function yearsFromMonths(months: number): number {
+  return Math.round((months / 12) * 10) / 10;
+}
+
+function formatYears(months: number): string {
+  const years = yearsFromMonths(months);
+  return `${
+    Number.isInteger(years) ? years : years.toFixed(1).replace(".", ",")
+  } år`;
+}
+
+type RoleExperienceInterval = {
+  ref: string;
+  label: string;
+  start: number;
+  end: number;
+  text: string;
+  evidence_kind: EvidenceKind;
+};
+
+function addInterval(
+  byCategory: Map<ComputedExperienceCategory, RoleExperienceInterval[]>,
+  category: ComputedExperienceCategory,
+  interval: RoleExperienceInterval,
+): void {
+  const list = byCategory.get(category) ?? [];
+  list.push(interval);
+  byCategory.set(category, list);
+}
+
+function hasTechnologySignal(text: string): boolean {
+  return TECHNOLOGY_RE.test(text);
+}
+
+function hasSalesSignal(text: string): boolean {
+  return SALES_RE.test(text);
+}
+
+function classifyRoleCategories(
+  text: string,
+  sd: Record<string, unknown>,
+): ComputedExperienceCategory[] {
+  const categories: ComputedExperienceCategory[] = ["total"];
+  const isSales = hasSalesSignal(text);
+  const isTechnology = hasTechnologySignal(text);
+  const employerSize = normalizeScreeningText(sd.employer_size);
+
+  if (isSales) categories.push("sales");
+  if (isTechnology) categories.push("technology");
+  if (isSales && isTechnology) categories.push("technology_sales");
+  if (LEADERSHIP_RE.test(text)) categories.push("leadership");
+  if (
+    ENTERPRISE_RE.test(text) || employerSize === "enterprise" ||
+    employerSize === "large"
+  ) {
+    categories.push("enterprise");
+  }
+  if (SAAS_CLOUD_RE.test(text)) categories.push("saas_cloud");
+  if (PARTNER_CHANNEL_RE.test(text)) categories.push("partner_channel");
+  if (DISTRIBUTED_TEAMS_RE.test(text)) categories.push("distributed_teams");
+  return [...new Set(categories)];
+}
+
+export function buildCalculatedExperienceEvidence(
+  evidence: EvidenceItem[],
+  options: { now?: Date } = {},
+): EvidenceItem[] {
+  const now = options.now ?? new Date();
+  const endForCurrent = currentMonthExclusive(now);
+  const childTextByParent = new Map<string, string[]>();
+  for (const item of evidence) {
+    if (!item.parent_atom_id) continue;
+    const values = childTextByParent.get(item.parent_atom_id) ?? [];
+    values.push(compactText([
+      item.category,
+      item.label,
+      item.description,
+      item.source_quote,
+      JSON.stringify(item.structured_data ?? {}),
+    ]));
+    childTextByParent.set(item.parent_atom_id, values);
+  }
+
+  const byCategory = new Map<
+    ComputedExperienceCategory,
+    RoleExperienceInterval[]
+  >();
+  for (const item of evidence) {
+    const sd = asRecord(item.structured_data);
+    const looksLikeRole = item.atom_type === "role" ||
+      (typeof sd.title === "string" && typeof sd.employer === "string");
+    if (!looksLikeRole) continue;
+    const start = parseYearMonthIndex(sd.start_date);
+    if (start === null) continue;
+    const rawEnd = parseYearMonthIndex(sd.end_date);
+    const end = rawEnd === null || sd.is_current === true
+      ? endForCurrent
+      : rawEnd + 1;
+    if (end <= start) continue;
+    const roleId = item.ref.startsWith("ca:") ? item.ref.slice(3) : item.ref;
+    const childText = childTextByParent.get(roleId) ?? [];
+    const roleText = normalizeScreeningText(compactText([
+      item.category,
+      item.label,
+      item.description,
+      item.source_quote,
+      sd.title,
+      sd.employer,
+      sd.industry,
+      sd.employer_size,
+      sd.employer_description,
+      ...childText,
+    ]));
+    const label =
+      compactText([sd.title, sd.employer ? `hos ${sd.employer}` : null]) ||
+      item.label;
+    const interval: RoleExperienceInterval = {
+      ref: item.ref,
+      label,
+      start,
+      end,
+      text: roleText,
+      evidence_kind: evidenceKindFromAtom(item),
+    };
+    for (const category of classifyRoleCategories(roleText, sd)) {
+      addInterval(byCategory, category, interval);
+    }
+  }
+
+  const result: EvidenceItem[] = [];
+  for (const [category, intervals] of byCategory.entries()) {
+    const months = unionMonths(intervals);
+    if (months <= 0) continue;
+    const refs = [...new Set(intervals.map((item) => item.ref))];
+    const sourceKinds = intervals.map((item) => item.evidence_kind);
+    const computed: ComputedExperience = {
+      category,
+      months,
+      years: yearsFromMonths(months),
+      source_refs: refs,
+      evidence_kind: strongestEvidenceKind(sourceKinds),
+      intervals: intervals.slice(0, 12).map((item) => ({
+        ref: item.ref,
+        label: item.label,
+        start: monthIndexToYearMonth(item.start),
+        end: monthIndexToYearMonth(item.end - 1),
+        evidence_kind: item.evidence_kind,
+      })),
+    };
+    const periodText = computed.intervals
+      .map((item) => `${item.label} ${item.start}-${item.end}`)
+      .join("; ");
+    result.push({
+      ref: `derived:experience:${category}`,
+      category: "experience",
+      label: `Beregnet ${EXPERIENCE_LABELS[category]}: ${formatYears(months)}`,
+      description:
+        `Beregnet fra arbeidshistorikk uten dobbelttelling av overlappende perioder. Perioder: ${periodText}`,
+      evidence_kind: "derived",
+      computed_experience: computed,
+    });
+  }
+  return result.sort((a, b) =>
+    (b.computed_experience?.months ?? 0) -
+    (a.computed_experience?.months ?? 0)
   );
 }
 
@@ -497,6 +939,7 @@ export function initialScreening(
         label:
           "Annonsen mangler lokasjon og må vurderes før den kan vises som relevant",
         severity: "review",
+        evaluation_status: "UNVERIFIED",
       });
     } else if (
       !acceptedLocations.some((accepted) =>
@@ -508,13 +951,16 @@ export function initialScreening(
         label: "Lokasjonen er utenfor brukerens valgte område",
         severity: "hard_filter",
         evidence: job.location ?? undefined,
+        evaluation_status: "NOT_SATISFIED",
       });
     }
   }
 
   const aliases = roleAliases(profile.target_roles ?? []);
   if (aliases.length > 0) {
-    const titleMatch = aliases.some((alias) => titleContainsAlias(title, alias));
+    const titleMatch = aliases.some((alias) =>
+      titleContainsAlias(title, alias)
+    );
     if (!titleMatch) {
       const reportingOnly = REPORTING_RE.test(description) &&
         aliases.some((alias) => titleContainsAlias(description, alias));
@@ -527,6 +973,7 @@ export function initialScreening(
           : "Stillingstittelen samsvarer ikke med brukerens målroller",
         severity: "hard_filter",
         evidence: job.title ?? undefined,
+        evaluation_status: "NOT_SATISFIED",
       });
     }
   }
@@ -540,8 +987,9 @@ export function initialScreening(
       reasons.push({
         code: rule.code,
         label: rule.label,
-        severity: "hard_filter",
+        severity: "review",
         evidence: job.title ?? undefined,
+        evaluation_status: "UNVERIFIED",
       });
     }
   }
@@ -556,6 +1004,7 @@ export function initialScreening(
         label: "Stillingsomfanget samsvarer ikke med brukerens valg",
         severity: "hard_filter",
         evidence: job.work_extent,
+        evaluation_status: "NOT_SATISFIED",
       });
     }
   }
@@ -570,6 +1019,7 @@ export function initialScreening(
         label: "Ansettelsesformen samsvarer ikke med brukerens valg",
         severity: "hard_filter",
         evidence: job.engagement_type,
+        evaluation_status: "NOT_SATISFIED",
       });
     }
   }
@@ -580,6 +1030,7 @@ export function initialScreening(
       label:
         "Full annonsetekst mangler; obligatoriske krav kan ikke kontrolleres",
       severity: "review",
+      evaluation_status: "UNVERIFIED",
     });
   }
 
@@ -592,59 +1043,594 @@ function supportedQuote(description: string, quote: string): boolean {
   return needle.length >= 8 && haystack.includes(needle);
 }
 
+type RequirementDraft = {
+  type: AiRequirement["type"];
+  level: AiRequirement["level"];
+  label: string;
+  evidence_quote: string;
+  met: boolean | null;
+  raw_status: RequirementEvaluationStatus | null;
+  matched_evidence_refs: string[];
+};
+
+const ALLOWED_REQUIREMENT_TYPES = new Set([
+  "education",
+  "license",
+  "certification",
+  "language",
+  "experience",
+  "skill",
+  "other",
+]);
+const ALLOWED_REQUIREMENT_LEVELS = new Set([
+  "mandatory",
+  "preferred",
+  "context",
+]);
+const ALLOWED_EVALUATION_STATUSES = new Set([
+  "SATISFIED",
+  "UNVERIFIED",
+  "NOT_SATISFIED",
+]);
+const PREFERRED_MARKER_RE =
+  /\b(preferably|preferred|advantageous|ideally|nice to have|would be a plus|is a plus|bonus|onskelig|ønskelig|fordel|gjerne|ideelt)\b/i;
+const MANDATORY_MARKER_RE =
+  /\b(must have|must|required|requirement|minimum|at least|need to have|ma ha|må ha|krever|obligatorisk|skal ha|minst)\b/i;
+const EQUIVALENT_RE =
+  /\b(or equivalent|equivalent experience|equivalent combination|eller tilsvarende|tilsvarende erfaring|realkompetanse)\b/i;
+const EXPLICIT_MAX_RE =
+  /\b(max(?:imum)?|up to|no more than|not more than|hoyest|høyest|maks(?:imum)?|inntil)\b/i;
+const ATOMIC_REQUIREMENT_RE =
+  /\b(experience|erfaring|bachelor|master|degree|utdanning|certification|sertifisering|license|licence|autorisasjon|language|sprak|språk|leder|leadership|sales|salg|industry|bransje|security clearance|klarering)\b/i;
+const NEGATIVE_EVIDENCE_RE =
+  /\b(ikke|mangler|uten|har ikke|not|no|without|lacks|does not|do not|none)\b/i;
+
+function cleanRequirementLabel(value: string): string {
+  return value
+    .replace(PREFERRED_MARKER_RE, "")
+    .replace(MANDATORY_MARKER_RE, "")
+    .replace(/^[\s,;:.\-–—]+|[\s,;:.]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
+}
+
+function normalizeRawRequirementText(value: string): string {
+  return value
+    .replace(/[æÆ]/g, "ae")
+    .replace(/[øØ]/g, "o")
+    .replace(/[åÅ]/g, "a")
+    .toLowerCase();
+}
+
+function parseEvaluationStatus(
+  value: unknown,
+): RequirementEvaluationStatus | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  return ALLOWED_EVALUATION_STATUSES.has(normalized)
+    ? normalized as RequirementEvaluationStatus
+    : null;
+}
+
+function normalizeRequirementLevel(
+  rawLevel: AiRequirement["level"],
+  textValue: string,
+): AiRequirement["level"] {
+  if (PREFERRED_MARKER_RE.test(textValue)) return "preferred";
+  if (MANDATORY_MARKER_RE.test(textValue)) return "mandatory";
+  return rawLevel;
+}
+
+function inferRequirementType(
+  fallback: AiRequirement["type"],
+  textValue: string,
+): AiRequirement["type"] {
+  const normalized = normalizeRawRequirementText(textValue);
+  if (/\b(master|bachelor|degree|utdanning|education)\b/.test(normalized)) {
+    return "education";
+  }
+  if (
+    /\b(certification|certified|sertifisering|sertifikat)\b/.test(normalized)
+  ) {
+    return "certification";
+  }
+  if (/\b(license|licence|autorisasjon|forerkort|driver)\b/.test(normalized)) {
+    return "license";
+  }
+  if (
+    /\b(language|sprak|norwegian|english|norsk|engelsk|svensk|dansk)\b/.test(
+      normalized,
+    )
+  ) {
+    return "language";
+  }
+  if (EXPERIENCE_RE.test(normalized)) return "experience";
+  return fallback;
+}
+
+function parseNumber(value: string): number {
+  return Number(value.replace(",", "."));
+}
+
+function parseExperienceYears(rawText: string): {
+  min: number | null;
+  upper: number | null;
+  upperIsMax: boolean;
+} {
+  const textValue = normalizeRawRequirementText(rawText);
+  const yearWord = String.raw`(?:years?|yrs?|år|ar|aar)`;
+  const upperIsMax = EXPLICIT_MAX_RE.test(textValue);
+  const explicitMax = textValue.match(
+    new RegExp(
+      String
+        .raw`\b(?:max(?:imum)?|up to|no more than|not more than|hoyest|maks(?:imum)?|inntil)\s*(\d+(?:[,.]\d+)?)\s*${yearWord}\b`,
+      "i",
+    ),
+  );
+  if (explicitMax) {
+    return {
+      min: null,
+      upper: parseNumber(explicitMax[1]),
+      upperIsMax: true,
+    };
+  }
+  const range = textValue.match(
+    new RegExp(
+      String
+        .raw`\b(\d+(?:[,.]\d+)?)\s*(?:-|–|—|to|til)\s*(\d+(?:[,.]\d+)?)\+?\s*${yearWord}\b`,
+      "i",
+    ),
+  );
+  if (range) {
+    return {
+      min: parseNumber(range[1]),
+      upper: parseNumber(range[2]),
+      upperIsMax,
+    };
+  }
+  const explicitMin = textValue.match(
+    new RegExp(
+      String
+        .raw`\b(?:minimum|minst|at least|min\.?)\s*(\d+(?:[,.]\d+)?)\+?\s*${yearWord}\b`,
+      "i",
+    ),
+  );
+  if (explicitMin) {
+    return { min: parseNumber(explicitMin[1]), upper: null, upperIsMax: false };
+  }
+  const plus = textValue.match(
+    new RegExp(String.raw`\b(\d+(?:[,.]\d+)?)\s*\+\s*${yearWord}\b`, "i"),
+  );
+  if (plus) {
+    return { min: parseNumber(plus[1]), upper: null, upperIsMax: false };
+  }
+  const plain = textValue.match(
+    new RegExp(String.raw`\b(\d+(?:[,.]\d+)?)\s*${yearWord}\b`, "i"),
+  );
+  if (plain) {
+    return { min: parseNumber(plain[1]), upper: null, upperIsMax: false };
+  }
+  return { min: null, upper: null, upperIsMax: false };
+}
+
+function inferExperienceCategory(
+  textValue: string,
+): ComputedExperienceCategory | null {
+  const normalized = normalizeScreeningText(textValue);
+  const mentionsExperience = EXPERIENCE_RE.test(normalized);
+  const sales = hasSalesSignal(normalized);
+  const technology = hasTechnologySignal(normalized);
+  const supportedSpecificDomain = technology ||
+    SAAS_CLOUD_RE.test(normalized) ||
+    PARTNER_CHANNEL_RE.test(normalized) ||
+    ENTERPRISE_RE.test(normalized) ||
+    DISTRIBUTED_TEAMS_RE.test(normalized);
+  if (
+    UNSUPPORTED_SPECIFIC_DOMAIN_RE.test(normalized) && !supportedSpecificDomain
+  ) {
+    return null;
+  }
+  if (sales && SAAS_CLOUD_RE.test(normalized)) return "saas_cloud";
+  if (sales && PARTNER_CHANNEL_RE.test(normalized)) return "partner_channel";
+  if (sales && ENTERPRISE_RE.test(normalized)) return "enterprise";
+  if (sales && technology) return "technology_sales";
+  if (sales) return "sales";
+  if (LEADERSHIP_RE.test(normalized)) return "leadership";
+  if (SAAS_CLOUD_RE.test(normalized)) return "saas_cloud";
+  if (PARTNER_CHANNEL_RE.test(normalized)) return "partner_channel";
+  if (ENTERPRISE_RE.test(normalized)) return "enterprise";
+  if (DISTRIBUTED_TEAMS_RE.test(normalized)) return "distributed_teams";
+  if (technology && mentionsExperience) return "technology";
+  if (mentionsExperience) return "total";
+  return null;
+}
+
+function normalizeRequirement(
+  level: AiRequirement["level"],
+  label: string,
+  evidenceQuote: string,
+): NormalizedRequirement {
+  const rawText = `${label} ${evidenceQuote}`;
+  const years = parseExperienceYears(rawText);
+  const textValue = normalizeRawRequirementText(rawText);
+  return {
+    modality: normalizeRequirementLevel(level, rawText),
+    min_years: years.min,
+    mentioned_years_upper: years.upper,
+    upper_is_max: years.upperIsMax,
+    allows_equivalent: EQUIVALENT_RE.test(textValue),
+    experience_category: inferExperienceCategory(rawText),
+  };
+}
+
+function splitDelimitedRequirement(
+  draft: RequirementDraft,
+): RequirementDraft[] {
+  const parts = draft.evidence_quote
+    .split(/\s*(?:;|\n|•|\u2022)\s*/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 8);
+  if (parts.length <= 1) return [draft];
+  return parts.map((part) => ({
+    ...draft,
+    type: inferRequirementType(draft.type, part),
+    level: normalizeRequirementLevel(draft.level, part),
+    label: cleanRequirementLabel(part) || draft.label,
+    evidence_quote: part.slice(0, 500),
+  }));
+}
+
+function splitAndRequirement(draft: RequirementDraft): RequirementDraft[] {
+  const parts = draft.evidence_quote
+    .split(/\s+(?:and|og)\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length < 2 || parts.length > 4) return [draft];
+  if (
+    !parts.every((part) => part.length >= 8 && ATOMIC_REQUIREMENT_RE.test(part))
+  ) {
+    return [draft];
+  }
+  return parts.map((part) => ({
+    ...draft,
+    type: inferRequirementType(draft.type, part),
+    level: normalizeRequirementLevel(draft.level, part),
+    label: cleanRequirementLabel(part) || draft.label,
+    evidence_quote: part.slice(0, 500),
+  }));
+}
+
+function splitPreferredRequirement(
+  draft: RequirementDraft,
+): RequirementDraft[] {
+  if (draft.level !== "mandatory") return [draft];
+  const match = draft.evidence_quote.match(PREFERRED_MARKER_RE);
+  if (!match || match.index === undefined || match.index <= 0) return [draft];
+  const before = draft.evidence_quote.slice(0, match.index)
+    .replace(/[\s,;:.\-–—]+$/g, "")
+    .trim();
+  const after = draft.evidence_quote.slice(match.index).trim();
+  if (before.length < 8 || after.length < 8) return [draft];
+
+  const beforeNormalized = normalizeScreeningText(before);
+  const afterNormalized = normalizeScreeningText(after);
+  const afterClean = cleanRequirementLabel(after);
+  const preferredLabel = hasSalesSignal(beforeNormalized) &&
+      hasTechnologySignal(afterNormalized) &&
+      !hasSalesSignal(afterNormalized)
+    ? `Sales experience ${afterClean}`.replace(/\s+/g, " ").trim()
+    : afterClean;
+
+  return [
+    {
+      ...draft,
+      type: inferRequirementType(draft.type, before),
+      level: normalizeRequirementLevel(draft.level, before),
+      label: cleanRequirementLabel(before) || draft.label,
+      evidence_quote: before.slice(0, 500),
+    },
+    {
+      ...draft,
+      type: inferRequirementType(draft.type, preferredLabel || after),
+      level: "preferred",
+      label: preferredLabel || draft.label,
+      evidence_quote: after.slice(0, 500),
+    },
+  ];
+}
+
+function atomizeRequirement(draft: RequirementDraft): RequirementDraft[] {
+  const delimited = splitDelimitedRequirement(draft);
+  const preferred = delimited.flatMap(splitPreferredRequirement);
+  return preferred.flatMap(splitAndRequirement).slice(0, 24);
+}
+
+function evidenceKindForRefs(
+  refs: string[],
+  evidenceByRef: Map<string, EvidenceItem>,
+): EvidenceKind {
+  return strongestEvidenceKind(
+    refs.map((ref) =>
+      evidenceByRef.get(ref)?.evidence_kind ??
+        evidenceKindFromAtom(
+          evidenceByRef.get(ref) ?? {
+            ref,
+            category: "",
+            label: "",
+          },
+        )
+    ),
+  );
+}
+
+function refsContainNegativeEvidence(
+  refs: string[],
+  evidenceByRef: Map<string, EvidenceItem>,
+): boolean {
+  return refs.some((ref) => {
+    const item = evidenceByRef.get(ref);
+    if (!item) return false;
+    const textValue = normalizeRawRequirementText(compactText([
+      item.category,
+      item.label,
+      item.description,
+      item.source_quote,
+      JSON.stringify(item.structured_data ?? {}),
+    ]));
+    return NEGATIVE_EVIDENCE_RE.test(textValue);
+  });
+}
+
+function computedExperienceForCategory(
+  category: ComputedExperienceCategory,
+  evidence: EvidenceItem[],
+): EvidenceItem | null {
+  const candidates = evidence.filter((item) =>
+    item.computed_experience?.category === category
+  );
+  return candidates.sort((a, b) =>
+    (b.computed_experience?.months ?? 0) -
+    (a.computed_experience?.months ?? 0)
+  )[0] ?? null;
+}
+
+function evaluateRequirementStatus(
+  draft: RequirementDraft,
+  normalized: NormalizedRequirement,
+  evidence: EvidenceItem[],
+  evidenceByRef: Map<string, EvidenceItem>,
+): {
+  status: RequirementEvaluationStatus;
+  refs: string[];
+  evidence_kind: EvidenceKind;
+} {
+  const refs = [...draft.matched_evidence_refs];
+  const category = draft.type === "experience"
+    ? normalized.experience_category
+    : null;
+  if (category) {
+    const item = computedExperienceForCategory(category, evidence);
+    if (item?.computed_experience) {
+      const months = item.computed_experience.months;
+      if (
+        normalized.upper_is_max &&
+        normalized.mentioned_years_upper !== null &&
+        months > normalized.mentioned_years_upper * 12
+      ) {
+        return {
+          status: "NOT_SATISFIED",
+          refs: [...new Set([...refs, item.ref])],
+          evidence_kind: "derived",
+        };
+      }
+      if (
+        normalized.min_years === null ||
+        months >= normalized.min_years * 12
+      ) {
+        return {
+          status: "SATISFIED",
+          refs: [...new Set([...refs, item.ref])],
+          evidence_kind: "derived",
+        };
+      }
+      return {
+        status: "UNVERIFIED",
+        refs: [...new Set([...refs, item.ref])],
+        evidence_kind: "derived",
+      };
+    }
+  }
+
+  const rawStatus = draft.raw_status;
+  if (rawStatus === "SATISFIED" && refs.length > 0) {
+    return {
+      status: "SATISFIED",
+      refs,
+      evidence_kind: evidenceKindForRefs(refs, evidenceByRef),
+    };
+  }
+  if (rawStatus === "NOT_SATISFIED" && refs.length > 0) {
+    if (!refsContainNegativeEvidence(refs, evidenceByRef)) {
+      return {
+        status: "UNVERIFIED",
+        refs,
+        evidence_kind: evidenceKindForRefs(refs, evidenceByRef),
+      };
+    }
+    return {
+      status: "NOT_SATISFIED",
+      refs,
+      evidence_kind: evidenceKindForRefs(refs, evidenceByRef),
+    };
+  }
+  if (draft.met === true && refs.length > 0) {
+    return {
+      status: "SATISFIED",
+      refs,
+      evidence_kind: evidenceKindForRefs(refs, evidenceByRef),
+    };
+  }
+  if (draft.met === false && refs.length > 0) {
+    if (!refsContainNegativeEvidence(refs, evidenceByRef)) {
+      return {
+        status: "UNVERIFIED",
+        refs,
+        evidence_kind: evidenceKindForRefs(refs, evidenceByRef),
+      };
+    }
+    return {
+      status: "NOT_SATISFIED",
+      refs,
+      evidence_kind: evidenceKindForRefs(refs, evidenceByRef),
+    };
+  }
+  return {
+    status: "UNVERIFIED",
+    refs,
+    evidence_kind: refs.length > 0
+      ? evidenceKindForRefs(refs, evidenceByRef)
+      : "unknown",
+  };
+}
+
+function metFromEvaluationStatus(
+  status: RequirementEvaluationStatus,
+): boolean | null {
+  if (status === "SATISFIED") return true;
+  if (status === "NOT_SATISFIED") return false;
+  return null;
+}
+
 function cleanAiRequirements(
   raw: unknown,
   description: string,
   validEvidenceRefs: Set<string>,
+  evidence: EvidenceItem[],
 ): AiRequirement[] {
   if (!Array.isArray(raw)) return [];
-  const allowedTypes = new Set([
-    "education",
-    "license",
-    "certification",
-    "language",
-    "experience",
-    "skill",
-    "other",
-  ]);
-  const allowedLevels = new Set(["mandatory", "preferred", "context"]);
+  const evidenceByRef = new Map(evidence.map((item) => [item.ref, item]));
   const requirements: AiRequirement[] = [];
-  for (const item of raw.slice(0, 12)) {
+  for (const item of raw.slice(0, 24)) {
     if (!item || typeof item !== "object") continue;
-    const type = typeof item.type === "string" && allowedTypes.has(item.type)
-      ? item.type
+    const rawItem = item as Record<string, unknown>;
+    const type = typeof rawItem.type === "string" &&
+        ALLOWED_REQUIREMENT_TYPES.has(rawItem.type)
+      ? rawItem.type
       : "other";
-    const level =
-      typeof item.level === "string" && allowedLevels.has(item.level)
-        ? item.level
-        : "context";
-    const label = typeof item.label === "string"
-      ? item.label.trim().slice(0, 240)
+    const level = typeof rawItem.level === "string" &&
+        ALLOWED_REQUIREMENT_LEVELS.has(rawItem.level)
+      ? rawItem.level
+      : "context";
+    const label = typeof rawItem.label === "string"
+      ? rawItem.label.trim().slice(0, 240)
       : "";
-    const evidenceQuote = typeof item.evidence_quote === "string"
-      ? item.evidence_quote.trim().slice(0, 500)
+    const evidenceQuote = typeof rawItem.evidence_quote === "string"
+      ? rawItem.evidence_quote.trim().slice(0, 500)
       : "";
     if (!label || !supportedQuote(description, evidenceQuote)) continue;
-    const met = typeof item.met === "boolean" ? item.met : null;
-    const matchedEvidenceRefs = Array.isArray(item.matched_evidence_refs)
-      ? item.matched_evidence_refs.filter((ref: unknown): ref is string =>
+    const met = typeof rawItem.met === "boolean" ? rawItem.met : null;
+    const matchedEvidenceRefs = Array.isArray(rawItem.matched_evidence_refs)
+      ? rawItem.matched_evidence_refs.filter((ref: unknown): ref is string =>
         typeof ref === "string" && validEvidenceRefs.has(ref)
       ).slice(0, 12)
       : [];
-    requirements.push({
+    const draft: RequirementDraft = {
       type: type as AiRequirement["type"],
       level: level as AiRequirement["level"],
       label,
       evidence_quote: evidenceQuote,
       met,
+      raw_status: parseEvaluationStatus(rawItem.evaluation_status),
       matched_evidence_refs: matchedEvidenceRefs,
-    });
+    };
+    for (const atom of atomizeRequirement(draft)) {
+      if (!supportedQuote(description, atom.evidence_quote)) continue;
+      const inferredType = inferRequirementType(
+        atom.type,
+        `${atom.label} ${atom.evidence_quote}`,
+      );
+      const normalized = normalizeRequirement(
+        atom.level,
+        atom.label,
+        atom.evidence_quote,
+      );
+      const evaluated = evaluateRequirementStatus(
+        { ...atom, type: inferredType },
+        normalized,
+        evidence,
+        evidenceByRef,
+      );
+      requirements.push({
+        type: inferredType,
+        level: normalized.modality,
+        label: atom.label,
+        evidence_quote: atom.evidence_quote,
+        met: metFromEvaluationStatus(evaluated.status),
+        evaluation_status: evaluated.status,
+        matched_evidence_refs: evaluated.refs.slice(0, 12),
+        evidence_kind: evaluated.evidence_kind,
+        normalized,
+      });
+    }
   }
   return requirements;
 }
 
 function text(value: unknown, max = 1000): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function requirementContradictedByExperience(
+  reason: ScreeningReason,
+  evidence: EvidenceItem[],
+): boolean {
+  if (reason.requirement_type !== "experience") return false;
+  const normalized = normalizeRequirement(
+    reason.requirement_level ?? "mandatory",
+    reason.label,
+    reason.evidence ?? reason.label,
+  );
+  const category = normalized.experience_category;
+  if (!category) return false;
+  if (normalized.upper_is_max) return false;
+  const item = computedExperienceForCategory(category, evidence);
+  if (!item?.computed_experience) return false;
+  if (normalized.min_years === null) return item.computed_experience.months > 0;
+  return item.computed_experience.months >= normalized.min_years * 12;
+}
+
+function applyContradictionGuard(
+  reasons: ScreeningReason[],
+  evidence: EvidenceItem[],
+): ScreeningReason[] {
+  let blocked = false;
+  const guarded = reasons.map((reason) => {
+    if (
+      reason.severity !== "hard_filter" ||
+      reason.evaluation_status !== "NOT_SATISFIED"
+    ) {
+      return reason;
+    }
+    if (!requirementContradictedByExperience(reason, evidence)) return reason;
+    blocked = true;
+    return {
+      ...reason,
+      severity: "review" as ScreeningSeverity,
+      evaluation_status: "UNVERIFIED" as RequirementEvaluationStatus,
+      label: `Eksklusjonsgrunnlag må avklares: ${reason.label}`,
+    };
+  });
+  if (!blocked) return guarded;
+  guarded.push({
+    code: "sanity_guard_blocked_exclusion",
+    label:
+      "Eksklusjon ble stoppet fordi annen kandidat-evidens peker på at kravet kan være oppfylt",
+    severity: "review",
+    evaluation_status: "UNVERIFIED",
+    evidence_kind: "derived",
+  });
+  return guarded;
 }
 
 export function finalizeEvaluation(
@@ -661,27 +1647,35 @@ export function finalizeEvaluation(
     obj.requirements,
     description,
     validRefs,
+    evidence,
   );
   const reasons = [...initial.reasons];
 
   for (const requirement of requirements) {
     if (requirement.level !== "mandatory") continue;
-    const met = requirement.matched_evidence_refs.length === 0
-      ? false
-      : requirement.met;
-    if (met === false) {
+    if (requirement.evaluation_status === "NOT_SATISFIED") {
       reasons.push({
         code: `mandatory_${requirement.type}_missing`,
-        label: `Obligatorisk krav er ikke dokumentert: ${requirement.label}`,
+        label: `Obligatorisk krav er ikke oppfylt: ${requirement.label}`,
         severity: "hard_filter",
         evidence: requirement.evidence_quote,
+        evaluation_status: "NOT_SATISFIED",
+        requirement_level: requirement.level,
+        requirement_type: requirement.type,
+        matched_evidence_refs: requirement.matched_evidence_refs,
+        evidence_kind: requirement.evidence_kind,
       });
-    } else if (met === null) {
+    } else if (requirement.evaluation_status === "UNVERIFIED") {
       reasons.push({
         code: `mandatory_${requirement.type}_unverified`,
         label: `Obligatorisk krav må verifiseres: ${requirement.label}`,
         severity: "review",
         evidence: requirement.evidence_quote,
+        evaluation_status: "UNVERIFIED",
+        requirement_level: requirement.level,
+        requirement_type: requirement.type,
+        matched_evidence_refs: requirement.matched_evidence_refs,
+        evidence_kind: requirement.evidence_kind,
       });
     }
   }
@@ -700,26 +1694,29 @@ export function finalizeEvaluation(
       label:
         "Annonsen ser ut til å ha et obligatorisk kvalifikasjonskrav som ikke ble sikkert tolket",
       severity: "review",
+      evaluation_status: "UNVERIFIED",
     });
   }
 
-  let status = statusFromReasons(reasons);
+  const finalReasons = applyContradictionGuard(reasons, evidence);
+  let status = statusFromReasons(finalReasons);
   const rawScore = obj.score;
   if (
     status === "eligible" &&
     (typeof rawScore !== "number" || !Number.isFinite(rawScore))
   ) {
-    reasons.push({
+    finalReasons.push({
       code: "invalid_ai_score",
       label: "Scoringsmodellen returnerte ikke en gyldig score",
       severity: "review",
+      evaluation_status: "UNVERIFIED",
     });
     status = "needs_review";
   }
 
   return {
     status,
-    reasons,
+    reasons: finalReasons,
     score: status === "eligible"
       ? Math.max(0, Math.min(100, rawScore as number))
       : 0,

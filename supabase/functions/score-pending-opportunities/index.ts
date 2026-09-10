@@ -1,4 +1,4 @@
-// Job Match V2
+// Job Match V8
 // Hard eligibility screening runs before scoring. Mandatory requirements may
 // only be treated as met when the model cites both the job text and a known
 // evidence reference. Every committed replacement is written atomically with
@@ -7,6 +7,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   type AiEvaluation,
+  buildCalculatedExperienceEvidence,
   type EvidenceItem,
   type FinalEvaluation,
   finalizeEvaluation,
@@ -42,8 +43,13 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? "";
 const AI_MODEL = Deno.env.get("SCORE_PENDING_AI_MODEL") ??
   "google/gemini-2.5-flash";
 
-
-const ALLOWED_SOURCES = new Set(["nav", "careerjet", "linkedin", "finn", "all"]);
+const ALLOWED_SOURCES = new Set([
+  "nav",
+  "careerjet",
+  "linkedin",
+  "finn",
+  "all",
+]);
 const ALLOWED_MODES = new Set(["pending", "stale", "rescore"]);
 const DESC_MAX_LEN = 6000;
 const EVIDENCE_LIMIT = 80;
@@ -224,7 +230,13 @@ type Candidate = {
   listing_status_id: string | null;
   canonical_opportunity_id: string | null;
   listing_id: string | null;
-  source: "nav" | "careerjet" | "linkedin" | "finn" | "manual_url" | "manual_paste";
+  source:
+    | "nav"
+    | "careerjet"
+    | "linkedin"
+    | "finn"
+    | "manual_url"
+    | "manual_paste";
   title: string | null;
   company: string | null;
   location: string | null;
@@ -311,7 +323,7 @@ async function loadCandidates(
   const now = Date.now();
   const targeted =
     input.user_opportunity_ids.length + input.listing_status_ids.length +
-      input.job_lead_ids.length > 0;
+        input.job_lead_ids.length > 0;
 
   // Canonical branch: NAV/Careerjet via canonical_opportunities.
   if (
@@ -487,7 +499,8 @@ async function loadCandidates(
     for (const row of legacyRows ?? []) {
       if (candidates.length >= input.limit) break;
       if (
-        representedStatusIds.has((row as any).id) || !modeMatches(row, input.mode)
+        representedStatusIds.has((row as any).id) ||
+        !modeMatches(row, input.mode)
       ) continue;
       const listing = relation((row as any).job_listings);
       if (!listing || listing.is_expired === true) continue;
@@ -622,7 +635,6 @@ function jobLeadDescription(row: Record<string, unknown>): string {
   return str(row.posted_text);
 }
 
-
 function uniqueStrings(values: unknown[]): string[] {
   return [
     ...new Set(
@@ -640,30 +652,45 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
 }> {
   // Karriereontologi v4, fase 2.1: career_atoms er eneste evidenskilde.
   // user_evidence_atoms og cv_evidence_atoms leses ikke lenger her.
-  const [profileResult, careerResult, atomResult] = await Promise
-    .all([
-      admin.from("profiles")
-        .select(
-          "headline, years_experience, target_role, target_roles, target_seniority, target_industries, industries, skills, languages, preferred_locations, target_city, target_region, target_country, preferred_work_extents, preferred_engagement_types, willing_to_relocate, work_types",
-        )
-        .eq("id", userId).maybeSingle(),
-      admin.from("user_career_profiles")
-        .select(
-          "career_stage, leadership_level, years_experience, desired_role_types, desired_industries, preferred_locations, preferred_work_styles, remote_preference",
-        )
-        .eq("user_id", userId).maybeSingle(),
-      admin.from("career_atoms")
-        .select(
-          "id, atom_type, atom_class, content_no, content_en, source_quote, confidence, attestation, user_confirmed, created_at",
-        )
-        .eq("user_id", userId)
-        .eq("atom_kind", "evidens")
-        .eq("is_active", true)
-        // Fase 0: kun brukerbekreftet evidens brukes til matching.
-        .eq("user_confirmed", true)
-        .order("created_at", { ascending: false })
-        .limit(EVIDENCE_LIMIT),
-    ]);
+  const [
+    profileResult,
+    careerResult,
+    atomResult,
+    workHistoryResult,
+  ] = await Promise.all([
+    admin.from("profiles")
+      .select(
+        "headline, years_experience, target_role, target_roles, target_seniority, target_industries, industries, skills, languages, preferred_locations, target_city, target_region, target_country, preferred_work_extents, preferred_engagement_types, willing_to_relocate, work_types",
+      )
+      .eq("id", userId).maybeSingle(),
+    admin.from("user_career_profiles")
+      .select(
+        "career_stage, leadership_level, years_experience, desired_role_types, desired_industries, preferred_locations, preferred_work_styles, remote_preference",
+      )
+      .eq("user_id", userId).maybeSingle(),
+    admin.from("career_atoms")
+      .select(
+        "id, atom_type, atom_class, parent_atom_id, content_no, content_en, source_quote, structured_data, confidence, attestation, user_confirmed, created_at",
+      )
+      .eq("user_id", userId)
+      .eq("atom_kind", "evidens")
+      .eq("is_active", true)
+      // Fase 0: kun brukerbekreftet evidens brukes til matching.
+      .eq("user_confirmed", true)
+      .order("created_at", { ascending: false })
+      .limit(EVIDENCE_LIMIT),
+    admin.from("career_atoms")
+      .select(
+        "id, atom_type, atom_class, parent_atom_id, content_no, content_en, source_quote, structured_data, confidence, attestation, user_confirmed, created_at",
+      )
+      .eq("user_id", userId)
+      .eq("atom_kind", "evidens")
+      .eq("is_active", true)
+      .eq("user_confirmed", true)
+      .in("atom_type", ["role", "achievement", "metric", "context", "tool"])
+      .order("created_at", { ascending: false })
+      .limit(300),
+  ]);
   if (profileResult.error || !profileResult.data) {
     throw new Error("profile_not_found");
   }
@@ -674,6 +701,11 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
   }
   if (atomResult.error) {
     throw new Error(`career_atoms_select_failed:${atomResult.error.message}`);
+  }
+  if (workHistoryResult.error) {
+    throw new Error(
+      `work_history_select_failed:${workHistoryResult.error.message}`,
+    );
   }
   const p = profileResult.data;
   const c = careerResult.data ?? {};
@@ -687,20 +719,60 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
     ...(Array.isArray(c.preferred_locations) ? c.preferred_locations : []),
   ]);
 
-  const evidence: EvidenceItem[] = [];
-  for (const item of atomResult.data ?? []) {
+  const evidenceByRef = new Map<string, EvidenceItem>();
+  const addCareerAtomEvidence = (item: any) => {
     const content = cleanText(
       item.content_no || item.content_en || item.source_quote,
       500,
     );
-    if (!content) continue;
-    evidence.push({
-      ref: `ca:${item.id}`,
+    if (!content && item.atom_type !== "role") return;
+    const ref = `ca:${item.id}`;
+    if (evidenceByRef.has(ref)) return;
+    const evidenceKind = item.confidence === "inferred"
+      ? "inferred" as const
+      : item.user_confirmed === true ||
+          item.confidence === "verified" ||
+          item.confidence === "imported" ||
+          item.attestation
+      ? "explicit" as const
+      : "unknown" as const;
+    evidenceByRef.set(ref, {
+      ref,
       category: cleanText(item.atom_class ?? item.atom_type, 80),
       label: content.slice(0, 240),
       description: cleanText(item.source_quote, 500) || null,
+      atom_type: typeof item.atom_type === "string" ? item.atom_type : null,
+      parent_atom_id: typeof item.parent_atom_id === "string"
+        ? item.parent_atom_id
+        : null,
+      structured_data: item.structured_data &&
+          typeof item.structured_data === "object" &&
+          !Array.isArray(item.structured_data)
+        ? item.structured_data as Record<string, unknown>
+        : null,
+      source_quote: cleanText(item.source_quote, 500) || null,
+      confidence: typeof item.confidence === "string" ? item.confidence : null,
+      attestation: typeof item.attestation === "string"
+        ? item.attestation
+        : null,
+      user_confirmed: item.user_confirmed === true,
+      evidence_kind: evidenceKind,
     });
+  };
+  for (const item of atomResult.data ?? []) {
+    addCareerAtomEvidence(item);
   }
+  for (const item of workHistoryResult.data ?? []) {
+    addCareerAtomEvidence(item);
+  }
+  const explicitEvidence = [...evidenceByRef.values()];
+  const calculatedExperience = buildCalculatedExperienceEvidence(
+    explicitEvidence,
+  );
+  const evidence = [
+    ...calculatedExperience,
+    ...explicitEvidence,
+  ].slice(0, EVIDENCE_LIMIT);
 
   return {
     profile: {
@@ -739,7 +811,7 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
       career_stage: c.career_stage ?? null,
       leadership_level: c.leadership_level ?? null,
     },
-    evidence: evidence.slice(0, EVIDENCE_LIMIT),
+    evidence,
   };
 }
 
@@ -762,13 +834,13 @@ function requirementSummary(
     parser_version: MATCH_SCORE_VERSION,
     mandatory_total: mandatory.length,
     mandatory_met:
-      mandatory.filter((item) =>
-        item.met === true && item.matched_evidence_refs.length > 0
-      ).length,
+      mandatory.filter((item) => item.evaluation_status === "SATISFIED").length,
     mandatory_missing:
-      mandatory.filter((item) =>
-        item.met === false || item.matched_evidence_refs.length === 0
-      ).length,
+      mandatory.filter((item) => item.evaluation_status === "NOT_SATISFIED")
+        .length,
+    mandatory_unverified:
+      mandatory.filter((item) => item.evaluation_status === "UNVERIFIED")
+        .length,
     requirements: result.requirements,
     // En scoring uten evidensgrunnlag skal ikke se ut som en scoring med grunnlag.
     evidence_basis: {
@@ -778,7 +850,6 @@ function requirementSummary(
     },
   };
 }
-
 
 async function callAi(
   profileAi: Record<string, unknown>,
@@ -799,18 +870,21 @@ async function callAi(
   const systemPrompt = `Du er en streng kvalifikasjons- og jobbmatchmotor.
 
 Svar KUN med gyldig JSON i denne formen:
-{"results":[{"id":"uuid","score":0,"reasoning":"...","match_highlights":"...","concerns":"...","requirements":[{"type":"education|license|certification|language|experience|skill|other","level":"mandatory|preferred|context","label":"...","evidence_quote":"ordrett sitat fra annonsen","met":true|false|null,"matched_evidence_refs":["ca:uuid"]}]}]}
+{"results":[{"id":"uuid","score":0,"reasoning":"...","match_highlights":"...","concerns":"...","requirements":[{"type":"education|license|certification|language|experience|skill|other","level":"mandatory|preferred|context","label":"...","evidence_quote":"ordrett sitat fra annonsen","met":true|false|null,"evaluation_status":"SATISFIED|UNVERIFIED|NOT_SATISFIED","matched_evidence_refs":["ca:uuid|derived:experience:category"]}]}]}
 
 Regler:
 1. Inkluder nøyaktig én rad for hver mottatt jobb-id.
 2. Lokasjon er allerede kontrollert som en port. Lokasjon gir ALDRI poeng og skal ikke nevnes som match_highlight.
 3. En målrolle må være selve stillingstittelen. At stillingen rapporterer til eller samarbeider med COO/CPO/CCO er ALDRI en rollematch.
-4. Trekk ut alle uttrykkelige obligatoriske og foretrukne krav. Hvert krav må ha et ordrett sitat fra annonseteksten.
-5. Brukeren oppfyller et krav bare når matched_evidence_refs peker på en av de oppgitte evidensradene. Ikke anta grad, autorisasjon, sertifikat, språk, bransje eller erfaring.
-6. Obligatorisk utdanning, autorisasjon eller sertifikat uten dokumentert evidens skal ha met=false.
-7. Score gjelder bare faglig/erfaringsmessig samsvar blant kvalifiserte søkere. 100 krever svært sterk, dokumentert dekning. Ikke belønn nøkkelord alene.
-8. Maks 450 tegn i hvert tekstfelt. Score må være et endelig tall 0-100.
-9. All tekst i reasoning, match_highlights og concerns skrives på norsk og henvender seg direkte til brukeren i du-form («du har», «du mangler»). Skriv aldri «kandidaten», «søkeren» eller annen tredjeperson om brukeren.`;
+4. Trekk ut atomiske krav. Del sammensatte krav i flere rader, spesielt når ett sitat blander must/required/minimum med preferred/preferably/advantageous/ideally/plus.
+5. Normaliser level: must/required/minimum/ma ha/krever = mandatory. preferred/preferably/advantageous/ideally/plus/onskelig/fordel = preferred. Bakgrunnsinformasjon = context.
+6. Ikke tolk oevre ende av et typisk erfaringsintervall som maksimum. "5 to 7 years" betyr minst 5 aar, med mindre teksten eksplisitt sier maximum/up to/no more than/maks/inntil.
+7. Brukeren oppfyller et krav bare når matched_evidence_refs peker på en av de oppgitte evidensradene, inkludert derived:experience:*-rader. Ikke anta grad, autorisasjon, sertifikat, språk, bransje eller erfaring.
+8. Manglende evidens er UNVERIFIED, aldri NOT_SATISFIED. Bruk NOT_SATISFIED bare når kandidatens egen evidens konkret viser at et krav ikke er oppfylt.
+9. Obligatorisk utdanning, autorisasjon, sertifikat, språk eller erfaring uten dokumentert evidens skal ha evaluation_status="UNVERIFIED" og met=null.
+10. Score gjelder bare faglig/erfaringsmessig samsvar blant kvalifiserte søkere. 100 krever svært sterk, dokumentert dekning. Ikke belønn nøkkelord alene.
+11. Maks 450 tegn i hvert tekstfelt. Score må være et endelig tall 0-100.
+12. All tekst i reasoning, match_highlights og concerns skrives på norsk og henvender seg direkte til brukeren i du-form («du har», «du mangler»). Skriv aldri «kandidaten», «søkeren» eller annen tredjeperson om brukeren.`;
 
   const response = await fetch(
     "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -900,7 +974,7 @@ async function syncRequirementAtoms(
         ? 4
         : 2,
       confidence_score: 1,
-      source: "job_match_v2",
+      source: "job_match_v8",
       source_field: "full_description",
       source_hash: sourceHash,
       inferred: false,
@@ -947,7 +1021,13 @@ Deno.serve(async (req: Request) => {
   if (!pf.ok) {
     logPreflightFailure(FN, pf);
     return json(
-      { ...preflightFailureBody(FN, pf, { logged: false, log_error: "no run table for this function" }), status: "failed" },
+      {
+        ...preflightFailureBody(FN, pf, {
+          logged: false,
+          log_error: "no run table for this function",
+        }),
+        status: "failed",
+      },
       503,
     );
   }
@@ -978,13 +1058,19 @@ Deno.serve(async (req: Request) => {
     // Tom kropp er lovlig, men årsaken skal aldri forsvinne.
     console.warn(
       `[${FN}] request body not JSON, using defaults`,
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : String(error),
+      }),
     );
     body = {};
   }
   const validated = validateInput(body);
   if (!validated.ok) {
-    return json({ status: "failed", error: "invalid_input", field: validated.field }, 400);
+    return json({
+      status: "failed",
+      error: "invalid_input",
+      field: validated.field,
+    }, 400);
   }
 
   const input = validated.value;
@@ -1099,7 +1185,7 @@ Deno.serve(async (req: Request) => {
       };
       try {
         if (!input.dry_run) {
-          const model = requiresAi ? AI_MODEL : "deterministic_gate_v2";
+          const model = requiresAi ? AI_MODEL : "deterministic_gate_v8";
           const { error: recordError } = await admin.rpc(
             "record_job_match_evaluation",
             {
@@ -1138,7 +1224,11 @@ Deno.serve(async (req: Request) => {
         const message = error instanceof Error ? error.message : "write_failed";
         console.error(
           `[${FN}] evaluation write failed`,
-          JSON.stringify({ row_id: candidate.row_id, row_kind: candidate.row_kind, error: message }),
+          JSON.stringify({
+            row_id: candidate.row_id,
+            row_kind: candidate.row_kind,
+            error: message,
+          }),
         );
         failures.push({ id: candidate.row_id, error: message.slice(0, 240) });
       }
@@ -1178,7 +1268,10 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown_error";
     const status = message === "profile_not_found" ? 403 : 500;
-    console.error(`[${FN}] run failed`, JSON.stringify({ user_id: userId, error: message }));
+    console.error(
+      `[${FN}] run failed`,
+      JSON.stringify({ user_id: userId, error: message }),
+    );
     return json({
       status: "failed",
       ok: false,
@@ -1186,5 +1279,4 @@ Deno.serve(async (req: Request) => {
       score_version: MATCH_SCORE_VERSION,
     }, status);
   }
-
 });
