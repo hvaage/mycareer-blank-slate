@@ -42,10 +42,7 @@ export function buildCimdFetchInit(signal: AbortSignal): RequestInit {
 }
 
 /** True når svaret er en omdirigering og derfor må avvises. */
-export function isCimdRedirectResponse(response: {
-  status: number;
-  type?: string;
-}): boolean {
+export function isCimdRedirectResponse(response: { status: number; type?: string }): boolean {
   if (response.type === "opaqueredirect") return true;
   return response.status >= 300 && response.status < 400;
 }
