@@ -567,7 +567,7 @@ describe("leverandørnøytralitet", () => {
 
 describe("delt domenelag og ingen sesjonstilstand", () => {
   const ROOT = process.cwd();
-  const mcpRoute = readFileSync(join(ROOT, "src", "routes", "api", "public", "mcp.ts"), "utf8");
+  const mcpRoute = readFileSync(join(ROOT, "src", "lib", "ai-integrations", "mcp-http.server.ts"), "utf8");
   const restStatus = readFileSync(
     join(ROOT, "src", "routes", "api", "public", "ai-integrations", "v1", "status.ts"),
     "utf8",
