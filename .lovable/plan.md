@@ -1,65 +1,56 @@
-# Forhåndskontroll før AI-integrasjonsmigrasjon (kun lesing)
+# MCP-discovery: gjeninnfør korrekte outputSchema + svar på ressursmetodene
 
-Ingen endringer er gjort: ingen migrasjon, ingen kode, ingen publisering, ingen jobber stanset.
+## Hva bevisene viser
 
-## 1. Tilbakeføring, backup og transaksjon
+1. **Discovery-avvisningen i produksjonsloggen** (10.09. kl. 12:25:07–12:25:09 UTC) er
+   `resources/templates/list` og `resources/list` som får JSON-RPC `-32601 Method not found`.
+   Dette skjer etter vellykket `initialize` og `tools/list`.
+2. **`outputSchema` var ikke i seg selv feil.** OpenAIs plugin-dokumentasjon ber uttrykkelig om
+   `outputSchema` for verktøy som returnerer strukturert data. Fjerningen i `f583fad5` var en
+   hypotese uten bevis og skal reverseres.
+3. **Men de gamle skjemaene var faktisk inkonsistente med svarene.** I
+   `mcp-server.server.ts` returnerer `toolError()` alltid
+   `structuredContent: { ok: false, error: { code, message } }`. Det bryter begge skjemaer:
+   - `karrierenmin_status`: skjemaet krever `api_version`, `integration`, `workflows` og har
+     `additionalProperties: false` — et feilobjekt validerer aldri.
+   - `karrierenmin_run`: skjemaet krever `ok`, `workflow_kind`, `error` — feilveiene for
+     manglende scope og inaktiv integrasjon mangler `workflow_kind`.
+   En klient som validerer `structuredContent` mot `outputSchema` vil derfor avvise feilsvar.
 
-| Spørsmål | Svar |
-| --- | --- |
-| Omfatter «gå tilbake til et tidligere punkt» databasen? | Nei. Den gjenoppretter kun applikasjonskode/filer. |
-| Gjenopprettes tabeller, kolonner, indekser, funksjoner, triggere, grants, RLS? | Nei. Databaseskjema forblir slik det er etter siste migrasjon. |
-| Gjenopprettes data endret/slettet etterpå? | Nei. |
-| Kan jeg lage en verifiserbar backup før migrasjon? | Delvis. Jeg kan eksportere skjemadefinisjoner (tabeller, indekser, funksjoner, triggere, policyer) og CSV-eksport av navngitte tabeller/spørringer til fil. Full databasedump er ikke tilgjengelig herfra; komplett eksport gjøres av deg i Cloud → Advanced settings → Export data. |
-| Kan hele SQL-migrasjonen kjøres i én transaksjon med rollback ved feil? | Ja, forutsatt at migrasjonen ikke bruker `CREATE INDEX CONCURRENTLY`, `VACUUM`, `CREATE DATABASE` eller endringer i pg_cron-jobber som må committes underveis. Alle planlagte objekter (5 tabeller, 9 indekser, 2 triggere, policyer, grants) er transaksjonssikre i PostgreSQL. |
+## Plan
 
-## 2. Lesende kontroller
+### 1. Ressursmetodene (den dokumenterte discovery-feilen)
+- Annonsér `resources: { listChanged: false }` i `initialize`-capabilities.
+- Implementér `resources/list` → `{ "resources": [] }` og
+  `resources/templates/list` → `{ "resourceTemplates": [] }`, med samme parametervalidering
+  som øvrige metoder. Sannferdig: vi eksponerer ingen ressurser.
+- Ingen endring i `karrierenmin_status`/`karrierenmin_run`-semantikk; `karrierenmin_run`
+  starter fortsatt aldri en kjøring.
 
-| Kontroll | Resultat | Status |
-| --- | --- | --- |
-| Prosjekt/database bekreftet | Prosjektets konfigurerte Lovable Cloud-database (samme instans som preview og publisert app), PostgreSQL 17.6 | PASS |
-| `public.email_job_sources` finnes | Ja | PASS |
-| Kolonnene `user_id` og `intake_mode` | Begge finnes | PASS |
-| `public.update_updated_at_column()` | Finnes, ingen argumenter, returnerer `trigger` | PASS |
-| De 5 planlagte AI-tabellene finnes fra før | Ingen av dem finnes | PASS (ingen kollisjon) |
-| De 9 planlagte indeksnavnene | Ingen finnes | PASS |
-| Triggernavn `set_ai_integrations_updated_at`, `set_automation_preferences_updated_at` | Ingen finnes | PASS |
-| Policy-navn på de 5 tabellene | Ingen finnes (tabellene finnes ikke) | PASS |
-| Duplikater `intake_mode = 'forwarding'` per bruker | 0 berørte brukere, høyeste duplikatantall 0 | PASS (unik indeks kan opprettes uten opprydding) |
-| `gen_random_uuid()` tilgjengelig | Ja. `pgcrypto` 1.3 og `uuid-ossp` 1.1 i `extensions`-skjemaet; PG17 har `gen_random_uuid()` innebygd | PASS |
-| Migrasjonsregister (siste 5 versjoner) | 20260907065414, 20260907065308, 20260903132533, 20260903125733, 20260903122434 | PASS (uendret) |
+### 2. Gjeninnfør `outputSchema` — konsistent denne gangen
+- Legg tilbake begge `outputSchema`-blokkene fra `1efd41e7`.
+- Rett feilveiene slik at `structuredContent` alltid validerer:
+  - Protokoll-/tilgangsfeil (`insufficient_scope`, `integration_inactive`) returnerer
+    `isError: true` med tekstinnhold og **uten** `structuredContent`. MCP krever bare
+    validering når `structuredContent` er til stede.
+  - `karrierenmin_run` sitt normale «ikke tilgjengelig»-svar beholder `structuredContent`
+    og skal alltid inneholde `ok: false`, `workflow_kind` og `error`.
+- Fjern kommentaren i `mcp-contract.ts` som begrunner fraværet av `outputSchema`, og erstatt
+  den med begrunnelsen over.
 
-Ingen FAIL. Ingen blokkeringer funnet for de planlagte objektene.
+### 3. Verifisering
+- Utvid HTTP-regresjonstesten med den observerte ChatGPT-sekvensen:
+  `initialize` → `notifications/initialized` → `tools/list` → `resources/list` →
+  `resources/templates/list`, for begge protokollversjoner.
+- Ny test: hvert `structuredContent` fra verktøykall (både ok og feil) valideres mot
+  verktøyets `outputSchema`, slik at inkonsistensen ikke kan gjeninnføres.
+- Valider alle resultater mot SDK-skjemaene.
+- Kjør full testpakke, typecheck, lint og build.
 
-## 3. Aktive jobber som må vurderes stanset under migrasjonen
+### Berørte filer
+- `src/lib/ai-integrations/mcp-contract.ts`
+- `src/lib/ai-integrations/mcp-server.server.ts`
+- `src/lib/__tests__/ai-integrations-mcp-discovery.test.ts`
+- `src/lib/__tests__/ai-integrations-mcp.test.ts`
 
-Aktive: `nav-sync-30min` (*/30), `careerjet-sync-6h`, `rydd-cron-logg` (04:00), `regnskap-sync-15min` (13,28,43,58), `ops-watchdog-hourly`, `brreg-enheter-full-start` (1. og 15. kl. 03), `brreg-enheter-full-driver` (*/5 den 1.–3./15.–17.), `network-suggestions-worker-1min` (hvert minutt), `network-suggestions-reaper-5min`, `careerjet-purge-60d` (03:20).
-
-Allerede inaktive: `linkedin-import-worker`, `linkedin-import-reaper`.
-
-Anbefalt stansliste før migrasjon (minutt-/femminuttsjobber som holder lange transaksjoner eller skriver tungt): `network-suggestions-worker-1min`, `network-suggestions-reaper-5min`, `regnskap-sync-15min`, `brreg-enheter-full-driver`, `nav-sync-30min`. Øvrige jobber kan stå så lenge migrasjonen ikke faller sammen med deres tidsvindu.
-
-## 4. Advisor-status (lesende)
-
-Eksisterende funn, alle fra før og uten relasjon til de planlagte AI-objektene:
-- 15 × RLS aktivert uten policy (INFO)
-- 1 × funksjon uten fast `search_path` (WARN)
-- 2 × utvidelse i `public` (WARN)
-- 16 × SECURITY DEFINER kallbar av `anon` (WARN) — dekket av det dokumenterte unntaket i `docs/sikkerhetsminne.md`
-- 76 × SECURITY DEFINER kallbar av innlogget (WARN) — samme dokumenterte unntak
-
-Nye AI-objekter: ingen funn, siden ingen av dem finnes ennå.
-
-## 5. Anbefalt backup-/rollbackmetode
-
-1. Du kjører full dataeksport i Cloud → Advanced settings → Export data rett før migrasjonen.
-2. Jeg lagrer i tillegg en skjema-øyeblikksfil (tabeller, kolonner, indekser, funksjoner, triggere, policyer, grants) som referanse for diff etterpå.
-3. Migrasjonen kjøres som én `BEGIN … COMMIT`-blokk uten `CONCURRENTLY`, slik at feil ruller alt tilbake automatisk.
-4. En eksplisitt rollback-SQL (drop av de 5 tabellene, 9 indeksene, 2 triggerne og tilhørende policyer/grants) skrives før kjøring, men først når du autoriserer det.
-
-## 6. Neste steg (krever din godkjenning)
-
-Ingen av punktene under utføres før du sier fra:
-- lage skjema-øyeblikksfil
-- skrive rollback-SQL
-- stanse de fem navngitte cron-jobbene
-- kjøre selve migrasjonen
+Ingen database-, migrasjons- eller konfigurasjonsendring. Publisering gjøres av Henrik etterpå.
