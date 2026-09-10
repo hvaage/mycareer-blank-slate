@@ -77,8 +77,21 @@ export async function ingestParsedEmail(params: {
     qualificationStatus = "qualified";
   }
 
+  // Resume safety: the database enforces one import per
+  // (email_job_source_id, provider_message_id). If a previous attempt crashed
+  // after creating the import but before the delivery reached `accepted`, the
+  // retry reuses that row instead of creating a second one.
+  const { data: existingImport } = await supabaseAdmin
+    .from("imported_job_emails")
+    .select("id")
+    .eq("email_job_source_id", emailJobSourceId)
+    .eq("provider_message_id", providerMessageId)
+    .maybeSingle();
+
   // Insert the raw imported email.
-  const { data: importedEmail, error: importError } = await supabaseAdmin
+  const { data: insertedEmail, error: importError } = existingImport
+    ? { data: existingImport, error: null }
+    : await supabaseAdmin
     .from("imported_job_emails")
     .insert({
       user_id: userId,
