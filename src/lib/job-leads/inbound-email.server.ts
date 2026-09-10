@@ -38,10 +38,7 @@ const ALIAS_TOKEN_RE = /^[a-z2-7]{26,64}$/;
  * address belongs to the configured inbound domain. Any other host — including
  * subdomains and superdomains of it — is rejected.
  */
-export function aliasTokenForRecipient(
-  recipient: string,
-  configuredDomain: string,
-): string | null {
+export function aliasTokenForRecipient(recipient: string, configuredDomain: string): string | null {
   const raw = recipient.trim().toLowerCase();
   const at = raw.lastIndexOf("@");
   if (at <= 0 || at === raw.length - 1) return null;
@@ -114,6 +111,9 @@ export async function claimInboundDelivery(
 export function fromDomain(address: string): string | null {
   const at = address.lastIndexOf("@");
   if (at < 0) return null;
-  const d = address.slice(at + 1).trim().toLowerCase();
+  const d = address
+    .slice(at + 1)
+    .trim()
+    .toLowerCase();
   return d || null;
 }
