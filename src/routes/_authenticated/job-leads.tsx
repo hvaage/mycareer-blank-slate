@@ -30,6 +30,13 @@ import { effectiveCareerjetCardUrl, preferredCareerjetBrowseUrl } from "@/lib/ca
 import { syncEmailConnection } from "@/lib/job-leads/sync.functions";
 import { importManualJobLead } from "@/lib/job-leads/import.functions";
 import {
+  isLegacyScoreVersion,
+  isRelevantMatch,
+  matchDisplayState,
+  type MatchFreshness,
+  type ScreeningStatus,
+} from "@/lib/job-leads/match-state";
+import {
   attachJobAdAndCompany,
   markOpportunitySelected,
   promoteJobLeadToOpportunity,
@@ -43,28 +50,6 @@ export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
 });
 
-/** Locked contract: only rows with current version + non-null screening_status are current-evaluated. */
-const MATCH_SCORE_VERSION = "job_match_v8_2026_09_10";
-/** Eldre scoringer før UNKNOWN/NOT_SATISFIED ble skilt. Vises kun som utdaterte. */
-const MATCH_SCORE_VERSION_LEGACY_V0 = "job_match_v7_2026_08_26";
-/** Eldre scoringer før full annonsetekst ble lest fra uttrekket. Vises kun som utdaterte. */
-const MATCH_SCORE_VERSION_LEGACY_V1 = "job_match_v6_2026_08_25";
-/** Eldre scoringer før CxO-/forkortelsestaksonomien. Vises, men merkes. */
-const MATCH_SCORE_VERSION_LEGACY = "job_match_v5_2026_08_25";
-/** Eldre scoringer før rollefamilie-taksonomien. Vises, men merkes. */
-const MATCH_SCORE_VERSION_LEGACY_V2 = "job_match_v4_2026_08_23";
-/** Eldre scoringer mot et bredere evidensgrunnlag. Vises, men merkes. */
-const MATCH_SCORE_VERSION_LEGACY_V3 = "job_match_v3_2026_08_15";
-const MATCH_SCORE_VERSION_LEGACY_V4 = "job_match_v2_2026_06_24";
-const LEGACY_MATCH_SCORE_VERSIONS = new Set<string>([
-  MATCH_SCORE_VERSION_LEGACY_V0,
-  MATCH_SCORE_VERSION_LEGACY_V1,
-  MATCH_SCORE_VERSION_LEGACY,
-  MATCH_SCORE_VERSION_LEGACY_V2,
-  MATCH_SCORE_VERSION_LEGACY_V3,
-  MATCH_SCORE_VERSION_LEGACY_V4,
-]);
-
 type StatusFilter = "all" | "new" | "saved" | "applied";
 type TimeFilter = "all" | "2d" | "1w" | "1m";
 type SourceFilter = "all" | "linkedin" | "careerjet" | "nav" | "finn" | "other" | "manual";
@@ -74,9 +59,10 @@ type RelevanceView = "relevant" | "high" | "needs_review" | "unreviewed" | "all"
 
 const HIGH_MATCH_MIN = 70;
 const RELEVANT_MIN = 40;
+const SCORE_BATCH_LIMIT = 20;
+const SCORE_MAX_BATCHES = 10;
 
 type LeadSource = "linkedin" | "careerjet" | "nav" | "finn" | "other" | "manual";
-type ScreeningStatus = "eligible" | "excluded" | "needs_review" | null;
 
 type ScreeningReason = {
   code?: string | null;
@@ -123,9 +109,9 @@ type Lead = {
   posted_at: string | null;
   posted_text: string | null;
   applicationDue?: string | null;
-  /** LinkedIn: V1 ai_score. NAV/Careerjet: kun satt når V2-vurdert (versjon + screeningStatus). */
+  /** LinkedIn: eldre ai_score. NAV/Careerjet: kun satt når vurderingen er autoritativ eller positiv legacy. */
   score: number | null;
-  /** LinkedIn: V1 evaluert. NAV/Careerjet: ekvivalent til isV2Evaluated (avledet). */
+  /** LinkedIn: eldre evaluert. NAV/Careerjet: avledet visningsstatus fra match_score_version. */
   aiEvaluated: boolean;
   url: string | null;
   listingId?: string | null;
@@ -140,13 +126,14 @@ type Lead = {
   raw_snippet?: string | null;
   source_email_from?: string | null;
   source_subject?: string | null;
-  // V2 screening (NAV/Careerjet)
+  // Kravscreening (NAV/Careerjet)
   screeningStatus?: ScreeningStatus;
   screeningReasons?: ScreeningReason[];
   requirementSummary?: RequirementSummary;
   matchScoreVersion?: string | null;
   matchScoredModel?: string | null;
   screeningEvaluatedAt?: string | null;
+  matchFreshness?: MatchFreshness;
 };
 
 const REASON_LABELS_NB: Record<string, string> = {
@@ -167,19 +154,18 @@ function reasonLabelNb(r: ScreeningReason): string {
   return REASON_LABELS_NB[code] ?? (code || "Uspesifisert årsak");
 }
 
-function isCurrentMatchEvaluatedRaw(version: string | null | undefined, status: ScreeningStatus): boolean {
-  return version === MATCH_SCORE_VERSION && status != null;
-}
-
-function isLegacyScoreVersion(version: string | null | undefined): boolean {
-  return !!version && LEGACY_MATCH_SCORE_VERSIONS.has(version);
-}
-
 function relevanceBadge(score: number | null) {
   const s = Number(score ?? 0);
   if (s >= 70) return { label: `Høy match · ${s}`, cls: "bg-emerald-500 text-white" };
   if (s >= 40) return { label: `God match · ${s}`, cls: "bg-amber-500 text-white" };
   return { label: `Mulig match · ${s}`, cls: "bg-slate-300 text-slate-800" };
+}
+
+function legacyRelevanceBadge(score: number | null) {
+  const s = Number(score ?? 0);
+  if (s >= 70) return { label: `Tidligere høy match · ${s}`, cls: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-100 border border-emerald-500/30" };
+  if (s >= 40) return { label: `Tidligere god match · ${s}`, cls: "bg-amber-500/15 text-amber-900 dark:text-amber-100 border border-amber-500/30" };
+  return { label: `Tidligere mulig match · ${s}`, cls: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-100" };
 }
 
 function leadBadge(lead: Lead) {
@@ -192,8 +178,10 @@ function leadBadge(lead: Lead) {
     }
     return relevanceBadge(lead.score);
   }
-  // NAV / Careerjet — V2
-  if (!isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null)) {
+  if (lead.matchFreshness === "legacy_positive") {
+    return legacyRelevanceBadge(lead.score);
+  }
+  if (!lead.aiEvaluated) {
     return { label: "Ikke vurdert", cls: "bg-sky-600/15 text-sky-950 dark:text-sky-100 border border-sky-500/25" };
   }
   if (lead.screeningStatus === "excluded") {
@@ -269,6 +257,33 @@ function JobLeadsPage() {
     setPendingMatch({ match: m, contextLabel });
   };
 
+  const refreshJobLeadOverview = async (options: { includeProfile?: boolean } = {}) => {
+    const primaryKeys = [
+      ["job-leads-linkedin"],
+      ["job-leads-careerjet"],
+    ];
+    const screeningKeys = [
+      ["job-leads-screening-uo"],
+      ["job-leads-screening-ujls"],
+    ];
+    const extraKeys = options.includeProfile
+      ? [["profile-jobprefs"], ["user-opportunities"]]
+      : [];
+    const invalidate = (keys: string[][]) =>
+      Promise.all(keys.map((queryKey) =>
+        qc.invalidateQueries({ queryKey, refetchType: "none" } as any)
+      ));
+    const refetch = (keys: string[][]) =>
+      Promise.all(keys.map((queryKey) =>
+        qc.refetchQueries({ queryKey, type: "active" } as any)
+      ));
+
+    await invalidate([...primaryKeys, ...screeningKeys, ...extraKeys]);
+    await refetch(primaryKeys);
+    await refetch(screeningKeys);
+    if (extraKeys.length > 0) await refetch(extraKeys);
+  };
+
 
   const { data: profile } = useQuery({
     queryKey: ["profile-jobprefs", user?.id],
@@ -340,7 +355,7 @@ function JobLeadsPage() {
     },
   });
 
-  // V2-screening fra user_opportunities
+  // Kravscreening fra user_opportunities
   const uoIds = useMemo(
     () =>
       Array.from(
@@ -406,7 +421,7 @@ function JobLeadsPage() {
     const out: Lead[] = [];
     for (const r of linkedinLeads ?? []) {
       const sourceSystem = ((r as any).source_system ?? "linkedin") as string;
-      // Manuelle importer (URL/limt tekst) er V2-rader: screeningfeltene på
+      // Manuelle importer (URL/limt tekst) har screeningfeltene på
       // job_leads er fasit — ikke V1 ai_score-logikken for LinkedIn-e-post.
       const isManual = sourceSystem === "manual_url" || sourceSystem === "manual_paste";
       const rawSource: LeadSource = isManual ? "manual" : (sourceSystem as LeadSource);
@@ -416,9 +431,15 @@ function JobLeadsPage() {
       const matchScoreVersion: string | null = isManual
         ? ((r as any).match_score_version ?? null)
         : null;
-      const v2 = isManual && isCurrentMatchEvaluatedRaw(matchScoreVersion, screeningStatus);
+      const manualMatch = isManual
+        ? matchDisplayState({
+            version: matchScoreVersion,
+            screeningStatus,
+            score: (r as any).ai_score,
+          })
+        : null;
       const aiEvaluated = isManual
-        ? v2
+        ? (manualMatch?.aiEvaluated ?? false)
         : rawSource === "linkedin"
           ? isLinkedInAiEvaluated((r as any).ai_score)
           : false;
@@ -431,10 +452,8 @@ function JobLeadsPage() {
           typeof x === "string" ? { code: x } : (x as ScreeningReason)
         );
       }
-      // For excluded/needs_review: ikke vis gamle ai_match_highlights som positiv match.
-      const manualExcludedOrNeeds = v2 &&
-        (screeningStatus === "excluded" || screeningStatus === "needs_review");
-      const manualScreeningStatus = v2 ? screeningStatus : null;
+      // Kun gjeldende v8-vurderinger får vise screeningdetaljer som fasit.
+      const manualScreeningStatus = manualMatch?.screeningStatus ?? null;
       out.push({
         id: `${idPrefix}-${(r as any).id}`,
         rowKind: rawSource,
@@ -448,25 +467,26 @@ function JobLeadsPage() {
         posted_at: (r as any).received_at,
         posted_text: (r as any).posted_text,
         applicationDue: (r as any).application_due ?? null,
-        score: aiEvaluated ? ((r as any).ai_score as number) : null,
+        score: isManual ? (manualMatch?.score ?? null) : aiEvaluated ? ((r as any).ai_score as number) : null,
         aiEvaluated,
         url: (r as any).job_url,
-        ai_reasoning: isManual ? (v2 ? (r as any).ai_reasoning : null) : (r as any).ai_reasoning,
+        ai_reasoning: isManual ? (aiEvaluated ? (r as any).ai_reasoning : null) : (r as any).ai_reasoning,
         ai_match_highlights: isManual
-          ? (v2 && !manualExcludedOrNeeds ? (r as any).ai_match_highlights : null)
+          ? (manualMatch?.showPositiveHighlights ? (r as any).ai_match_highlights : null)
           : (r as any).ai_match_highlights,
-        ai_concerns: isManual ? (v2 ? (r as any).ai_concerns : null) : (r as any).ai_concerns,
+        ai_concerns: isManual ? (aiEvaluated ? (r as any).ai_concerns : null) : (r as any).ai_concerns,
         raw_snippet: (r as any).raw_snippet,
         source_email_from: (r as any).source_email_from,
         source_subject: (r as any).source_subject,
         screeningStatus: manualScreeningStatus,
-        screeningReasons: v2 ? manualScreeningReasons : [],
-        requirementSummary: isManual && v2
+        screeningReasons: isManual && manualMatch?.showScreeningDetails ? manualScreeningReasons : [],
+        requirementSummary: isManual && manualMatch?.showScreeningDetails
           ? (((r as any).requirement_summary as RequirementSummary) ?? null)
           : undefined,
         matchScoreVersion,
         matchScoredModel: isManual ? ((r as any).match_scored_model ?? null) : undefined,
         screeningEvaluatedAt: isManual ? ((r as any).screening_evaluated_at ?? null) : undefined,
+        matchFreshness: isManual ? manualMatch?.freshness : undefined,
       });
     }
     for (const row of cjLeads ?? []) {
@@ -482,12 +502,13 @@ function JobLeadsPage() {
 
       const screeningStatus: ScreeningStatus = (screening?.screening_status as any) ?? null;
       const matchScoreVersion: string | null = screening?.match_score_version ?? null;
-      const v2 = isCurrentMatchEvaluatedRaw(matchScoreVersion, screeningStatus);
 
       const rawAiScore = (row as any).ai_score;
-      // Gamle V1-score nulles ut for NAV/Careerjet med mindre V2-vurdert.
-      const score: number | null =
-        v2 && typeof rawAiScore === "number" && !Number.isNaN(rawAiScore) ? rawAiScore : null;
+      const match = matchDisplayState({
+        version: matchScoreVersion,
+        screeningStatus,
+        score: rawAiScore,
+      });
 
       const leadSource: LeadSource = (row as any).source === "nav" ? "nav" : "careerjet";
       const rawUrl = (row as any).raw_url ?? (row as any).source_url;
@@ -502,10 +523,8 @@ function JobLeadsPage() {
               location: (row as any).location,
             });
 
-      // For excluded/needs_review: ikke vis gamle ai_match_highlights som positiv match.
-      const isExcludedOrNeeds = v2 && (screeningStatus === "excluded" || screeningStatus === "needs_review");
-      const currentScreeningStatus = v2 ? screeningStatus : null;
-      const highlights = v2 && !isExcludedOrNeeds ? ((row as any).ai_match_highlights ?? null) : null;
+      // Gamle positive vurderinger kan vises, men gamle screeningdetaljer er ikke fasit.
+      const highlights = match.showPositiveHighlights ? ((row as any).ai_match_highlights ?? null) : null;
 
       let screeningReasons: ScreeningReason[] = [];
       const rawReasons = screening?.screening_reasons;
@@ -533,23 +552,24 @@ function JobLeadsPage() {
         ),
         posted_at: (row as any).published_at,
         posted_text: null,
-        score,
-        aiEvaluated: v2,
+        score: match.score,
+        aiEvaluated: match.aiEvaluated,
         url: urlForCard,
         listingId: (row as any).listing_id,
         canonicalOpportunityId: (row as any).canonical_opportunity_id,
         isExpired: (row as any).is_expired === true,
         work_extent: (row as any).work_extent ?? null,
         engagement_type: (row as any).engagement_type ?? null,
-        ai_reasoning: v2 ? ((row as any).ai_reasoning ?? null) : null,
+        ai_reasoning: match.aiEvaluated ? ((row as any).ai_reasoning ?? null) : null,
         ai_match_highlights: highlights,
-        ai_concerns: v2 ? ((row as any).ai_concerns ?? null) : null,
-        screeningStatus: currentScreeningStatus,
-        screeningReasons: v2 ? screeningReasons : [],
-        requirementSummary: v2 ? ((screening?.requirement_summary as RequirementSummary) ?? null) : null,
+        ai_concerns: match.aiEvaluated ? ((row as any).ai_concerns ?? null) : null,
+        screeningStatus: match.screeningStatus,
+        screeningReasons: match.showScreeningDetails ? screeningReasons : [],
+        requirementSummary: match.showScreeningDetails ? ((screening?.requirement_summary as RequirementSummary) ?? null) : null,
         matchScoreVersion,
         matchScoredModel: screening?.match_scored_model ?? null,
         screeningEvaluatedAt: screening?.screening_evaluated_at ?? null,
+        matchFreshness: match.freshness,
       });
     }
     return out;
@@ -565,36 +585,26 @@ function JobLeadsPage() {
         if (lead.source === "linkedin") {
           return lead.aiEvaluated && typeof lead.score === "number" && lead.score >= RELEVANT_MIN;
         }
-        return (
-          isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
-          lead.screeningStatus === "eligible" &&
-          typeof lead.score === "number" &&
-          lead.score >= RELEVANT_MIN
-        );
+        return isRelevantMatch(lead, RELEVANT_MIN);
       });
     } else if (relevanceView === "high") {
       afterRelevance = out.filter((lead) => {
         if (lead.source === "linkedin") {
           return lead.aiEvaluated && typeof lead.score === "number" && lead.score >= HIGH_MATCH_MIN;
         }
-        return (
-          isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
-          lead.screeningStatus === "eligible" &&
-          typeof lead.score === "number" &&
-          lead.score >= HIGH_MATCH_MIN
-        );
+        return isRelevantMatch(lead, HIGH_MATCH_MIN);
       });
     } else if (relevanceView === "needs_review") {
       afterRelevance = out.filter(
         (lead) =>
           lead.source !== "linkedin" &&
-          isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null) &&
+          lead.matchFreshness === "current" &&
           lead.screeningStatus === "needs_review",
       );
     } else if (relevanceView === "unreviewed") {
       afterRelevance = out.filter((lead) => {
         if (lead.source === "linkedin") return !lead.aiEvaluated;
-        return !isCurrentMatchEvaluatedRaw(lead.matchScoreVersion ?? null, lead.screeningStatus ?? null);
+        return !lead.aiEvaluated;
       });
     } else {
       // "all" — alle vurderinger, inkluderer excluded
@@ -685,7 +695,7 @@ function JobLeadsPage() {
       toast.success(
         `E-post-synk fullført: ${totalAccepted} nye leads, ${totalSkipped} hoppet over.`,
       );
-      qc.invalidateQueries({ queryKey: ["job-leads-linkedin", user.id] });
+      await refreshJobLeadOverview();
     } catch (e: any) {
       console.error("[job-leads] mailbox sync failed", e);
       toast.error(e?.message ?? "Synk av e-post feilet");
@@ -702,43 +712,70 @@ function JobLeadsPage() {
         sourceFilter === "all" || sourceFilter === "other" || sourceFilter === "manual"
           ? "all"
           : sourceFilter;
-      const { data: rawData, error } = await supabase.functions.invoke("score-pending-opportunities", {
-        body: { source, limit: 20, mode: "stale" },
-      });
-      const data = (error ? await readInvokeErrorBody(error) : rawData) as any;
-      if (error && !data) { toast.error("Score-kall feilet"); return; }
-      const status = String(data?.status ?? "");
+      let totalEvaluated = 0;
+      let totalEligible = 0;
+      let totalExcluded = 0;
+      let totalNeedsReview = 0;
+      let totalFailed = 0;
+      let lastStatus = "empty";
+      let hitBatchCap = false;
 
-      const evaluated = Number((data as any)?.evaluated ?? 0);
-      const counts = ((data as any)?.status_counts ?? {}) as Record<string, number>;
-      const eligible = Number(counts.eligible ?? 0);
-      const excluded = Number(counts.excluded ?? 0);
-      const needs = Number(counts.needs_review ?? 0);
-      const failed = Number((data as any)?.failed ?? 0);
-      const parts = [`${evaluated} vurdert`, `${eligible} relevante`, `${excluded} ekskludert`];
-      if (needs > 0) parts.push(`${needs} må vurderes`);
-      if (failed > 0) parts.push(`${failed} feilet`);
-      // Tomt, delvis og feilet er tre ulike utfall — de skal ikke se like ut.
-      if (status === "failed" || (error && status !== "partial")) {
-        const reason = data?.error === "missing_configuration"
-          ? "tjenesten er ikke ferdig konfigurert"
-          : data?.error
-            ? String(data.error)
-            : null;
-        toast.error(reason ? `Vurderingen feilet: ${reason}` : "Vurderingen feilet");
-      } else if (status === "empty") {
+      for (let batch = 0; batch < SCORE_MAX_BATCHES; batch += 1) {
+        const { data: rawData, error } = await supabase.functions.invoke("score-pending-opportunities", {
+          body: { source, limit: SCORE_BATCH_LIMIT, mode: "stale" },
+        });
+        const data = (error ? await readInvokeErrorBody(error) : rawData) as any;
+        if (error && !data) {
+          toast.error("Score-kall feilet");
+          return;
+        }
+        const status = String(data?.status ?? "");
+        lastStatus = status;
 
+        if (status === "failed" || (error && status !== "partial")) {
+          const reason = data?.error === "missing_configuration"
+            ? "tjenesten er ikke ferdig konfigurert"
+            : data?.error
+              ? String(data.error)
+              : null;
+          toast.error(reason ? `Vurderingen feilet: ${reason}` : "Vurderingen feilet");
+          return;
+        }
+
+        if (status === "empty") break;
+
+        const evaluated = Number(data?.evaluated ?? 0);
+        const counts = (data?.status_counts ?? {}) as Record<string, number>;
+        totalEvaluated += evaluated;
+        totalEligible += Number(counts.eligible ?? 0);
+        totalExcluded += Number(counts.excluded ?? 0);
+        totalNeedsReview += Number(counts.needs_review ?? 0);
+        totalFailed += Number(data?.failed ?? 0);
+
+        if (status === "partial" || evaluated < SCORE_BATCH_LIMIT) break;
+        if (batch === SCORE_MAX_BATCHES - 1) hitBatchCap = true;
+      }
+
+      const parts = [`${totalEvaluated} vurdert`, `${totalEligible} relevante`, `${totalExcluded} ekskludert`];
+      if (totalNeedsReview > 0) parts.push(`${totalNeedsReview} må vurderes`);
+      if (totalFailed > 0) parts.push(`${totalFailed} feilet`);
+      if (totalEvaluated === 0 && lastStatus === "empty") {
         toast.info("Ingen nye eller utdaterte annonser å vurdere");
-      } else if (status === "partial") {
+      } else if (totalFailed > 0 || lastStatus === "partial" || hitBatchCap) {
+        if (hitBatchCap) parts.push("flere kan gjenstå");
         toast.warning(`Delvis fullført · ${parts.join(" · ")}`);
       } else {
         toast.success(parts.join(" · "));
       }
-
-      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
-      qc.invalidateQueries({ queryKey: ["job-leads-screening-uo"] });
-      qc.invalidateQueries({ queryKey: ["job-leads-screening-ujls"] });
+    } catch (e: any) {
+      console.error("[job-leads] scoring failed", e);
+      toast.error(e?.message ?? "Vurderingen feilet");
     } finally {
+      try {
+        await refreshJobLeadOverview();
+      } catch (e) {
+        console.warn("[job-leads] refresh after scoring failed", e);
+      }
       setScoring(false);
     }
   };
@@ -783,10 +820,12 @@ function JobLeadsPage() {
         : "Ingen nye treff — alle aktuelle annonser er allerede koblet til deg";
       toast.success(msg);
 
-      qc.invalidateQueries({ queryKey: ["job-leads-careerjet"] });
-      qc.invalidateQueries({ queryKey: ["profile-jobprefs"] });
-      qc.invalidateQueries({ queryKey: ["user-opportunities"] });
     } finally {
+      try {
+        await refreshJobLeadOverview({ includeProfile: true });
+      } catch (e) {
+        console.warn("[job-leads] refresh after fetch failed", e);
+      }
       setFetching(false);
     }
   };
@@ -839,11 +878,15 @@ function JobLeadsPage() {
           "Annonsen er lagret, men vurderingen er ikke klar ennå. Den fullføres ved neste «Hent og vurder nye annonser».",
         );
       }
-      qc.invalidateQueries({ queryKey: ["job-leads-linkedin"] });
     } catch (e: any) {
       console.error("[job-leads] manual import failed", e);
       toast.error(e?.message ?? "Kunne ikke legge til annonsen");
     } finally {
+      try {
+        await refreshJobLeadOverview();
+      } catch (e) {
+        console.warn("[job-leads] refresh after manual import failed", e);
+      }
       setImporting(null);
     }
   };
