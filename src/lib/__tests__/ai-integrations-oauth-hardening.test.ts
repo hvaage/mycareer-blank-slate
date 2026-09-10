@@ -546,7 +546,7 @@ describe("Codex loopback (chatgpt.com/oauth/codex/client.json)", () => {
 
   it("avviser ugyldige loopback-varianter for Codex", () => {
     for (const uri of [
-      "http://127.0.0.1/callback", // uten port, ikke registrert som konkret redirect? den ER registrert
+      "http://127.0.0.1/callback", // portløs mal: eksakt registrert, derfor tillatt
       "http://127.0.0.1:80/callback",
       "http://127.0.0.1:1023/callback",
       "http://127.0.0.1:70000/callback",

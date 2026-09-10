@@ -106,7 +106,8 @@ export function checkCimdUrl(value: unknown): CimdUrlCheck {
   // banelister kommer før mønsterpolicyer i listen ovenfor.
   const policy = hostPolicies.find(
     (p) =>
-      (p.paths ?? []).includes(url.pathname) || (p.patterns ?? []).some((re) => re.test(url.pathname)),
+      (p.paths ?? []).includes(url.pathname) ||
+      (p.patterns ?? []).some((re) => re.test(url.pathname)),
   );
   if (!policy) return { ok: false, reason: "unknown_path" };
 
@@ -118,7 +119,6 @@ export function checkCimdUrl(value: unknown): CimdUrlCheck {
 export const CLAUDE_CIMD_URL = "https://claude.ai/oauth/claude-code-client-metadata";
 export const CODEX_CIMD_URL = "https://chatgpt.com/oauth/codex/client.json";
 export const LOOPBACK_CIMD_URLS: readonly string[] = [CLAUDE_CIMD_URL, CODEX_CIMD_URL] as const;
-
 
 function loopbackShape(value: unknown): URL | null {
   if (typeof value !== "string") return null;
@@ -178,11 +178,8 @@ export function allowsPortAgnosticLoopback(client: LoopbackClientContext | null)
   if (!client) return false;
   if (client.registration_method !== "cimd") return false;
   const id = client.client_id;
-  return (
-    typeof id === "string" && LOOPBACK_CIMD_URLS.includes(id) && client.metadata_url === id
-  );
+  return typeof id === "string" && LOOPBACK_CIMD_URLS.includes(id) && client.metadata_url === id;
 }
-
 
 /**
  * Fullstendig redirect-regel for authorize: eksakt treff for alle,
