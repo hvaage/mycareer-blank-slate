@@ -283,19 +283,21 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
             parsed: parseResult.lead,
             parseConfidence: parseResult.lead.confidence,
           });
-          await supabaseAdmin
-            .from("inbound_email_deliveries")
-            .update({
-              outcome: "accepted",
-              imported_job_email_id: result.importedJobEmailId,
-            })
-            .eq("id", claim.deliveryId);
+          // Terminal `accepted` only after import AND job lead are persisted.
+          await finalizeInboundDelivery(supabaseAdmin as never, {
+            deliveryId,
+            claimToken,
+            outcome: "accepted",
+            importedJobEmailId: result.importedJobEmailId,
+          });
         } catch (err) {
           console.error("[inbound/job-email] ingest failed", err);
-          await supabaseAdmin
-            .from("inbound_email_deliveries")
-            .update({ outcome: "ingest_failed", reject_reason: "ingest_failed" })
-            .eq("id", claim.deliveryId);
+          await finalizeInboundDelivery(supabaseAdmin as never, {
+            deliveryId,
+            claimToken,
+            outcome: "ingest_failed",
+            rejectReason: "ingest_failed",
+          });
           return finalize("rejected", 500, { error: "ingest_failed" });
         }
 
