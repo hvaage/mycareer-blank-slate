@@ -53,11 +53,55 @@ async function readLimited(response: Response): Promise<string | null> {
   return new TextDecoder().decode(merged);
 }
 
+/** Stabilt hendelsesnavn for feilet CIMD-oppløsning. */
+export const CIMD_RESOLUTION_FAILED_EVENT = "oauth_cimd_resolution_failed";
+
+export type CimdFailureLog = {
+  event: typeof CIMD_RESOLUTION_FAILED_EVENT;
+  reason: string;
+  metadata_origin: string;
+  metadata_path: string;
+};
+
+/**
+ * Bygger den eneste loggposten vi skriver ved feilet oppløsning.
+ * Kun origin og pathname tas med — aldri query, fragment, headere,
+ * dokumentinnhold, databasefeiltekst, state, PKCE, kode eller token.
+ */
+export function buildCimdFailureLog(clientIdUrl: string, reason: string): CimdFailureLog {
+  let origin = "unknown";
+  let path = "unknown";
+  try {
+    const parsed = new URL(clientIdUrl);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      origin = parsed.origin;
+      path = parsed.pathname;
+    }
+  } catch {
+    // Ugyldig URL logges uten detaljer.
+  }
+  return {
+    event: CIMD_RESOLUTION_FAILED_EVENT,
+    reason,
+    metadata_origin: origin,
+    metadata_path: path,
+  };
+}
+
 /**
  * Løser en client_id som er en CIMD-URL til en registrert klientrad.
  * Gyldig cache brukes direkte; utløpt eller manglende cache henter på nytt.
+ * Ved feil skrives nøyaktig én strukturert serverlogg; suksess logger ingenting.
  */
 export async function resolveCimdClient(clientIdUrl: string): Promise<CimdResult> {
+  const result = await resolveCimdClientInner(clientIdUrl);
+  if (!result.ok) {
+    console.error(JSON.stringify(buildCimdFailureLog(clientIdUrl, result.reason)));
+  }
+  return result;
+}
+
+async function resolveCimdClientInner(clientIdUrl: string): Promise<CimdResult> {
   const check = checkCimdUrl(clientIdUrl);
   if (!check.ok) return { ok: false, reason: check.reason };
 
