@@ -68,6 +68,36 @@ function methodNotAllowed(): Response {
   return json({ error: "method_not_allowed" }, 405, { Allow: "POST, OPTIONS" });
 }
 
+/**
+ * Server-only observabilitet. Kun stabile, trygge felt: hvorfor kallet ble
+ * avvist, hvilken JSON-RPC-metode det gjaldt og hvilken protokollversjon som
+ * ble forhandlet. Aldri token, headere, body, argumenter, id-er eller
+ * feiltekst fra databasen. Vellykkede kall logges ikke.
+ */
+export function buildMcpRejectionLog(
+  reason: string,
+  method?: string,
+  jsonrpcCode?: number,
+  protocolVersion?: string,
+): Record<string, unknown> {
+  return {
+    event: "mcp_request_rejected",
+    reason,
+    ...(method === undefined ? {} : { method }),
+    ...(jsonrpcCode === undefined ? {} : { jsonrpc_code: jsonrpcCode }),
+    ...(protocolVersion === undefined ? {} : { protocol_version: protocolVersion }),
+  };
+}
+
+function logMcpRejected(
+  reason: string,
+  method?: string,
+  jsonrpcCode?: number,
+  protocolVersion?: string,
+): void {
+  console.error(JSON.stringify(buildMcpRejectionLog(reason, method, jsonrpcCode, protocolVersion)));
+}
+
 async function handlePost(request: Request): Promise<Response> {
   const { publicAppOrigin, oauthUrls } = await import("@/lib/ai-integrations/oauth-config.server");
   const originConfig = publicAppOrigin();
@@ -81,21 +111,26 @@ async function handlePost(request: Request): Promise<Response> {
   // Manglende Origin er tillatt (ikke-nettleserklienter). «null» og fremmede
   // opphav avvises.
   if (!isAllowedOrigin(requestOrigin, appOrigin)) {
+    logMcpRejected("forbidden_origin");
     return json({ error: "forbidden_origin" }, 403);
   }
   if (!isJsonContentType(request.headers.get("content-type"))) {
+    logMcpRejected("unsupported_media_type");
     return json({ error: "unsupported_media_type" }, 415, cors);
   }
   if (!acceptsStreamableHttp(request.headers.get("accept"))) {
+    logMcpRejected("not_acceptable");
     return json({ error: "not_acceptable" }, 406, cors);
   }
 
   const declaredLength = Number(request.headers.get("content-length") ?? "");
   if (Number.isFinite(declaredLength) && declaredLength > MCP_MAX_BODY_BYTES) {
+    logMcpRejected("payload_too_large");
     return json({ error: "payload_too_large" }, 413, cors);
   }
   const raw = await request.text();
   if (new TextEncoder().encode(raw).byteLength > MCP_MAX_BODY_BYTES) {
+    logMcpRejected("payload_too_large");
     return json({ error: "payload_too_large" }, 413, cors);
   }
 
@@ -104,6 +139,7 @@ async function handlePost(request: Request): Promise<Response> {
   const auth = await authenticateOauthRequest(request, null);
   if (!auth.ok) {
     if (auth.status === 500) return json({ error: "server_error" }, 500, cors);
+    logMcpRejected("invalid_token");
     return json({ error: auth.error }, 401, {
       ...cors,
       "WWW-Authenticate":
@@ -115,6 +151,7 @@ async function handlePost(request: Request): Promise<Response> {
   // --- Protokollversjon --------------------------------------------------
   const header = request.headers.get("mcp-protocol-version");
   if (header !== null && !isSupportedProtocolVersion(header)) {
+    logMcpRejected("unsupported_protocol_version");
     return json(
       {
         error: "unsupported_protocol_version",
@@ -124,6 +161,7 @@ async function handlePost(request: Request): Promise<Response> {
       cors,
     );
   }
+
   const protocolVersion: McpProtocolVersion = isSupportedProtocolVersion(header)
     ? header
     : MCP_DEFAULT_PROTOCOL_VERSION;
@@ -133,12 +171,14 @@ async function handlePost(request: Request): Promise<Response> {
   try {
     parsed = JSON.parse(raw);
   } catch {
+    logMcpRejected("parse_error");
     return rpcErrorResponse(400, JSONRPC_PARSE_ERROR, "Kunne ikke tolke JSON.", cors);
   }
 
   // Konvolutten valideres med SDK-ens Zod-skjemaer. id: null er ugyldig.
   const message = parseJsonRpcMessage(parsed);
   if (message.kind === "invalid") {
+    logMcpRejected("invalid_envelope");
     return rpcErrorResponse(400, message.code, message.message, cors);
   }
 
@@ -164,6 +204,10 @@ async function handlePost(request: Request): Promise<Response> {
       status: 202,
       headers: { "Cache-Control": "no-store", ...cors },
     });
+  }
+  // Kun feil logges. Vellykkede kall gir ingen ny loggstøy.
+  if ("error" in outgoing) {
+    logMcpRejected("jsonrpc_error", message.method, outgoing.error.code, protocolVersion);
   }
   return json(outgoing, 200, cors);
 }
