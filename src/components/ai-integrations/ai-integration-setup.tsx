@@ -170,21 +170,6 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const createAddress = useMutation({
-    mutationFn: async () =>
-      (await authedJson("/api/ai-integrations/inbound-address", {
-        method: "POST",
-        body: JSON.stringify({}),
-      })) as { forwarding_address: string | null; email_intake_status: string },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["ai-integration-setup"] });
-      if (result.forwarding_address) toast.success("Importadressen din er klar");
-      else
-        toast.success("Adressen er reservert for deg. Den vises her så snart mottaket er åpnet.");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const chooseLater = () => {
     // Ingen databasekall: valget er bevisst lokalt og skal aldri blokkere.
     setProvider(null);
@@ -337,22 +322,9 @@ export function AiIntegrationSetup({ compact = false }: { compact?: boolean }) {
           ) : (
             <Alert>
               <Info className="h-4 w-4" aria-hidden />
-              <AlertDescription className="space-y-2 text-sm">
-                <p>
-                  Du har ingen privat importadresse ennå. Lag den nå, så er den klar med én gang
-                  mottaket åpnes.
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={createAddress.isPending}
-                  onClick={() => createAddress.mutate()}
-                >
-                  {createAddress.isPending ? (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
-                  ) : null}
-                  Lag importadresse
-                </Button>
+              <AlertDescription className="text-sm">
+                Du har ingen privat importadresse ennå. Vi setter den opp for deg, og den vises her
+                så snart den er klar til bruk. Du trenger ikke gjøre noe i mellomtiden.
               </AlertDescription>
             </Alert>
           )}

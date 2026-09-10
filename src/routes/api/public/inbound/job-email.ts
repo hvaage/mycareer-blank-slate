@@ -1,18 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash, timingSafeEqual } from "crypto";
 import { z } from "zod";
-import { WebhookError, verifyWebhookRequest } from "@lovable.dev/webhooks-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { parseEmail, type EmailInput } from "@/lib/job-leads/parse";
 import { ingestParsedEmail } from "@/lib/job-leads/ingest";
-import { aliasTokenFromAddress } from "@/lib/job-leads/inbound-alias";
 import {
-  inboundIntakeConfig,
-  recordInboundDelivery,
-  senderDomain,
-  type InboundProvider,
-} from "@/lib/job-leads/inbound-intake.server";
-
+  INBOUND_PROVIDER,
+  aliasTokenForRecipient,
+  claimInboundDelivery,
+  fromDomain,
+  readInboundConfig,
+} from "@/lib/job-leads/inbound-email.server";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -24,23 +22,6 @@ const CORS_HEADERS = {
 const RATE_LIMIT_ALIAS_PER_HOUR = 60;
 const RATE_LIMIT_IP_PER_DAY = 100;
 const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
-
-
-const lovableEmailPayloadSchema = z.object({
-  version: z.string().optional(),
-  type: z.string().optional(),
-  data: z.object({
-    from: z.string().email().optional(),
-    to: z.string().email().optional(),
-    subject: z.string().default(""),
-    "body-plain": z.string().default(""),
-    "body-html": z.string().nullable().default(null),
-    "recipient": z.string().email().optional(),
-    "sender": z.string().email().optional(),
-    "stripped-text": z.string().default(""),
-    "stripped-html": z.string().nullable().default(null),
-  }),
-});
 
 const mailgunFormSchema = z.object({
   timestamp: z.string(),
@@ -54,27 +35,20 @@ const mailgunFormSchema = z.object({
   "body-html": z.string().nullable().default(null),
   "stripped-text": z.string().default(""),
   "stripped-html": z.string().nullable().default(null),
+  "Message-Id": z.string().optional(),
+  "message-id": z.string().optional(),
 });
 
 function getClientIp(request: Request): string {
   const xff = request.headers.get("x-forwarded-for");
   if (xff) return xff.split(",")[0].trim();
-  return (
-    request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  return request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "unknown";
 }
 
 function ipHash(ip: string): string {
   const today = new Date().toISOString().slice(0, 10);
   return createHash("sha256").update(`${ip}|${today}`).digest("hex");
 }
-
-function extractAliasToken(email: string): string | null {
-  return aliasTokenFromAddress(email);
-}
-
 
 async function verifyMailgunSignature(
   timestamp: string,
@@ -95,7 +69,10 @@ async function verifyMailgunSignature(
   const expected = Array.from(new Uint8Array(mac))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  const expectedBuf = Buffer.from(expected);
+  const givenBuf = Buffer.from(signature);
+  if (expectedBuf.length !== givenBuf.length) return false;
+  return timingSafeEqual(expectedBuf, givenBuf);
 }
 
 function nowHour(): Date {
@@ -110,16 +87,18 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS_HEADERS }),
 
       POST: async ({ request }) => {
-        // 0a. Konfigurasjonsport: mottak er av til domene og leverandør er satt.
-        const intakeConfig = inboundIntakeConfig();
-        if (!intakeConfig.ready) {
+        // 0. Configuration gate — receiving stays off until the inbound domain
+        // and the Mailgun signing key are both configured.
+        const configResult = readInboundConfig();
+        if (!configResult.ok) {
           return Response.json(
-            { error: "inbound_not_configured" },
+            { error: "inbound_not_configured", reason: configResult.reason },
             { status: 503, headers: CORS_HEADERS },
           );
         }
+        const { domain: inboundDomain, mailgunSigningKey } = configResult.config;
 
-        // 0. Size guard — first step, before any parsing or DB work.
+        // 1. Size guard — before any parsing or DB work.
         const contentLength = Number(request.headers.get("content-length") ?? "0");
         if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
           return Response.json(
@@ -128,14 +107,13 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           );
         }
 
-
         const ip = getClientIp(request);
         const ipH = ipHash(ip);
         const eventHour = nowHour().toISOString();
         let aliasToken: string | null = null;
 
-
-        // 1. Record a pending rate event before any work, so even unknown aliases are counted.
+        // 2. Record a pending rate event before any work, so even unknown
+        // aliases are counted.
         const { data: pendingEvent, error: pendingError } = await supabaseAdmin
           .from("inbound_email_rate_events")
           .insert({ ip_hash: ipH, alias_token: null, outcome: "pending", event_hour: eventHour })
@@ -157,103 +135,59 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           return Response.json(body, { status, headers: CORS_HEADERS });
         }
 
-        // 2. Parse the incoming body and verify its signature.
-        let emailInput: EmailInput;
-        let rawText: string;
-        let rawHtml: string | null;
-
-        const isLovableWebhook =
-          request.headers.get("x-lovable-signature") || request.headers.get("x-lovable-timestamp");
-
-        if (isLovableWebhook) {
-          const apiKey = process.env["LOVABLE_API_KEY"];
-          if (!apiKey) {
-            return finalize("rejected", 500, { error: "missing_webhook_secret" });
-          }
-          let payload: z.infer<typeof lovableEmailPayloadSchema>;
-          try {
-            const verified = await verifyWebhookRequest({
-              req: request,
-              secret: apiKey,
-              parser: (body) => {
-                const parsed = JSON.parse(body);
-                return lovableEmailPayloadSchema.parse(parsed);
-              },
-            });
-            payload = verified.payload;
-          } catch (error) {
-            if (error instanceof WebhookError) {
-              return finalize("rejected", 401, { error: "invalid_signature" });
-            }
-            return finalize("rejected", 400, { error: "invalid_payload" });
-          }
-          const data = payload.data;
-          const to = data.to || data.recipient;
-          const from = data.from || data.sender || data.sender || "unknown@unknown";
-          if (!to) {
-            return finalize("rejected", 400, { error: "missing_recipient" });
-          }
-          rawText = data["stripped-text"] || data["body-plain"] || "";
-          rawHtml = data["stripped-html"] || data["body-html"] || null;
-          emailInput = {
-            from,
-            to,
-            subject: data.subject,
-            text: rawText,
-            html: rawHtml,
-            receivedAt: new Date().toISOString(),
-          };
-        } else {
-          // Direct Mailgun webhook path
-          const mailgunSecret = process.env["MAILGUN_WEBHOOK_SIGNING_KEY"];
-          if (!mailgunSecret) {
-            return finalize("rejected", 500, { error: "missing_webhook_secret" });
-          }
-          let form: FormData;
-          try {
-            form = await request.formData();
-          } catch {
-            return finalize("rejected", 400, { error: "invalid_form_data" });
-          }
-          const fields = Object.fromEntries(form.entries());
-          const parsed = mailgunFormSchema.safeParse(fields);
-          if (!parsed.success) {
-            return finalize("rejected", 400, { error: "validation_failed", details: parsed.error.flatten() });
-          }
-          const p = parsed.data;
-          const valid = await verifyMailgunSignature(p.timestamp, p.token, p.signature, mailgunSecret);
-          if (!valid) {
-            return finalize("rejected", 401, { error: "invalid_signature" });
-          }
-          aliasToken = extractAliasToken(p.recipient);
-          rawText = p["stripped-text"] || p["body-plain"] || "";
-          rawHtml = p["stripped-html"] || p["body-html"] || null;
-          emailInput = {
-            from: p.from || p.sender || "unknown@unknown",
-            to: p.recipient,
-            subject: p.subject,
-            text: rawText,
-            html: rawHtml,
-            receivedAt: new Date().toISOString(),
-          };
+        // 3. Mailgun is the only supported inbound provider. Parse the form
+        // body and verify the HMAC signature before trusting any field.
+        let form: FormData;
+        try {
+          form = await request.formData();
+        } catch {
+          return finalize("rejected", 400, { error: "invalid_form_data" });
+        }
+        const fields = Object.fromEntries(form.entries());
+        const parsed = mailgunFormSchema.safeParse(fields);
+        if (!parsed.success) {
+          return finalize("rejected", 400, {
+            error: "validation_failed",
+            details: parsed.error.flatten(),
+          });
+        }
+        const p = parsed.data;
+        const valid = await verifyMailgunSignature(
+          p.timestamp,
+          p.token,
+          p.signature,
+          mailgunSigningKey,
+        );
+        if (!valid) {
+          return finalize("rejected", 401, { error: "invalid_signature" });
         }
 
-        // 3. Resolve the alias token (if not already known from Mailgun form data).
+        const rawText = p["stripped-text"] || p["body-plain"] || "";
+        const rawHtml = p["stripped-html"] || p["body-html"] || null;
+        const emailInput: EmailInput = {
+          from: p.from || p.sender || "unknown@unknown",
+          to: p.recipient,
+          subject: p.subject,
+          text: rawText,
+          html: rawHtml,
+          receivedAt: new Date().toISOString(),
+        };
+
+        // 4. Alias is only accepted on the configured inbound domain.
+        aliasToken = aliasTokenForRecipient(p.recipient, inboundDomain);
         if (!aliasToken) {
-          aliasToken = extractAliasToken(emailInput.to);
+          return finalize("unknown_alias", 404, { error: "unknown_alias" });
         }
 
-        // 4. Rate-limit checks.
-        if (aliasToken) {
-          const { count: aliasCount } = await supabaseAdmin
-            .from("inbound_email_rate_events")
-            .select("id", { count: "exact", head: true })
-            .eq("alias_token", aliasToken)
-            .eq("event_hour", eventHour)
-            .not("outcome", "in", "(unknown_alias,rejected)");
-          if ((aliasCount ?? 0) >= RATE_LIMIT_ALIAS_PER_HOUR) {
-            return finalize("rate_limited", 429, { error: "rate_limited_alias" });
-          }
+        // 5. Rate-limit checks.
+        const { count: aliasCount } = await supabaseAdmin
+          .from("inbound_email_rate_events")
+          .select("id", { count: "exact", head: true })
+          .eq("alias_token", aliasToken)
+          .eq("event_hour", eventHour)
+          .not("outcome", "in", "(unknown_alias,rejected)");
+        if ((aliasCount ?? 0) >= RATE_LIMIT_ALIAS_PER_HOUR) {
+          return finalize("rate_limited", 429, { error: "rate_limited_alias" });
         }
 
         const sinceMidnight = new Date();
@@ -267,7 +201,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           return finalize("rate_limited", 429, { error: "rate_limited_ip" });
         }
 
-        // 5. Look up email_job_sources by alias token.
+        // 6. Look up email_job_sources by alias token.
         const { data: source } = await supabaseAdmin
           .from("email_job_sources")
           .select("id, user_id, source_system, intake_mode, email_connection_id, is_active")
@@ -282,36 +216,45 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           return finalize("rejected", 403, { error: "inactive_source" });
         }
 
-        // 6. Parse the email into a lead.
-        const provider: InboundProvider = isLovableWebhook ? "lovable" : "mailgun";
-        const sizeBytes = rawText.length + (rawHtml?.length ?? 0);
-        const providerMessageId = createHash("sha256")
-          .update(
-            `${emailInput.from}|${emailInput.to}|${emailInput.subject}|${emailInput.receivedAt}`,
-          )
-          .digest("hex");
+        const messageId =
+          p["Message-Id"] ||
+          p["message-id"] ||
+          `${emailInput.from}|${p.recipient}|${p.subject}|${p.timestamp}`;
+        const providerMessageId = createHash("sha256").update(messageId).digest("hex");
 
+        // 7. Atomic idempotency claim BEFORE ingestion. The unique index on
+        // (email_job_source_id, provider, provider_message_id) means only one
+        // concurrent delivery of the same message proceeds to ingest.
+        const claim = await claimInboundDelivery(supabaseAdmin as never, {
+          user_id: source.user_id,
+          email_job_source_id: source.id,
+          alias_token: aliasToken,
+          provider_message_id: providerMessageId,
+          from_domain: fromDomain(emailInput.from),
+          size_bytes: rawText.length + (rawHtml?.length ?? 0),
+        });
+
+        if (claim.status === "duplicate") {
+          return finalize("duplicate", 200, { ok: true, duplicate: true });
+        }
+        if (claim.status === "error") {
+          console.error("[inbound/job-email] delivery claim failed", claim.message);
+          return finalize("rejected", 500, { error: "internal_error" });
+        }
+
+        // 8. Parse the email into a lead.
         const parseResult = parseEmail(emailInput);
         if (!parseResult.ok) {
-          await recordInboundDelivery({
-            userId: source.user_id,
-            emailJobSourceId: source.id,
-            provider,
-            providerMessageId,
-            aliasToken: aliasToken as string,
-            fromDomain: senderDomain(emailInput.from),
-            sizeBytes,
-            outcome: "parse_failed",
-            rejectReason: parseResult.rejectReason,
-            receivedAt: emailInput.receivedAt,
-          });
+          await supabaseAdmin
+            .from("inbound_email_deliveries")
+            .update({ outcome: "rejected", reject_reason: parseResult.rejectReason })
+            .eq("id", claim.deliveryId);
           return finalize("rejected", 422, { error: parseResult.rejectReason });
         }
 
-        // 7. Persist parsed lead and create job_lead row.
-        let importedJobEmailId: string | null = null;
+        // 9. Persist parsed lead and create job_lead row.
         try {
-          const ingestResult = await ingestParsedEmail({
+          const result = await ingestParsedEmail({
             userId: source.user_id,
             emailJobSourceId: source.id,
             sourceSystem: source.source_system,
@@ -324,44 +267,28 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
             receivedAt: emailInput.receivedAt,
             rawText,
             rawHtml,
-            sizeBytes,
+            sizeBytes: rawText.length + (rawHtml?.length ?? 0),
             parsed: parseResult.lead,
             parseConfidence: parseResult.lead.confidence,
           });
-          importedJobEmailId = ingestResult.importedJobEmailId;
+          await supabaseAdmin
+            .from("inbound_email_deliveries")
+            .update({
+              outcome: "accepted",
+              imported_job_email_id: result.importedJobEmailId,
+            })
+            .eq("id", claim.deliveryId);
         } catch (err) {
           console.error("[inbound/job-email] ingest failed", err);
-          await recordInboundDelivery({
-            userId: source.user_id,
-            emailJobSourceId: source.id,
-            provider,
-            providerMessageId,
-            aliasToken: aliasToken as string,
-            fromDomain: senderDomain(emailInput.from),
-            sizeBytes,
-            outcome: "ingest_failed",
-            receivedAt: emailInput.receivedAt,
-          });
+          await supabaseAdmin
+            .from("inbound_email_deliveries")
+            .update({ outcome: "failed", reject_reason: "ingest_failed" })
+            .eq("id", claim.deliveryId);
           return finalize("rejected", 500, { error: "ingest_failed" });
         }
 
-        // 8. Revisjonsspor + idempotens: samme melding registreres kun én gang.
-        const { duplicate } = await recordInboundDelivery({
-          userId: source.user_id,
-          emailJobSourceId: source.id,
-          provider,
-          providerMessageId,
-          aliasToken: aliasToken as string,
-          fromDomain: senderDomain(emailInput.from),
-          sizeBytes,
-          outcome: "accepted",
-          importedJobEmailId,
-          receivedAt: emailInput.receivedAt,
-        });
-
-        return finalize("accepted", 200, { ok: true, duplicate });
+        return finalize("accepted", 200, { ok: true, provider: INBOUND_PROVIDER });
       },
     },
   },
-
 });
