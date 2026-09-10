@@ -21,6 +21,7 @@ import {
   isClaudeLoopbackTemplate,
   redirectUriAllowedForClient,
   allowsPortAgnosticLoopback,
+  negotiateTokenEndpointAuthMethod,
 } from "@/lib/ai-integrations/oauth-client-policy";
 import { DCR_MAX_BODY_BYTES, utf8ByteLength } from "@/routes/api/public/oauth/register";
 import {
