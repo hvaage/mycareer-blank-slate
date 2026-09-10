@@ -144,7 +144,6 @@ describe("claimInboundDelivery", () => {
     expect(admin.rows[0].provider).toBe("mailgun");
   });
 
-
   it("lets exactly one of many concurrent webhooks proceed to ingest", async () => {
     const admin = makeAdmin();
     let ingestCount = 0;
