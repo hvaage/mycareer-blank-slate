@@ -1,5 +1,11 @@
 // ============================================================
-// POST /api/public/mcp — Streamable HTTP MCP-transport.
+// Delt Streamable HTTP MCP-transport — server-only.
+//
+// Én implementasjon brukes av begge de eksponerte stiene:
+//   /api/public/mcp  (kanonisk, bakoverkompatibel)
+//   /mcp             (stien ChatGPT faktisk kaller)
+// Samme handler, samme OAuth-verifikasjon, samme scope/resource-binding,
+// samme Origin/Accept-validering og samme feilformat. Ingen 30x-redirect.
 //
 // Ett leverandørnøytralt endepunkt for ChatGPT/Codex, Claude, Gemini,
 // Grok og Microsoft Copilot. Identisk verktøysett for alle fem.
@@ -16,7 +22,6 @@
 // feilgrense svarer generisk og lekker aldri stack, DB-tekst eller innhold.
 // ============================================================
 
-import { createFileRoute } from "@tanstack/react-router";
 import {
   JSONRPC_INTERNAL_ERROR,
   JSONRPC_PARSE_ERROR,
@@ -98,12 +103,11 @@ function logMcpRejected(
   console.error(JSON.stringify(buildMcpRejectionLog(reason, method, jsonrpcCode, protocolVersion)));
 }
 
-async function handlePost(request: Request): Promise<Response> {
-  const { publicAppOrigin, oauthUrls } = await import("@/lib/ai-integrations/oauth-config.server");
+async function handlePost(request: Request, resourcePath: string): Promise<Response> {
+  const { publicAppOrigin } = await import("@/lib/ai-integrations/oauth-config.server");
   const originConfig = publicAppOrigin();
   if (!originConfig.ok) return json({ error: "server_error" }, 500);
   const appOrigin = originConfig.origin;
-  const urls = oauthUrls(appOrigin);
   const requestOrigin = request.headers.get("origin");
   const cors = corsHeaders(requestOrigin, appOrigin);
 
@@ -144,7 +148,7 @@ async function handlePost(request: Request): Promise<Response> {
       ...cors,
       "WWW-Authenticate":
         `Bearer realm="karrierenmin", error="invalid_token", ` +
-        `resource_metadata="${appOrigin}/.well-known/oauth-protected-resource${urls.resourcePath}"`,
+        `resource_metadata="${appOrigin}/.well-known/oauth-protected-resource${resourcePath}"`,
     });
   }
 
@@ -213,41 +217,35 @@ async function handlePost(request: Request): Promise<Response> {
 }
 
 /** Ytre fail-closed grense: ingen stack, token, body eller DB-tekst ut. */
-async function safeHandlePost(request: Request): Promise<Response> {
+export async function handleMcpPost(request: Request, resourcePath: string): Promise<Response> {
   try {
-    return await handlePost(request);
+    return await handlePost(request, resourcePath);
   } catch {
     return rpcErrorResponse(500, JSONRPC_INTERNAL_ERROR, "Intern feil.");
   }
 }
 
-export const Route = createFileRoute("/api/public/mcp")({
-  server: {
-    handlers: {
-      POST: async ({ request }) => safeHandlePost(request),
-      GET: async () => methodNotAllowed(),
-      DELETE: async () => methodNotAllowed(),
-      OPTIONS: async ({ request }) => {
-        try {
-          const { publicAppOrigin } = await import("@/lib/ai-integrations/oauth-config.server");
-          const config = publicAppOrigin();
-          const requestOrigin = request.headers.get("origin");
-          const appOrigin = config.ok ? config.origin : null;
-          if (appOrigin && !isAllowedOrigin(requestOrigin, appOrigin)) {
-            return json({ error: "forbidden_origin" }, 403);
-          }
-          const cors =
-            appOrigin && hasOriginHeader(requestOrigin)
-              ? corsHeaders(requestOrigin, appOrigin)
-              : {};
-          return new Response(null, {
-            status: 204,
-            headers: { Allow: "POST, OPTIONS", "Cache-Control": "no-store", ...cors },
-          });
-        } catch {
-          return json({ error: "server_error" }, 500);
-        }
-      },
-    },
-  },
-});
+/** GET/DELETE er ikke støttet: transporten er sesjonsløs og uten SSE-strøm. */
+export function handleMcpMethodNotAllowed(): Response {
+  return methodNotAllowed();
+}
+
+export async function handleMcpOptions(request: Request): Promise<Response> {
+  try {
+    const { publicAppOrigin } = await import("@/lib/ai-integrations/oauth-config.server");
+    const config = publicAppOrigin();
+    const requestOrigin = request.headers.get("origin");
+    const appOrigin = config.ok ? config.origin : null;
+    if (appOrigin && !isAllowedOrigin(requestOrigin, appOrigin)) {
+      return json({ error: "forbidden_origin" }, 403);
+    }
+    const cors =
+      appOrigin && hasOriginHeader(requestOrigin) ? corsHeaders(requestOrigin, appOrigin) : {};
+    return new Response(null, {
+      status: 204,
+      headers: { Allow: "POST, OPTIONS", "Cache-Control": "no-store", ...cors },
+    });
+  } catch {
+    return json({ error: "server_error" }, 500);
+  }
+}
