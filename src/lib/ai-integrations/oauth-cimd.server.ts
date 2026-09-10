@@ -80,7 +80,12 @@ export function buildCimdFailureLog(clientIdUrl: string, reason: string): CimdFa
   } catch {
     // Ugyldig URL logges uten detaljer.
   }
-  return { event: CIMD_RESOLUTION_FAILED_EVENT, reason, metadata_origin: origin, metadata_path: path };
+  return {
+    event: CIMD_RESOLUTION_FAILED_EVENT,
+    reason,
+    metadata_origin: origin,
+    metadata_path: path,
+  };
 }
 
 /**
