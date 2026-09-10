@@ -66,6 +66,7 @@ import { Route as AuthenticatedApplicationsIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/selskapsanalyse.analysedatabase.$id'
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
+import { Route as McpDotwellKnownOauthProtectedResourceRouteImport } from './routes/mcp/[.]well-known/oauth-protected-resource'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
@@ -113,6 +114,7 @@ import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminIngestionRouteImport } from './routes/_authenticated/admin.ingestion'
 import { Route as AuthenticatedAdminCvTestRouteImport } from './routes/_authenticated/admin.cv-test'
 import { Route as AuthenticatedAdminChangelogRouteImport } from './routes/_authenticated/admin.changelog'
+import { Route as DotwellKnownOauthProtectedResourceMcpRouteImport } from './routes/[.]well-known/oauth-protected-resource.mcp'
 import { Route as AuthenticatedNettverkSelskaperIndexRouteImport } from './routes/_authenticated/nettverk.selskaper.index'
 import { Route as AuthenticatedNettverkMuligheterIndexRouteImport } from './routes/_authenticated/nettverk.muligheter.index'
 import { Route as AuthenticatedNettverkKontakterIndexRouteImport } from './routes/_authenticated/nettverk.kontakter.index'
@@ -455,6 +457,12 @@ const RekruttererundersokelseResultaterFullRoute =
     path: '/resultater/full',
     getParentRoute: () => RekruttererundersokelseRoute,
   } as any)
+const McpDotwellKnownOauthProtectedResourceRoute =
+  McpDotwellKnownOauthProtectedResourceRouteImport.update({
+    id: '/mcp/.well-known/oauth-protected-resource',
+    path: '/mcp/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LovableEmailEventsRoute = LovableEmailEventsRouteImport.update({
   id: '/lovable/email/events',
   path: '/lovable/email/events',
@@ -725,6 +733,12 @@ const AuthenticatedAdminChangelogRoute =
     path: '/admin/changelog',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const DotwellKnownOauthProtectedResourceMcpRoute =
+  DotwellKnownOauthProtectedResourceMcpRouteImport.update({
+    id: '/mcp',
+    path: '/mcp',
+    getParentRoute: () => DotwellKnownOauthProtectedResourceRoute,
+  } as any)
 const AuthenticatedNettverkSelskaperIndexRoute =
   AuthenticatedNettverkSelskaperIndexRouteImport.update({
     id: '/selskaper/',
@@ -929,6 +943,7 @@ export interface FileRoutesByFullPath {
   '/mcp/': typeof McpIndexRoute
   '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
+  '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/ingestion': typeof AuthenticatedAdminIngestionRoute
@@ -976,6 +991,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
+  '/mcp/.well-known/oauth-protected-resource': typeof McpDotwellKnownOauthProtectedResourceRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -1059,6 +1075,7 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpIndexRoute
   '/rekruttererundersokelse': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
+  '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/admin/ingestion': typeof AuthenticatedAdminIngestionRoute
@@ -1106,6 +1123,7 @@ export interface FileRoutesByTo {
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
+  '/mcp/.well-known/oauth-protected-resource': typeof McpDotwellKnownOauthProtectedResourceRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -1195,6 +1213,7 @@ export interface FileRoutesById {
   '/mcp/': typeof McpIndexRoute
   '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
+  '/.well-known/oauth-protected-resource/mcp': typeof DotwellKnownOauthProtectedResourceMcpRoute
   '/_authenticated/admin/changelog': typeof AuthenticatedAdminChangelogRoute
   '/_authenticated/admin/cv-test': typeof AuthenticatedAdminCvTestRoute
   '/_authenticated/admin/ingestion': typeof AuthenticatedAdminIngestionRoute
@@ -1242,6 +1261,7 @@ export interface FileRoutesById {
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
+  '/mcp/.well-known/oauth-protected-resource': typeof McpDotwellKnownOauthProtectedResourceRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -1331,6 +1351,7 @@ export interface FileRouteTypes {
     | '/mcp/'
     | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
+    | '/.well-known/oauth-protected-resource/mcp'
     | '/admin/changelog'
     | '/admin/cv-test'
     | '/admin/ingestion'
@@ -1378,6 +1399,7 @@ export interface FileRouteTypes {
     | '/api/public/ingest-report'
     | '/api/public/mcp'
     | '/lovable/email/events'
+    | '/mcp/.well-known/oauth-protected-resource'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin/'
@@ -1461,6 +1483,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/rekruttererundersokelse'
     | '/selskapsanalyse'
+    | '/.well-known/oauth-protected-resource/mcp'
     | '/admin/changelog'
     | '/admin/cv-test'
     | '/admin/ingestion'
@@ -1508,6 +1531,7 @@ export interface FileRouteTypes {
     | '/api/public/ingest-report'
     | '/api/public/mcp'
     | '/lovable/email/events'
+    | '/mcp/.well-known/oauth-protected-resource'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin'
@@ -1596,6 +1620,7 @@ export interface FileRouteTypes {
     | '/mcp/'
     | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
+    | '/.well-known/oauth-protected-resource/mcp'
     | '/_authenticated/admin/changelog'
     | '/_authenticated/admin/cv-test'
     | '/_authenticated/admin/ingestion'
@@ -1643,6 +1668,7 @@ export interface FileRouteTypes {
     | '/api/public/ingest-report'
     | '/api/public/mcp'
     | '/lovable/email/events'
+    | '/mcp/.well-known/oauth-protected-resource'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/_authenticated/admin/'
@@ -1725,6 +1751,7 @@ export interface RootRouteChildren {
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
+  McpDotwellKnownOauthProtectedResourceRoute: typeof McpDotwellKnownOauthProtectedResourceRoute
   ApiAiIntegrationsIndexRoute: typeof ApiAiIntegrationsIndexRoute
   ApiPublicAiIntegrationsClaimRoute: typeof ApiPublicAiIntegrationsClaimRoute
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
@@ -2146,6 +2173,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RekruttererundersokelseResultaterFullRouteImport
       parentRoute: typeof RekruttererundersokelseRoute
     }
+    '/mcp/.well-known/oauth-protected-resource': {
+      id: '/mcp/.well-known/oauth-protected-resource'
+      path: '/mcp/.well-known/oauth-protected-resource'
+      fullPath: '/mcp/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof McpDotwellKnownOauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/events': {
       id: '/lovable/email/events'
       path: '/lovable/email/events'
@@ -2474,6 +2508,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/changelog'
       preLoaderRoute: typeof AuthenticatedAdminChangelogRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/.well-known/oauth-protected-resource/mcp': {
+      id: '/.well-known/oauth-protected-resource/mcp'
+      path: '/mcp'
+      fullPath: '/.well-known/oauth-protected-resource/mcp'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceMcpRouteImport
+      parentRoute: typeof DotwellKnownOauthProtectedResourceRoute
     }
     '/_authenticated/nettverk/selskaper/': {
       id: '/_authenticated/nettverk/selskaper/'
@@ -2922,11 +2963,14 @@ const SelskapsanalyseRouteWithChildren = SelskapsanalyseRoute._addFileChildren(
 )
 
 interface DotwellKnownOauthProtectedResourceRouteChildren {
+  DotwellKnownOauthProtectedResourceMcpRoute: typeof DotwellKnownOauthProtectedResourceMcpRoute
   DotwellKnownOauthProtectedResourceApiPublicMcpRoute: typeof DotwellKnownOauthProtectedResourceApiPublicMcpRoute
 }
 
 const DotwellKnownOauthProtectedResourceRouteChildren: DotwellKnownOauthProtectedResourceRouteChildren =
   {
+    DotwellKnownOauthProtectedResourceMcpRoute:
+      DotwellKnownOauthProtectedResourceMcpRoute,
     DotwellKnownOauthProtectedResourceApiPublicMcpRoute:
       DotwellKnownOauthProtectedResourceApiPublicMcpRoute,
   }
@@ -2992,6 +3036,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,
   LovableEmailEventsRoute: LovableEmailEventsRoute,
+  McpDotwellKnownOauthProtectedResourceRoute:
+    McpDotwellKnownOauthProtectedResourceRoute,
   ApiAiIntegrationsIndexRoute: ApiAiIntegrationsIndexRoute,
   ApiPublicAiIntegrationsClaimRoute: ApiPublicAiIntegrationsClaimRoute,
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,

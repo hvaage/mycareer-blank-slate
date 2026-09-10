@@ -567,7 +567,10 @@ describe("leverandørnøytralitet", () => {
 
 describe("delt domenelag og ingen sesjonstilstand", () => {
   const ROOT = process.cwd();
-  const mcpRoute = readFileSync(join(ROOT, "src", "routes", "api", "public", "mcp.ts"), "utf8");
+  const mcpRoute = readFileSync(
+    join(ROOT, "src", "lib", "ai-integrations", "mcp-http.server.ts"),
+    "utf8",
+  );
   const restStatus = readFileSync(
     join(ROOT, "src", "routes", "api", "public", "ai-integrations", "v1", "status.ts"),
     "utf8",
@@ -593,7 +596,10 @@ describe("delt domenelag og ingen sesjonstilstand", () => {
   it("MCP-ruten logger kun trygge avvisningsfelt, aldri body eller headere", () => {
     // Kun console.error, og kun via den ene byggeren av avvisningsloggen.
     expect(mcpRoute).not.toMatch(/console\.(log|info|warn)/);
-    expect(mcpRoute).toContain("mcp_request_rejected");
+    // Selve loggobjektet bygges av den ene delte byggeren i kontrakten.
+    expect(
+      readFileSync(join(ROOT, "src", "lib", "ai-integrations", "mcp-contract.ts"), "utf8"),
+    ).toContain("mcp_request_rejected");
     expect(mcpRoute).not.toMatch(/console\.error\((?!JSON\.stringify\(buildMcpRejectionLog)/);
   });
 });

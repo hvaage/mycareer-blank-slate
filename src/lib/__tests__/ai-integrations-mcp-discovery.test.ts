@@ -21,7 +21,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { MCP_ENDPOINT_PATH } from "@/lib/ai-integrations/mcp-contract";
-import { buildMcpRejectionLog } from "@/routes/api/public/mcp";
+import { buildMcpRejectionLog } from "@/lib/ai-integrations/mcp-contract";
 
 const ORIGIN = "https://karrierenmin.no";
 const URL_MCP = `${ORIGIN}${MCP_ENDPOINT_PATH}`;
