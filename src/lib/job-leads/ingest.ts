@@ -116,10 +116,23 @@ export async function ingestParsedEmail(params: {
     .select("id")
     .single();
 
-  if (importError || !importedEmail) {
-    throw new Error(
-      `Failed to insert imported_job_email: ${importError?.message ?? "unknown"}`,
-    );
+  let importedEmail = insertedEmail as { id: string } | null;
+
+  if (importError && (importError as { code?: string }).code === "23505") {
+    // Concurrent attempt created the import first: adopt it.
+    const { data: raced } = await supabaseAdmin
+      .from("imported_job_emails")
+      .select("id")
+      .eq("email_job_source_id", emailJobSourceId)
+      .eq("provider_message_id", providerMessageId)
+      .maybeSingle();
+    importedEmail = raced ?? null;
+  } else if (importError) {
+    throw new Error(`Failed to insert imported_job_email: ${importError.message}`);
+  }
+
+  if (!importedEmail) {
+    throw new Error("Failed to insert imported_job_email: unknown");
   }
 
   // Insert into job_leads via RPC: dedup håndteres deterministisk i databasen
