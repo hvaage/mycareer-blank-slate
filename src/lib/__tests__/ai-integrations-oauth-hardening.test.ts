@@ -564,9 +564,15 @@ describe("Codex loopback (chatgpt.com/oauth/codex/client.json)", () => {
   });
 
   it("avviser portløs loopback selv ved eksakt strengtreff i registered", () => {
+    const claudeShapeClient = {
+      registration_method: "cimd",
+      client_id: "https://claude.ai/oauth/claude-code-client-metadata",
+      metadata_url: "https://claude.ai/oauth/claude-code-client-metadata",
+      redirect_uris: ["http://localhost/callback", "http://127.0.0.1/callback"],
+    };
     for (const uri of ["http://127.0.0.1/callback", "http://localhost/callback"]) {
       expect(redirectUriAllowedForClient(uri, codexClient)).toBe(false);
-      expect(redirectUriAllowedForClient(uri, claudeClient)).toBe(false);
+      expect(redirectUriAllowedForClient(uri, claudeShapeClient)).toBe(false);
     }
     // Gyldig HTTPS exact match er uendret.
     const httpsClient = {
