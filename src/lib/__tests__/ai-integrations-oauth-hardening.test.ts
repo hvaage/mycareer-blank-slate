@@ -68,7 +68,7 @@ describe("CIMD-URL-policy", () => {
 
 describe("CIMD-metadata", () => {
   const claude = CIMD_HOST_POLICIES.find((p) => p.host === "claude.ai")!;
-  const chatgpt = CIMD_HOST_POLICIES.find((p) => p.host === "chatgpt.com")!;
+  const chatgpt = CIMD_HOST_POLICIES.find((p) => p.label === "ChatGPT")!;
   const claudeUrl = "https://claude.ai/oauth/claude-code-client-metadata";
   const chatgptUrl = "https://chatgpt.com/oauth/client.json";
 
@@ -118,7 +118,7 @@ describe("CIMD-metadata", () => {
 // ---------------- token endpoint auth method-forhandling ----------------
 
 describe("token_endpoint_auth_method-forhandling", () => {
-  const chatgpt = CIMD_HOST_POLICIES.find((p) => p.host === "chatgpt.com")!;
+  const chatgpt = CIMD_HOST_POLICIES.find((p) => p.label === "ChatGPT")!;
   const ctx = { url: "https://chatgpt.com/oauth/client.json", policy: chatgpt };
   const base = { redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"] };
 
