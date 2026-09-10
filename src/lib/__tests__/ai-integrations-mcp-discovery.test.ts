@@ -6,13 +6,20 @@
 // med de headerne en ekstern (ikke-nettleser) klient sender: ingen Origin,
 // `Accept: application/json, text/event-stream`, `MCP-Protocol-Version`.
 //
-// Testen ville ha fanget oppdagelsesfeilen: den krever at verktøyene i
-// tools/list er fri for `outputSchema` og at hele svaret validerer mot
-// SDK-ens `ListToolsResultSchema`.
+// Testen dekker den observerte oppdagelsesfeilen: ChatGPT kaller
+// resources/list og resources/templates/list etter tools/list og avbryter
+// på -32601. Alle fire svar valideres mot SDK-ens resultatskjemaer, og
+// verktøyenes structuredContent valideres mot deres outputSchema.
 // ============================================================
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { InitializeResultSchema, ListToolsResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  InitializeResultSchema,
+  ListResourcesResultSchema,
+  ListResourceTemplatesResultSchema,
+  ListToolsResultSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { MCP_ENDPOINT_PATH } from "@/lib/ai-integrations/mcp-contract";
 import { buildMcpRejectionLog } from "@/routes/api/public/mcp";
 
@@ -131,9 +138,30 @@ describe("ChatGPT-oppdagelse over Streamable HTTP", () => {
       for (const tool of listBody.result.tools) {
         expect(typeof tool.description).toBe("string");
         expect(tool.inputSchema.type).toBe("object");
-        // Verktøyoppdagelsen i ChatGPT feiler på verktøy med outputSchema.
-        expect(tool).not.toHaveProperty("outputSchema");
+        // outputSchema beskriver det vellykkede resultatet og må være et
+        // kompilerbart JSON-skjema.
+        expect(tool.outputSchema.type).toBe("object");
+        expect(() => new AjvJsonSchemaValidator().getValidator(tool.outputSchema)).not.toThrow();
       }
+
+      // ChatGPT kaller disse rett etter tools/list og avbryter oppdagelsen
+      // dersom de svarer -32601.
+      const resources = await post({ jsonrpc: "2.0", id: 3, method: "resources/list" }, version);
+      expect(resources.status).toBe(200);
+      const resourcesBody = await resources.json();
+      expect(resourcesBody.error).toBeUndefined();
+      expect(resourcesBody.result.resources).toEqual([]);
+      expect(ListResourcesResultSchema.safeParse(resourcesBody.result).success).toBe(true);
+
+      const templates = await post(
+        { jsonrpc: "2.0", id: 4, method: "resources/templates/list" },
+        version,
+      );
+      expect(templates.status).toBe(200);
+      const templatesBody = await templates.json();
+      expect(templatesBody.error).toBeUndefined();
+      expect(templatesBody.result.resourceTemplates).toEqual([]);
+      expect(ListResourceTemplatesResultSchema.safeParse(templatesBody.result).success).toBe(true);
     });
   }
 

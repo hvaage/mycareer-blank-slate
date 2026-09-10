@@ -32,6 +32,15 @@ import { RequestIdSchema } from "@modelcontextprotocol/sdk/types.js";
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { OAUTH_PATHS } from "@/lib/ai-integrations/oauth-config.server";
 
+/** Validerer et faktisk `structuredContent` mot verktøyets `outputSchema`. */
+function validateAgainstOutputSchema(toolName: string, value: unknown): boolean {
+  const tool = MCP_TOOLS.find((t) => t.name === toolName)!;
+  const validate = new AjvJsonSchemaValidator().getValidator(
+    tool.outputSchema as unknown as Parameters<AjvJsonSchemaValidator["getValidator"]>[0],
+  );
+  return validate(value).valid;
+}
+
 const ORIGIN = "https://karrierenmin.no";
 const URL_MCP = `${ORIGIN}${MCP_ENDPOINT_PATH}`;
 
@@ -172,7 +181,7 @@ describe("kanonisk ressurs og kontrakt", () => {
     expect(MCP_TOOLS.map((t) => t.name)).toEqual(["karrierenmin_status", "karrierenmin_run"]);
     for (const tool of MCP_TOOLS) {
       expect(tool.inputSchema.additionalProperties).toBe(false);
-      expect(tool).not.toHaveProperty("outputSchema");
+      expect(tool.outputSchema.additionalProperties).toBe(false);
       expect(tool.annotations.openWorldHint).toBe(false);
       expect(typeof tool.description).toBe("string");
     }
@@ -258,12 +267,10 @@ describe("kanonisk ressurs og kontrakt", () => {
     expect(isKnownBySdk("2026-07-28")).toBe(false);
   });
 
-  it("ingen verktøy oppgir outputSchema", () => {
-    // `outputSchema` er valgfritt, og en klient som ser det MÅ validere
-    // `structuredContent` mot det. Feilresultater har en annen form, og
-    // ChatGPT-koblingens verktøyoppdagelse feiler på slike verktøy.
+  it("begge verktøy oppgir outputSchema for det vellykkede resultatet", () => {
     for (const tool of MCP_TOOLS) {
-      expect(tool).not.toHaveProperty("outputSchema");
+      expect(tool.outputSchema.type).toBe("object");
+      expect(Array.isArray(tool.outputSchema.required)).toBe(true);
     }
   });
 });
@@ -444,6 +451,9 @@ describe("verktøy og scope", () => {
     expect(jobImport.enabled_by_user).toBe(true);
     // Ingen arbeidsflyt er tilgjengelig som agentutløst kjøring.
     expect(body.result.structuredContent.workflows.every((w) => !w.available)).toBe(true);
+    expect(validateAgainstOutputSchema("karrierenmin_status", body.result.structuredContent)).toBe(
+      true,
+    );
   });
 
   it("karrierenmin_run gir not_enabled uten å opprette en kjøring", async () => {
@@ -457,6 +467,9 @@ describe("verktøy og scope", () => {
     expect(body.result.isError).toBe(true);
     expect(body.result.structuredContent.ok).toBe(false);
     expect(body.result.structuredContent.error.code).toBe("not_enabled");
+    expect(validateAgainstOutputSchema("karrierenmin_run", body.result.structuredContent)).toBe(
+      true,
+    );
   });
 
   it("karrierenmin_run gir not_available når brukeren har slått den på", async () => {
@@ -481,29 +494,37 @@ describe("verktøy og scope", () => {
       rpc("tools/call", { name: "karrierenmin_run", arguments: { workflow_kind: "job_import" } }),
     );
     const body = (await res.json()) as {
-      result: { isError: boolean; structuredContent: { error: { code: string } } };
+      result: {
+        isError: boolean;
+        content: { type: string; text: string }[];
+        structuredContent?: unknown;
+      };
     };
     expect(res.status).toBe(200);
     expect(body.result.isError).toBe(true);
-    expect(body.result.structuredContent.error.code).toBe("insufficient_scope");
+    expect(body.result.content[0]!.text).toContain("insufficient_scope");
+    // Tilgangsfeil har ingen structuredContent: outputSchema beskriver kun
+    // det vellykkede resultatet.
+    expect(body.result).not.toHaveProperty("structuredContent");
   });
 
   it("frakoblet/manglende integrasjon gir integration_inactive", async () => {
     integrationRow = null;
     const res = await post(rpc("tools/call", { name: "karrierenmin_status", arguments: {} }));
     const body = (await res.json()) as {
-      result: { structuredContent: { error: { code: string } } };
+      result: { isError: boolean; content: { text: string }[] };
     };
-    expect(body.result.structuredContent.error.code).toBe("integration_inactive");
+    expect(body.result.isError).toBe(true);
+    expect(body.result.content[0]!.text).toContain("integration_inactive");
+    expect(body.result).not.toHaveProperty("structuredContent");
   });
 
   it("integrasjon som eies av en annen bruker avvises", async () => {
     integrationRow = { ...(integrationRow as Record<string, unknown>), user_id: "annen" };
     const res = await post(rpc("tools/call", { name: "karrierenmin_status", arguments: {} }));
-    const body = (await res.json()) as {
-      result: { structuredContent: { error: { code: string } } };
-    };
-    expect(body.result.structuredContent.error.code).toBe("integration_inactive");
+    const body = (await res.json()) as { result: { content: { text: string }[] } };
+    expect(body.result.content[0]!.text).toContain("integration_inactive");
+    expect(body.result).not.toHaveProperty("structuredContent");
   });
 
   it("ukjent verktøynavn gir -32602", async () => {

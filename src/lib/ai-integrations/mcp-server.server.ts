@@ -68,12 +68,15 @@ export function rpcError(
   };
 }
 
-/** Verktøyfeil er et gyldig resultat på JSON-RPC-nivå, ikke en protokollfeil. */
+/**
+ * Verktøyfeil er et gyldig resultat på JSON-RPC-nivå, ikke en protokollfeil.
+ * Uten `structuredContent`: verktøyenes `outputSchema` beskriver kun det
+ * vellykkede resultatet, og et feilobjekt ville aldri validert mot det.
+ */
 function toolError(id: JsonRpcId, code: string, message: string): JsonRpcResult {
   return rpcResult(id, {
     isError: true,
-    content: [{ type: "text", text: message }],
-    structuredContent: { ok: false, error: { code, message } },
+    content: [{ type: "text", text: `${code}: ${message}` }],
   });
 }
 
@@ -116,7 +119,10 @@ export async function dispatchMcpMessage(
         : MCP_LATEST_PROTOCOL_VERSION;
       return rpcResult(id as JsonRpcId, {
         protocolVersion: negotiated,
-        capabilities: { tools: { listChanged: false } },
+        // `resources` annonseres fordi vi svarer på listemetodene. Vi har
+        // ingen ressurser og annonserer derfor verken abonnement eller
+        // `resources/read`.
+        capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
         serverInfo: MCP_SERVER_INFO,
         instructions: MCP_INSTRUCTIONS,
       });
@@ -140,6 +146,27 @@ export async function dispatchMcpMessage(
         return rpcError(id, JSONRPC_INVALID_PARAMS, "Ugyldige tools/list-parametre.");
       }
       return rpcResult(id as JsonRpcId, { tools: MCP_TOOLS });
+    }
+
+    // Karrierenmin eksponerer ingen MCP-ressurser. Metodene svarer likevel
+    // med gyldige tomme lister; klienter (blant annet ChatGPT) kaller dem
+    // under oppdagelsen og avbryter på -32601.
+    case "resources/list": {
+      if (isNotification) return null;
+      const validated = validateMethodParams("resources/list", message.params);
+      if (!validated.ok) {
+        return rpcError(id, JSONRPC_INVALID_PARAMS, "Ugyldige resources/list-parametre.");
+      }
+      return rpcResult(id as JsonRpcId, { resources: [] });
+    }
+
+    case "resources/templates/list": {
+      if (isNotification) return null;
+      const validated = validateMethodParams("resources/templates/list", message.params);
+      if (!validated.ok) {
+        return rpcError(id, JSONRPC_INVALID_PARAMS, "Ugyldige resources/templates/list-parametre.");
+      }
+      return rpcResult(id as JsonRpcId, { resourceTemplates: [] });
     }
 
     case "tools/call": {
