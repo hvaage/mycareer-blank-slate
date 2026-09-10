@@ -82,6 +82,15 @@ export type ClaimResult =
 const UNIQUE_VIOLATION = "23505";
 
 /**
+ * The outcome value used for the reservation row. The database CHECK on
+ * `inbound_email_deliveries.outcome` only allows
+ * accepted | duplicate | parse_failed | ingest_failed, so the claim is
+ * inserted as `accepted` and downgraded to `parse_failed`/`ingest_failed`
+ * if later stages fail.
+ */
+export const CLAIM_OUTCOME = "accepted" as const;
+
+/**
  * Atomically claims a delivery row. The unique index on
  * (email_job_source_id, provider, provider_message_id) makes this the single
  * serialization point: exactly one concurrent caller gets `claimed`.
@@ -95,7 +104,7 @@ export async function claimInboundDelivery(
     .insert({
       ...values,
       provider: INBOUND_PROVIDER,
-      outcome: values.outcome ?? "claimed",
+      outcome: values.outcome ?? CLAIM_OUTCOME,
     })
     .select("id")
     .maybeSingle();
