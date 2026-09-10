@@ -122,7 +122,33 @@ describe("token_endpoint_auth_method-forhandling", () => {
   const ctx = { url: "https://chatgpt.com/oauth/client.json", policy: chatgpt };
   const base = { redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"] };
 
-  it("godtar ChatGPTs overgangspayload og velger none", () => {
+  it("godtar ChatGPTs faktiske produksjonsdokument og velger none", () => {
+    const result = validateCimdMetadata(
+      {
+        client_id: "https://chatgpt.com/oauth/client.json",
+        client_uri: "https://chatgpt.com/",
+        redirect_uris: ["https://chatgpt.com/connector_platform_oauth_redirect"],
+        token_endpoint_auth_method: "private_key_jwt",
+        token_endpoint_auth_methods_supported: ["none", "private_key_jwt"],
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+        client_name: "ChatGPT",
+        logo_uri: "https://persistent.oaistatic.com/sonic/misc/openai-logo.png",
+        token_endpoint_auth_signing_alg: "RS256",
+        jwks_uri: "https://chatgpt.com/oauth/jwks.json",
+      } as never,
+      ctx,
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.tokenEndpointAuthMethod).toBe("none");
+      expect(result.redirectUris).toEqual([
+        "https://chatgpt.com/connector_platform_oauth_redirect",
+      ]);
+    }
+  });
+
+  it("godtar overgangspayloaden og velger none", () => {
     const result = validateCimdMetadata(
       {
         ...base,
@@ -134,9 +160,6 @@ describe("token_endpoint_auth_method-forhandling", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.tokenEndpointAuthMethod).toBe("none");
-      expect(result.redirectUris).toEqual([
-        "https://chatgpt.com/connector_platform_oauth_redirect",
-      ]);
     }
   });
 
@@ -178,14 +201,21 @@ describe("token_endpoint_auth_method-forhandling", () => {
     expect(validateCimdMetadata(base, ctx).ok).toBe(true);
   });
 
-  it("forhandler direkte mot serverens metoder", () => {
+  it("forhandler direkte mot serverens metoder uten normalisering", () => {
     expect(negotiateTokenEndpointAuthMethod({})).toEqual({ ok: true, method: "none" });
+    expect(
+      negotiateTokenEndpointAuthMethod({
+        token_endpoint_auth_methods_supported: ["none", "private_key_jwt"],
+        token_endpoint_auth_method: "private_key_jwt",
+      }),
+    ).toEqual({ ok: true, method: "none" });
+    // Eksakte protokollidentifikatorer: whitespace-varianter er ikke "none".
     expect(
       negotiateTokenEndpointAuthMethod({
         token_endpoint_auth_methods_supported: [" none "],
         token_endpoint_auth_method: "private_key_jwt",
-      }),
-    ).toEqual({ ok: true, method: "none" });
+      }).ok,
+    ).toBe(false);
     expect(
       negotiateTokenEndpointAuthMethod({
         token_endpoint_auth_methods_supported: ["client_secret_basic"],
