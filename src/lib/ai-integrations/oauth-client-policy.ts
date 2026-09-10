@@ -245,12 +245,13 @@ export function negotiateTokenEndpointAuthMethod(
     const cleaned: string[] = [];
     for (const entry of plural) {
       if (typeof entry !== "string") return { ok: false, reason: "token_endpoint_auth_methods" };
-      const value = entry.trim();
-      if (value === "" || value.length > 64) {
+      // Eksakte protokollidentifikatorer: ingen trimming eller normalisering.
+      if (entry === "" || entry.length > 64) {
         return { ok: false, reason: "token_endpoint_auth_methods" };
       }
-      cleaned.push(value);
+      cleaned.push(entry);
     }
+
     if (new Set(cleaned).size !== cleaned.length) {
       return { ok: false, reason: "token_endpoint_auth_methods" };
     }
