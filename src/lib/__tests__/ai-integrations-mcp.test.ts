@@ -479,29 +479,37 @@ describe("verktøy og scope", () => {
       rpc("tools/call", { name: "karrierenmin_run", arguments: { workflow_kind: "job_import" } }),
     );
     const body = (await res.json()) as {
-      result: { isError: boolean; structuredContent: { error: { code: string } } };
+      result: {
+        isError: boolean;
+        content: { type: string; text: string }[];
+        structuredContent?: unknown;
+      };
     };
     expect(res.status).toBe(200);
     expect(body.result.isError).toBe(true);
-    expect(body.result.structuredContent.error.code).toBe("insufficient_scope");
+    expect(body.result.content[0]!.text).toContain("insufficient_scope");
+    // Tilgangsfeil har ingen structuredContent: outputSchema beskriver kun
+    // det vellykkede resultatet.
+    expect(body.result).not.toHaveProperty("structuredContent");
   });
 
   it("frakoblet/manglende integrasjon gir integration_inactive", async () => {
     integrationRow = null;
     const res = await post(rpc("tools/call", { name: "karrierenmin_status", arguments: {} }));
     const body = (await res.json()) as {
-      result: { structuredContent: { error: { code: string } } };
+      result: { isError: boolean; content: { text: string }[] };
     };
-    expect(body.result.structuredContent.error.code).toBe("integration_inactive");
+    expect(body.result.isError).toBe(true);
+    expect(body.result.content[0]!.text).toContain("integration_inactive");
+    expect(body.result).not.toHaveProperty("structuredContent");
   });
 
   it("integrasjon som eies av en annen bruker avvises", async () => {
     integrationRow = { ...(integrationRow as Record<string, unknown>), user_id: "annen" };
     const res = await post(rpc("tools/call", { name: "karrierenmin_status", arguments: {} }));
-    const body = (await res.json()) as {
-      result: { structuredContent: { error: { code: string } } };
-    };
-    expect(body.result.structuredContent.error.code).toBe("integration_inactive");
+    const body = (await res.json()) as { result: { content: { text: string }[] } };
+    expect(body.result.content[0]!.text).toContain("integration_inactive");
+    expect(body.result).not.toHaveProperty("structuredContent");
   });
 
   it("ukjent verktøynavn gir -32602", async () => {
