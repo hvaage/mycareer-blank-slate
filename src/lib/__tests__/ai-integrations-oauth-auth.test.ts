@@ -30,6 +30,7 @@ vi.mock("@/lib/ai-integrations/oauth-config.server", () => ({
     resourcePath: "/api/public/mcp",
     issuer: origin,
   }),
+  mcpResourceIdentifiers: (origin: string) => [`${origin}/api/public/mcp`, `${origin}/mcp`],
 }));
 
 vi.mock("@/lib/ai-integrations/oauth-access-token.server", () => ({
