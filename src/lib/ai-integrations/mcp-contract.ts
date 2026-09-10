@@ -144,17 +144,51 @@ export const MCP_TOOLS = [
       properties: {},
       additionalProperties: false,
     },
-    // BEVISST UTEN `outputSchema`.
-    //
-    // `outputSchema` er valgfritt i MCP, men når det er oppgitt MÅ klienten
-    // validere `structuredContent` mot det. To ting gjør det skadelig her:
-    //   1. Feilresultater (insufficient_scope, integration_inactive) har en
-    //      annen form enn den vellykkede statusen, og ville brutt kontrakten.
-    //   2. Flere MCP-klienter — inkludert ChatGPT-koblingen — feiler under
-    //      verktøyoppdagelse på verktøy med `outputSchema`.
-    // `structuredContent` returneres fortsatt, bare uten et skjema som
-    // klienten kan feile på.
-
+    // `outputSchema` beskriver KUN det vellykkede resultatet. Når det er
+    // oppgitt, må hvert `structuredContent` validere mot det, så feilveier
+    // (insufficient_scope, integration_inactive) svarer med `isError: true`
+    // og tekst — uten `structuredContent`.
+    outputSchema: {
+      type: "object",
+      properties: {
+        api_version: { type: "string" },
+        integration: {
+          type: "object",
+          properties: {
+            provider: { type: "string" },
+            status: { type: "string" },
+            effective_mode: { type: "string" },
+            capabilities: { type: "object", additionalProperties: { type: "boolean" } },
+            capabilities_verified: { type: "boolean" },
+            last_verified_at: { type: ["string", "null"] },
+          },
+          required: [
+            "provider",
+            "status",
+            "effective_mode",
+            "capabilities",
+            "capabilities_verified",
+            "last_verified_at",
+          ],
+          additionalProperties: false,
+        },
+        workflows: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              workflow_kind: { type: "string", enum: [...AGENT_WORKFLOW_KINDS] },
+              enabled_by_user: { type: "boolean" },
+              available: { type: "boolean" },
+            },
+            required: ["workflow_kind", "enabled_by_user", "available"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["api_version", "integration", "workflows"],
+      additionalProperties: false,
+    },
     annotations: {
       title: "Karrierenmin: status",
       readOnlyHint: true,
