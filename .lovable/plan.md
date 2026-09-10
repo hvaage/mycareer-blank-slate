@@ -1,56 +1,52 @@
-# MCP-discovery: gjeninnfør korrekte outputSchema + svar på ressursmetodene
+# Plan: retrybar og atomisk innkommende e-post
 
-## Hva bevisene viser
+## Mål
 
-1. **Discovery-avvisningen i produksjonsloggen** (10.09. kl. 12:25:07–12:25:09 UTC) er
-   `resources/templates/list` og `resources/list` som får JSON-RPC `-32601 Method not found`.
-   Dette skjer etter vellykket `initialize` og `tools/list`.
-2. **`outputSchema` var ikke i seg selv feil.** OpenAIs plugin-dokumentasjon ber uttrykkelig om
-   `outputSchema` for verktøy som returnerer strukturert data. Fjerningen i `f583fad5` var en
-   hypotese uten bevis og skal reverseres.
-3. **Men de gamle skjemaene var faktisk inkonsistente med svarene.** I
-   `mcp-server.server.ts` returnerer `toolError()` alltid
-   `structuredContent: { ok: false, error: { code, message } }`. Det bryter begge skjemaer:
-   - `karrierenmin_status`: skjemaet krever `api_version`, `integration`, `workflows` og har
-     `additionalProperties: false` — et feilobjekt validerer aldri.
-   - `karrierenmin_run`: skjemaet krever `ok`, `workflow_kind`, `error` — feilveiene for
-     manglende scope og inaktiv integrasjon mangler `workflow_kind`.
-   En klient som validerer `structuredContent` mot `outputSchema` vil derfor avvise feilsvar.
+Samme leverandørmelding skal kunne prøves på nytt etter `parse_failed`, `ingest_failed` eller en utløpt/krasjet reservasjon, uten at samtidige kall eller replay etter suksess kan opprette flere importer eller jobb-leads.
 
-## Plan
+## Tilstandsmodell
 
-### 1. Ressursmetodene (den dokumenterte discovery-feilen)
-- Annonsér `resources: { listChanged: false }` i `initialize`-capabilities.
-- Implementér `resources/list` → `{ "resources": [] }` og
-  `resources/templates/list` → `{ "resourceTemplates": [] }`, med samme parametervalidering
-  som øvrige metoder. Sannferdig: vi eksponerer ingen ressurser.
-- Ingen endring i `karrierenmin_status`/`karrierenmin_run`-semantikk; `karrierenmin_run`
-  starter fortsatt aldri en kjøring.
+- Behold `inbound_email_deliveries` som den kanoniske raden per `(email_job_source_id, provider, provider_message_id)`.
+- Utvid statusene med `processing`, og legg til et tilfeldig claim-token, lease-utløp og forsøksteller.
+- Opprett en egen append-only forsøkstabell som bevarer hvert claim, feilutfall, begrunnelse og tidspunkt.
+- En databasefunksjon utfører claim atomisk under transaksjonslås:
+  - `accepted` gir alltid `duplicate`.
+  - aktiv `processing` gir `duplicate/in_progress`.
+  - `parse_failed`, `ingest_failed` eller utløpt `processing` får et nytt claim-token og nytt forsøk.
+- Ferdigstilling krever riktig claim-token. Bare innehaveren av gjeldende lease kan sette `accepted`, `parse_failed` eller `ingest_failed`.
+- En utløpt `processing` registreres som et krasjet/avbrutt forsøk før neste claim.
 
-### 2. Gjeninnfør `outputSchema` — konsistent denne gangen
-- Legg tilbake begge `outputSchema`-blokkene fra `1efd41e7`.
-- Rett feilveiene slik at `structuredContent` alltid validerer:
-  - Protokoll-/tilgangsfeil (`insufficient_scope`, `integration_inactive`) returnerer
-    `isError: true` med tekstinnhold og **uten** `structuredContent`. MCP krever bare
-    validering når `structuredContent` er til stede.
-  - `karrierenmin_run` sitt normale «ikke tilgjengelig»-svar beholder `structuredContent`
-    og skal alltid inneholde `ok: false`, `workflow_kind` og `error`.
-- Fjern kommentaren i `mcp-contract.ts` som begrunner fraværet av `outputSchema`, og erstatt
-  den med begrunnelsen over.
+## Beskyttelse mot krasj etter delvis ingest
 
-### 3. Verifisering
-- Utvid HTTP-regresjonstesten med den observerte ChatGPT-sekvensen:
-  `initialize` → `notifications/initialized` → `tools/list` → `resources/list` →
-  `resources/templates/list`, for begge protokollversjoner.
-- Ny test: hvert `structuredContent` fra verktøykall (både ok og feil) valideres mot
-  verktøyets `outputSchema`, slik at inkonsistensen ikke kan gjeninnføres.
-- Valider alle resultater mot SDK-skjemaene.
-- Kjør full testpakke, typecheck, lint og build.
+- Legg en unik databaseidentitet på importert e-post per kilde og provider-message-id.
+- Gjør `ingestParsedEmail` gjenopptakbar: ved retry gjenbrukes eksisterende import, og eksisterende lead-deduplisering hindrer et ekstra jobb-lead.
+- Først når hele ingestløpet er ferdig, ferdigstilles leveransen som terminal `accepted`.
 
-### Berørte filer
-- `src/lib/ai-integrations/mcp-contract.ts`
-- `src/lib/ai-integrations/mcp-server.server.ts`
-- `src/lib/__tests__/ai-integrations-mcp-discovery.test.ts`
-- `src/lib/__tests__/ai-integrations-mcp.test.ts`
+## Database og tilgang
 
-Ingen database-, migrasjons- eller konfigurasjonsendring. Publisering gjøres av Henrik etterpå.
+- Lag én additiv migrasjon med nye kolonner, forsøkstabell, indekser og atomiske claim/finalize-funksjoner.
+- Forsøkstabellen får eksplisitte grants, RLS og kun eierlesing for innloggede brukere; webhook-skriving skjer kun server-side.
+- Funksjonene får minste nødvendige execute-rettighet og fast `search_path`.
+- Oppdater genererte databasetyper etter anvendt migrasjon.
+
+## Kode og dokumentasjon
+
+- Bytt webhooken fra direkte insert/update til claim/finalize-funksjonene.
+- Oppdater ingest til å gjenoppta en allerede opprettet import trygt.
+- Oppdater runbooken med retry-, lease- og terminalstatusreglene.
+
+## Verifisering
+
+- Kjør reelle samtidige databasekall i rollback-isolerte testscenarioer:
+  1. Ett claim lykkes og 24 samtidige replay går ikke videre.
+  2. `ingest_failed`, deretter retry som lykkes.
+  3. `parse_failed`, deretter retry som lykkes.
+  4. Utløpt/krasjet lease kan tas over, mens gammel claim-token ikke kan ferdigstille.
+- Kontroller at det finnes nøyaktig én import og høyst ett jobb-lead etter suksess.
+- Kontroller RLS, grants og funksjonsrettigheter på ny struktur.
+- Kjør målrettede tester, full testpakke, typekontroll, lint og build.
+- Ikke publiser.
+
+## Teknisk merknad
+
+Databaselåsen serialiserer claim-beslutningen. Claim-tokenet hindrer en gammel worker i å ferdigstille etter at en lease er overtatt. Den unike importidentiteten og eksisterende lead-dedupliseringen lukker krasjvinduet mellom importopprettelse og terminal `accepted`.
