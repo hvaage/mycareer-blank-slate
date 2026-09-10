@@ -66,6 +66,7 @@ import { Route as AuthenticatedApplicationsIndexRouteImport } from './routes/_au
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as SelskapsanalyseAnalysedatabaseIdRouteImport } from './routes/selskapsanalyse.analysedatabase.$id'
 import { Route as RekruttererundersokelseResultaterFullRouteImport } from './routes/rekruttererundersokelse.resultater.full'
+import { Route as McpDotwellKnownOauthProtectedResourceRouteImport } from './routes/mcp/[.]well-known/oauth-protected-resource'
 import { Route as LovableEmailEventsRouteImport } from './routes/lovable/email/events'
 import { Route as ApiPublicMcpRouteImport } from './routes/api/public/mcp'
 import { Route as ApiPublicIngestReportRouteImport } from './routes/api/public/ingest-report'
@@ -455,6 +456,12 @@ const RekruttererundersokelseResultaterFullRoute =
     id: '/resultater/full',
     path: '/resultater/full',
     getParentRoute: () => RekruttererundersokelseRoute,
+  } as any)
+const McpDotwellKnownOauthProtectedResourceRoute =
+  McpDotwellKnownOauthProtectedResourceRouteImport.update({
+    id: '/mcp/.well-known/oauth-protected-resource',
+    path: '/mcp/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const LovableEmailEventsRoute = LovableEmailEventsRouteImport.update({
   id: '/lovable/email/events',
@@ -984,6 +991,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
+  '/mcp/.well-known/oauth-protected-resource': typeof McpDotwellKnownOauthProtectedResourceRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -1115,6 +1123,7 @@ export interface FileRoutesByTo {
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
+  '/mcp/.well-known/oauth-protected-resource': typeof McpDotwellKnownOauthProtectedResourceRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -1252,6 +1261,7 @@ export interface FileRoutesById {
   '/api/public/ingest-report': typeof ApiPublicIngestReportRoute
   '/api/public/mcp': typeof ApiPublicMcpRoute
   '/lovable/email/events': typeof LovableEmailEventsRoute
+  '/mcp/.well-known/oauth-protected-resource': typeof McpDotwellKnownOauthProtectedResourceRoute
   '/rekruttererundersokelse/resultater/full': typeof RekruttererundersokelseResultaterFullRoute
   '/selskapsanalyse/analysedatabase/$id': typeof SelskapsanalyseAnalysedatabaseIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -1389,6 +1399,7 @@ export interface FileRouteTypes {
     | '/api/public/ingest-report'
     | '/api/public/mcp'
     | '/lovable/email/events'
+    | '/mcp/.well-known/oauth-protected-resource'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin/'
@@ -1520,6 +1531,7 @@ export interface FileRouteTypes {
     | '/api/public/ingest-report'
     | '/api/public/mcp'
     | '/lovable/email/events'
+    | '/mcp/.well-known/oauth-protected-resource'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/admin'
@@ -1656,6 +1668,7 @@ export interface FileRouteTypes {
     | '/api/public/ingest-report'
     | '/api/public/mcp'
     | '/lovable/email/events'
+    | '/mcp/.well-known/oauth-protected-resource'
     | '/rekruttererundersokelse/resultater/full'
     | '/selskapsanalyse/analysedatabase/$id'
     | '/_authenticated/admin/'
@@ -1738,6 +1751,7 @@ export interface RootRouteChildren {
   ApiPublicIngestReportRoute: typeof ApiPublicIngestReportRoute
   ApiPublicMcpRoute: typeof ApiPublicMcpRoute
   LovableEmailEventsRoute: typeof LovableEmailEventsRoute
+  McpDotwellKnownOauthProtectedResourceRoute: typeof McpDotwellKnownOauthProtectedResourceRoute
   ApiAiIntegrationsIndexRoute: typeof ApiAiIntegrationsIndexRoute
   ApiPublicAiIntegrationsClaimRoute: typeof ApiPublicAiIntegrationsClaimRoute
   ApiPublicCvAtomizationWorkerRoute: typeof ApiPublicCvAtomizationWorkerRoute
@@ -2158,6 +2172,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/rekruttererundersokelse/resultater/full'
       preLoaderRoute: typeof RekruttererundersokelseResultaterFullRouteImport
       parentRoute: typeof RekruttererundersokelseRoute
+    }
+    '/mcp/.well-known/oauth-protected-resource': {
+      id: '/mcp/.well-known/oauth-protected-resource'
+      path: '/mcp/.well-known/oauth-protected-resource'
+      fullPath: '/mcp/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof McpDotwellKnownOauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/lovable/email/events': {
       id: '/lovable/email/events'
@@ -3015,6 +3036,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicIngestReportRoute: ApiPublicIngestReportRoute,
   ApiPublicMcpRoute: ApiPublicMcpRoute,
   LovableEmailEventsRoute: LovableEmailEventsRoute,
+  McpDotwellKnownOauthProtectedResourceRoute:
+    McpDotwellKnownOauthProtectedResourceRoute,
   ApiAiIntegrationsIndexRoute: ApiAiIntegrationsIndexRoute,
   ApiPublicAiIntegrationsClaimRoute: ApiPublicAiIntegrationsClaimRoute,
   ApiPublicCvAtomizationWorkerRoute: ApiPublicCvAtomizationWorkerRoute,
