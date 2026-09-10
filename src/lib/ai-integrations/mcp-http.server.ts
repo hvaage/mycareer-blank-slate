@@ -77,10 +77,10 @@ function methodNotAllowed(): Response {
 function logMcpRejected(
   reason: string,
   method?: string,
-  jsonrpcCode?: number,
+  rpcNumber?: number,
   protocolVersion?: string,
 ): void {
-  console.error(JSON.stringify(buildMcpRejectionLog(reason, method, jsonrpcCode, protocolVersion)));
+  console.error(JSON.stringify(buildMcpRejectionLog(reason, method, rpcNumber, protocolVersion)));
 }
 
 async function handlePost(request: Request, resourcePath: string): Promise<Response> {

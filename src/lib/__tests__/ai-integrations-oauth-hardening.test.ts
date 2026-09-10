@@ -337,7 +337,7 @@ describe("kildekontroll: tokenruten", () => {
   it("bruker v2-funksjonene og sender resource inn i innløsingen", () => {
     expect(src).toContain("oauth_redeem_authorization_code_v2");
     expect(src).toContain("oauth_rotate_refresh_token_v2");
-    expect(src).toContain("p_resource: urls.resource");
+    expect(src).toContain("p_resource: boundResource");
   });
 
   it("tar provider fra databasen, ikke fra klienten", () => {

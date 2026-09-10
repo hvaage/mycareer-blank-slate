@@ -528,7 +528,9 @@ describe("token- og revokeringsruter", () => {
   });
 
   it("token validerer resource mot kanonisk verdi", () => {
-    expect(routeSources.token).toContain("resource !== urls.resource");
+    // Resource må være en av de eksakte identifikatorene for MCP-ressursen
+    // (kanonisk sti eller /mcp-alias); ingen prefiksmatching.
+    expect(routeSources.token).toContain("resolveMcpResource(origin.origin, resource)");
   });
 
   it("alle tokensvar er no-store", () => {
