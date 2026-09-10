@@ -75,6 +75,27 @@ BEGIN
       CASE WHEN r.id IS NOT NULL THEN 'PASS' ELSE 'FAIL' END);
   EXCEPTION WHEN OTHERS THEN INSERT INTO canary VALUES ('7 claude blandet sett','FAIL '||SQLERRM); END;
 
+  -- En tillatt loopback-mal gir ikke fritak for https-delen av samme dokument.
+  BEGIN
+    PERFORM public.oauth_upsert_cimd_client(claude,'Claude Code',claude,
+      ARRAY['http://localhost/callback','https://claude.ai/api/mcp/auth_callback','   '], sc, exp);
+    INSERT INTO canary VALUES ('7a claude tom uri avvises','FAIL (godtatt)');
+  EXCEPTION WHEN OTHERS THEN INSERT INTO canary VALUES ('7a claude tom uri avvises','PASS '||SQLERRM); END;
+
+  BEGIN
+    PERFORM public.oauth_upsert_cimd_client(claude,'Claude Code',claude,
+      ARRAY['http://localhost/callback','http://evil.example/callback'], sc, exp);
+    INSERT INTO canary VALUES ('7b claude fremmed http avvises','FAIL (godtatt)');
+  EXCEPTION WHEN OTHERS THEN INSERT INTO canary VALUES ('7b claude fremmed http avvises','PASS '||SQLERRM); END;
+
+  BEGIN
+    PERFORM public.oauth_upsert_cimd_client(claude,'Claude Code',claude,
+      ARRAY['http://localhost/callback','https://claude.ai/api/mcp/auth_callback','https://claude.ai/api/mcp/auth_callback'], sc, exp);
+    INSERT INTO canary VALUES ('7c claude duplikat https avvises','FAIL (godtatt)');
+  EXCEPTION WHEN OTHERS THEN INSERT INTO canary VALUES ('7c claude duplikat https avvises','PASS '||SQLERRM); END;
+
+
+
   INSERT INTO public.oauth_clients
     (client_id, client_name, client_type, redirect_uris, allowed_scopes, registration_method, is_active)
   VALUES ('manual-canary-client','Manuell','public',
