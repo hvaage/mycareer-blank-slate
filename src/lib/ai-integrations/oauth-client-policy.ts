@@ -57,6 +57,15 @@ export type CimdHostPolicy = {
 
 export const CIMD_HOST_POLICIES: readonly CimdHostPolicy[] = [
   {
+    // Eksakt Codex-dokument FØR den generelle ChatGPT-patternpolicyen.
+    // Codex er en native klient og er den eneste chatgpt.com-identiteten
+    // som får publisere loopback-callback.
+    host: "chatgpt.com",
+    paths: ["/oauth/codex/client.json"],
+    allowLoopbackCallback: true,
+    label: "Codex",
+  },
+  {
     host: "chatgpt.com",
     paths: ["/oauth/client.json"],
     patterns: [/^\/oauth\/[A-Za-z0-9_-]{1,64}\/client\.json$/],
@@ -90,18 +99,22 @@ export function checkCimdUrl(value: unknown): CimdUrlCheck {
   if (url.search) return { ok: false, reason: "query" };
   if (url.port) return { ok: false, reason: "port" };
 
-  const policy = CIMD_HOST_POLICIES.find((p) => p.host === url.hostname);
-  if (!policy) return { ok: false, reason: "unknown_host" };
+  const hostPolicies = CIMD_HOST_POLICIES.filter((p) => p.host === url.hostname);
+  if (hostPolicies.length === 0) return { ok: false, reason: "unknown_host" };
 
-  const pathOk =
-    (policy.paths ?? []).includes(url.pathname) ||
-    (policy.patterns ?? []).some((re) => re.test(url.pathname));
-  if (!pathOk) return { ok: false, reason: "unknown_path" };
+  // Første policy som treffer både vert og bane vinner. Eksakte
+  // banelister kommer før mønsterpolicyer i listen ovenfor.
+  const policy = hostPolicies.find(
+    (p) =>
+      (p.paths ?? []).includes(url.pathname) || (p.patterns ?? []).some((re) => re.test(url.pathname)),
+  );
+  if (!policy) return { ok: false, reason: "unknown_path" };
 
   // Normalisert form må være identisk med det vi fikk inn.
   if (url.toString() !== value) return { ok: false, reason: "not_normalized" };
   return { ok: true, url: value, policy };
 }
+
 
 /** Den ene metadata-adressen som kan gi portagnostisk loopback. */
 export const CLAUDE_CIMD_URL = "https://claude.ai/oauth/claude-code-client-metadata";
