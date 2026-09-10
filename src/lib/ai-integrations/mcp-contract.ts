@@ -217,8 +217,26 @@ export const MCP_TOOLS = [
       required: ["workflow_kind"],
       additionalProperties: false,
     },
-    // Ingen outputSchema: se merknaden over `karrierenmin_status`.
-
+    // Det normale resultatet er alltid «ikke tilgjengelig». Skjemaet beskriver
+    // nøyaktig det svaret. Tilgangsfeil svarer uten `structuredContent`.
+    outputSchema: {
+      type: "object",
+      properties: {
+        ok: { type: "boolean", enum: [false] },
+        workflow_kind: { type: "string", enum: [...AGENT_WORKFLOW_KINDS] },
+        error: {
+          type: "object",
+          properties: {
+            code: { type: "string", enum: ["not_enabled", "not_available"] },
+            message: { type: "string" },
+          },
+          required: ["code", "message"],
+          additionalProperties: false,
+        },
+      },
+      required: ["ok", "workflow_kind", "error"],
+      additionalProperties: false,
+    },
     annotations: {
       title: "Karrierenmin: be om arbeidsflyt",
       readOnlyHint: false,
