@@ -32,6 +32,15 @@ import { RequestIdSchema } from "@modelcontextprotocol/sdk/types.js";
 import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv";
 import { OAUTH_PATHS } from "@/lib/ai-integrations/oauth-config.server";
 
+/** Validerer et faktisk `structuredContent` mot verktøyets `outputSchema`. */
+function validateAgainstOutputSchema(toolName: string, value: unknown): boolean {
+  const tool = MCP_TOOLS.find((t) => t.name === toolName)!;
+  const validate = new AjvJsonSchemaValidator().getValidator(
+    tool.outputSchema as unknown as Parameters<AjvJsonSchemaValidator["getValidator"]>[0],
+  );
+  return validate(value).valid;
+}
+
 const ORIGIN = "https://karrierenmin.no";
 const URL_MCP = `${ORIGIN}${MCP_ENDPOINT_PATH}`;
 
