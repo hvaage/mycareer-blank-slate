@@ -7,7 +7,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { sha256Hex } from "@/lib/ai-integrations/oauth-crypto.server";
 import { verifyOauthAccessToken } from "@/lib/ai-integrations/oauth-access-token.server";
-import { oauthUrls, publicAppOrigin } from "@/lib/ai-integrations/oauth-config.server";
+import {
+  mcpResourceIdentifiers,
+  oauthUrls,
+  publicAppOrigin,
+} from "@/lib/ai-integrations/oauth-config.server";
 import { admin, loadClient } from "@/lib/ai-integrations/oauth-store.server";
 
 const noStore = { "Cache-Control": "no-store", Pragma: "no-cache" };
@@ -57,7 +61,7 @@ export const Route = createFileRoute("/api/public/oauth/revoke")({
         if (hint !== "refresh_token") {
           // Access token er signert; vi trekker grantet det peker på.
           const verified = await verifyOauthAccessToken(token, {
-            resource: oauthUrls(origin.origin).resource,
+            resource: mcpResourceIdentifiers(origin.origin),
             issuer: oauthUrls(origin.origin).issuer,
           });
           if (verified.ok && verified.payload.client_id === client.client_id) {

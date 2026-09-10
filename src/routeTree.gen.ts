@@ -22,6 +22,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SelskapsanalyseIndexRouteImport } from './routes/selskapsanalyse.index'
 import { Route as RekruttererundersokelseIndexRouteImport } from './routes/rekruttererundersokelse.index'
+import { Route as McpIndexRouteImport } from './routes/mcp/index'
 import { Route as ArbeidsgivereIndexRouteImport } from './routes/arbeidsgivere.index'
 import { Route as SelskapsanalyseTakkRouteImport } from './routes/selskapsanalyse.takk'
 import { Route as RekruttererundersokelseTakkRouteImport } from './routes/rekruttererundersokelse.takk'
@@ -207,6 +208,11 @@ const RekruttererundersokelseIndexRoute =
     path: '/',
     getParentRoute: () => RekruttererundersokelseRoute,
   } as any)
+const McpIndexRoute = McpIndexRouteImport.update({
+  id: '/mcp/',
+  path: '/mcp/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ArbeidsgivereIndexRoute = ArbeidsgivereIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -920,6 +926,7 @@ export interface FileRoutesByFullPath {
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/arbeidsgivere/': typeof ArbeidsgivereIndexRoute
+  '/mcp/': typeof McpIndexRoute
   '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
@@ -1049,6 +1056,7 @@ export interface FileRoutesByTo {
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/arbeidsgivere': typeof ArbeidsgivereIndexRoute
+  '/mcp': typeof McpIndexRoute
   '/rekruttererundersokelse': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse': typeof SelskapsanalyseIndexRoute
   '/admin/changelog': typeof AuthenticatedAdminChangelogRoute
@@ -1184,6 +1192,7 @@ export interface FileRoutesById {
   '/rekruttererundersokelse/takk': typeof RekruttererundersokelseTakkRoute
   '/selskapsanalyse/takk': typeof SelskapsanalyseTakkRoute
   '/arbeidsgivere/': typeof ArbeidsgivereIndexRoute
+  '/mcp/': typeof McpIndexRoute
   '/rekruttererundersokelse/': typeof RekruttererundersokelseIndexRoute
   '/selskapsanalyse/': typeof SelskapsanalyseIndexRoute
   '/_authenticated/admin/changelog': typeof AuthenticatedAdminChangelogRoute
@@ -1319,6 +1328,7 @@ export interface FileRouteTypes {
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
     | '/arbeidsgivere/'
+    | '/mcp/'
     | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
     | '/admin/changelog'
@@ -1448,6 +1458,7 @@ export interface FileRouteTypes {
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
     | '/arbeidsgivere'
+    | '/mcp'
     | '/rekruttererundersokelse'
     | '/selskapsanalyse'
     | '/admin/changelog'
@@ -1582,6 +1593,7 @@ export interface FileRouteTypes {
     | '/rekruttererundersokelse/takk'
     | '/selskapsanalyse/takk'
     | '/arbeidsgivere/'
+    | '/mcp/'
     | '/rekruttererundersokelse/'
     | '/selskapsanalyse/'
     | '/_authenticated/admin/changelog'
@@ -1700,6 +1712,7 @@ export interface RootRouteChildren {
   AuthLinkedinCallbackRoute: typeof AuthLinkedinCallbackRoute
   AuthNyttPassordRoute: typeof AuthNyttPassordRoute
   OauthAuthorizeRoute: typeof OauthAuthorizeRoute
+  McpIndexRoute: typeof McpIndexRoute
   ApiAiIntegrationsSetupSessionRoute: typeof ApiAiIntegrationsSetupSessionRoute
   ApiCvAtomizationJobsRoute: typeof ApiCvAtomizationJobsRouteWithChildren
   ApiCvGenerationsRoute: typeof ApiCvGenerationsRouteWithChildren
@@ -1824,6 +1837,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/rekruttererundersokelse/'
       preLoaderRoute: typeof RekruttererundersokelseIndexRouteImport
       parentRoute: typeof RekruttererundersokelseRoute
+    }
+    '/mcp/': {
+      id: '/mcp/'
+      path: '/mcp'
+      fullPath: '/mcp/'
+      preLoaderRoute: typeof McpIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/arbeidsgivere/': {
       id: '/arbeidsgivere/'
@@ -2958,6 +2978,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLinkedinCallbackRoute: AuthLinkedinCallbackRoute,
   AuthNyttPassordRoute: AuthNyttPassordRoute,
   OauthAuthorizeRoute: OauthAuthorizeRoute,
+  McpIndexRoute: McpIndexRoute,
   ApiAiIntegrationsSetupSessionRoute: ApiAiIntegrationsSetupSessionRoute,
   ApiCvAtomizationJobsRoute: ApiCvAtomizationJobsRouteWithChildren,
   ApiCvGenerationsRoute: ApiCvGenerationsRouteWithChildren,

@@ -48,6 +48,16 @@ import { AGENT_WORKFLOW_KINDS } from "@/lib/ai-integrations/claim-contract";
 /** Ett offentlig, leverandørnøytralt endepunkt. */
 export const MCP_ENDPOINT_PATH = "/api/public/mcp";
 
+/**
+ * Alias-sti. ChatGPT kaller `POST /mcp` direkte. Aliaset betjenes av
+ * nøyaktig samme transport og peker på nøyaktig samme beskyttede ressurs;
+ * det er ikke et eget verktøysett og ikke en egen tilgangsmodell.
+ */
+export const MCP_ALIAS_ENDPOINT_PATH = "/mcp";
+
+/** Alle stier transporten svarer på. Første er den kanoniske. */
+export const MCP_ENDPOINT_PATHS = [MCP_ENDPOINT_PATH, MCP_ALIAS_ENDPOINT_PATH] as const;
+
 /** Kanonisk OAuth-resource er nøyaktig MCP-endepunktet. */
 export const MCP_RESOURCE_PATH = MCP_ENDPOINT_PATH;
 
@@ -440,3 +450,25 @@ export function validateMethodParams(
     params: ((result.data as { params?: unknown }).params ?? {}) as Record<string, unknown>,
   };
 }
+
+/**
+ * Server-only observabilitet. Kun stabile, trygge felt: hvorfor kallet ble
+ * avvist, hvilken JSON-RPC-metode det gjaldt og hvilken protokollversjon som
+ * ble forhandlet. Aldri token, headere, body, argumenter, id-er eller
+ * feiltekst fra databasen. Vellykkede kall logges ikke.
+ */
+export function buildMcpRejectionLog(
+  reason: string,
+  method?: string,
+  jsonrpcCode?: number,
+  protocolVersion?: string,
+): Record<string, unknown> {
+  return {
+    event: "mcp_request_rejected",
+    reason,
+    ...(method === undefined ? {} : { method }),
+    ...(jsonrpcCode === undefined ? {} : { jsonrpc_code: jsonrpcCode }),
+    ...(protocolVersion === undefined ? {} : { protocol_version: protocolVersion }),
+  };
+}
+

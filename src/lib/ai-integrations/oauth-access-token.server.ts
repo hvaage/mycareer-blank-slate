@@ -123,7 +123,13 @@ export const OAUTH_CLOCK_SKEW_SECONDS = 60;
  */
 export async function verifyOauthAccessToken(
   token: string,
-  options: { resource: string; issuer: string; now?: Date; requiredScope?: string },
+  options: {
+    /** Én eksakt identifikator, eller flere gyldige URL-er for SAMME ressurs. */
+    resource: string | readonly string[];
+    issuer: string;
+    now?: Date;
+    requiredScope?: string;
+  },
 ): Promise<OauthTokenVerification> {
   const secret = readOauthSecret();
   if (!secret) return { ok: false, reason: "not_configured" };
@@ -162,7 +168,9 @@ export async function verifyOauthAccessToken(
     return { ok: false, reason: "malformed" };
   }
   if (payload.iss !== options.issuer) return { ok: false, reason: "issuer" };
-  if (payload.aud !== options.resource || payload.resource !== options.resource) {
+  const acceptedResources =
+    typeof options.resource === "string" ? [options.resource] : options.resource;
+  if (!acceptedResources.includes(payload.aud) || payload.resource !== payload.aud) {
     return { ok: false, reason: "audience" };
   }
   const nowSeconds = Math.floor((options.now ?? new Date()).getTime() / 1000);

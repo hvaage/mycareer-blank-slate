@@ -10,7 +10,11 @@
 // Tokenet logges aldri og legges aldri i en URL.
 // ============================================================
 
-import { oauthUrls, publicAppOrigin } from "@/lib/ai-integrations/oauth-config.server";
+import {
+  mcpResourceIdentifiers,
+  oauthUrls,
+  publicAppOrigin,
+} from "@/lib/ai-integrations/oauth-config.server";
 import { verifyOauthAccessToken } from "@/lib/ai-integrations/oauth-access-token.server";
 import { admin, isRevoked } from "@/lib/ai-integrations/oauth-store.server";
 
@@ -37,7 +41,7 @@ export async function authenticateOauthRequest(
   if (!header.startsWith("Bearer ")) return invalid;
 
   const verified = await verifyOauthAccessToken(header.slice(7).trim(), {
-    resource: urls.resource,
+    resource: mcpResourceIdentifiers(origin.origin),
     issuer: urls.issuer,
     ...(requiredScope ? { requiredScope } : {}),
   });

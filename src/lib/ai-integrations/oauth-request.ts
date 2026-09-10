@@ -126,7 +126,7 @@ export type ClientRecord = {
 export function validateAgainstClient(
   request: ValidAuthorizeRequest,
   client: ClientRecord | null,
-  canonicalResource: string,
+  canonicalResource: string | readonly string[],
 ): AuthorizeValidation {
   const fail = (
     error: AuthorizeError["error"],
@@ -143,7 +143,9 @@ export function validateAgainstClient(
     // tilfeldig port i selve forespørselen.
     return fail("invalid_request", "redirect_uri er ikke registrert for klienten.");
   }
-  if (request.resource !== canonicalResource) {
+  const acceptedResources =
+    typeof canonicalResource === "string" ? [canonicalResource] : canonicalResource;
+  if (!acceptedResources.includes(request.resource)) {
     return fail("invalid_request", "resource peker ikke på denne serveren.", true);
   }
   if (!scopesWithinClient(request.scopes, client.allowed_scopes)) {

@@ -23,6 +23,7 @@ import {
   OAUTH_REFRESH_TOKEN_TTL_SECONDS,
   oauthUrls,
   publicAppOrigin,
+  resolveMcpResource,
 } from "@/lib/ai-integrations/oauth-config.server";
 import {
   isValidCodeVerifier,
@@ -89,7 +90,11 @@ export const Route = createFileRoute("/api/public/oauth/token")({
         const clientId = form.get("client_id") ?? "";
         const resource = form.get("resource");
         if (!clientId) return oauthError(401, "invalid_client");
-        if (resource !== urls.resource) {
+        // Resource må være en av de eksakte identifikatorene for MCP-
+        // ressursen (kanonisk sti eller /mcp-alias). Den forespurte verdien
+        // følger uendret videre til koden og til tokenets aud.
+        const boundResource = resolveMcpResource(origin.origin, resource);
+        if (!boundResource) {
           return oauthError(400, "invalid_target", "Ukjent resource.");
         }
 
@@ -122,7 +127,7 @@ export const Route = createFileRoute("/api/public/oauth/token")({
             p_client_row_id: client.id,
             p_redirect_uri: redirectUri,
             p_code_challenge: challenge,
-            p_resource: urls.resource,
+            p_resource: boundResource,
             p_refresh_token_hash: newRefreshHash,
             p_refresh_expires_at: refreshExpiry,
           });
@@ -159,7 +164,7 @@ export const Route = createFileRoute("/api/public/oauth/token")({
           integrationId: row.ai_integration_id,
           userId: row.user_id,
           provider: row.provider as AiProvider,
-          resource: urls.resource,
+          resource: boundResource,
           issuer: urls.issuer,
           clientId: client.client_id,
           grantId: row.grant_id,
