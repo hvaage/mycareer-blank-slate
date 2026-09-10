@@ -172,7 +172,7 @@ describe("kanonisk ressurs og kontrakt", () => {
     expect(MCP_TOOLS.map((t) => t.name)).toEqual(["karrierenmin_status", "karrierenmin_run"]);
     for (const tool of MCP_TOOLS) {
       expect(tool.inputSchema.additionalProperties).toBe(false);
-      expect(tool.outputSchema.type).toBe("object");
+      expect(tool).not.toHaveProperty("outputSchema");
       expect(tool.annotations.openWorldHint).toBe(false);
       expect(typeof tool.description).toBe("string");
     }
@@ -258,45 +258,13 @@ describe("kanonisk ressurs og kontrakt", () => {
     expect(isKnownBySdk("2026-07-28")).toBe(false);
   });
 
-  it("status-outputSchema krever alle feltene som faktisk returneres", () => {
-    const validator = new AjvJsonSchemaValidator();
-    const tool = MCP_TOOLS.find((t) => t.name === "karrierenmin_status")!;
-    const required = tool.outputSchema.properties.integration.required as readonly string[];
-    expect([...required]).toEqual(
-      expect.arrayContaining(["capabilities_verified", "last_verified_at"]),
-    );
-    const validate = validator.getValidator(
-      tool.outputSchema as unknown as Parameters<typeof validator.getValidator>[0],
-    );
-    // Et faktisk statusresultat mangler ingen påkrevde felt.
-    expect(
-      validate({
-        api_version: "1",
-        integration: {
-          provider: "claude",
-          status: "active",
-          effective_mode: "guided",
-          capabilities: {},
-          capabilities_verified: false,
-          last_verified_at: null,
-        },
-        workflows: [],
-      }).valid,
-    ).toBe(true);
-    // Utelatt capabilities_verified skal nå være ugyldig.
-    expect(
-      validate({
-        api_version: "1",
-        integration: {
-          provider: "claude",
-          status: "active",
-          effective_mode: "guided",
-          capabilities: {},
-          last_verified_at: null,
-        },
-        workflows: [],
-      }).valid,
-    ).toBe(false);
+  it("ingen verktøy oppgir outputSchema", () => {
+    // `outputSchema` er valgfritt, og en klient som ser det MÅ validere
+    // `structuredContent` mot det. Feilresultater har en annen form, og
+    // ChatGPT-koblingens verktøyoppdagelse feiler på slike verktøy.
+    for (const tool of MCP_TOOLS) {
+      expect(tool).not.toHaveProperty("outputSchema");
+    }
   });
 });
 
@@ -601,8 +569,11 @@ describe("delt domenelag og ingen sesjonstilstand", () => {
     expect(mcpRoute.toLowerCase()).not.toContain("sessionid");
   });
 
-  it("MCP-ruten logger ingenting", () => {
-    expect(mcpRoute).not.toMatch(/console\.(log|info|warn|error)/);
+  it("MCP-ruten logger kun trygge avvisningsfelt, aldri body eller headere", () => {
+    // Kun console.error, og kun via den ene byggeren av avvisningsloggen.
+    expect(mcpRoute).not.toMatch(/console\.(log|info|warn)/);
+    expect(mcpRoute).toContain("mcp_request_rejected");
+    expect(mcpRoute).not.toMatch(/console\.error\((?!JSON\.stringify\(buildMcpRejectionLog)/);
   });
 });
 

@@ -94,6 +94,9 @@ export const MCP_SERVER_INFO = {
   name: "karrierenmin",
   title: "Karrierenmin",
   version: "1.0.0",
+  // `websiteUrl` er et felt i MCP-ens `Implementation`. Uten det viser
+  // ChatGPT «Website: Unavailable» på tilkoblingssiden.
+  websiteUrl: "https://karrierenmin.no",
 } as const;
 
 export const MCP_INSTRUCTIONS =
@@ -139,48 +142,17 @@ export const MCP_TOOLS = [
       properties: {},
       additionalProperties: false,
     },
-    outputSchema: {
-      type: "object",
-      properties: {
-        api_version: { type: "string" },
-        integration: {
-          type: "object",
-          properties: {
-            provider: { type: "string" },
-            status: { type: "string" },
-            effective_mode: { type: "string" },
-            capabilities: { type: "object", additionalProperties: { type: "boolean" } },
-            capabilities_verified: { type: "boolean" },
-            last_verified_at: { type: ["string", "null"] },
-          },
-          // Alle feltene returneres alltid.
-          required: [
-            "provider",
-            "status",
-            "effective_mode",
-            "capabilities",
-            "capabilities_verified",
-            "last_verified_at",
-          ],
-          additionalProperties: false,
-        },
-        workflows: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              workflow_kind: { type: "string", enum: [...AGENT_WORKFLOW_KINDS] },
-              enabled_by_user: { type: "boolean" },
-              available: { type: "boolean" },
-            },
-            required: ["workflow_kind", "enabled_by_user", "available"],
-            additionalProperties: false,
-          },
-        },
-      },
-      required: ["api_version", "integration", "workflows"],
-      additionalProperties: false,
-    },
+    // BEVISST UTEN `outputSchema`.
+    //
+    // `outputSchema` er valgfritt i MCP, men når det er oppgitt MÅ klienten
+    // validere `structuredContent` mot det. To ting gjør det skadelig her:
+    //   1. Feilresultater (insufficient_scope, integration_inactive) har en
+    //      annen form enn den vellykkede statusen, og ville brutt kontrakten.
+    //   2. Flere MCP-klienter — inkludert ChatGPT-koblingen — feiler under
+    //      verktøyoppdagelse på verktøy med `outputSchema`.
+    // `structuredContent` returneres fortsatt, bare uten et skjema som
+    // klienten kan feile på.
+
     annotations: {
       title: "Karrierenmin: status",
       readOnlyHint: true,
@@ -209,24 +181,8 @@ export const MCP_TOOLS = [
       required: ["workflow_kind"],
       additionalProperties: false,
     },
-    outputSchema: {
-      type: "object",
-      properties: {
-        ok: { type: "boolean", enum: [false] },
-        workflow_kind: { type: "string", enum: [...AGENT_WORKFLOW_KINDS] },
-        error: {
-          type: "object",
-          properties: {
-            code: { type: "string", enum: ["not_enabled", "not_available"] },
-            message: { type: "string" },
-          },
-          required: ["code", "message"],
-          additionalProperties: false,
-        },
-      },
-      required: ["ok", "workflow_kind", "error"],
-      additionalProperties: false,
-    },
+    // Ingen outputSchema: se merknaden over `karrierenmin_status`.
+
     annotations: {
       title: "Karrierenmin: be om arbeidsflyt",
       readOnlyHint: false,
