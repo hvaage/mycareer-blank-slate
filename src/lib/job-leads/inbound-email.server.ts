@@ -103,15 +103,15 @@ export function stableProviderMessageId(input: {
     : emailId
       ? `rid:${emailId}`
       : eventId
-      ? `evt:${eventId}`
-      : [
-          "content",
-          input.from.trim().toLowerCase(),
-          input.to.trim().toLowerCase(),
-          input.subject,
-          input.bodyText,
-          input.bodyHtml ?? "",
-        ].join("\u0000");
+        ? `evt:${eventId}`
+        : [
+            "content",
+            input.from.trim().toLowerCase(),
+            input.to.trim().toLowerCase(),
+            input.subject,
+            input.bodyText,
+            input.bodyHtml ?? "",
+          ].join("\u0000");
   return createHash("sha256").update(basis).digest("hex");
 }
 

@@ -83,7 +83,9 @@ vi.mock("@/integrations/supabase/client.server", () => ({
 }));
 
 const ingestSpy = vi.fn(async () => ({ importedJobEmailId: "import-1", jobLeadId: "lead-1" }));
-vi.mock("@/lib/job-leads/ingest", () => ({ ingestParsedEmail: (...a: unknown[]) => ingestSpy(...(a as [])) }));
+vi.mock("@/lib/job-leads/ingest", () => ({
+  ingestParsedEmail: (...a: unknown[]) => ingestSpy(...(a as [])),
+}));
 
 const fetchSpy = vi.fn();
 vi.mock("@/lib/job-leads/resend-receiving.server", () => ({
@@ -91,23 +93,35 @@ vi.mock("@/lib/job-leads/resend-receiving.server", () => ({
 }));
 
 const parseSpy = vi.fn();
-vi.mock("@/lib/job-leads/parse", () => ({ parseEmail: (...a: unknown[]) => parseSpy(...(a as [])) }));
+vi.mock("@/lib/job-leads/parse", () => ({
+  parseEmail: (...a: unknown[]) => parseSpy(...(a as [])),
+}));
 
 const { Route } = await import("@/routes/api/public/inbound/job-email");
-const POST = (Route.options as never as { server: { handlers: { POST: (c: { request: Request }) => Promise<Response> } } })
-  .server.handlers.POST;
+const POST = (
+  Route.options as never as {
+    server: { handlers: { POST: (c: { request: Request }) => Promise<Response> } };
+  }
+).server.handlers.POST;
 
 function body(): string {
   return JSON.stringify({
     type: "email.received",
     created_at: "2026-09-11T08:00:00.000Z",
-    data: { email_id: EMAIL_ID, from: "jobb@finn.no", to: [`${ALIAS}@${DOMAIN}`], subject: "Ny stilling" },
+    data: {
+      email_id: EMAIL_ID,
+      from: "jobb@finn.no",
+      to: [`${ALIAS}@${DOMAIN}`],
+      subject: "Ny stilling",
+    },
   });
 }
 
 function request(raw: string, opts: { validSignature?: boolean } = {}): Request {
   const ts = Math.floor(Date.now() / 1000);
-  const mac = createHmac("sha256", SECRET_BYTES).update(`${EVENT_ID}.${ts}.${raw}`).digest("base64");
+  const mac = createHmac("sha256", SECRET_BYTES)
+    .update(`${EVENT_ID}.${ts}.${raw}`)
+    .digest("base64");
   return new Request("https://karrierenmin.no/api/public/inbound/job-email", {
     method: "POST",
     headers: {

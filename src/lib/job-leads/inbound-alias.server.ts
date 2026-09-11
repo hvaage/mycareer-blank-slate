@@ -27,8 +27,14 @@ export function generateAliasToken(length = ALIAS_TOKEN_LENGTH): string {
 type AliasClient = {
   from: (table: string) => {
     select: (columns: string) => {
-      eq: (col: string, val: unknown) => {
-        eq: (col: string, val: unknown) => {
+      eq: (
+        col: string,
+        val: unknown,
+      ) => {
+        eq: (
+          col: string,
+          val: unknown,
+        ) => {
           maybeSingle: () => Promise<{
             data: { inbound_alias_token: string | null } | null;
             error: unknown;

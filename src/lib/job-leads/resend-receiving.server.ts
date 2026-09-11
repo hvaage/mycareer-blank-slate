@@ -155,7 +155,8 @@ export async function fetchReceivedEmail(input: {
   fetchImpl?: typeof fetch;
 }): Promise<FetchReceivedEmailResult> {
   const emailId = input.emailId.trim();
-  if (!EMAIL_ID_RE.test(emailId)) return { ok: false, kind: "permanent", reason: "invalid_email_id" };
+  if (!EMAIL_ID_RE.test(emailId))
+    return { ok: false, kind: "permanent", reason: "invalid_email_id" };
 
   const doFetch = input.fetchImpl ?? fetch;
   const controller = new AbortController();
@@ -163,12 +164,15 @@ export async function fetchReceivedEmail(input: {
 
   let response: Response;
   try {
-    response = await doFetch(`${RESEND_API_ORIGIN}/emails/receiving/${encodeURIComponent(emailId)}`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${input.apiKey}`, Accept: "application/json" },
-      redirect: "manual",
-      signal: controller.signal,
-    });
+    response = await doFetch(
+      `${RESEND_API_ORIGIN}/emails/receiving/${encodeURIComponent(emailId)}`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${input.apiKey}`, Accept: "application/json" },
+        redirect: "manual",
+        signal: controller.signal,
+      },
+    );
   } catch (err) {
     const aborted = err instanceof Error && err.name === "AbortError";
     return { ok: false, kind: "retryable", reason: aborted ? "fetch_timeout" : "fetch_failed" };

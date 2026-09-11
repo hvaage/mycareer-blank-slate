@@ -234,9 +234,7 @@ describe("parseResendInboundEvent", () => {
   it("rejects invalid JSON, missing email id and missing recipient", () => {
     expect(parseResendInboundEvent("{not json")).toEqual({ ok: false, reason: "invalid_json" });
     expect(
-      parseResendInboundEvent(
-        JSON.stringify({ type: "email.received", data: { to: "c@d.no" } }),
-      ),
+      parseResendInboundEvent(JSON.stringify({ type: "email.received", data: { to: "c@d.no" } })),
     ).toEqual({ ok: false, reason: "invalid_payload" });
     expect(
       parseResendInboundEvent(

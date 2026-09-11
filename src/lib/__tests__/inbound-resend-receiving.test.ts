@@ -39,9 +39,9 @@ describe("Resend Receiving API client", () => {
     const result = await fetchReceivedEmail({ emailId: FULL_EMAIL.id, apiKey: API_KEY, fetchImpl });
 
     expect(calls[0]!.url).toBe(`${RESEND_API_ORIGIN}/emails/receiving/${FULL_EMAIL.id}`);
-    expect(
-      (calls[0]!.init!.headers as Record<string, string>)["Authorization"],
-    ).toBe(`Bearer ${API_KEY}`);
+    expect((calls[0]!.init!.headers as Record<string, string>)["Authorization"]).toBe(
+      `Bearer ${API_KEY}`,
+    );
     expect(result.ok && result.email.text).toBe("Innhold");
     expect(result.ok && result.email.html).toBe("<p>Innhold</p>");
     expect(result.ok && result.email.messageIdHeader).toBe("<abc@finn.no>");
@@ -56,20 +56,24 @@ describe("Resend Receiving API client", () => {
       const fetchImpl = vi.fn(async () =>
         jsonResponse({ error: "x" }, { status }),
       ) as unknown as typeof fetch;
-      const result = await fetchReceivedEmail({ emailId: FULL_EMAIL.id, apiKey: API_KEY, fetchImpl });
+      const result = await fetchReceivedEmail({
+        emailId: FULL_EMAIL.id,
+        apiKey: API_KEY,
+        fetchImpl,
+      });
       expect(result).toEqual({ ok: false, kind: "retryable", reason: `resend_api_${status}` });
     }
   });
 
   it("classifies auth and not-found as retryable, other 4xx as permanent", async () => {
     for (const status of [401, 403, 404]) {
-      const fetchImpl = vi.fn(async () =>
-        jsonResponse({}, { status }),
-      ) as unknown as typeof fetch;
+      const fetchImpl = vi.fn(async () => jsonResponse({}, { status })) as unknown as typeof fetch;
       const r = await fetchReceivedEmail({ emailId: FULL_EMAIL.id, apiKey: API_KEY, fetchImpl });
       expect(r.ok === false && r.kind).toBe("retryable");
     }
-    const fetchImpl = vi.fn(async () => jsonResponse({}, { status: 422 })) as unknown as typeof fetch;
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({}, { status: 422 }),
+    ) as unknown as typeof fetch;
     const r = await fetchReceivedEmail({ emailId: FULL_EMAIL.id, apiKey: API_KEY, fetchImpl });
     expect(r).toEqual({ ok: false, kind: "permanent", reason: "resend_api_422" });
   });
@@ -108,7 +112,11 @@ describe("Resend Receiving API client", () => {
     const fetchBad = vi.fn(
       async () => new Response("not json", { status: 200 }),
     ) as unknown as typeof fetch;
-    const bad = await fetchReceivedEmail({ emailId: FULL_EMAIL.id, apiKey: API_KEY, fetchImpl: fetchBad });
+    const bad = await fetchReceivedEmail({
+      emailId: FULL_EMAIL.id,
+      apiKey: API_KEY,
+      fetchImpl: fetchBad,
+    });
     expect(bad).toEqual({ ok: false, kind: "permanent", reason: "invalid_json" });
   });
 
@@ -124,9 +132,9 @@ describe("Resend Receiving API client", () => {
       ok: false,
       reason: "empty_message_body",
     });
-    expect(parseReceivedEmailPayload({ data: { to: "a@b.no", text: "t" } }, "id123456")).toMatchObject(
-      { ok: true },
-    );
+    expect(
+      parseReceivedEmailPayload({ data: { to: "a@b.no", text: "t" } }, "id123456"),
+    ).toMatchObject({ ok: true });
   });
 });
 
@@ -218,7 +226,10 @@ describe("forwarding alias provisioning", () => {
         select: () => ({
           eq: () => ({
             eq: () => ({
-              maybeSingle: async () => ({ data: { inbound_alias_token: "existing".padEnd(30, "a") }, error: null }),
+              maybeSingle: async () => ({
+                data: { inbound_alias_token: "existing".padEnd(30, "a") },
+                error: null,
+              }),
             }),
           }),
         }),
@@ -240,7 +251,9 @@ describe("forwarding alias provisioning", () => {
       from: () => ({
         select: () => ({
           eq: () => ({
-            eq: () => ({ maybeSingle: async () => ({ data: { inbound_alias_token: existing }, error: null }) }),
+            eq: () => ({
+              maybeSingle: async () => ({ data: { inbound_alias_token: existing }, error: null }),
+            }),
           }),
         }),
         insert: (values: Record<string, unknown>) => {

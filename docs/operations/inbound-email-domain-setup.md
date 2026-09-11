@@ -125,3 +125,48 @@ Hver leveranse har nøyaktig én rad i `inbound_email_deliveries` per
 provider_message_id)`; en retry gjenbruker eksisterende import.
 - **Tilgang**: begge funksjonene er SECURITY INVOKER med fast `search_path` og
   `EXECUTE` kun for `service_role`. Verifisert: anon får `42501`.
+
+## Resend Receiving API (metadata-only webhook)
+
+Resend's `email.received` webhook carries METADATA ONLY: no body, no complete
+headers and no attachment content. After signature verification, recipient
+validation and a successful atomic claim, the server fetches the full message:
+
+```
+GET https://api.resend.com/emails/receiving/:email_id
+Authorization: Bearer $RESEND_API_KEY
+```
+
+Rules enforced in code:
+
+- fixed API origin, explicit 15 s timeout, 2 MB response limit,
+- the API key and the message content are never logged,
+- no API call for an invalid signature, an unknown alias, a duplicate
+  (`accepted`) or a live lease (`in_progress`),
+- timeout / 429 / 5xx / 404 / 401 / 403 finalize as retryable `ingest_failed`;
+  other 4xx, malformed payloads and oversized messages finalize as
+  `parse_failed`,
+- message identity: original `Message-ID` when available, otherwise Resend's
+  immutable `email_id`, otherwise the Svix event id. Receipt time is never used.
+
+### Attachments
+
+Attachment CONTENT is NOT ingested. The current job-lead pipeline parses text
+and HTML only, so the Receiving Attachments API is not called. Attachment
+metadata (id, filename, content type, size) is available on the fetched email
+and is deliberately not presented as processed content.
+
+### Required server settings
+
+- `INBOUND_EMAIL_DOMAIN=jobb.karrierenmin.no`
+- `RESEND_WEBHOOK_SECRET`
+- `RESEND_API_KEY`
+
+Intake stays closed (HTTP 503) unless all three are present.
+
+### Private forwarding address
+
+Each user gets one address `<alias>@jobb.karrierenmin.no`. The alias is a
+32-character base32 token from server-side cryptographic randomness, never
+derived from the user id or e-mail, uniquely bound to the user in the database
+and readable only by its owner in Settings → Integrations.

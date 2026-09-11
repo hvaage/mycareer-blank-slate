@@ -63,11 +63,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
             { status: 503, headers: CORS_HEADERS },
           );
         }
-        const {
-          domain: inboundDomain,
-          resendWebhookSecret,
-          resendApiKey,
-        } = configResult.config;
+        const { domain: inboundDomain, resendWebhookSecret, resendApiKey } = configResult.config;
 
         // 1. Size guard — before any parsing or DB work.
         const contentLength = Number(request.headers.get("content-length") ?? "0");
@@ -195,7 +191,6 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           bodyHtml: null,
         });
 
-
         // 7. Atomic lease claim BEFORE ingestion. `processing` is the only
         // active lease state, so only one concurrent delivery of the same
         // message proceeds; failed or crashed attempts can be retried later.
@@ -207,7 +202,6 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           from_domain: fromDomain(meta.from),
           size_bytes: null,
         });
-
 
         if (claim.status === "duplicate") {
           return finalize("accepted", 200, { ok: true, duplicate: true });
