@@ -62,7 +62,7 @@
 
 ## Innkommende e-post: retrybar tilstandsmodell (fra commit 235a8b0b)
 
-- [ ] Stabil meldingsidentitet: Mailgun `Message-Id` først, ellers dokumentert fallback over uforanderlig meldingsinnhold. Aldri mottakstidspunkt.
+- [ ] Stabil meldingsidentitet: originalt `Message-ID` først, ellers Resend/Svix-eventets id, ellers dokumentert fallback over uforanderlig meldingsinnhold. Aldri mottakstidspunkt.
 - [ ] `processing` er eneste aktive lease-status; `accepted` settes først etter fullført import og jobb-lead.
 - [ ] Claim/finalize som SECURITY INVOKER med fast `search_path` og execute kun for `service_role`.
 - [ ] Unik importidentitet håndhevet i databasen på importlaget.

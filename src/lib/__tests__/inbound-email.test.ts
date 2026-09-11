@@ -13,23 +13,24 @@ const DOMAIN = "jobb.karrierenmin.no";
 
 describe("readInboundConfig", () => {
   it("stays off without an inbound domain", () => {
-    expect(readInboundConfig({ MAILGUN_WEBHOOK_SIGNING_KEY: "k" })).toEqual({
+    expect(readInboundConfig({ RESEND_WEBHOOK_SECRET: "whsec_k" })).toEqual({
       ok: false,
       reason: "missing_inbound_domain",
     });
   });
 
-  it("stays off without the Mailgun signing key", () => {
+  it("stays off without the Resend webhook secret", () => {
     expect(readInboundConfig({ INBOUND_EMAIL_DOMAIN: DOMAIN })).toEqual({
       ok: false,
       reason: "missing_webhook_secret",
     });
   });
 
-  it("does not accept LOVABLE_API_KEY as a webhook secret", () => {
+  it("does not accept LOVABLE_API_KEY or a Mailgun key as a webhook secret", () => {
     const result = readInboundConfig({
       INBOUND_EMAIL_DOMAIN: DOMAIN,
       LOVABLE_API_KEY: "lovable-key",
+      MAILGUN_WEBHOOK_SIGNING_KEY: "mailgun-key",
     });
     expect(result).toEqual({ ok: false, reason: "missing_webhook_secret" });
   });
@@ -37,11 +38,11 @@ describe("readInboundConfig", () => {
   it("is configured when both values are present", () => {
     const result = readInboundConfig({
       INBOUND_EMAIL_DOMAIN: ` ${DOMAIN.toUpperCase()} `,
-      MAILGUN_WEBHOOK_SIGNING_KEY: " key ",
+      RESEND_WEBHOOK_SECRET: " whsec_key ",
     });
     expect(result).toEqual({
       ok: true,
-      config: { domain: DOMAIN, mailgunSigningKey: "key" },
+      config: { domain: DOMAIN, resendWebhookSecret: "whsec_key" },
     });
   });
 });
@@ -98,6 +99,28 @@ describe("stableProviderMessageId", () => {
       messageIdHeader: "<abc@finn.no>",
     });
     expect(withHeader).toBe(otherBody);
+  });
+
+  it("falls back to the Svix event id when the Message-ID header is missing", () => {
+    const a = stableProviderMessageId({ ...base, messageIdHeader: null, eventId: "msg_2abc" });
+    const b = stableProviderMessageId({
+      ...base,
+      bodyText: "Annet innhold",
+      messageIdHeader: "  ",
+      eventId: "msg_2abc",
+    });
+    expect(a).toBe(b);
+    expect(a).not.toBe(
+      stableProviderMessageId({ ...base, messageIdHeader: null, eventId: "msg_other" }),
+    );
+  });
+
+  it("prefers the Message-ID header over the event id", () => {
+    expect(
+      stableProviderMessageId({ ...base, messageIdHeader: "<abc@finn.no>", eventId: "msg_1" }),
+    ).toBe(
+      stableProviderMessageId({ ...base, messageIdHeader: "<abc@finn.no>", eventId: "msg_2" }),
+    );
   });
 
   it("falls back to immutable content only, never receive time", () => {
@@ -238,7 +261,7 @@ describe("claimInboundDelivery", () => {
     const admin = makeAdmin();
     await claimInboundDelivery(admin as never, claimValues);
     expect(admin.calls[0].fn).toBe("inbound_email_claim_delivery");
-    expect(admin.calls[0].args.p_provider).toBe("mailgun");
+    expect(admin.calls[0].args.p_provider).toBe("resend");
   });
 
   it("reserves as processing, not accepted, before ingest", async () => {

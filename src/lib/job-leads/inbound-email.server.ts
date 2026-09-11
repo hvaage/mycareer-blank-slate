@@ -3,7 +3,7 @@
  *
  * Invariants:
  *  1. Inbound receiving stays OFF unless BOTH the inbound domain and the
- *     Mailgun webhook signing key are configured. Mailgun is the only
+ *     Resend webhook secret are configured. Resend (Svix-signed) is the only
  *     documented, cryptographically verified inbound provider.
  *  2. A delivery is claimed atomically through `inbound_email_claim_delivery`
  *     BEFORE any ingestion. `processing` is the only active lease state, so
@@ -17,11 +17,11 @@
 
 import { createHash } from "crypto";
 
-export const INBOUND_PROVIDER = "mailgun" as const;
+export const INBOUND_PROVIDER = "resend" as const;
 
 export type InboundConfig = {
   domain: string;
-  mailgunSigningKey: string;
+  resendWebhookSecret: string;
 };
 
 export type InboundConfigResult =
@@ -33,9 +33,9 @@ export function readInboundConfig(
 ): InboundConfigResult {
   const domain = (env["INBOUND_EMAIL_DOMAIN"] ?? "").trim().toLowerCase();
   if (!domain) return { ok: false, reason: "missing_inbound_domain" };
-  const mailgunSigningKey = (env["MAILGUN_WEBHOOK_SIGNING_KEY"] ?? "").trim();
-  if (!mailgunSigningKey) return { ok: false, reason: "missing_webhook_secret" };
-  return { ok: true, config: { domain, mailgunSigningKey } };
+  const resendWebhookSecret = (env["RESEND_WEBHOOK_SECRET"] ?? "").trim();
+  if (!resendWebhookSecret) return { ok: false, reason: "missing_webhook_secret" };
+  return { ok: true, config: { domain, resendWebhookSecret } };
 }
 
 const ALIAS_TOKEN_RE = /^[a-z2-7]{26,64}$/;
@@ -70,14 +70,18 @@ export function fromDomain(address: string): string | null {
 /**
  * Stable identity of a provider message.
  *
- * Mailgun's `Message-Id` header is used whenever present. Without it, the
- * fallback hashes ONLY immutable message content — sender, recipient, subject
- * and body. Receive time, webhook timestamp, tokens and signatures are never
- * part of the identity, because a redelivery of the same email must produce
- * the same value.
+ * Priority, per Resend's documented contract:
+ *  1. the original `Message-ID` header of the received email,
+ *  2. the Svix event id (`svix-id`), which Resend reuses for every retry of
+ *     the same webhook message,
+ *  3. a hash over immutable message content only.
+ *
+ * Receive time, webhook timestamps and signatures are never part of the
+ * identity, because a redelivery of the same email must produce the same value.
  */
 export function stableProviderMessageId(input: {
   messageIdHeader?: string | null;
+  eventId?: string | null;
   from: string;
   to: string;
   subject: string;
@@ -85,16 +89,19 @@ export function stableProviderMessageId(input: {
   bodyHtml?: string | null;
 }): string {
   const header = (input.messageIdHeader ?? "").trim();
+  const eventId = (input.eventId ?? "").trim();
   const basis = header
     ? `mid:${header}`
-    : [
-        "content",
-        input.from.trim().toLowerCase(),
-        input.to.trim().toLowerCase(),
-        input.subject,
-        input.bodyText,
-        input.bodyHtml ?? "",
-      ].join("\u0000");
+    : eventId
+      ? `evt:${eventId}`
+      : [
+          "content",
+          input.from.trim().toLowerCase(),
+          input.to.trim().toLowerCase(),
+          input.subject,
+          input.bodyText,
+          input.bodyHtml ?? "",
+        ].join("\u0000");
   return createHash("sha256").update(basis).digest("hex");
 }
 

@@ -1,27 +1,32 @@
 # Oppsett av innkommende e-postdomene (jobb.karrierenmin.no)
 
 **Status: IKKE KONFIGURERT.** Verken DNS eller serverhemmeligheter er endret.
-`INBOUND_EMAIL_DOMAIN` og `MAILGUN_WEBHOOK_SIGNING_KEY` er ikke satt, og
-mottaket er derfor avslått i koden. Dokumentet beskriver hva som må gjøres.
+`INBOUND_EMAIL_DOMAIN` og `RESEND_WEBHOOK_SECRET` er ikke satt, og mottaket er
+derfor avslått i koden. Dokumentet beskriver hva som må gjøres.
 
-## 1. Mottaksleverandør — kun Mailgun
+## 1. Mottaksleverandør — kun Resend
 
 Webhooken `src/routes/api/public/inbound/job-email.ts` støtter **én** vei:
-Mailgun med HMAC-SHA256-signatur over `timestamp + token`, verifisert mot
-`MAILGUN_WEBHOOK_SIGNING_KEY`.
+Resends offisielle webhook-kontrakt med Svix-signatur («Standard Webhooks»).
 
-Den tidligere «Lovable-veien» er fjernet. `LOVABLE_API_KEY` er en API-nøkkel
-for plattformtjenester, ikke en signeringsnøkkel for innkommende e-post, og
-brukes ikke lenger som webhook-signatur her.
+- Signert innhold: `<svix-id>.<svix-timestamp>.<rå request body>`.
+- Signatur: `base64(HMAC-SHA256(base64decode(secret uten "whsec_"), signert innhold))`.
+- Headeren `svix-signature` (alternativt `webhook-signature`) inneholder en
+  mellomromseparert liste av `v1,<base64>`; én match verifiserer leveransen.
+- Toleranse for `svix-timestamp` er ±5 minutter i begge retninger.
+- Verifisering skjer alltid mot **rå** request body, aldri mot re-serialisert JSON.
+
+Mailgun-veien er fjernet. `MAILGUN_WEBHOOK_SIGNING_KEY` og `LOVABLE_API_KEY`
+har ingen betydning for mottaket.
 
 ## 2. Konfigurasjonsport
 
 Handleren returnerer `503 inbound_not_configured` så lenge én av disse mangler:
 
-| Navn                          | Rolle                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------------------------ |
-| `INBOUND_EMAIL_DOMAIN`        | Mottaksdomenet, f.eks. `jobb.karrierenmin.no`. Alias godtas kun på nøyaktig dette domenet. |
-| `MAILGUN_WEBHOOK_SIGNING_KEY` | Mailguns signeringsnøkkel for webhooken.                                                   |
+| Navn                    | Rolle                                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------ |
+| `INBOUND_EMAIL_DOMAIN`  | Mottaksdomenet, f.eks. `jobb.karrierenmin.no`. Alias godtas kun på nøyaktig dette domenet. |
+| `RESEND_WEBHOOK_SECRET` | Resends webhook-secret (`whsec_…`) for endepunktet.                                        |
 
 Legges inn under Prosjektinnstillinger → Secrets. Aldri i repo, aldri i chat.
 
@@ -31,20 +36,22 @@ Legges inn under Prosjektinnstillinger → Secrets. Aldri i repo, aldri i chat.
 - Token er 26–64 tegn lowercase base32 (`a–z`, `2–7`).
 - Subdomener, overdomener, suffiks-varianter (`...no.evil.com`),
   plussadressering og ukjente verter avvises som `unknown_alias` (404).
+- Resend mottar e-post på et eget verifisert subdomene, men aliaskontrollen i
+  koden er uavhengig av dette og krever eksakt domenetreff.
 
 ## 4. DNS — posttyper som må opprettes
 
-Alle verdier hentes fra Mailguns eget dashboard. Ingen verdier er oppgitt her,
+Alle verdier hentes fra Resends eget dashboard. Ingen verdier er oppgitt her,
 fordi oppdiktede MX-, SPF- eller DKIM-verdier ville vært verre enn ingen.
 
-| Type                           | Navn                                         | Verdi hentes fra                     |
-| ------------------------------ | -------------------------------------------- | ------------------------------------ |
-| MX (to poster, ulik prioritet) | `jobb.karrierenmin.no`                       | Mailgun «Receiving / Inbound domain» |
-| TXT (SPF)                      | `jobb.karrierenmin.no`                       | Mailguns SPF-streng                  |
-| TXT (DKIM)                     | `<selector>._domainkey.jobb.karrierenmin.no` | Mailguns DKIM-nøkkel                 |
-| TXT (domenebekreftelse)        | som Mailgun angir                            | Mailguns verifiseringssteg           |
+| Type                    | Navn                                         | Verdi hentes fra             |
+| ----------------------- | -------------------------------------------- | ---------------------------- |
+| MX                      | `jobb.karrierenmin.no`                       | Resend «Inbound / Receiving» |
+| TXT (SPF)               | `jobb.karrierenmin.no`                       | Resends SPF-streng           |
+| TXT (DKIM)              | `<selector>._domainkey.jobb.karrierenmin.no` | Resends DKIM-nøkkel          |
+| TXT (domenebekreftelse) | som Resend angir                             | Resends verifiseringssteg    |
 
-Domenet må stå som verifisert hos Mailgun før noe testes.
+Domenet må stå som verifisert hos Resend før noe testes.
 
 ## 5. Webhook-URL
 
@@ -52,17 +59,23 @@ Domenet må stå som verifisert hos Mailgun før noe testes.
 https://<produksjonsdomene>/api/public/inbound/job-email
 ```
 
-Mailgun-ruten («Store and notify» / «Forward») peker hit. Ruten ligger under
-`/api/public/`, men verifiserer signatur selv.
+Resend-webhooken for `email.received` peker hit. Ruten ligger under
+`/api/public/`, men verifiserer signatur selv. Webhook-secreten fra Resend
+lagres som `RESEND_WEBHOOK_SECRET`.
 
-## 6. Idempotens
+## 6. Hendelsestype
 
-Hver leveranse krever først en rad i `inbound_email_deliveries`, unikt på
-`(email_job_source_id, provider, provider_message_id)`. Kravet skjer **før**
-`ingestParsedEmail`, så replay og samtidige leveranser av samme melding gir
+Bare `email.received` behandles. Andre eventtyper kvitteres med `202` og
+ignoreres, slik at Resend ikke retrier dem i det uendelige.
+
+## 7. Idempotens
+
+Hver leveranse claimes atomisk i `inbound_email_deliveries`, unikt på
+`(email_job_source_id, provider, provider_message_id)`, **før**
+`ingestParsedEmail`. Replay og samtidige leveranser av samme melding gir
 maksimalt én import og én jobb-lead. Duplikater svarer `200 { duplicate: true }`.
 
-## 7. Verifikasjonstest
+## 8. Verifikasjonstest
 
 1. Sett begge hemmelighetene og vent til DNS har propagert.
 2. Logg inn som testbruker og les den private importadressen i
@@ -72,26 +85,27 @@ maksimalt én import og én jobb-lead. Duplikater svarer `200 { duplicate: true 
    riktig bruker, og lead-en dukker opp i Jobb-leads.
 5. Underkjent når: 503 (ikke konfigurert), 401 (signatur), 404 (ukjent alias)
    eller ingen lead.
-6. Send samme melding på nytt: forventet `200 { duplicate: true }` og ingen ny
-   lead.
+6. Bruk «Resend event» i Resends dashboard: forventet `200 { duplicate: true }`
+   og ingen ny lead.
 
-## 8. Rollback
+## 9. Rollback
 
-1. Fjern `INBOUND_EMAIL_DOMAIN` (eller `MAILGUN_WEBHOOK_SIGNING_KEY`). Mottaket
-   slår seg av med 503, og grensesnittet faller tilbake til nøytral tekst.
-2. Sett mottaksruten hos Mailgun på pause.
+1. Fjern `INBOUND_EMAIL_DOMAIN` (eller `RESEND_WEBHOOK_SECRET`). Mottaket slår
+   seg av med 503, og grensesnittet faller tilbake til nøytral tekst.
+2. Deaktiver webhooken og mottaksruten hos Resend.
 3. Fjern MX-postene for `jobb.karrierenmin.no`. La SPF/DKIM stå.
 4. Ingen brukerdata slettes; allerede mottatte leads er upåvirket.
 
 ## Tilstandsmodell for leveranser (retry-trygg)
 
 Hver leveranse har nøyaktig én rad i `inbound_email_deliveries` per
-`(email_job_source_id, provider, provider_message_id)`.
+`(email_job_source_id, provider, provider_message_id)`. Leverandørverdien er
+`resend`.
 
-- **Meldingsidentitet**: Mailguns `Message-Id` brukes når den finnes. Uten den
-  hashes kun uforanderlig meldingsinnhold (avsender, mottaker, emne, tekst,
-  HTML). Mottakstidspunkt, webhook-timestamp, token og signatur inngår aldri,
-  slik at en redelivery gir samme identitet.
+- **Meldingsidentitet**: originalt `Message-ID`-header når det finnes, ellers
+  Resend/Svix-eventets id (`svix-id`), som er stabil på tvers av retries. Uten
+  begge hashes kun uforanderlig meldingsinnhold (avsender, mottaker, emne,
+  tekst, HTML). Mottakstidspunkt, webhook-timestamp og signatur inngår aldri.
 - **`processing`** er eneste aktive lease-status. Reservasjonen skjer atomisk i
   `inbound_email_claim_delivery` med radlås og advisory lock, og gir et
   engangs claim-token med leieutløp (standard 300 sekunder).
