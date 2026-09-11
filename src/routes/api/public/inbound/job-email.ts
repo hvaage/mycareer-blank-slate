@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createHash, timingSafeEqual } from "crypto";
-import { z } from "zod";
+import { createHash } from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { parseEmail, type EmailInput } from "@/lib/job-leads/parse";
 import { ingestParsedEmail } from "@/lib/job-leads/ingest";
@@ -13,33 +12,23 @@ import {
   readInboundConfig,
   stableProviderMessageId,
 } from "@/lib/job-leads/inbound-email.server";
+import {
+  parseResendInboundEvent,
+  readSvixHeaders,
+  verifyResendWebhook,
+} from "@/lib/job-leads/resend-webhook.server";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-client-info",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, apikey, x-client-info, svix-id, svix-timestamp, svix-signature, webhook-id, webhook-timestamp, webhook-signature",
   "Access-Control-Max-Age": "86400",
 };
 
 const RATE_LIMIT_ALIAS_PER_HOUR = 60;
 const RATE_LIMIT_IP_PER_DAY = 100;
 const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
-
-const mailgunFormSchema = z.object({
-  timestamp: z.string(),
-  token: z.string(),
-  signature: z.string(),
-  recipient: z.string().email(),
-  sender: z.string().email().optional(),
-  from: z.string().email().optional(),
-  subject: z.string().default(""),
-  "body-plain": z.string().default(""),
-  "body-html": z.string().nullable().default(null),
-  "stripped-text": z.string().default(""),
-  "stripped-html": z.string().nullable().default(null),
-  "Message-Id": z.string().optional(),
-  "message-id": z.string().optional(),
-});
 
 function getClientIp(request: Request): string {
   const xff = request.headers.get("x-forwarded-for");
@@ -50,31 +39,6 @@ function getClientIp(request: Request): string {
 function ipHash(ip: string): string {
   const today = new Date().toISOString().slice(0, 10);
   return createHash("sha256").update(`${ip}|${today}`).digest("hex");
-}
-
-async function verifyMailgunSignature(
-  timestamp: string,
-  token: string,
-  signature: string,
-  secret: string,
-): Promise<boolean> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const data = encoder.encode(timestamp + token);
-  const mac = await crypto.subtle.sign("HMAC", key, data);
-  const expected = Array.from(new Uint8Array(mac))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  const expectedBuf = Buffer.from(expected);
-  const givenBuf = Buffer.from(signature);
-  if (expectedBuf.length !== givenBuf.length) return false;
-  return timingSafeEqual(expectedBuf, givenBuf);
 }
 
 function nowHour(): Date {
@@ -90,7 +54,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
 
       POST: async ({ request }) => {
         // 0. Configuration gate — receiving stays off until the inbound domain
-        // and the Mailgun signing key are both configured.
+        // and the Resend webhook secret are both configured.
         const configResult = readInboundConfig();
         if (!configResult.ok) {
           return Response.json(
@@ -98,7 +62,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
             { status: 503, headers: CORS_HEADERS },
           );
         }
-        const { domain: inboundDomain, mailgunSigningKey } = configResult.config;
+        const { domain: inboundDomain, resendWebhookSecret } = configResult.config;
 
         // 1. Size guard — before any parsing or DB work.
         const contentLength = Number(request.headers.get("content-length") ?? "0");
@@ -137,46 +101,50 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           return Response.json(body, { status, headers: CORS_HEADERS });
         }
 
-        // 3. Mailgun is the only supported inbound provider. Parse the form
-        // body and verify the HMAC signature before trusting any field.
-        let form: FormData;
+        // 3. Resend is the only supported inbound provider. Verify the Svix
+        // signature over the RAW body before trusting any field.
+        let rawBody: string;
         try {
-          form = await request.formData();
+          rawBody = await request.text();
         } catch {
-          return finalize("rejected", 400, { error: "invalid_form_data" });
+          return finalize("rejected", 400, { error: "invalid_body" });
         }
-        const fields = Object.fromEntries(form.entries());
-        const parsed = mailgunFormSchema.safeParse(fields);
-        if (!parsed.success) {
-          return finalize("rejected", 400, {
-            error: "validation_failed",
-            details: parsed.error.flatten(),
-          });
-        }
-        const p = parsed.data;
-        const valid = await verifyMailgunSignature(
-          p.timestamp,
-          p.token,
-          p.signature,
-          mailgunSigningKey,
-        );
-        if (!valid) {
-          return finalize("rejected", 401, { error: "invalid_signature" });
+        if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
+          return finalize("rejected", 413, { error: "payload_too_large" });
         }
 
-        const rawText = p["stripped-text"] || p["body-plain"] || "";
-        const rawHtml = p["stripped-html"] || p["body-html"] || null;
+        const verification = await verifyResendWebhook({
+          headers: readSvixHeaders(request.headers),
+          rawBody,
+          secret: resendWebhookSecret,
+        });
+        if (!verification.ok) {
+          return finalize("rejected", 401, {
+            error: "invalid_signature",
+            reason: verification.reason,
+          });
+        }
+
+        const event = parseResendInboundEvent(rawBody);
+        if (!event.ok) {
+          const status = event.reason === "unsupported_event_type" ? 202 : 400;
+          return finalize("rejected", status, { error: event.reason });
+        }
+        const p = event.email;
+
+        const rawText = p.text;
+        const rawHtml = p.html;
         const emailInput: EmailInput = {
-          from: p.from || p.sender || "unknown@unknown",
-          to: p.recipient,
+          from: p.from,
+          to: p.to,
           subject: p.subject,
           text: rawText,
           html: rawHtml,
           receivedAt: new Date().toISOString(),
         };
 
-        // 4. Alias is only accepted on the configured inbound domain.
-        aliasToken = aliasTokenForRecipient(p.recipient, inboundDomain);
+        // 4. Alias is only accepted on the exact configured inbound domain.
+        aliasToken = aliasTokenForRecipient(p.to, inboundDomain);
         if (!aliasToken) {
           return finalize("unknown_alias", 404, { error: "unknown_alias" });
         }
@@ -218,12 +186,14 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           return finalize("rejected", 403, { error: "inactive_source" });
         }
 
-        // Stable message identity: Mailgun's Message-Id when present, else a
-        // hash over immutable message content only (never the receive time).
+        // Stable message identity: the original Message-ID header, else the
+        // Svix event id (stable across retries), else a hash over immutable
+        // message content. The receive time is never part of the identity.
         const providerMessageId = stableProviderMessageId({
-          messageIdHeader: p["Message-Id"] || p["message-id"] || null,
+          messageIdHeader: p.messageIdHeader,
+          eventId: verification.eventId,
           from: emailInput.from,
-          to: p.recipient,
+          to: p.to,
           subject: p.subject,
           bodyText: rawText,
           bodyHtml: rawHtml,
