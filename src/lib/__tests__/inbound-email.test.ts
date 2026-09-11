@@ -35,15 +35,25 @@ describe("readInboundConfig", () => {
     expect(result).toEqual({ ok: false, reason: "missing_webhook_secret" });
   });
 
-  it("is configured when both values are present", () => {
+  it("is configured when domain, webhook secret and API key are present", () => {
     const result = readInboundConfig({
       INBOUND_EMAIL_DOMAIN: ` ${DOMAIN.toUpperCase()} `,
       RESEND_WEBHOOK_SECRET: " whsec_key ",
+      RESEND_API_KEY: " re_key ",
     });
     expect(result).toEqual({
       ok: true,
-      config: { domain: DOMAIN, resendWebhookSecret: "whsec_key" },
+      config: { domain: DOMAIN, resendWebhookSecret: "whsec_key", resendApiKey: "re_key" },
     });
+  });
+
+  it("stays closed without the Resend API key (the webhook has no body)", () => {
+    expect(
+      readInboundConfig({
+        INBOUND_EMAIL_DOMAIN: DOMAIN,
+        RESEND_WEBHOOK_SECRET: "whsec_key",
+      }),
+    ).toEqual({ ok: false, reason: "missing_api_key" });
   });
 });
 

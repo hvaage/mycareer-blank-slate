@@ -17,6 +17,7 @@ import {
   readSvixHeaders,
   verifyResendWebhook,
 } from "@/lib/job-leads/resend-webhook.server";
+import { fetchReceivedEmail } from "@/lib/job-leads/resend-receiving.server";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -62,7 +63,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
             { status: 503, headers: CORS_HEADERS },
           );
         }
-        const { domain: inboundDomain, resendWebhookSecret } = configResult.config;
+        const { domain: inboundDomain, resendWebhookSecret, resendApiKey } = configResult.config;
 
         // 1. Size guard — before any parsing or DB work.
         const contentLength = Number(request.headers.get("content-length") ?? "0");
@@ -125,26 +126,16 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           });
         }
 
+        // The webhook payload is METADATA ONLY — no body, no full headers.
         const event = parseResendInboundEvent(rawBody);
         if (!event.ok) {
           const status = event.reason === "unsupported_event_type" ? 202 : 400;
           return finalize("rejected", status, { error: event.reason });
         }
-        const p = event.email;
-
-        const rawText = p.text;
-        const rawHtml = p.html;
-        const emailInput: EmailInput = {
-          from: p.from,
-          to: p.to,
-          subject: p.subject,
-          text: rawText,
-          html: rawHtml,
-          receivedAt: new Date().toISOString(),
-        };
+        const meta = event.metadata;
 
         // 4. Alias is only accepted on the exact configured inbound domain.
-        aliasToken = aliasTokenForRecipient(p.to, inboundDomain);
+        aliasToken = aliasTokenForRecipient(meta.to, inboundDomain);
         if (!aliasToken) {
           return finalize("unknown_alias", 404, { error: "unknown_alias" });
         }
@@ -186,17 +177,18 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           return finalize("rejected", 403, { error: "inactive_source" });
         }
 
-        // Stable message identity: the original Message-ID header, else the
-        // Svix event id (stable across retries), else a hash over immutable
-        // message content. The receive time is never part of the identity.
+        // Stable message identity: Resend's immutable `email_id`, else the
+        // Svix event id (stable across every retry of the same message).
+        // The receive time is never part of the identity. The identity must
+        // be known BEFORE the claim, so the metadata-only webhook decides it.
         const providerMessageId = stableProviderMessageId({
-          messageIdHeader: p.messageIdHeader,
+          resendEmailId: meta.emailId,
           eventId: verification.eventId,
-          from: emailInput.from,
-          to: p.to,
-          subject: p.subject,
-          bodyText: rawText,
-          bodyHtml: rawHtml,
+          from: meta.from,
+          to: meta.to,
+          subject: meta.subject,
+          bodyText: "",
+          bodyHtml: null,
         });
 
         // 7. Atomic lease claim BEFORE ingestion. `processing` is the only
@@ -207,8 +199,8 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           email_job_source_id: source.id,
           alias_token: aliasToken,
           provider_message_id: providerMessageId,
-          from_domain: fromDomain(emailInput.from),
-          size_bytes: rawText.length + (rawHtml?.length ?? 0),
+          from_domain: fromDomain(meta.from),
+          size_bytes: null,
         });
 
         if (claim.status === "duplicate") {
@@ -224,7 +216,43 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
 
         const { deliveryId, claimToken } = claim;
 
-        // 8. Parse the email into a lead.
+        // 8. Only now — after a successful claim — fetch the full email from
+        // Resend's Receiving API. Duplicates and live leases never reach here,
+        // so replays cause no extra API call.
+        const fetched = await fetchReceivedEmail({
+          emailId: meta.emailId,
+          apiKey: resendApiKey,
+        });
+        if (!fetched.ok) {
+          // Retryable (timeout/429/5xx/404/auth) is finalized as
+          // `ingest_failed`, which the state model allows to be claimed again.
+          // Permanent failures are classified as `parse_failed`.
+          const outcome = fetched.kind === "retryable" ? "ingest_failed" : "parse_failed";
+          await finalizeInboundDelivery(supabaseAdmin as never, {
+            deliveryId,
+            claimToken,
+            outcome,
+            rejectReason: fetched.reason,
+          });
+          return finalize("rejected", fetched.kind === "retryable" ? 502 : 422, {
+            error: fetched.reason,
+            retryable: fetched.kind === "retryable",
+          });
+        }
+
+        const full = fetched.email;
+        const rawText = full.text;
+        const rawHtml = full.html;
+        const emailInput: EmailInput = {
+          from: full.from,
+          to: full.to,
+          subject: full.subject,
+          text: rawText,
+          html: rawHtml,
+          receivedAt: new Date().toISOString(),
+        };
+
+        // 9. Parse the fetched email into a lead.
         const parseResult = parseEmail(emailInput);
         if (!parseResult.ok) {
           await finalizeInboundDelivery(supabaseAdmin as never, {
@@ -236,7 +264,7 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
           return finalize("rejected", 422, { error: parseResult.rejectReason });
         }
 
-        // 9. Persist parsed lead and create job_lead row.
+        // 10. Persist parsed lead and create job_lead row.
         try {
           const result = await ingestParsedEmail({
             userId: source.user_id,
@@ -254,6 +282,9 @@ export const Route = createFileRoute("/api/public/inbound/job-email")({
             sizeBytes: rawText.length + (rawHtml?.length ?? 0),
             parsed: parseResult.lead,
             parseConfidence: parseResult.lead.confidence,
+            // Attachment CONTENT is never downloaded: the job-lead ingest has
+            // no attachment pipeline. Only metadata exists on the fetched
+            // email, and it is deliberately not presented as processed.
           });
           // Terminal `accepted` only after import AND job lead are persisted.
           await finalizeInboundDelivery(supabaseAdmin as never, {

@@ -26,8 +26,10 @@ import {
  */
 async function readForwardingAddress(
   userClient: SupabaseClient,
+  userId: string,
 ): Promise<{ address: string | null; intake_status: "ready" | "pending_setup" }> {
   const domain = process.env["INBOUND_EMAIL_DOMAIN"];
+  // Eierlesing: RLS gjør at brukeren bare ser sin egen rad.
   const { data } = await userClient
     .from("email_job_sources")
     .select("inbound_alias_token")
@@ -35,7 +37,19 @@ async function readForwardingAddress(
     .not("inbound_alias_token", "is", null)
     .limit(1)
     .maybeSingle();
-  const token = (data as { inbound_alias_token?: string } | null)?.inbound_alias_token;
+  let token = (data as { inbound_alias_token?: string } | null)?.inbound_alias_token ?? null;
+
+  if (!token) {
+    // Adressen provisjoneres server-side med kryptografisk tilfeldighet.
+    // Den utledes aldri fra bruker-ID eller e-postadresse.
+    const [{ supabaseAdmin }, { ensureForwardingAlias }] = await Promise.all([
+      import("@/integrations/supabase/client.server"),
+      import("@/lib/job-leads/inbound-alias.server"),
+    ]);
+    const result = await ensureForwardingAlias(supabaseAdmin as never, userId);
+    if (result.ok) token = result.token;
+  }
+
   if (!domain || !token) return { address: null, intake_status: "pending_setup" };
   return { address: `${token}@${domain}`, intake_status: "ready" };
 }
@@ -64,7 +78,7 @@ export const Route = createFileRoute("/api/ai-integrations/")({
 
         if (error) return apiFail(500, "database_error", "Kunne ikke hente oppsettet ditt.");
 
-        const intake = await readForwardingAddress(auth.userClient);
+        const intake = await readForwardingAddress(auth.userClient, auth.userId);
         return Response.json({
           ok: true,
           integrations: integrations ?? [],
