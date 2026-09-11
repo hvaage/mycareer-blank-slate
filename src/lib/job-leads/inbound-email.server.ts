@@ -22,11 +22,12 @@ export const INBOUND_PROVIDER = "resend" as const;
 export type InboundConfig = {
   domain: string;
   resendWebhookSecret: string;
+  resendApiKey: string;
 };
 
 export type InboundConfigResult =
   | { ok: true; config: InboundConfig }
-  | { ok: false; reason: "missing_inbound_domain" | "missing_webhook_secret" };
+  | { ok: false; reason: "missing_inbound_domain" | "missing_webhook_secret" | "missing_api_key" };
 
 export function readInboundConfig(
   env: Record<string, string | undefined> = process.env,
@@ -35,7 +36,11 @@ export function readInboundConfig(
   if (!domain) return { ok: false, reason: "missing_inbound_domain" };
   const resendWebhookSecret = (env["RESEND_WEBHOOK_SECRET"] ?? "").trim();
   if (!resendWebhookSecret) return { ok: false, reason: "missing_webhook_secret" };
-  return { ok: true, config: { domain, resendWebhookSecret } };
+  // The webhook is metadata-only: without the API key the full email can
+  // never be fetched, so intake stays closed.
+  const resendApiKey = (env["RESEND_API_KEY"] ?? "").trim();
+  if (!resendApiKey) return { ok: false, reason: "missing_api_key" };
+  return { ok: true, config: { domain, resendWebhookSecret, resendApiKey } };
 }
 
 const ALIAS_TOKEN_RE = /^[a-z2-7]{26,64}$/;
@@ -72,6 +77,7 @@ export function fromDomain(address: string): string | null {
  *
  * Priority, per Resend's documented contract:
  *  1. the original `Message-ID` header of the received email,
+ *  1b. Resend's immutable `email_id` from the received-event metadata,
  *  2. the Svix event id (`svix-id`), which Resend reuses for every retry of
  *     the same webhook message,
  *  3. a hash over immutable message content only.
@@ -81,6 +87,7 @@ export function fromDomain(address: string): string | null {
  */
 export function stableProviderMessageId(input: {
   messageIdHeader?: string | null;
+  resendEmailId?: string | null;
   eventId?: string | null;
   from: string;
   to: string;
@@ -89,10 +96,13 @@ export function stableProviderMessageId(input: {
   bodyHtml?: string | null;
 }): string {
   const header = (input.messageIdHeader ?? "").trim();
+  const emailId = (input.resendEmailId ?? "").trim();
   const eventId = (input.eventId ?? "").trim();
   const basis = header
     ? `mid:${header}`
-    : eventId
+    : emailId
+      ? `rid:${emailId}`
+      : eventId
       ? `evt:${eventId}`
       : [
           "content",

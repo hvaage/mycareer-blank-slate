@@ -16,19 +16,16 @@ function sign(id: string, timestamp: number, body: string, secret = SECRET_BYTES
 }
 
 const EVENT_ID = "msg_2abcDEF";
+// Realistic METADATA-ONLY payload: Resend's email.received event carries no
+// body, no complete headers and no attachment content.
 const BODY = JSON.stringify({
   type: "email.received",
   created_at: "2026-09-11T08:00:00.000Z",
   data: {
+    email_id: "6229f547-f3a1-4de6-8e26-1b6b5e2e1b7a",
     from: "jobb@finn.no",
     to: ["abcdefghijklmnopqrstuvwxyz@jobb.karrierenmin.no"],
     subject: "Ny stilling",
-    text: "Innhold",
-    html: "<p>Innhold</p>",
-    headers: [
-      { name: "Message-ID", value: "<abc@finn.no>" },
-      { name: "X-Other", value: "ignored" },
-    ],
   },
 });
 
@@ -206,37 +203,25 @@ describe("verifyResendWebhook", () => {
 });
 
 describe("parseResendInboundEvent", () => {
-  it("parses the documented received-email event", () => {
+  it("parses the documented metadata-only received-email event", () => {
     const result = parseResendInboundEvent(BODY);
     expect(result).toEqual({
       ok: true,
-      email: {
+      metadata: {
+        emailId: "6229f547-f3a1-4de6-8e26-1b6b5e2e1b7a",
         from: "jobb@finn.no",
         to: "abcdefghijklmnopqrstuvwxyz@jobb.karrierenmin.no",
         subject: "Ny stilling",
-        text: "Innhold",
-        html: "<p>Innhold</p>",
-        messageIdHeader: "<abc@finn.no>",
       },
     });
   });
 
-  it("accepts object-shaped headers and a string recipient", () => {
+  it("accepts a string recipient and an `id` alias for the email id", () => {
     const result = parseResendInboundEvent(
-      JSON.stringify({
-        type: "email.received",
-        data: {
-          from: "a@b.no",
-          to: "c@d.no",
-          subject: "S",
-          text: "T",
-          headers: { "message-id": "<x@y>" },
-        },
-      }),
+      JSON.stringify({ type: "email.received", data: { id: "abc123xyz", to: "c@d.no" } }),
     );
-    expect(result.ok && result.email.messageIdHeader).toBe("<x@y>");
-    expect(result.ok && result.email.to).toBe("c@d.no");
-    expect(result.ok && result.email.html).toBeNull();
+    expect(result.ok && result.metadata.emailId).toBe("abc123xyz");
+    expect(result.ok && result.metadata.to).toBe("c@d.no");
   });
 
   it("ignores other event types", () => {
@@ -246,10 +231,17 @@ describe("parseResendInboundEvent", () => {
     });
   });
 
-  it("rejects invalid JSON and payloads without a recipient", () => {
+  it("rejects invalid JSON, missing email id and missing recipient", () => {
     expect(parseResendInboundEvent("{not json")).toEqual({ ok: false, reason: "invalid_json" });
     expect(
-      parseResendInboundEvent(JSON.stringify({ type: "email.received", data: { from: "a@b.no" } })),
+      parseResendInboundEvent(
+        JSON.stringify({ type: "email.received", data: { to: "c@d.no" } }),
+      ),
+    ).toEqual({ ok: false, reason: "invalid_payload" });
+    expect(
+      parseResendInboundEvent(
+        JSON.stringify({ type: "email.received", data: { email_id: "abc123xyz" } }),
+      ),
     ).toEqual({ ok: false, reason: "invalid_payload" });
     expect(parseResendInboundEvent(JSON.stringify({ type: "email.received" }))).toEqual({
       ok: false,

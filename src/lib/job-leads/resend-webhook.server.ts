@@ -120,17 +120,20 @@ export async function verifyResendWebhook(input: {
 
 export const RESEND_INBOUND_EVENT_TYPE = "email.received";
 
-export type ResendInboundEmail = {
+/**
+ * The `email.received` webhook is METADATA ONLY. It carries no body, no
+ * complete headers and no attachment content — those must be fetched from
+ * Resend's Receiving API with `email_id`.
+ */
+export type ResendInboundMetadata = {
+  emailId: string;
   from: string;
   to: string;
   subject: string;
-  text: string;
-  html: string | null;
-  messageIdHeader: string | null;
 };
 
 export type ParseEventResult =
-  | { ok: true; email: ResendInboundEmail }
+  | { ok: true; metadata: ResendInboundMetadata }
   | { ok: false; reason: "invalid_json" | "unsupported_event_type" | "invalid_payload" };
 
 function firstString(value: unknown): string | null {
@@ -145,29 +148,6 @@ function firstString(value: unknown): string | null {
     const rec = value as Record<string, unknown>;
     const s = firstString(rec["address"] ?? rec["email"]);
     if (s) return s;
-  }
-  return null;
-}
-
-/** Reads the original `Message-ID` from Resend's header representation. */
-function messageIdFromHeaders(headers: unknown): string | null {
-  if (Array.isArray(headers)) {
-    for (const entry of headers) {
-      if (!entry || typeof entry !== "object") continue;
-      const rec = entry as Record<string, unknown>;
-      const name = typeof rec["name"] === "string" ? rec["name"].toLowerCase() : "";
-      if (name === "message-id" && typeof rec["value"] === "string") {
-        return rec["value"].trim() || null;
-      }
-    }
-    return null;
-  }
-  if (headers && typeof headers === "object") {
-    for (const [key, value] of Object.entries(headers as Record<string, unknown>)) {
-      if (key.toLowerCase() === "message-id" && typeof value === "string") {
-        return value.trim() || null;
-      }
-    }
   }
   return null;
 }
@@ -192,22 +172,18 @@ export function parseResendInboundEvent(rawBody: string): ParseEventResult {
   if (!data || typeof data !== "object") return { ok: false, reason: "invalid_payload" };
   const d = data as Record<string, unknown>;
 
+  const emailId = firstString(d["email_id"] ?? d["id"]);
+  if (!emailId) return { ok: false, reason: "invalid_payload" };
   const to = firstString(d["to"]);
   if (!to) return { ok: false, reason: "invalid_payload" };
-  const from = firstString(d["from"]) ?? "unknown@unknown";
-  const subject = typeof d["subject"] === "string" ? d["subject"] : "";
-  const text = typeof d["text"] === "string" ? d["text"] : "";
-  const html = typeof d["html"] === "string" && d["html"] ? d["html"] : null;
 
   return {
     ok: true,
-    email: {
-      from,
+    metadata: {
+      emailId,
       to,
-      subject,
-      text,
-      html,
-      messageIdHeader: messageIdFromHeaders(d["headers"]),
+      from: firstString(d["from"]) ?? "unknown@unknown",
+      subject: typeof d["subject"] === "string" ? d["subject"] : "",
     },
   };
 }
