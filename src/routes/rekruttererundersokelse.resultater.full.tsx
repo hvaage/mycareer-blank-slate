@@ -83,16 +83,12 @@ function FullResultsPage() {
           {data?.version?.title ?? "Rekruttererundersøkelsen"}
         </h1>
 
-        {isLoading && (
-          <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>
-        )}
+        {isLoading && <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>}
 
         {!isLoading && data && (
           <div className="mt-10">
             {data.profile && data.profile.total === 0 ? (
-              <Card className="p-6 text-sm text-muted-foreground">
-                Ingen svar registrert ennå.
-              </Card>
+              <Card className="p-6 text-sm text-muted-foreground">Ingen svar registrert ennå.</Card>
             ) : (
               <ResultsView profile={data.profile} results={data.results} mode="full" />
             )}

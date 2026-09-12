@@ -18,8 +18,7 @@ export const Route = createFileRoute("/rekruttererundersokelse/resultater/")({
       { title: "Resultater · Rekruttererundersøkelsen — Karrierenmin" },
       {
         name: "description",
-        content:
-          "Aggregerte resultater fra rekrutterere, headhuntere og Search-konsulenter.",
+        content: "Aggregerte resultater fra rekrutterere, headhuntere og Search-konsulenter.",
       },
       {
         property: "og:title",
@@ -27,8 +26,7 @@ export const Route = createFileRoute("/rekruttererundersokelse/resultater/")({
       },
       {
         property: "og:description",
-        content:
-          "Aggregerte resultater fra rekrutterere, headhuntere og Search-konsulenter.",
+        content: "Aggregerte resultater fra rekrutterere, headhuntere og Search-konsulenter.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -56,8 +54,9 @@ function PublicResultsPage() {
           {data?.version?.title ?? "Rekruttererundersøkelsen"}
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Dette er et utvalg av spørsmål som er publisert offentlig. Resultatene vises kun aggregert –
-          enkeltsvar publiseres aldri uten godkjenning. Vil du ha full tilgang? Be om tilsendt resultatlenke.
+          Dette er et utvalg av spørsmål som er publisert offentlig. Resultatene vises kun aggregert
+          – enkeltsvar publiseres aldri uten godkjenning. Vil du ha full tilgang? Be om tilsendt
+          resultatlenke.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-3">
@@ -69,9 +68,7 @@ function PublicResultsPage() {
           </Button>
         </div>
 
-        {isLoading && (
-          <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>
-        )}
+        {isLoading && <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>}
 
         {!isLoading && data && (
           <div className="mt-10">
