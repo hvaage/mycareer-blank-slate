@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as Sporreskjema1RouteImport } from './routes/sporreskjema1'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SelskapsanalyseRouteImport } from './routes/selskapsanalyse'
@@ -145,6 +146,11 @@ import { Route as ApiPublicAiIntegrationsV1StatusRouteImport } from './routes/ap
 import { Route as ApiPublicAiIntegrationsV1RunRouteImport } from './routes/api/public/ai-integrations/v1/run'
 import { Route as DotwellKnownOauthProtectedResourceApiPublicMcpRouteImport } from './routes/[.]well-known/oauth-protected-resource.api.public.mcp'
 
+const Sporreskjema1Route = Sporreskjema1RouteImport.update({
+  id: '/sporreskjema1',
+  path: '/sporreskjema1',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -917,6 +923,7 @@ export interface FileRoutesByFullPath {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/sporreskjema1': typeof Sporreskjema1Route
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/about-me': typeof AuthenticatedAboutMeRoute
@@ -1050,6 +1057,7 @@ export interface FileRoutesByTo {
   '/personvern': typeof PersonvernRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/sporreskjema1': typeof Sporreskjema1Route
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/about-me': typeof AuthenticatedAboutMeRoute
@@ -1187,6 +1195,7 @@ export interface FileRoutesById {
   '/selskapsanalyse': typeof SelskapsanalyseRouteWithChildren
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/sporreskjema1': typeof Sporreskjema1Route
   '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
   '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   '/_authenticated/about-me': typeof AuthenticatedAboutMeRoute
@@ -1325,6 +1334,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
+    | '/sporreskjema1'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/about-me'
@@ -1458,6 +1468,7 @@ export interface FileRouteTypes {
     | '/personvern'
     | '/signup'
     | '/sitemap.xml'
+    | '/sporreskjema1'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/about-me'
@@ -1594,6 +1605,7 @@ export interface FileRouteTypes {
     | '/selskapsanalyse'
     | '/signup'
     | '/sitemap.xml'
+    | '/sporreskjema1'
     | '/.well-known/oauth-authorization-server'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/about-me'
@@ -1732,6 +1744,7 @@ export interface RootRouteChildren {
   SelskapsanalyseRoute: typeof SelskapsanalyseRouteWithChildren
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  Sporreskjema1Route: typeof Sporreskjema1Route
   DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
   DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -1774,6 +1787,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sporreskjema1': {
+      id: '/sporreskjema1'
+      path: '/sporreskjema1'
+      fullPath: '/sporreskjema1'
+      preLoaderRoute: typeof Sporreskjema1RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -3014,6 +3034,7 @@ const rootRouteChildren: RootRouteChildren = {
   SelskapsanalyseRoute: SelskapsanalyseRouteWithChildren,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  Sporreskjema1Route: Sporreskjema1Route,
   DotwellKnownOauthAuthorizationServerRoute:
     DotwellKnownOauthAuthorizationServerRoute,
   DotwellKnownOauthProtectedResourceRoute:
