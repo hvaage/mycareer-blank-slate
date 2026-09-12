@@ -64,10 +64,15 @@ function PublicResultsPage() {
           <Button asChild>
             <Link to="/rekruttererundersokelse">Delta i undersøkelsen</Link>
           </Button>
-          <Button variant="outline" asChild>
-            <a href={fullAccessMailto}>Be om full tilgang</a>
-          </Button>
+          <RequestFullAccessButton />
         </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Eller send e-post direkte til{" "}
+          <a className="underline" href={`mailto:${SURVEY_ACCESS_EMAIL}`}>
+            {SURVEY_ACCESS_EMAIL}
+          </a>
+          .
+        </p>
 
         {isLoading && <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>}
 
