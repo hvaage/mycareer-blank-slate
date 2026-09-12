@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { Shield, Lock, ChevronRight, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { getActiveSurvey, submitSurvey, signupForResults } from "@/lib/recruiter-survey.functions";
@@ -239,13 +240,15 @@ function SurveyPage() {
           </div>
         </Card>
 
-        <div className="mt-8 mb-4 flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            Steg {step + 1} av {totalSteps}
-          </span>
-          <span>{progress}%</span>
+        <div className="sticky top-16 z-30 -mx-4 mt-8 mb-8 border-b border-rule bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              Steg {step + 1} av {totalSteps}
+            </span>
+            <span>{progress}%</span>
+          </div>
+          <Progress value={progress} className="mt-2 h-1.5" />
         </div>
-        <Progress value={progress} className="mb-8 h-1.5" />
 
         <div ref={questionStartRef} className="scroll-mt-20">
           {step === 0 && (
@@ -662,43 +665,69 @@ function QuestionInput({
     );
   }
   if (q.question_type === "scale") {
-    const min = q.scale_min ?? 1;
-    const max = q.scale_max ?? 10;
-    const nums = Array.from({ length: max - min + 1 }, (_, i) => i + min);
     return (
-      <div>
-        <div className="flex flex-wrap gap-1.5">
-          {nums.map((n) => {
-            const on = value === n;
-            return (
-              <button
-                key={n}
-                type="button"
-                onClick={() => onValueChange(n)}
-                className={`h-10 w-10 rounded-md border text-sm transition ${
-                  on
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-rule hover:bg-muted/50"
-                }`}
-              >
-                {n}
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-3 flex justify-between text-[11px] text-muted-foreground">
-          <span>
-            {min} = {q.scale_min_label}
-          </span>
-          <span>{q.scale_mid_label}</span>
-          <span>
-            {max} = {q.scale_max_label}
-          </span>
-        </div>
-      </div>
+      <ScaleSlider
+        q={q}
+        value={typeof value === "number" ? value : null}
+        onValueChange={onValueChange}
+      />
     );
   }
   return null;
+}
+
+function ScaleSlider({
+  q,
+  value,
+  onValueChange,
+}: {
+  q: any;
+  value: number | null;
+  onValueChange: (v: number) => void;
+}) {
+  const min = q.scale_min ?? 1;
+  const max = q.scale_max ?? 10;
+  const mid = Math.round((min + max) / 2);
+  const current = value ?? mid;
+
+  useEffect(() => {
+    if (value === null) onValueChange(mid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.id]);
+
+  const stepLabels: string[] = Array.isArray(q.options) ? (q.options as string[]) : [];
+  const label =
+    stepLabels[current - min] ??
+    (current === min
+      ? q.scale_min_label
+      : current === max
+        ? q.scale_max_label
+        : (q.scale_mid_label ?? ""));
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+        <span>
+          {min} = {q.scale_min_label}
+        </span>
+        <span>
+          {max} = {q.scale_max_label}
+        </span>
+      </div>
+      <Slider
+        className="mt-4"
+        min={min}
+        max={max}
+        step={1}
+        value={[current]}
+        onValueChange={(v) => onValueChange(v[0] ?? mid)}
+      />
+      <div className="mt-5 rounded-md border border-rule bg-muted/30 p-4 text-center">
+        <p className="text-2xl font-semibold tabular-nums">{current}</p>
+        <p className="mt-1 text-sm leading-snug text-foreground">{label}</p>
+      </div>
+    </div>
+  );
 }
 
 function OtherAnswer({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -722,22 +751,13 @@ function OtherAnswer({ value, onChange }: { value: string; onChange: (value: str
 
 function PrivacyNote() {
   return (
-    <div className="mt-10 rounded-lg border border-rule bg-muted/20 p-4 text-xs leading-relaxed text-muted-foreground">
-      <p className="font-semibold text-foreground">Personvern</p>
-      <ul className="mt-2 list-disc space-y-1 pl-5">
-        <li>Svarene er anonyme.</li>
-        <li>Kontaktinformasjon lagres separat fra svarene.</li>
-        <li>Kontaktinformasjon brukes kun til å sende resultatene.</li>
-        <li>Ingen individuelle svar publiseres.</li>
-        <li>Resultater presenteres aggregert.</li>
-      </ul>
-      <p className="mt-3">
-        Les mer i vår{" "}
-        <Link to="/personvern" className="underline">
-          personvernerklæring
-        </Link>
-        .
-      </p>
-    </div>
+    <p className="mt-8 border-t border-rule pt-4 text-xs leading-relaxed text-muted-foreground">
+      Personvern: Svarene er anonyme og publiseres kun aggregert. Kontaktinformasjon lagres separat,
+      brukes bare til å sende resultatene, og kan ikke kobles til svarene –{" "}
+      <Link to="/personvern" className="underline">
+        les personvernerklæringen
+      </Link>
+      .
+    </p>
   );
 }

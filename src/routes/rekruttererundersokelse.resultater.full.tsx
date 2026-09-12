@@ -9,10 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getFullResults } from "@/lib/recruiter-survey.functions";
 import { ResultsView } from "@/components/recruiter-survey/results-view";
+import {
+  RequestFullAccessButton,
+  SURVEY_ACCESS_EMAIL,
+} from "@/components/recruiter-survey/request-access-button";
 
 const search = z.object({ token: z.string().optional() });
-const fullAccessMailto =
-  "mailto:undersokelse@karrierenmin.no?subject=Foresp%C3%B8rsel%20om%20full%20tilgang%20til%20Rekruttererunders%C3%B8kelsen&body=Hei%2C%0A%0AJeg%20%C3%B8nsker%20tilgang%20til%20den%20fullstendige%20resultatsiden%20for%20Rekruttererunders%C3%B8kelsen.%0A%0AVennlig%20hilsen";
 
 export const Route = createFileRoute("/rekruttererundersokelse/resultater/full")({
   validateSearch: search,
@@ -62,10 +64,15 @@ function FullResultsPage() {
             <Button asChild>
               <Link to="/rekruttererundersokelse/resultater">Se offentlige resultater</Link>
             </Button>
-            <Button variant="outline" asChild>
-              <a href={fullAccessMailto}>Be om tilgang</a>
-            </Button>
+            <RequestFullAccessButton label="Be om tilgang" />
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Eller send e-post direkte til{" "}
+            <a className="underline" href={`mailto:${SURVEY_ACCESS_EMAIL}`}>
+              {SURVEY_ACCESS_EMAIL}
+            </a>
+            .
+          </p>
         </main>
         <Footer />
       </div>
