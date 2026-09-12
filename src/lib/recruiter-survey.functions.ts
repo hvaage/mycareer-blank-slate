@@ -415,27 +415,58 @@ export const getFullResults = createServerFn({ method: "POST" })
       ids.length
         ? admin
             .from("survey_answers")
-            .select("question_id, answer_value, text_answer, is_full_quote_approved")
+            .select("response_id, question_id, answer_value, text_answer, is_full_quote_approved")
             .in("response_id", ids)
         : Promise.resolve({ data: [] as any[] }),
       ids.length
         ? admin
             .from("respondent_profile")
             .select(
-              "respondent_type, industries, seniority_levels, candidate_focus, sector, sectors",
+              "response_id, respondent_type, industries, seniority_levels, candidate_focus, years_experience, sector, sectors",
             )
             .in("response_id", ids)
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
+    const allProfiles = ((profilesR as any).data ?? []) as any[];
+    const allAnswers = ((answersR as any).data ?? []) as any[];
+    const filters = data.filters ?? {};
+    const hasFilters = Object.values(filters).some((v) => Array.isArray(v) && v.length > 0);
+
+    const facets = buildFacets(allProfiles);
+    const matchedProfiles = hasFilters
+      ? allProfiles.filter((p) => matchesFilters(p, filters))
+      : allProfiles;
+    const matchedIds = new Set(matchedProfiles.map((p) => p.response_id));
+    const matchedAnswers = hasFilters
+      ? allAnswers.filter((a) => matchedIds.has(a.response_id))
+      : allAnswers;
+
+    const suppressed =
+      hasFilters && matchedProfiles.length > 0 && matchedProfiles.length < MIN_GROUP_SIZE;
+    const tooFew = hasFilters && matchedProfiles.length < MIN_GROUP_SIZE;
+
     return {
       version,
-      profile: aggregateProfiles((profilesR as any).data ?? []),
-      results: aggregateAnswers(questions ?? [], (answersR as any).data ?? [], {
-        includeQuotesOnly: "full",
-      }),
+      facets,
+      filters,
+      group: {
+        matched: matchedProfiles.length,
+        total: allProfiles.length,
+        min_group_size: MIN_GROUP_SIZE,
+        suppressed: tooFew,
+      },
+      profile: tooFew
+        ? { total: matchedProfiles.length }
+        : aggregateProfiles(matchedProfiles),
+      results: tooFew
+        ? []
+        : aggregateAnswers(questions ?? [], matchedAnswers, {
+            includeQuotesOnly: "full",
+          }),
     };
   });
+
 
 // ============= ADMIN =============
 export const adminGetOverview = createServerFn({ method: "GET" })
