@@ -307,9 +307,51 @@ export const getPublicResults = createServerFn({ method: "GET" }).handler(async 
 });
 
 // ------- Full results (token or admin) -------
+export const MIN_GROUP_SIZE = 5;
+
+type FullResultsFilters = {
+  respondent_types?: string[];
+  seniority_levels?: string[];
+  years_experience?: string[];
+  sectors?: string[];
+};
+
+function profileSectors(p: any): string[] {
+  if (Array.isArray(p.sectors) && p.sectors.length > 0) return p.sectors;
+  return p.sector ? [p.sector] : [];
+}
+
+function matchesFilters(p: any, f: FullResultsFilters): boolean {
+  const anyOf = (selected: string[] | undefined, values: string[]) =>
+    !selected || selected.length === 0 || values.some((v) => selected.includes(v));
+  return (
+    anyOf(f.respondent_types, p.respondent_type ? [p.respondent_type] : []) &&
+    anyOf(f.seniority_levels, Array.isArray(p.seniority_levels) ? p.seniority_levels : []) &&
+    anyOf(f.years_experience, p.years_experience ? [p.years_experience] : []) &&
+    anyOf(f.sectors, profileSectors(p))
+  );
+}
+
+function buildFacets(profiles: any[]) {
+  const tally = (pick: (p: any) => string[]) => {
+    const out: Record<string, number> = {};
+    for (const p of profiles) for (const v of pick(p)) out[v] = (out[v] ?? 0) + 1;
+    return Object.entries(out)
+      .sort((a, b) => b[1] - a[1])
+      .map(([value, count]) => ({ value, count }));
+  };
+  return {
+    respondent_types: tally((p) => (p.respondent_type ? [p.respondent_type] : [])),
+    seniority_levels: tally((p) => (Array.isArray(p.seniority_levels) ? p.seniority_levels : [])),
+    years_experience: tally((p) => (p.years_experience ? [p.years_experience] : [])),
+    sectors: tally(profileSectors),
+  };
+}
+
 export const getFullResults = createServerFn({ method: "POST" })
-  .inputValidator((d: { token?: string | null }) => d)
+  .inputValidator((d: { token?: string | null; filters?: FullResultsFilters }) => d)
   .handler(async ({ data }) => {
+
     const admin = await getAdmin();
 
     let authorized = false;
