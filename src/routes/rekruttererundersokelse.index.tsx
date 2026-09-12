@@ -239,7 +239,7 @@ function SurveyPage() {
           </div>
         </Card>
 
-        <div className="sticky top-0 z-30 -mx-4 mt-8 mb-8 border-b border-rule bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <div className="sticky top-16 z-30 -mx-4 mt-8 mb-8 border-b border-rule bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>
               Steg {step + 1} av {totalSteps}
