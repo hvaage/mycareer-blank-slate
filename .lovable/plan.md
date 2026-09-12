@@ -1,53 +1,41 @@
-# Plan: retrybar og atomisk innkommende e-post
+# Plan: oppdatere Rekruttererundersøkelsen
 
 ## Mål
 
-Samme leverandørmelding skal kunne prøves på nytt etter `parse_failed`, `ingest_failed` eller en utløpt/krasjet reservasjon, uten at samtidige kall eller replay etter suksess kan opprette flere importer eller jobb-leads.
+Oppdatere den aktive rekruttererundersøkelsen slik at sektor kan velges som flervalg, «Annet» åpner et eget tekstfelt på de angitte spørsmålene, AI-spørsmålet blir flervalg, og hvert nytt spørsmål vises fra samme startposisjon.
 
-## Tilstandsmodell
+## Skjema og svar
 
-- Behold `inbound_email_deliveries` som den kanoniske raden per `(email_job_source_id, provider, provider_message_id)`.
-- Utvid statusene med `processing` som eneste aktive lease-status, og legg til et tilfeldig claim-token, lease-utløp og forsøksteller. `accepted` settes først etter at både import og jobb-lead er fullført.
-- Opprett en egen append-only forsøkstabell som bevarer hvert claim, feilutfall, begrunnelse og tidspunkt.
-- En databasefunksjon utfører claim atomisk under transaksjonslås:
-  - `accepted` gir alltid `duplicate`.
-  - aktiv `processing` gir `duplicate/in_progress`.
-  - `parse_failed`, `ingest_failed` eller utløpt `processing` får et nytt claim-token og nytt forsøk.
-- Ferdigstilling krever riktig claim-token. Bare innehaveren av gjeldende lease kan sette `accepted`, `parse_failed` eller `ingest_failed`.
-- En utløpt `processing` registreres som et krasjet/avbrutt forsøk før neste claim.
+- Endre «Primær sektor» til flervalg og lagre flere sektorer per respondent, samtidig som eksisterende enkeltsvar fortsatt kan leses i resultater og eksport.
+- Vis et tekstfelt når «Annet» velges på disse spørsmålene:
+  - vanligste årsak til at kandidaten ikke går videre
+  - kandidater som kontaktes direkte
+  - informasjon som savnes
+  - årsak til at kandidaten takker nei
+  - AI-verktøy/automatiserte løsninger
+  - vanlige kandidatfeil
+  - hvordan AI har endret vurderingen
+  - fremtidige kandidatferdigheter
+- Lagre utdypingen sammen med det aktuelle svaret, og krev innhold i feltet når «Annet» er valgt.
+- Endre «Hvordan har AI endret hva du ser etter hos kandidater?» til flervalg og legg til «AI har gjort søknadsbrev mindre interessant».
+- Legg til «Annet» på spørsmålet om ferdigheter de neste 12–24 månedene.
+- Skriv om alle svarene under «Hvilket utsagn stemmer best?» til selvstendige, fullstendige utsagn.
 
-## Beskyttelse mot krasj etter delvis ingest
+## Visning
 
-- Den unike importidentiteten håndheves i databasen på importlaget (unik indeks på kilde + provider-message-id), ikke bare i webhook-koden.
-- Meldingsidentiteten er stabil: Mailguns `Message-Id` når den finnes, ellers en dokumentert fallback over uforanderlig meldingsinnhold. Mottakstidspunkt inngår aldri.
-- Gjør `ingestParsedEmail` gjenopptakbar: ved retry gjenbrukes eksisterende import, og eksisterende lead-deduplisering hindrer et ekstra jobb-lead.
-- Først når hele ingestløpet er ferdig, ferdigstilles leveransen som terminal `accepted`.
+- Når respondenten går videre eller tilbake, rulles det aktive spørsmålet til samme startposisjon i visningen.
+- Lange alternativlister vises i to kolonner på skjermer med nok plass, men én kolonne på små skjermer.
+- Behold eksisterende anonymitet, progresjon, validering og resultatpåmelding.
 
-## Database og tilgang
+## Dataendring
 
-- Lag én additiv migrasjon med nye kolonner, forsøkstabell, indekser og atomiske claim/finalize-funksjoner.
-- Forsøkstabellen får eksplisitte grants, RLS og kun eierlesing for innloggede brukere; webhook-skriving skjer kun server-side.
-- Claim- og finalize-funksjonene er SECURITY INVOKER, med fast `search_path` og execute kun for `service_role`. Ingen klient kan claime eller ferdigstille direkte.
-- Oppdater genererte databasetyper etter anvendt migrasjon.
-
-## Kode og dokumentasjon
-
-- Bytt webhooken fra direkte insert/update til claim/finalize-funksjonene.
-- Oppdater ingest til å gjenoppta en allerede opprettet import trygt.
-- Oppdater runbooken med retry-, lease- og terminalstatusreglene.
+- Lag en liten additiv migrasjon for flervalg av sektor og oppdatering av spørsmålene i den aktive undersøkelsesversjonen.
+- Bevar historiske svar og dagens resultat-/eksportkontrakter.
+- Oppdater genererte typer bare dersom den nye kolonnen krever det.
 
 ## Verifisering
 
-- Kjør reelle samtidige databasekall i rollback-isolerte testscenarioer:
-  1. Ett claim lykkes og 24 samtidige replay går ikke videre.
-  2. `ingest_failed`, deretter retry som lykkes.
-  3. `parse_failed`, deretter retry som lykkes.
-  4. Utløpt/krasjet lease kan tas over, mens gammel claim-token ikke kan ferdigstille.
-- Kontroller at det finnes nøyaktig én import og høyst ett jobb-lead etter suksess.
-- Kontroller RLS, grants og funksjonsrettigheter på ny struktur.
-- Kjør målrettede tester, full testpakke, typekontroll, lint og build.
+- Test flervalg av sektor, «Annet»-felt for enkelt- og flervalg, obligatorisk utdyping, AI-flervalg og innsending.
+- Kontroller at neste/tilbake plasserer spørsmålet øverst, og at alternativene fordeles korrekt på mobil og stor skjerm.
+- Kjør relevante tester, typekontroll, lint og bygg.
 - Ikke publiser.
-
-## Teknisk merknad
-
-Databaselåsen serialiserer claim-beslutningen. Claim-tokenet hindrer en gammel worker i å ferdigstille etter at en lease er overtatt. Den unike importidentiteten og eksisterende lead-dedupliseringen lukker krasjvinduet mellom importopprettelse og terminal `accepted`.
