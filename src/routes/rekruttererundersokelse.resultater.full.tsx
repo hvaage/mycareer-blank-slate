@@ -1,7 +1,8 @@
 // @ts-nocheck
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { z } from "zod";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
@@ -10,11 +11,16 @@ import { Card } from "@/components/ui/card";
 import { getFullResults } from "@/lib/recruiter-survey.functions";
 import { ResultsView } from "@/components/recruiter-survey/results-view";
 import {
+  ResultsFilterPanel,
+  EMPTY_FILTERS,
+} from "@/components/recruiter-survey/results-filter-panel";
+import {
   RequestFullAccessButton,
   SURVEY_ACCESS_EMAIL,
 } from "@/components/recruiter-survey/request-access-button";
 
 const search = z.object({ token: z.string().optional() });
+
 
 export const Route = createFileRoute("/rekruttererundersokelse/resultater/full")({
   validateSearch: search,
@@ -44,12 +50,15 @@ export const Route = createFileRoute("/rekruttererundersokelse/resultater/full")
 function FullResultsPage() {
   const { token } = Route.useSearch();
   const fetcher = useServerFn(getFullResults);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["recruiter-results-full", token ?? "admin"],
-    queryFn: () => fetcher({ data: { token: token ?? null } }),
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: ["recruiter-results-full", token ?? "admin", filters],
+    queryFn: () => fetcher({ data: { token: token ?? null, filters } }),
     retry: false,
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
+
 
   if (error) {
     return (
@@ -93,8 +102,28 @@ function FullResultsPage() {
         {isLoading && <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>}
 
         {!isLoading && data && (
-          <div className="mt-10">
-            {data.profile && data.profile.total === 0 ? (
+          <div className="mt-10 space-y-6">
+            <ResultsFilterPanel
+              facets={data.facets}
+              filters={filters}
+              onChange={setFilters}
+            />
+
+            {data.group && (
+              <p className="text-xs text-muted-foreground">
+                Viser {data.group.matched} av {data.group.total} respondenter
+                {isFetching ? " · oppdaterer…" : ""}
+              </p>
+            )}
+
+            {data.group?.suppressed ? (
+              <Card className="p-6 text-sm text-muted-foreground">
+                Denne gruppen har {data.group.matched} respondent
+                {data.group.matched === 1 ? "" : "er"}. Av hensyn til anonymitet vises resultater
+                først ved minst {data.group.min_group_size} respondenter. Fjern eller utvid noen
+                filtervalg for å få en større gruppe.
+              </Card>
+            ) : data.profile && data.profile.total === 0 ? (
               <Card className="p-6 text-sm text-muted-foreground">Ingen svar registrert ennå.</Card>
             ) : (
               <ResultsView profile={data.profile} results={data.results} mode="full" />
@@ -103,6 +132,7 @@ function FullResultsPage() {
         )}
       </main>
       <Footer />
+
     </div>
   );
 }
