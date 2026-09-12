@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { Shield, Lock, ChevronRight, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { getActiveSurvey, submitSurvey, signupForResults } from "@/lib/recruiter-survey.functions";
