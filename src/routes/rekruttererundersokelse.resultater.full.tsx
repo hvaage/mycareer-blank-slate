@@ -50,12 +50,15 @@ export const Route = createFileRoute("/rekruttererundersokelse/resultater/full")
 function FullResultsPage() {
   const { token } = Route.useSearch();
   const fetcher = useServerFn(getFullResults);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["recruiter-results-full", token ?? "admin"],
-    queryFn: () => fetcher({ data: { token: token ?? null } }),
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const { data, isLoading, isFetching, error } = useQuery({
+    queryKey: ["recruiter-results-full", token ?? "admin", filters],
+    queryFn: () => fetcher({ data: { token: token ?? null, filters } }),
     retry: false,
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
+
 
   if (error) {
     return (
