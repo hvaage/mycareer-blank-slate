@@ -239,13 +239,15 @@ function SurveyPage() {
           </div>
         </Card>
 
-        <div className="mt-8 mb-4 flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            Steg {step + 1} av {totalSteps}
-          </span>
-          <span>{progress}%</span>
+        <div className="sticky top-0 z-30 -mx-4 mt-8 mb-8 border-b border-rule bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              Steg {step + 1} av {totalSteps}
+            </span>
+            <span>{progress}%</span>
+          </div>
+          <Progress value={progress} className="mt-2 h-1.5" />
         </div>
-        <Progress value={progress} className="mb-8 h-1.5" />
 
         <div ref={questionStartRef} className="scroll-mt-20">
           {step === 0 && (
