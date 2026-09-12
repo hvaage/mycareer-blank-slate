@@ -8,6 +8,8 @@
 - [x] Behold spørsmålet på samme startposisjon ved neste/tilbake og bruk to kolonner når plassen tillater det.
 - [x] Verifiser tester, typekontroll, lint av ny testkode, bygg og visning på mobil/stor skjerm.
 - [x] Rett forespørsel om full resultattilgang til ferdig utfylt e-post til undersokelse@karrierenmin.no.
+- [x] Oppdater tre spørsmål til sekstrinns glidere, grader LinkedIn-teksten og juster avtalte svaralternativer.
+- [x] Vis Karrierenmin-logo og «Takk for bidraget!» på avslutningssiden.
 
 ## OAuth-herding (fra commit 461bd96d)
 
