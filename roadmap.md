@@ -7,7 +7,7 @@
 - [x] Gjør AI-endringsspørsmålet til flervalg og oppdater avtalte svaralternativer.
 - [x] Behold spørsmålet på samme startposisjon ved neste/tilbake og bruk to kolonner når plassen tillater det.
 - [x] Verifiser tester, typekontroll, lint av ny testkode, bygg og visning på mobil/stor skjerm.
-- [ ] Rett forespørsel om full resultatt tilgang til ferdig utfylt e-post til undersokelse@karrierenmin.no.
+- [x] Rett forespørsel om full resultattilgang til ferdig utfylt e-post til undersokelse@karrierenmin.no.
 
 ## OAuth-herding (fra commit 461bd96d)
 
