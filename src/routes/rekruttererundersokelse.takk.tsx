@@ -35,11 +35,7 @@ function TakkPage() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="mx-auto max-w-xl px-6 py-20 text-center">
-        <img
-          src={karrierenminLogo}
-          alt="Karrierenmin"
-          className="mx-auto h-auto w-56 max-w-full"
-        />
+        <img src={karrierenminLogo} alt="Karrierenmin" className="mx-auto h-auto w-56 max-w-full" />
         <h1 className="mt-4 text-3xl font-semibold tracking-tight">
           {duplicate ? "Vi har registrert et tilsvarende svar nylig" : "Takk for bidraget!"}
         </h1>
