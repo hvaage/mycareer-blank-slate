@@ -9,15 +9,27 @@ import { Button } from "@/components/ui/button";
 import { getPublicResults } from "@/lib/recruiter-survey.functions";
 import { ResultsView } from "@/components/recruiter-survey/results-view";
 
+const fullAccessMailto =
+  "mailto:undersokelse@karrierenmin.no?subject=Foresp%C3%B8rsel%20om%20full%20tilgang%20til%20Rekruttererunders%C3%B8kelsen&body=Hei%2C%0A%0AJeg%20%C3%B8nsker%20tilgang%20til%20den%20fullstendige%20resultatsiden%20for%20Rekruttererunders%C3%B8kelsen.%0A%0AVennlig%20hilsen";
+
 export const Route = createFileRoute("/rekruttererundersokelse/resultater/")({
   head: () => ({
     meta: [
       { title: "Resultater · Rekruttererundersøkelsen — Karrierenmin" },
       {
         name: "description",
-        content:
-          "Aggregerte resultater fra rekrutterere, headhuntere og Search-konsulenter.",
+        content: "Aggregerte resultater fra rekrutterere, headhuntere og Search-konsulenter.",
       },
+      {
+        property: "og:title",
+        content: "Resultater · Rekruttererundersøkelsen — Karrierenmin",
+      },
+      {
+        property: "og:description",
+        content: "Aggregerte resultater fra rekrutterere, headhuntere og Search-konsulenter.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PublicResultsPage,
@@ -42,8 +54,9 @@ function PublicResultsPage() {
           {data?.version?.title ?? "Rekruttererundersøkelsen"}
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Dette er et utvalg av spørsmål som er publisert offentlig. Resultatene vises kun aggregert –
-          enkeltsvar publiseres aldri uten godkjenning. Vil du ha full tilgang? Be om tilsendt resultatlenke.
+          Dette er et utvalg av spørsmål som er publisert offentlig. Resultatene vises kun aggregert
+          – enkeltsvar publiseres aldri uten godkjenning. Vil du ha full tilgang? Be om tilsendt
+          resultatlenke.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-3">
@@ -51,15 +64,11 @@ function PublicResultsPage() {
             <Link to="/rekruttererundersokelse">Delta i undersøkelsen</Link>
           </Button>
           <Button variant="outline" asChild>
-            <a href="mailto:hei@karrierenmin.no?subject=Tilgang%20til%20full%20resultatside">
-              Be om full tilgang
-            </a>
+            <a href={fullAccessMailto}>Be om full tilgang</a>
           </Button>
         </div>
 
-        {isLoading && (
-          <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>
-        )}
+        {isLoading && <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>}
 
         {!isLoading && data && (
           <div className="mt-10">

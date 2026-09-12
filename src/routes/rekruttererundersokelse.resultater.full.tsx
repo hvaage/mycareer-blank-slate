@@ -11,6 +11,8 @@ import { getFullResults } from "@/lib/recruiter-survey.functions";
 import { ResultsView } from "@/components/recruiter-survey/results-view";
 
 const search = z.object({ token: z.string().optional() });
+const fullAccessMailto =
+  "mailto:undersokelse@karrierenmin.no?subject=Foresp%C3%B8rsel%20om%20full%20tilgang%20til%20Rekruttererunders%C3%B8kelsen&body=Hei%2C%0A%0AJeg%20%C3%B8nsker%20tilgang%20til%20den%20fullstendige%20resultatsiden%20for%20Rekruttererunders%C3%B8kelsen.%0A%0AVennlig%20hilsen";
 
 export const Route = createFileRoute("/rekruttererundersokelse/resultater/full")({
   validateSearch: search,
@@ -18,6 +20,20 @@ export const Route = createFileRoute("/rekruttererundersokelse/resultater/full")
     meta: [
       { title: "Full resultatside · Rekruttererundersøkelsen — Karrierenmin" },
       { name: "robots", content: "noindex" },
+      {
+        name: "description",
+        content: "Fullstendige, aggregerte resultater fra Rekruttererundersøkelsen.",
+      },
+      {
+        property: "og:title",
+        content: "Full resultatside · Rekruttererundersøkelsen — Karrierenmin",
+      },
+      {
+        property: "og:description",
+        content: "Fullstendige, aggregerte resultater fra Rekruttererundersøkelsen.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: FullResultsPage,
@@ -47,9 +63,7 @@ function FullResultsPage() {
               <Link to="/rekruttererundersokelse/resultater">Se offentlige resultater</Link>
             </Button>
             <Button variant="outline" asChild>
-              <a href="mailto:hei@karrierenmin.no?subject=Tilgang%20til%20full%20resultatside">
-                Be om tilgang
-              </a>
+              <a href={fullAccessMailto}>Be om tilgang</a>
             </Button>
           </div>
         </main>
@@ -69,16 +83,12 @@ function FullResultsPage() {
           {data?.version?.title ?? "Rekruttererundersøkelsen"}
         </h1>
 
-        {isLoading && (
-          <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>
-        )}
+        {isLoading && <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>}
 
         {!isLoading && data && (
           <div className="mt-10">
             {data.profile && data.profile.total === 0 ? (
-              <Card className="p-6 text-sm text-muted-foreground">
-                Ingen svar registrert ennå.
-              </Card>
+              <Card className="p-6 text-sm text-muted-foreground">Ingen svar registrert ennå.</Card>
             ) : (
               <ResultsView profile={data.profile} results={data.results} mode="full" />
             )}
