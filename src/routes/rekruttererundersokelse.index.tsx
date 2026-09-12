@@ -751,22 +751,13 @@ function OtherAnswer({ value, onChange }: { value: string; onChange: (value: str
 
 function PrivacyNote() {
   return (
-    <div className="mt-10 rounded-lg border border-rule bg-muted/20 p-4 text-xs leading-relaxed text-muted-foreground">
-      <p className="font-semibold text-foreground">Personvern</p>
-      <ul className="mt-2 list-disc space-y-1 pl-5">
-        <li>Svarene er anonyme.</li>
-        <li>Kontaktinformasjon lagres separat fra svarene.</li>
-        <li>Kontaktinformasjon brukes kun til å sende resultatene.</li>
-        <li>Ingen individuelle svar publiseres.</li>
-        <li>Resultater presenteres aggregert.</li>
-      </ul>
-      <p className="mt-3">
-        Les mer i vår{" "}
-        <Link to="/personvern" className="underline">
-          personvernerklæring
-        </Link>
-        .
-      </p>
-    </div>
+    <p className="mt-8 border-t border-rule pt-4 text-xs leading-relaxed text-muted-foreground">
+      Personvern: Svarene er anonyme og publiseres kun aggregert. Kontaktinformasjon lagres separat,
+      brukes bare til å sende resultatene, og kan ikke kobles til svarene –{" "}
+      <Link to="/personvern" className="underline">
+        les personvernerklæringen
+      </Link>
+      .
+    </p>
   );
 }
