@@ -442,8 +442,6 @@ export const getFullResults = createServerFn({ method: "POST" })
       ? allAnswers.filter((a) => matchedIds.has(a.response_id))
       : allAnswers;
 
-    const suppressed =
-      hasFilters && matchedProfiles.length > 0 && matchedProfiles.length < MIN_GROUP_SIZE;
     const tooFew = hasFilters && matchedProfiles.length < MIN_GROUP_SIZE;
 
     return {
