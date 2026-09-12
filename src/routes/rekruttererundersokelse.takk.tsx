@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2 } from "lucide-react";
+import karrierenminLogo from "@/assets/karrierenmin-lockup.svg";
 import { z } from "zod";
 
 const search = z.object({ duplicate: z.coerce.number().optional() });
@@ -11,7 +11,18 @@ export const Route = createFileRoute("/rekruttererundersokelse/takk")({
   validateSearch: search,
   head: () => ({
     meta: [
-      { title: "Takk for bidraget — Karrierenmin" },
+      { title: "Takk for bidraget! — Karrierenmin" },
+      {
+        name: "description",
+        content: "Takk for ditt anonyme bidrag til Rekruttererundersøkelsen fra Karrierenmin.",
+      },
+      { property: "og:title", content: "Takk for bidraget! — Karrierenmin" },
+      {
+        property: "og:description",
+        content: "Takk for ditt anonyme bidrag til Rekruttererundersøkelsen fra Karrierenmin.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -24,9 +35,9 @@ function TakkPage() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="mx-auto max-w-xl px-6 py-20 text-center">
-        <CheckCircle2 className="mx-auto h-12 w-12 text-foreground" />
+        <img src={karrierenminLogo} alt="Karrierenmin" className="mx-auto h-auto w-56 max-w-full" />
         <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-          {duplicate ? "Vi har registrert et tilsvarende svar nylig" : "Takk for bidraget"}
+          {duplicate ? "Vi har registrert et tilsvarende svar nylig" : "Takk for bidraget!"}
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
           {duplicate
