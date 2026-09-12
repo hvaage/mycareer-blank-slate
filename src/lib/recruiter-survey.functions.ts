@@ -51,7 +51,7 @@ type SubmitInput = {
     seniority_levels: string[];
     years_experience: string;
     candidate_focus: string;
-    sector: string;
+    sectors: string[];
   };
   answers: Array<{ question_id: string; answer_value: any; text_answer?: string | null }>;
   submission_hash?: string | null;
@@ -98,7 +98,8 @@ export const submitSurvey = createServerFn({ method: "POST" })
       seniority_levels: data.profile.seniority_levels,
       years_experience: data.profile.years_experience || null,
       candidate_focus: data.profile.candidate_focus || null,
-      sector: data.profile.sector || null,
+      sector: data.profile.sectors[0] ?? null,
+      sectors: data.profile.sectors,
     });
 
     if (data.answers.length > 0) {
@@ -246,7 +247,9 @@ function aggregateProfiles(profiles: any[]) {
     industries: by("industries"),
     seniority_levels: by("seniority_levels"),
     candidate_focus: by("candidate_focus"),
-    sector: by("sector"),
+    sector: profiles.some((profile) => Array.isArray(profile.sectors) && profile.sectors.length > 0)
+      ? by("sectors")
+      : by("sector"),
   };
 }
 
@@ -285,7 +288,7 @@ export const getPublicResults = createServerFn({ method: "GET" }).handler(async 
     .in("response_id", ids);
   const { data: profiles } = await admin
     .from("respondent_profile")
-    .select("respondent_type, industries, seniority_levels, candidate_focus, sector")
+    .select("respondent_type, industries, seniority_levels, candidate_focus, sector, sectors")
     .in("response_id", ids);
 
   return {
@@ -368,7 +371,7 @@ export const getFullResults = createServerFn({ method: "POST" })
       ids.length
         ? admin
             .from("respondent_profile")
-            .select("respondent_type, industries, seniority_levels, candidate_focus, sector")
+            .select("respondent_type, industries, seniority_levels, candidate_focus, sector, sectors")
             .in("response_id", ids)
         : Promise.resolve({ data: [] as any[] }),
     ]);
@@ -541,6 +544,7 @@ export const adminExportCsv = createServerFn({ method: "POST" })
       "years_experience",
       "candidate_focus",
       "sector",
+      "sectors",
     ];
     const header = [
       "response_id",

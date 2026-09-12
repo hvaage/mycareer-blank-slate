@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +28,11 @@ import {
   CANDIDATE_FOCUS,
   SECTORS,
 } from "@/lib/recruiter-survey-constants";
+import {
+  hasOtherSelection,
+  isSurveyQuestionAnswered,
+  surveyAnswerPayload,
+} from "@/lib/recruiter-survey-form";
 
 export const Route = createFileRoute("/rekruttererundersokelse/")({
   head: () => ({
@@ -84,13 +89,15 @@ function SurveyPage() {
     seniority_levels: [] as string[],
     years_experience: "",
     candidate_focus: "",
-    sector: "",
+    sectors: [] as string[],
   });
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [texts, setTexts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [wantsResults, setWantsResults] = useState(false);
   const [signup, setSignup] = useState({ name: "", email: "" });
+  const questionStartRef = useRef<HTMLDivElement>(null);
+  const previousStepRef = useRef(step);
 
   const questions = data?.questions ?? [];
   const totalSteps = 1 + questions.length;
@@ -101,6 +108,12 @@ function SurveyPage() {
       // soft warning; we still allow access but show notice via toast
     }
   }, []);
+
+  useEffect(() => {
+    if (previousStepRef.current === step) return;
+    previousStepRef.current = step;
+    questionStartRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+  }, [step]);
 
   if (isLoading) {
     return (
@@ -140,21 +153,12 @@ function SurveyPage() {
       profile.seniority_levels.length > 0 &&
       !!profile.years_experience &&
       !!profile.candidate_focus &&
-      !!profile.sector
+      profile.sectors.length > 0
     );
   }
 
   function questionAnswered(q: any) {
-    if (!q.is_required) return true;
-    if (q.question_type === "open_text") {
-      return (texts[q.id] ?? "").trim().length > 0;
-    }
-    if (q.question_type === "multi_choice" || q.question_type === "ranked_choice") {
-      const a = answers[q.id];
-      return Array.isArray(a) && a.length > 0;
-    }
-    const a = answers[q.id];
-    return a !== undefined && a !== null && a !== "";
+    return isSurveyQuestionAnswered(q, answers[q.id], texts[q.id] ?? "");
   }
 
   const currentQ = step > 0 ? questions[step - 1] : null;
@@ -174,18 +178,7 @@ function SurveyPage() {
       );
 
       const answerPayload = questions
-        .map((q: any) => {
-          if (q.question_type === "open_text") {
-            const t = (texts[q.id] ?? "").trim();
-            if (!t) return null;
-            return { question_id: q.id, answer_value: t, text_answer: t };
-          }
-          const a = answers[q.id];
-          if (a === undefined || a === null || a === "" || (Array.isArray(a) && a.length === 0)) {
-            return null;
-          }
-          return { question_id: q.id, answer_value: a, text_answer: null };
-        })
+        .map((q: any) => surveyAnswerPayload(q, answers[q.id], texts[q.id] ?? ""))
         .filter(Boolean) as any[];
 
       const result = await submitFn({
@@ -258,8 +251,9 @@ function SurveyPage() {
         </div>
         <Progress value={progress} className="mb-8 h-1.5" />
 
+        <div ref={questionStartRef} className="scroll-mt-20">
         {step === 0 && (
-          <Card className="p-5 sm:p-6 space-y-6">
+          <Card className="space-y-6 p-5 sm:p-6">
             <div>
               <h2 className="text-lg font-semibold">Om deg som respondent</h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -315,11 +309,13 @@ function SurveyPage() {
               />
             </Field>
 
-            <Field label="Primær sektor" required>
-              <SelectChips
+            <Field label="Primær sektor" required hint="Velg én eller flere">
+              <CheckGrid
                 options={SECTORS as unknown as string[]}
-                value={profile.sector}
-                onChange={(v) => setProfile((p) => ({ ...p, sector: v }))}
+                selected={profile.sectors}
+                onChange={(v) =>
+                  setProfile((p) => ({ ...p, sectors: toggleArray(p.sectors, v) }))
+                }
               />
             </Field>
           </Card>
@@ -355,6 +351,7 @@ function SurveyPage() {
             </div>
           </Card>
         )}
+        </div>
 
         {step === totalSteps - 1 && (
           <Card className="mt-6 p-5 sm:p-6">
@@ -400,7 +397,7 @@ function SurveyPage() {
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Button
             variant="ghost"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
+              onClick={() => setStep((s) => Math.max(0, s - 1))}
             disabled={step === 0 || submitting}
           >
             <ChevronLeft className="mr-1 h-4 w-4" /> Tilbake
@@ -515,38 +512,53 @@ function QuestionInput({
   }
   if (q.question_type === "single_choice") {
     return (
-      <RadioGroup value={value ?? ""} onValueChange={onValueChange} className="space-y-1.5">
-        {(q.options as string[]).map((o) => (
-          <label
-            key={o}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-rule p-2.5 text-sm hover:bg-muted/50"
-          >
-            <RadioGroupItem value={o} /> {o}
-          </label>
-        ))}
-      </RadioGroup>
+      <div className="space-y-3">
+        <RadioGroup
+          value={value ?? ""}
+          onValueChange={(nextValue) => {
+            onValueChange(nextValue);
+            if (nextValue !== "Annet") onTextChange("");
+          }}
+          className="grid grid-cols-1 gap-1.5 sm:grid-cols-2"
+        >
+          {(q.options as string[]).map((o) => (
+            <label
+              key={o}
+              className="flex cursor-pointer items-start gap-2 rounded-md border border-rule p-2.5 text-sm leading-snug hover:bg-muted/50"
+            >
+              <RadioGroupItem value={o} className="mt-0.5" /> {o}
+            </label>
+          ))}
+        </RadioGroup>
+        {hasOtherSelection(value) && <OtherAnswer value={textValue} onChange={onTextChange} />}
+      </div>
     );
   }
   if (q.question_type === "multi_choice") {
     const arr: string[] = Array.isArray(value) ? value : [];
     const max = q.max_choices ?? null;
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {(q.options as string[]).map((o) => {
           const on = arr.includes(o);
           const disabled = !on && max ? arr.length >= max : false;
           return (
             <label
               key={o}
-              className={`flex cursor-pointer items-center gap-2 rounded-md border p-2.5 text-sm transition ${
+              className={`flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm leading-snug transition ${
                 on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
               } ${disabled ? "opacity-50" : ""}`}
             >
               <Checkbox
                 checked={on}
                 disabled={disabled}
+                className="mt-0.5"
                 onCheckedChange={() => {
-                  if (on) onValueChange(arr.filter((x) => x !== o));
+                  if (on) {
+                    onValueChange(arr.filter((x) => x !== o));
+                    if (o === "Annet") onTextChange("");
+                  }
                   else if (!disabled) onValueChange([...arr, o]);
                 }}
               />
@@ -554,6 +566,8 @@ function QuestionInput({
             </label>
           );
         })}
+        </div>
+        {hasOtherSelection(arr) && <OtherAnswer value={textValue} onChange={onTextChange} />}
       </div>
     );
   }
@@ -572,7 +586,8 @@ function QuestionInput({
       }
     };
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {(q.options as string[]).map((o) => {
           const rank = rankFor(o);
           const on = rank !== null;
@@ -583,12 +598,12 @@ function QuestionInput({
               type="button"
               onClick={() => toggle(o)}
               disabled={disabled}
-              className={`flex w-full items-center gap-3 rounded-md border p-2.5 text-left text-sm transition ${
+               className={`flex w-full items-start gap-3 rounded-md border p-2.5 text-left text-sm leading-snug transition ${
                 on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
               } ${disabled ? "opacity-50" : ""}`}
             >
-              <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums ${
+               <span
+                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums ${
                   on
                     ? "border-foreground bg-foreground text-background"
                     : "border-rule text-muted-foreground"
@@ -601,6 +616,8 @@ function QuestionInput({
             </button>
           );
         })}
+        </div>
+        {hasOtherSelection(arr) && <OtherAnswer value={textValue} onChange={onTextChange} />}
         {arr.length > 0 && (
           <p className="pt-1 text-xs text-muted-foreground">
             Klikk et valgt alternativ igjen for å fjerne det.
@@ -641,6 +658,25 @@ function QuestionInput({
     );
   }
   return null;
+}
+
+function OtherAnswer({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <Label htmlFor="survey-other-answer" className="text-sm font-medium">
+        Skriv hva du mener <span className="text-destructive">*</span>
+      </Label>
+      <Textarea
+        id="survey-other-answer"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Skriv ditt eget svar…"
+        rows={3}
+        maxLength={500}
+        className="mt-2"
+      />
+    </div>
+  );
 }
 
 function PrivacyNote() {
