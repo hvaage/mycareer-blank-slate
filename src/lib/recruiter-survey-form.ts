@@ -28,11 +28,7 @@ export function isSurveyQuestionAnswered(
   return !hasOtherSelection(value) || textValue.trim().length > 0;
 }
 
-export function surveyAnswerPayload(
-  question: SurveyQuestion,
-  value: unknown,
-  textValue: string,
-) {
+export function surveyAnswerPayload(question: SurveyQuestion, value: unknown, textValue: string) {
   const text = textValue.trim();
   if (question.question_type === "open_text") {
     return text ? { question_id: question.id, answer_value: text, text_answer: text } : null;

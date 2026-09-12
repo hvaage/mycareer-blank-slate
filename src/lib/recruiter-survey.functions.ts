@@ -19,28 +19,26 @@ async function assertAdmin(supabase: any, userId: string) {
 }
 
 // ------- Public: get the active survey (version + questions) -------
-export const getActiveSurvey = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const admin = await getAdmin();
-    const { data: version } = await admin
-      .from("survey_versions")
-      .select("*")
-      .eq("is_active", true)
-      .order("version_number", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!version) return { version: null, questions: [] };
+export const getActiveSurvey = createServerFn({ method: "GET" }).handler(async () => {
+  const admin = await getAdmin();
+  const { data: version } = await admin
+    .from("survey_versions")
+    .select("*")
+    .eq("is_active", true)
+    .order("version_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!version) return { version: null, questions: [] };
 
-    const { data: questions } = await admin
-      .from("survey_questions")
-      .select("*")
-      .eq("version_id", version.id)
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true });
+  const { data: questions } = await admin
+    .from("survey_questions")
+    .select("*")
+    .eq("version_id", version.id)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
 
-    return { version, questions: questions ?? [] };
-  },
-);
+  return { version, questions: questions ?? [] };
+});
 
 // ------- Public: submit answers -------
 type SubmitInput = {
@@ -174,9 +172,7 @@ function aggregateAnswers(
     }
 
     if (q.question_type === "scale") {
-      const values = rows
-        .map((r) => Number(r.answer_value))
-        .filter((n) => Number.isFinite(n));
+      const values = rows.map((r) => Number(r.answer_value)).filter((n) => Number.isFinite(n));
       const avg =
         values.length === 0
           ? null
@@ -288,7 +284,11 @@ export const getPublicResults = createServerFn({ method: "GET" }).handler(async 
     .eq("version_id", version.id);
   const ids = (responses ?? []).map((r: any) => r.id);
   if (ids.length === 0) {
-    return { version, profile: { total: 0 }, results: aggregateAnswers(questions ?? [], [], { includeQuotesOnly: "public" }) };
+    return {
+      version,
+      profile: { total: 0 },
+      results: aggregateAnswers(questions ?? [], [], { includeQuotesOnly: "public" }),
+    };
   }
   const { data: answers } = await admin
     .from("survey_answers")
@@ -379,7 +379,9 @@ export const getFullResults = createServerFn({ method: "POST" })
       ids.length
         ? admin
             .from("respondent_profile")
-            .select("respondent_type, industries, seniority_levels, candidate_focus, sector, sectors")
+            .select(
+              "respondent_type, industries, seniority_levels, candidate_focus, sector, sectors",
+            )
             .in("response_id", ids)
         : Promise.resolve({ data: [] as any[] }),
     ]);
@@ -387,11 +389,9 @@ export const getFullResults = createServerFn({ method: "POST" })
     return {
       version,
       profile: aggregateProfiles((profilesR as any).data ?? []),
-      results: aggregateAnswers(
-        questions ?? [],
-        (answersR as any).data ?? [],
-        { includeQuotesOnly: "full" },
-      ),
+      results: aggregateAnswers(questions ?? [], (answersR as any).data ?? [], {
+        includeQuotesOnly: "full",
+      }),
     };
   });
 
@@ -446,10 +446,7 @@ export const adminUpdateQuestion = createServerFn({ method: "POST" })
     const { userId, supabase } = context as { userId: string; supabase: any };
     await assertAdmin(supabase, userId);
     const admin = await getAdmin();
-    const { error } = await admin
-      .from("survey_questions")
-      .update(data.patch)
-      .eq("id", data.id);
+    const { error } = await admin.from("survey_questions").update(data.patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -463,7 +460,9 @@ export const adminGetTextAnswers = createServerFn({ method: "POST" })
     const admin = await getAdmin();
     const { data: answers } = await admin
       .from("survey_answers")
-      .select("id, text_answer, is_public_quote_approved, is_full_quote_approved, is_flagged, admin_note, created_at")
+      .select(
+        "id, text_answer, is_public_quote_approved, is_full_quote_approved, is_flagged, admin_note, created_at",
+      )
       .eq("question_id", data.questionId)
       .not("text_answer", "is", null)
       .order("created_at", { ascending: false });
@@ -477,10 +476,7 @@ export const adminUpdateAnswer = createServerFn({ method: "POST" })
     const { userId, supabase } = context as { userId: string; supabase: any };
     await assertAdmin(supabase, userId);
     const admin = await getAdmin();
-    const { error } = await admin
-      .from("survey_answers")
-      .update(data.patch)
-      .eq("id", data.id);
+    const { error } = await admin.from("survey_answers").update(data.patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -522,10 +518,7 @@ export const adminExportCsv = createServerFn({ method: "POST" })
       .eq("version_id", data.versionId);
     const ids = (responses ?? []).map((r: any) => r.id);
     const { data: profiles } = ids.length
-      ? await admin
-          .from("respondent_profile")
-          .select("*")
-          .in("response_id", ids)
+      ? await admin.from("respondent_profile").select("*").in("response_id", ids)
       : { data: [] as any[] };
     const { data: answers } = ids.length
       ? await admin

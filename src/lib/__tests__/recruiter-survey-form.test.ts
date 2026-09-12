@@ -36,7 +36,9 @@ describe("recruiter survey form", () => {
   });
 
   it("stores the Annet explanation alongside the selected answer", () => {
-    expect(surveyAnswerPayload(requiredMulti, ["AI-kompetanse", "Annet"], " Ny ferdighet ")).toEqual({
+    expect(
+      surveyAnswerPayload(requiredMulti, ["AI-kompetanse", "Annet"], " Ny ferdighet "),
+    ).toEqual({
       question_id: "multi",
       answer_value: ["AI-kompetanse", "Annet"],
       text_answer: "Ny ferdighet",
