@@ -8675,6 +8675,7 @@ export type Database = {
           respondent_type: string
           response_id: string
           sector: string | null
+          sectors: string[]
           seniority_levels: string[]
           years_experience: string | null
         }
@@ -8686,6 +8687,7 @@ export type Database = {
           respondent_type: string
           response_id: string
           sector?: string | null
+          sectors?: string[]
           seniority_levels?: string[]
           years_experience?: string | null
         }
@@ -8697,6 +8699,7 @@ export type Database = {
           respondent_type?: string
           response_id?: string
           sector?: string | null
+          sectors?: string[]
           seniority_levels?: string[]
           years_experience?: string | null
         }

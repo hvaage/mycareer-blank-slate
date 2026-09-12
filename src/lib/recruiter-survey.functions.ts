@@ -19,28 +19,26 @@ async function assertAdmin(supabase: any, userId: string) {
 }
 
 // ------- Public: get the active survey (version + questions) -------
-export const getActiveSurvey = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const admin = await getAdmin();
-    const { data: version } = await admin
-      .from("survey_versions")
-      .select("*")
-      .eq("is_active", true)
-      .order("version_number", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!version) return { version: null, questions: [] };
+export const getActiveSurvey = createServerFn({ method: "GET" }).handler(async () => {
+  const admin = await getAdmin();
+  const { data: version } = await admin
+    .from("survey_versions")
+    .select("*")
+    .eq("is_active", true)
+    .order("version_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!version) return { version: null, questions: [] };
 
-    const { data: questions } = await admin
-      .from("survey_questions")
-      .select("*")
-      .eq("version_id", version.id)
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true });
+  const { data: questions } = await admin
+    .from("survey_questions")
+    .select("*")
+    .eq("version_id", version.id)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
 
-    return { version, questions: questions ?? [] };
-  },
-);
+  return { version, questions: questions ?? [] };
+});
 
 // ------- Public: submit answers -------
 type SubmitInput = {
@@ -51,7 +49,7 @@ type SubmitInput = {
     seniority_levels: string[];
     years_experience: string;
     candidate_focus: string;
-    sector: string;
+    sectors: string[];
   };
   answers: Array<{ question_id: string; answer_value: any; text_answer?: string | null }>;
   submission_hash?: string | null;
@@ -98,7 +96,8 @@ export const submitSurvey = createServerFn({ method: "POST" })
       seniority_levels: data.profile.seniority_levels,
       years_experience: data.profile.years_experience || null,
       candidate_focus: data.profile.candidate_focus || null,
-      sector: data.profile.sector || null,
+      sector: data.profile.sectors[0] ?? null,
+      sectors: data.profile.sectors,
     });
 
     if (data.answers.length > 0) {
@@ -173,9 +172,7 @@ function aggregateAnswers(
     }
 
     if (q.question_type === "scale") {
-      const values = rows
-        .map((r) => Number(r.answer_value))
-        .filter((n) => Number.isFinite(n));
+      const values = rows.map((r) => Number(r.answer_value)).filter((n) => Number.isFinite(n));
       const avg =
         values.length === 0
           ? null
@@ -240,13 +237,23 @@ function aggregateProfiles(profiles: any[]) {
     }
     return out;
   };
+  const sectors: Record<string, number> = {};
+  for (const profile of profiles) {
+    const values =
+      Array.isArray(profile.sectors) && profile.sectors.length > 0
+        ? profile.sectors
+        : profile.sector
+          ? [profile.sector]
+          : [];
+    for (const value of values) sectors[value] = (sectors[value] ?? 0) + 1;
+  }
   return {
     total: count,
     respondent_type: by("respondent_type"),
     industries: by("industries"),
     seniority_levels: by("seniority_levels"),
     candidate_focus: by("candidate_focus"),
-    sector: by("sector"),
+    sector: sectors,
   };
 }
 
@@ -277,7 +284,11 @@ export const getPublicResults = createServerFn({ method: "GET" }).handler(async 
     .eq("version_id", version.id);
   const ids = (responses ?? []).map((r: any) => r.id);
   if (ids.length === 0) {
-    return { version, profile: { total: 0 }, results: aggregateAnswers(questions ?? [], [], { includeQuotesOnly: "public" }) };
+    return {
+      version,
+      profile: { total: 0 },
+      results: aggregateAnswers(questions ?? [], [], { includeQuotesOnly: "public" }),
+    };
   }
   const { data: answers } = await admin
     .from("survey_answers")
@@ -285,7 +296,7 @@ export const getPublicResults = createServerFn({ method: "GET" }).handler(async 
     .in("response_id", ids);
   const { data: profiles } = await admin
     .from("respondent_profile")
-    .select("respondent_type, industries, seniority_levels, candidate_focus, sector")
+    .select("respondent_type, industries, seniority_levels, candidate_focus, sector, sectors")
     .in("response_id", ids);
 
   return {
@@ -368,7 +379,9 @@ export const getFullResults = createServerFn({ method: "POST" })
       ids.length
         ? admin
             .from("respondent_profile")
-            .select("respondent_type, industries, seniority_levels, candidate_focus, sector")
+            .select(
+              "respondent_type, industries, seniority_levels, candidate_focus, sector, sectors",
+            )
             .in("response_id", ids)
         : Promise.resolve({ data: [] as any[] }),
     ]);
@@ -376,11 +389,9 @@ export const getFullResults = createServerFn({ method: "POST" })
     return {
       version,
       profile: aggregateProfiles((profilesR as any).data ?? []),
-      results: aggregateAnswers(
-        questions ?? [],
-        (answersR as any).data ?? [],
-        { includeQuotesOnly: "full" },
-      ),
+      results: aggregateAnswers(questions ?? [], (answersR as any).data ?? [], {
+        includeQuotesOnly: "full",
+      }),
     };
   });
 
@@ -435,10 +446,7 @@ export const adminUpdateQuestion = createServerFn({ method: "POST" })
     const { userId, supabase } = context as { userId: string; supabase: any };
     await assertAdmin(supabase, userId);
     const admin = await getAdmin();
-    const { error } = await admin
-      .from("survey_questions")
-      .update(data.patch)
-      .eq("id", data.id);
+    const { error } = await admin.from("survey_questions").update(data.patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -452,7 +460,9 @@ export const adminGetTextAnswers = createServerFn({ method: "POST" })
     const admin = await getAdmin();
     const { data: answers } = await admin
       .from("survey_answers")
-      .select("id, text_answer, is_public_quote_approved, is_full_quote_approved, is_flagged, admin_note, created_at")
+      .select(
+        "id, text_answer, is_public_quote_approved, is_full_quote_approved, is_flagged, admin_note, created_at",
+      )
       .eq("question_id", data.questionId)
       .not("text_answer", "is", null)
       .order("created_at", { ascending: false });
@@ -466,10 +476,7 @@ export const adminUpdateAnswer = createServerFn({ method: "POST" })
     const { userId, supabase } = context as { userId: string; supabase: any };
     await assertAdmin(supabase, userId);
     const admin = await getAdmin();
-    const { error } = await admin
-      .from("survey_answers")
-      .update(data.patch)
-      .eq("id", data.id);
+    const { error } = await admin.from("survey_answers").update(data.patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -511,10 +518,7 @@ export const adminExportCsv = createServerFn({ method: "POST" })
       .eq("version_id", data.versionId);
     const ids = (responses ?? []).map((r: any) => r.id);
     const { data: profiles } = ids.length
-      ? await admin
-          .from("respondent_profile")
-          .select("*")
-          .in("response_id", ids)
+      ? await admin.from("respondent_profile").select("*").in("response_id", ids)
       : { data: [] as any[] };
     const { data: answers } = ids.length
       ? await admin
@@ -526,11 +530,14 @@ export const adminExportCsv = createServerFn({ method: "POST" })
     const ansByR = new Map<string, Record<string, string>>();
     for (const a of answers ?? []) {
       const m = ansByR.get(a.response_id) ?? {};
+      const selected = Array.isArray(a.answer_value)
+        ? (a.answer_value as any[]).join(" | ")
+        : String(a.answer_value ?? "");
       const val = a.text_answer
-        ? a.text_answer
-        : Array.isArray(a.answer_value)
-          ? (a.answer_value as any[]).join(" | ")
-          : String(a.answer_value ?? "");
+        ? selected && selected !== a.text_answer
+          ? `${selected} — ${a.text_answer}`
+          : a.text_answer
+        : selected;
       m[a.question_id] = val;
       ansByR.set(a.response_id, m);
     }
@@ -541,6 +548,7 @@ export const adminExportCsv = createServerFn({ method: "POST" })
       "years_experience",
       "candidate_focus",
       "sector",
+      "sectors",
     ];
     const header = [
       "response_id",

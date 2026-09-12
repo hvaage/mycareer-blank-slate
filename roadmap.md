@@ -1,5 +1,13 @@
 # Oppgaveliste
 
+## Rekruttererundersøkelsen
+
+- [x] Gjør primær sektor til flervalg med bakoverkompatibel lagring og resultatvisning.
+- [x] Legg til obligatorisk fritekst når «Annet» velges på avtalte spørsmål.
+- [x] Gjør AI-endringsspørsmålet til flervalg og oppdater avtalte svaralternativer.
+- [x] Behold spørsmålet på samme startposisjon ved neste/tilbake og bruk to kolonner når plassen tillater det.
+- [x] Verifiser tester, typekontroll, lint av ny testkode, bygg og visning på mobil/stor skjerm.
+
 ## OAuth-herding (fra commit 461bd96d)
 
 - [x] Migrasjon (additiv, reverserbar): `oauth_clients` med registration_method/metadata_url/expires_at/last_used_at + constraints/indexer; `ai_integrations` provider-constraint utvidet med `copilot`; oppdaterte RPC-er (v2).

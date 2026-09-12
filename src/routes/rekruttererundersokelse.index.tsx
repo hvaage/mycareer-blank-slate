@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -15,11 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Shield, Lock, ChevronRight, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
-import {
-  getActiveSurvey,
-  submitSurvey,
-  signupForResults,
-} from "@/lib/recruiter-survey.functions";
+import { getActiveSurvey, submitSurvey, signupForResults } from "@/lib/recruiter-survey.functions";
 import {
   RESPONDENT_TYPES,
   INDUSTRIES,
@@ -28,6 +24,11 @@ import {
   CANDIDATE_FOCUS,
   SECTORS,
 } from "@/lib/recruiter-survey-constants";
+import {
+  hasOtherSelection,
+  isSurveyQuestionAnswered,
+  surveyAnswerPayload,
+} from "@/lib/recruiter-survey-form";
 
 export const Route = createFileRoute("/rekruttererundersokelse/")({
   head: () => ({
@@ -41,9 +42,10 @@ export const Route = createFileRoute("/rekruttererundersokelse/")({
       { property: "og:title", content: "Rekruttererundersøkelsen 2026 — Karrierenmin" },
       {
         property: "og:description",
-        content:
-          "Anonym undersøkelse om hvordan rekrutterere vurderer kandidater i dagens marked.",
+        content: "Anonym undersøkelse om hvordan rekrutterere vurderer kandidater i dagens marked.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SurveyPage,
@@ -51,7 +53,9 @@ export const Route = createFileRoute("/rekruttererundersokelse/")({
     <div className="mx-auto max-w-xl px-6 py-20 text-center">
       <h1 className="text-xl font-semibold">Kunne ikke laste undersøkelsen</h1>
       <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
-      <Button className="mt-6" onClick={reset}>Prøv igjen</Button>
+      <Button className="mt-6" onClick={reset}>
+        Prøv igjen
+      </Button>
     </div>
   ),
   notFoundComponent: () => <p className="p-10">Ikke funnet.</p>,
@@ -84,13 +88,15 @@ function SurveyPage() {
     seniority_levels: [] as string[],
     years_experience: "",
     candidate_focus: "",
-    sector: "",
+    sectors: [] as string[],
   });
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [texts, setTexts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [wantsResults, setWantsResults] = useState(false);
   const [signup, setSignup] = useState({ name: "", email: "" });
+  const questionStartRef = useRef<HTMLDivElement>(null);
+  const previousStepRef = useRef(step);
 
   const questions = data?.questions ?? [];
   const totalSteps = 1 + questions.length;
@@ -101,6 +107,12 @@ function SurveyPage() {
       // soft warning; we still allow access but show notice via toast
     }
   }, []);
+
+  useEffect(() => {
+    if (previousStepRef.current === step) return;
+    previousStepRef.current = step;
+    questionStartRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+  }, [step]);
 
   if (isLoading) {
     return (
@@ -118,9 +130,7 @@ function SurveyPage() {
         <Header />
         <div className="mx-auto max-w-2xl px-6 py-20 text-center">
           <h1 className="text-xl font-semibold">Ingen aktiv undersøkelse</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Kom tilbake snart.
-          </p>
+          <p className="mt-3 text-sm text-muted-foreground">Kom tilbake snart.</p>
         </div>
         <Footer />
       </div>
@@ -140,21 +150,12 @@ function SurveyPage() {
       profile.seniority_levels.length > 0 &&
       !!profile.years_experience &&
       !!profile.candidate_focus &&
-      !!profile.sector
+      profile.sectors.length > 0
     );
   }
 
   function questionAnswered(q: any) {
-    if (!q.is_required) return true;
-    if (q.question_type === "open_text") {
-      return (texts[q.id] ?? "").trim().length > 0;
-    }
-    if (q.question_type === "multi_choice" || q.question_type === "ranked_choice") {
-      const a = answers[q.id];
-      return Array.isArray(a) && a.length > 0;
-    }
-    const a = answers[q.id];
-    return a !== undefined && a !== null && a !== "";
+    return isSurveyQuestionAnswered(q, answers[q.id], texts[q.id] ?? "");
   }
 
   const currentQ = step > 0 ? questions[step - 1] : null;
@@ -166,26 +167,13 @@ function SurveyPage() {
     try {
       const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
       const screen =
-        typeof window !== "undefined"
-          ? `${window.screen.width}x${window.screen.height}`
-          : "";
+        typeof window !== "undefined" ? `${window.screen.width}x${window.screen.height}` : "";
       const submission_hash = simpleHash(
         `${data!.version!.id}|${ua}|${screen}|${profile.respondent_type}|${profile.years_experience}`,
       );
 
       const answerPayload = questions
-        .map((q: any) => {
-          if (q.question_type === "open_text") {
-            const t = (texts[q.id] ?? "").trim();
-            if (!t) return null;
-            return { question_id: q.id, answer_value: t, text_answer: t };
-          }
-          const a = answers[q.id];
-          if (a === undefined || a === null || a === "" || (Array.isArray(a) && a.length === 0)) {
-            return null;
-          }
-          return { question_id: q.id, answer_value: a, text_answer: null };
-        })
+        .map((q: any) => surveyAnswerPayload(q, answers[q.id], texts[q.id] ?? ""))
         .filter(Boolean) as any[];
 
       const result = await submitFn({
@@ -242,10 +230,11 @@ function SurveyPage() {
           <div className="flex items-start gap-3">
             <Shield className="mt-0.5 h-5 w-5 shrink-0 text-foreground" />
             <p className="text-sm leading-relaxed text-foreground">
-              Takk for at du bidrar. Denne undersøkelsen er <strong>anonym</strong> og brukes til å forstå
-              hvordan rekrutterere, headhuntere og Search-konsulenter vurderer kandidater i dagens arbeidsmarked.
-              Innsikten brukes til å utvikle bedre verktøy for jobbsøkere. Du kan velge å legge igjen e-post
-              separat dersom du ønsker tilgang til resultatene når analysen er klar.
+              Takk for at du bidrar. Denne undersøkelsen er <strong>anonym</strong> og brukes til å
+              forstå hvordan rekrutterere, headhuntere og Search-konsulenter vurderer kandidater i
+              dagens arbeidsmarked. Innsikten brukes til å utvikle bedre verktøy for jobbsøkere. Du
+              kan velge å legge igjen e-post separat dersom du ønsker tilgang til resultatene når
+              analysen er klar.
             </p>
           </div>
         </Card>
@@ -258,103 +247,120 @@ function SurveyPage() {
         </div>
         <Progress value={progress} className="mb-8 h-1.5" />
 
-        {step === 0 && (
-          <Card className="p-5 sm:p-6 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold">Om deg som respondent</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Disse opplysningene brukes kun for å bryte ned resultatene, og lagres som anonyme kategorier.
-              </p>
-            </div>
+        <div ref={questionStartRef} className="scroll-mt-20">
+          {step === 0 && (
+            <Card className="space-y-6 p-5 sm:p-6">
+              <div>
+                <h2 className="text-lg font-semibold">Om deg som respondent</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Disse opplysningene brukes kun for å bryte ned resultatene, og lagres som anonyme
+                  kategorier.
+                </p>
+              </div>
 
-            <Field label="Type respondent" required>
-              <RadioGroup
-                value={profile.respondent_type}
-                onValueChange={(v) => setProfile((p) => ({ ...p, respondent_type: v }))}
-                className="grid grid-cols-1 gap-1.5 sm:grid-cols-2"
+              <Field label="Type respondent" required>
+                <RadioGroup
+                  value={profile.respondent_type}
+                  onValueChange={(v) => setProfile((p) => ({ ...p, respondent_type: v }))}
+                  className="grid grid-cols-1 gap-1.5 sm:grid-cols-2"
+                >
+                  {RESPONDENT_TYPES.map((t) => (
+                    <label
+                      key={t}
+                      className="flex cursor-pointer items-center gap-2 rounded-md border border-rule p-2 text-sm hover:bg-muted/50"
+                    >
+                      <RadioGroupItem value={t} /> {t}
+                    </label>
+                  ))}
+                </RadioGroup>
+              </Field>
+
+              <Field label="Primære bransjer" required hint="Velg én eller flere">
+                <CheckGrid
+                  options={INDUSTRIES as unknown as string[]}
+                  selected={profile.industries}
+                  onChange={(v) =>
+                    setProfile((p) => ({ ...p, industries: toggleArray(p.industries, v) }))
+                  }
+                />
+              </Field>
+
+              <Field
+                label="Hvilket nivå rekrutterer du oftest til?"
+                required
+                hint="Velg én eller flere"
               >
-                {RESPONDENT_TYPES.map((t) => (
-                  <label key={t} className="flex cursor-pointer items-center gap-2 rounded-md border border-rule p-2 text-sm hover:bg-muted/50">
-                    <RadioGroupItem value={t} /> {t}
-                  </label>
-                ))}
-              </RadioGroup>
-            </Field>
+                <CheckGrid
+                  options={SENIORITY_LEVELS as unknown as string[]}
+                  selected={profile.seniority_levels}
+                  onChange={(v) =>
+                    setProfile((p) => ({
+                      ...p,
+                      seniority_levels: toggleArray(p.seniority_levels, v),
+                    }))
+                  }
+                />
+              </Field>
 
-            <Field label="Primære bransjer" required hint="Velg én eller flere">
-              <CheckGrid
-                options={INDUSTRIES as unknown as string[]}
-                selected={profile.industries}
-                onChange={(v) => setProfile((p) => ({ ...p, industries: toggleArray(p.industries, v) }))}
-              />
-            </Field>
+              <Field label="Antall år erfaring med rekruttering" required>
+                <SelectChips
+                  options={YEARS_EXPERIENCE as unknown as string[]}
+                  value={profile.years_experience}
+                  onChange={(v) => setProfile((p) => ({ ...p, years_experience: v }))}
+                />
+              </Field>
 
-            <Field label="Hvilket nivå rekrutterer du oftest til?" required hint="Velg én eller flere">
-              <CheckGrid
-                options={SENIORITY_LEVELS as unknown as string[]}
-                selected={profile.seniority_levels}
-                onChange={(v) =>
-                  setProfile((p) => ({ ...p, seniority_levels: toggleArray(p.seniority_levels, v) }))
-                }
-              />
-            </Field>
+              <Field label="Jobber du primært med…" required>
+                <SelectChips
+                  options={CANDIDATE_FOCUS as unknown as string[]}
+                  value={profile.candidate_focus}
+                  onChange={(v) => setProfile((p) => ({ ...p, candidate_focus: v }))}
+                />
+              </Field>
 
-            <Field label="Antall år erfaring med rekruttering" required>
-              <SelectChips
-                options={YEARS_EXPERIENCE as unknown as string[]}
-                value={profile.years_experience}
-                onChange={(v) => setProfile((p) => ({ ...p, years_experience: v }))}
-              />
-            </Field>
+              <Field label="Primær sektor" required hint="Velg én eller flere">
+                <CheckGrid
+                  options={SECTORS as unknown as string[]}
+                  selected={profile.sectors}
+                  onChange={(v) =>
+                    setProfile((p) => ({ ...p, sectors: toggleArray(p.sectors, v) }))
+                  }
+                />
+              </Field>
+            </Card>
+          )}
 
-            <Field label="Jobber du primært med…" required>
-              <SelectChips
-                options={CANDIDATE_FOCUS as unknown as string[]}
-                value={profile.candidate_focus}
-                onChange={(v) => setProfile((p) => ({ ...p, candidate_focus: v }))}
-              />
-            </Field>
+          {step > 0 && currentQ && (
+            <Card className="p-5 sm:p-6">
+              {currentQ.category && (
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  {currentQ.category}
+                </p>
+              )}
+              <h2 className="mt-2 text-lg font-semibold leading-snug">
+                {currentQ.question_text}
+                {currentQ.is_required && <span className="text-destructive"> *</span>}
+              </h2>
+              {currentQ.max_choices && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {currentQ.question_type === "ranked_choice"
+                    ? `Velg opptil ${currentQ.max_choices} i prioritert rekkefølge — første klikk = 1. mest vanlig.`
+                    : `Maks ${currentQ.max_choices} valg`}
+                </p>
+              )}
 
-            <Field label="Primær sektor" required>
-              <SelectChips
-                options={SECTORS as unknown as string[]}
-                value={profile.sector}
-                onChange={(v) => setProfile((p) => ({ ...p, sector: v }))}
-              />
-            </Field>
-          </Card>
-        )}
-
-        {step > 0 && currentQ && (
-          <Card className="p-5 sm:p-6">
-            {currentQ.category && (
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                {currentQ.category}
-              </p>
-            )}
-            <h2 className="mt-2 text-lg font-semibold leading-snug">
-              {currentQ.question_text}
-              {currentQ.is_required && <span className="text-destructive"> *</span>}
-            </h2>
-            {currentQ.max_choices && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {currentQ.question_type === "ranked_choice"
-                  ? `Velg opptil ${currentQ.max_choices} i prioritert rekkefølge — første klikk = 1. mest vanlig.`
-                  : `Maks ${currentQ.max_choices} valg`}
-              </p>
-            )}
-
-            <div className="mt-5">
-              <QuestionInput
-                q={currentQ}
-                value={answers[currentQ.id]}
-                textValue={texts[currentQ.id] ?? ""}
-                onValueChange={(v) => setAnswers((a) => ({ ...a, [currentQ.id]: v }))}
-                onTextChange={(t) => setTexts((s) => ({ ...s, [currentQ.id]: t }))}
-              />
-            </div>
-          </Card>
-        )}
+              <div className="mt-5">
+                <QuestionInput
+                  q={currentQ}
+                  value={answers[currentQ.id]}
+                  textValue={texts[currentQ.id] ?? ""}
+                  onValueChange={(v) => setAnswers((a) => ({ ...a, [currentQ.id]: v }))}
+                  onTextChange={(t) => setTexts((s) => ({ ...s, [currentQ.id]: t }))}
+                />
+              </div>
+            </Card>
+          )}
+        </div>
 
         {step === totalSteps - 1 && (
           <Card className="mt-6 p-5 sm:p-6">
@@ -433,8 +439,16 @@ function SurveyPage() {
 }
 
 function Field({
-  label, required, hint, children,
-}: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+  label,
+  required,
+  hint,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <Label className="text-sm font-medium">
@@ -447,8 +461,14 @@ function Field({
 }
 
 function CheckGrid({
-  options, selected, onChange,
-}: { options: string[]; selected: string[]; onChange: (v: string) => void }) {
+  options,
+  selected,
+  onChange,
+}: {
+  options: string[];
+  selected: string[];
+  onChange: (v: string) => void;
+}) {
   return (
     <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
       {options.map((o) => {
@@ -470,8 +490,14 @@ function CheckGrid({
 }
 
 function SelectChips({
-  options, value, onChange,
-}: { options: string[]; value: string; onChange: (v: string) => void }) {
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {options.map((o) => {
@@ -482,7 +508,9 @@ function SelectChips({
             type="button"
             onClick={() => onChange(o)}
             className={`rounded-full border px-3 py-1.5 text-xs transition ${
-              on ? "border-foreground bg-foreground text-background" : "border-rule hover:bg-muted/50"
+              on
+                ? "border-foreground bg-foreground text-background"
+                : "border-rule hover:bg-muted/50"
             }`}
           >
             {o}
@@ -494,7 +522,11 @@ function SelectChips({
 }
 
 function QuestionInput({
-  q, value, textValue, onValueChange, onTextChange,
+  q,
+  value,
+  textValue,
+  onValueChange,
+  onTextChange,
 }: {
   q: any;
   value: any;
@@ -515,45 +547,61 @@ function QuestionInput({
   }
   if (q.question_type === "single_choice") {
     return (
-      <RadioGroup value={value ?? ""} onValueChange={onValueChange} className="space-y-1.5">
-        {(q.options as string[]).map((o) => (
-          <label
-            key={o}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-rule p-2.5 text-sm hover:bg-muted/50"
-          >
-            <RadioGroupItem value={o} /> {o}
-          </label>
-        ))}
-      </RadioGroup>
+      <div className="space-y-3">
+        <RadioGroup
+          value={value ?? ""}
+          onValueChange={(nextValue) => {
+            onValueChange(nextValue);
+            if (nextValue !== "Annet") onTextChange("");
+          }}
+          className="grid grid-cols-1 gap-1.5 sm:grid-cols-2"
+        >
+          {(q.options as string[]).map((o) => (
+            <label
+              key={o}
+              className="flex cursor-pointer items-start gap-2 rounded-md border border-rule p-2.5 text-sm leading-snug hover:bg-muted/50"
+            >
+              <RadioGroupItem value={o} className="mt-0.5" /> {o}
+            </label>
+          ))}
+        </RadioGroup>
+        {hasOtherSelection(value) && <OtherAnswer value={textValue} onChange={onTextChange} />}
+      </div>
     );
   }
   if (q.question_type === "multi_choice") {
     const arr: string[] = Array.isArray(value) ? value : [];
     const max = q.max_choices ?? null;
     return (
-      <div className="space-y-1.5">
-        {(q.options as string[]).map((o) => {
-          const on = arr.includes(o);
-          const disabled = !on && max ? arr.length >= max : false;
-          return (
-            <label
-              key={o}
-              className={`flex cursor-pointer items-center gap-2 rounded-md border p-2.5 text-sm transition ${
-                on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
-              } ${disabled ? "opacity-50" : ""}`}
-            >
-              <Checkbox
-                checked={on}
-                disabled={disabled}
-                onCheckedChange={() => {
-                  if (on) onValueChange(arr.filter((x) => x !== o));
-                  else if (!disabled) onValueChange([...arr, o]);
-                }}
-              />
-              <span>{o}</span>
-            </label>
-          );
-        })}
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {(q.options as string[]).map((o) => {
+            const on = arr.includes(o);
+            const disabled = !on && max ? arr.length >= max : false;
+            return (
+              <label
+                key={o}
+                className={`flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm leading-snug transition ${
+                  on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
+                } ${disabled ? "opacity-50" : ""}`}
+              >
+                <Checkbox
+                  checked={on}
+                  disabled={disabled}
+                  className="mt-0.5"
+                  onCheckedChange={() => {
+                    if (on) {
+                      onValueChange(arr.filter((x) => x !== o));
+                      if (o === "Annet") onTextChange("");
+                    } else if (!disabled) onValueChange([...arr, o]);
+                  }}
+                />
+                <span>{o}</span>
+              </label>
+            );
+          })}
+        </div>
+        {hasOtherSelection(arr) && <OtherAnswer value={textValue} onChange={onTextChange} />}
       </div>
     );
   }
@@ -567,40 +615,44 @@ function QuestionInput({
     const toggle = (o: string) => {
       if (arr.includes(o)) {
         onValueChange(arr.filter((x) => x !== o));
+        if (o === "Annet") onTextChange("");
       } else if (arr.length < max) {
         onValueChange([...arr, o]);
       }
     };
     return (
-      <div className="space-y-1.5">
-        {(q.options as string[]).map((o) => {
-          const rank = rankFor(o);
-          const on = rank !== null;
-          const disabled = !on && arr.length >= max;
-          return (
-            <button
-              key={o}
-              type="button"
-              onClick={() => toggle(o)}
-              disabled={disabled}
-              className={`flex w-full items-center gap-3 rounded-md border p-2.5 text-left text-sm transition ${
-                on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
-              } ${disabled ? "opacity-50" : ""}`}
-            >
-              <span
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums ${
-                  on
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-rule text-muted-foreground"
-                }`}
-                aria-hidden
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {(q.options as string[]).map((o) => {
+            const rank = rankFor(o);
+            const on = rank !== null;
+            const disabled = !on && arr.length >= max;
+            return (
+              <button
+                key={o}
+                type="button"
+                onClick={() => toggle(o)}
+                disabled={disabled}
+                className={`flex w-full items-start gap-3 rounded-md border p-2.5 text-left text-sm leading-snug transition ${
+                  on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
+                } ${disabled ? "opacity-50" : ""}`}
               >
-                {rank ?? "·"}
-              </span>
-              <span className="flex-1">{o}</span>
-            </button>
-          );
-        })}
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums ${
+                    on
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-rule text-muted-foreground"
+                  }`}
+                  aria-hidden
+                >
+                  {rank ?? "·"}
+                </span>
+                <span className="flex-1">{o}</span>
+              </button>
+            );
+          })}
+        </div>
+        {hasOtherSelection(arr) && <OtherAnswer value={textValue} onChange={onTextChange} />}
         {arr.length > 0 && (
           <p className="pt-1 text-xs text-muted-foreground">
             Klikk et valgt alternativ igjen for å fjerne det.
@@ -624,7 +676,9 @@ function QuestionInput({
                 type="button"
                 onClick={() => onValueChange(n)}
                 className={`h-10 w-10 rounded-md border text-sm transition ${
-                  on ? "border-foreground bg-foreground text-background" : "border-rule hover:bg-muted/50"
+                  on
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-rule hover:bg-muted/50"
                 }`}
               >
                 {n}
@@ -633,14 +687,37 @@ function QuestionInput({
           })}
         </div>
         <div className="mt-3 flex justify-between text-[11px] text-muted-foreground">
-          <span>{min} = {q.scale_min_label}</span>
+          <span>
+            {min} = {q.scale_min_label}
+          </span>
           <span>{q.scale_mid_label}</span>
-          <span>{max} = {q.scale_max_label}</span>
+          <span>
+            {max} = {q.scale_max_label}
+          </span>
         </div>
       </div>
     );
   }
   return null;
+}
+
+function OtherAnswer({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <Label htmlFor="survey-other-answer" className="text-sm font-medium">
+        Skriv hva du mener <span className="text-destructive">*</span>
+      </Label>
+      <Textarea
+        id="survey-other-answer"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Skriv ditt eget svar…"
+        rows={3}
+        maxLength={500}
+        className="mt-2"
+      />
+    </div>
+  );
 }
 
 function PrivacyNote() {
@@ -655,7 +732,11 @@ function PrivacyNote() {
         <li>Resultater presenteres aggregert.</li>
       </ul>
       <p className="mt-3">
-        Les mer i vår <Link to="/personvern" className="underline">personvernerklæring</Link>.
+        Les mer i vår{" "}
+        <Link to="/personvern" className="underline">
+          personvernerklæring
+        </Link>
+        .
       </p>
     </div>
   );
