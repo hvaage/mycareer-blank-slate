@@ -102,8 +102,28 @@ function FullResultsPage() {
         {isLoading && <p className="mt-10 text-sm text-muted-foreground">Laster resultater…</p>}
 
         {!isLoading && data && (
-          <div className="mt-10">
-            {data.profile && data.profile.total === 0 ? (
+          <div className="mt-10 space-y-6">
+            <ResultsFilterPanel
+              facets={data.facets}
+              filters={filters}
+              onChange={setFilters}
+            />
+
+            {data.group && (
+              <p className="text-xs text-muted-foreground">
+                Viser {data.group.matched} av {data.group.total} respondenter
+                {isFetching ? " · oppdaterer…" : ""}
+              </p>
+            )}
+
+            {data.group?.suppressed ? (
+              <Card className="p-6 text-sm text-muted-foreground">
+                Denne gruppen har {data.group.matched} respondent
+                {data.group.matched === 1 ? "" : "er"}. Av hensyn til anonymitet vises resultater
+                først ved minst {data.group.min_group_size} respondenter. Fjern eller utvid noen
+                filtervalg for å få en større gruppe.
+              </Card>
+            ) : data.profile && data.profile.total === 0 ? (
               <Card className="p-6 text-sm text-muted-foreground">Ingen svar registrert ennå.</Card>
             ) : (
               <ResultsView profile={data.profile} results={data.results} mode="full" />
@@ -112,6 +132,7 @@ function FullResultsPage() {
         )}
       </main>
       <Footer />
+
     </div>
   );
 }
