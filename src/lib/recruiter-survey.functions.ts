@@ -241,15 +241,23 @@ function aggregateProfiles(profiles: any[]) {
     }
     return out;
   };
+  const sectors: Record<string, number> = {};
+  for (const profile of profiles) {
+    const values =
+      Array.isArray(profile.sectors) && profile.sectors.length > 0
+        ? profile.sectors
+        : profile.sector
+          ? [profile.sector]
+          : [];
+    for (const value of values) sectors[value] = (sectors[value] ?? 0) + 1;
+  }
   return {
     total: count,
     respondent_type: by("respondent_type"),
     industries: by("industries"),
     seniority_levels: by("seniority_levels"),
     candidate_focus: by("candidate_focus"),
-    sector: profiles.some((profile) => Array.isArray(profile.sectors) && profile.sectors.length > 0)
-      ? by("sectors")
-      : by("sector"),
+    sector: sectors,
   };
 }
 
@@ -529,11 +537,14 @@ export const adminExportCsv = createServerFn({ method: "POST" })
     const ansByR = new Map<string, Record<string, string>>();
     for (const a of answers ?? []) {
       const m = ansByR.get(a.response_id) ?? {};
+      const selected = Array.isArray(a.answer_value)
+        ? (a.answer_value as any[]).join(" | ")
+        : String(a.answer_value ?? "");
       const val = a.text_answer
-        ? a.text_answer
-        : Array.isArray(a.answer_value)
-          ? (a.answer_value as any[]).join(" | ")
-          : String(a.answer_value ?? "");
+        ? selected && selected !== a.text_answer
+          ? `${selected} — ${a.text_answer}`
+          : a.text_answer
+        : selected;
       m[a.question_id] = val;
       ansByR.set(a.response_id, m);
     }

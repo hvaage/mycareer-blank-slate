@@ -49,6 +49,8 @@ export const Route = createFileRoute("/rekruttererundersokelse/")({
         content:
           "Anonym undersøkelse om hvordan rekrutterere vurderer kandidater i dagens marked.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SurveyPage,
@@ -252,8 +254,8 @@ function SurveyPage() {
         <Progress value={progress} className="mb-8 h-1.5" />
 
         <div ref={questionStartRef} className="scroll-mt-20">
-        {step === 0 && (
-          <Card className="space-y-6 p-5 sm:p-6">
+          {step === 0 && (
+            <Card className="space-y-6 p-5 sm:p-6">
             <div>
               <h2 className="text-lg font-semibold">Om deg som respondent</h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -318,11 +320,11 @@ function SurveyPage() {
                 }
               />
             </Field>
-          </Card>
-        )}
+            </Card>
+          )}
 
-        {step > 0 && currentQ && (
-          <Card className="p-5 sm:p-6">
+          {step > 0 && currentQ && (
+            <Card className="p-5 sm:p-6">
             {currentQ.category && (
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 {currentQ.category}
@@ -349,8 +351,8 @@ function SurveyPage() {
                 onTextChange={(t) => setTexts((s) => ({ ...s, [currentQ.id]: t }))}
               />
             </div>
-          </Card>
-        )}
+            </Card>
+          )}
         </div>
 
         {step === totalSteps - 1 && (
@@ -397,7 +399,7 @@ function SurveyPage() {
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Button
             variant="ghost"
-              onClick={() => setStep((s) => Math.max(0, s - 1))}
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
             disabled={step === 0 || submitting}
           >
             <ChevronLeft className="mr-1 h-4 w-4" /> Tilbake
@@ -540,32 +542,31 @@ function QuestionInput({
     return (
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-        {(q.options as string[]).map((o) => {
-          const on = arr.includes(o);
-          const disabled = !on && max ? arr.length >= max : false;
-          return (
-            <label
-              key={o}
-              className={`flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm leading-snug transition ${
-                on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
-              } ${disabled ? "opacity-50" : ""}`}
-            >
-              <Checkbox
-                checked={on}
-                disabled={disabled}
-                className="mt-0.5"
-                onCheckedChange={() => {
-                  if (on) {
-                    onValueChange(arr.filter((x) => x !== o));
-                    if (o === "Annet") onTextChange("");
-                  }
-                  else if (!disabled) onValueChange([...arr, o]);
-                }}
-              />
-              <span>{o}</span>
-            </label>
-          );
-        })}
+          {(q.options as string[]).map((o) => {
+            const on = arr.includes(o);
+            const disabled = !on && max ? arr.length >= max : false;
+            return (
+              <label
+                key={o}
+                className={`flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-sm leading-snug transition ${
+                  on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
+                } ${disabled ? "opacity-50" : ""}`}
+              >
+                <Checkbox
+                  checked={on}
+                  disabled={disabled}
+                  className="mt-0.5"
+                  onCheckedChange={() => {
+                    if (on) {
+                      onValueChange(arr.filter((x) => x !== o));
+                      if (o === "Annet") onTextChange("");
+                    } else if (!disabled) onValueChange([...arr, o]);
+                  }}
+                />
+                <span>{o}</span>
+              </label>
+            );
+          })}
         </div>
         {hasOtherSelection(arr) && <OtherAnswer value={textValue} onChange={onTextChange} />}
       </div>
@@ -581,6 +582,7 @@ function QuestionInput({
     const toggle = (o: string) => {
       if (arr.includes(o)) {
         onValueChange(arr.filter((x) => x !== o));
+        if (o === "Annet") onTextChange("");
       } else if (arr.length < max) {
         onValueChange([...arr, o]);
       }
@@ -588,34 +590,34 @@ function QuestionInput({
     return (
       <div className="space-y-3">
         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-        {(q.options as string[]).map((o) => {
-          const rank = rankFor(o);
-          const on = rank !== null;
-          const disabled = !on && arr.length >= max;
-          return (
-            <button
-              key={o}
-              type="button"
-              onClick={() => toggle(o)}
-              disabled={disabled}
-               className={`flex w-full items-start gap-3 rounded-md border p-2.5 text-left text-sm leading-snug transition ${
-                on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
-              } ${disabled ? "opacity-50" : ""}`}
-            >
-               <span
-                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums ${
-                  on
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-rule text-muted-foreground"
-                }`}
-                aria-hidden
+          {(q.options as string[]).map((o) => {
+            const rank = rankFor(o);
+            const on = rank !== null;
+            const disabled = !on && arr.length >= max;
+            return (
+              <button
+                key={o}
+                type="button"
+                onClick={() => toggle(o)}
+                disabled={disabled}
+                className={`flex w-full items-start gap-3 rounded-md border p-2.5 text-left text-sm leading-snug transition ${
+                  on ? "border-foreground bg-foreground/5" : "border-rule hover:bg-muted/50"
+                } ${disabled ? "opacity-50" : ""}`}
               >
-                {rank ?? "·"}
-              </span>
-              <span className="flex-1">{o}</span>
-            </button>
-          );
-        })}
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums ${
+                    on
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-rule text-muted-foreground"
+                  }`}
+                  aria-hidden
+                >
+                  {rank ?? "·"}
+                </span>
+                <span className="flex-1">{o}</span>
+              </button>
+            );
+          })}
         </div>
         {hasOtherSelection(arr) && <OtherAnswer value={textValue} onChange={onTextChange} />}
         {arr.length > 0 && (
