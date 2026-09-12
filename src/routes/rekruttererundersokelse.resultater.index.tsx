@@ -8,9 +8,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getPublicResults } from "@/lib/recruiter-survey.functions";
 import { ResultsView } from "@/components/recruiter-survey/results-view";
-
-const fullAccessMailto =
-  "mailto:undersokelse@karrierenmin.no?subject=Foresp%C3%B8rsel%20om%20full%20tilgang%20til%20Rekruttererunders%C3%B8kelsen&body=Hei%2C%0A%0AJeg%20%C3%B8nsker%20tilgang%20til%20den%20fullstendige%20resultatsiden%20for%20Rekruttererunders%C3%B8kelsen.%0A%0AVennlig%20hilsen";
+import {
+  RequestFullAccessButton,
+  SURVEY_ACCESS_EMAIL,
+} from "@/components/recruiter-survey/request-access-button";
 
 export const Route = createFileRoute("/rekruttererundersokelse/resultater/")({
   head: () => ({
