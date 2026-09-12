@@ -1,7 +1,8 @@
 // @ts-nocheck
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { z } from "zod";
 import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
@@ -10,11 +11,16 @@ import { Card } from "@/components/ui/card";
 import { getFullResults } from "@/lib/recruiter-survey.functions";
 import { ResultsView } from "@/components/recruiter-survey/results-view";
 import {
+  ResultsFilterPanel,
+  EMPTY_FILTERS,
+} from "@/components/recruiter-survey/results-filter-panel";
+import {
   RequestFullAccessButton,
   SURVEY_ACCESS_EMAIL,
 } from "@/components/recruiter-survey/request-access-button";
 
 const search = z.object({ token: z.string().optional() });
+
 
 export const Route = createFileRoute("/rekruttererundersokelse/resultater/full")({
   validateSearch: search,
