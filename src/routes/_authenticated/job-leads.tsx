@@ -318,7 +318,7 @@ function JobLeadsPage() {
 
   // LinkedIn-leads (uendret)
   const { data: linkedinLeads, isLoading: loadingLI } = useQuery({
-    queryKey: ["job-leads-linkedin", user?.id, statusFilter],
+    queryKey: ["job-leads-linkedin", user?.id, effectiveStatusFilter],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
@@ -328,9 +328,9 @@ function JobLeadsPage() {
         .eq("user_id", user!.id)
         .order("received_at", { ascending: false })
         .limit(300);
-      if (statusFilter === "new") q = q.eq("status", "ny");
-      else if (statusFilter === "applied") q = q.eq("status", "promotert");
-      else if (statusFilter === "saved") q = q.in("status", []);
+      if (effectiveStatusFilter === "new") q = q.eq("status", "ny");
+      else if (effectiveStatusFilter === "applied") q = q.eq("status", "promotert");
+      else if (effectiveStatusFilter === "saved") q = q.in("status", []);
       else q = q.neq("status", "avvist");
       const { data, error } = await q;
       if (error) throw error;
@@ -340,13 +340,13 @@ function JobLeadsPage() {
 
   // NAV + Careerjet via unified RPC (uendret)
   const { data: cjLeads, isLoading: loadingCJ } = useQuery({
-    queryKey: ["job-leads-careerjet", user?.id, statusFilter],
+    queryKey: ["job-leads-careerjet", user?.id, effectiveStatusFilter],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase.rpc("list_user_job_opportunities", {
-        p_status: statusFilter,
+        p_status: effectiveStatusFilter,
         p_source: "all",
       });
       if (error) throw error;
