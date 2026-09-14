@@ -1476,7 +1476,8 @@ function JobLeadsPage() {
               onOpportunity={() => updateStatus(lead, "opportunity")}
               onDismiss={() => updateStatus(lead, "dismiss")}
               onApply={() => updateStatus(lead, "apply")}
-
+              onRescore={() => handleRescoreLead(lead)}
+              rescoring={rescoringId === lead.id}
             />
           ))}
         </div>
