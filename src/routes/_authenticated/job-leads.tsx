@@ -585,6 +585,21 @@ function JobLeadsPage() {
   const merged: Lead[] = useMemo(() => {
     const out = rawLeads;
 
+    // Fritekstsøk på stilling og selskap går utenom alle andre filtre.
+    if (searchTerm) {
+      return out
+        .filter((lead) => {
+          const hay = `${lead.title ?? ""} ${lead.company ?? ""}`.toLowerCase();
+          return hay.includes(searchTerm);
+        })
+        .filter((lead) => !hiddenIds.includes(lead.id))
+        .sort(
+          (a, b) =>
+            new Date(b.posted_at ?? 0).getTime() - new Date(a.posted_at ?? 0).getTime(),
+        );
+    }
+
+
     // Match-filter
     let afterRelevance: Lead[];
     if (relevanceView === "relevant") {
