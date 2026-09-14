@@ -225,6 +225,13 @@ function JobLeadsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("new");
+  /** Fritekstsøk på tittel og selskap. Aktivt søk overstyrer alle andre filtre. */
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchTerm = searchQuery.trim().toLowerCase();
+  const isSearching = searchTerm.length > 0;
+  const effectiveStatusFilter: StatusFilter = isSearching ? "all" : statusFilter;
+  /** Id-en til annonsen som vurderes på nytt akkurat nå. */
+  const [rescoringId, setRescoringId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [relevanceView, setRelevanceView] = useState<RelevanceView>("relevant");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
