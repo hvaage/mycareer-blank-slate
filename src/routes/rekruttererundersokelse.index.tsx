@@ -688,12 +688,9 @@ function ScaleSlider({
   const min = q.scale_min ?? 1;
   const max = q.scale_max ?? 10;
   const mid = Math.round((min + max) / 2);
+  // Bryteren vises på midten, men ingenting registreres som svar før
+  // respondenten faktisk berører den (value === null = ikke besvart).
   const current = value ?? mid;
-
-  useEffect(() => {
-    if (value === null) onValueChange(mid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q.id]);
 
   const stepLabels: string[] = Array.isArray(q.options) ? (q.options as string[]) : [];
   const label =
@@ -723,8 +720,16 @@ function ScaleSlider({
         onValueChange={(v) => onValueChange(v[0] ?? mid)}
       />
       <div className="mt-5 rounded-md border border-rule bg-muted/30 p-4 text-center">
-        <p className="text-2xl font-semibold tabular-nums">{current}</p>
-        <p className="mt-1 text-sm leading-snug text-foreground">{label}</p>
+        {value === null ? (
+          <p className="text-sm leading-snug text-muted-foreground">
+            Dra i bryteren for å gi ditt svar.
+          </p>
+        ) : (
+          <>
+            <p className="text-2xl font-semibold tabular-nums">{current}</p>
+            <p className="mt-1 text-sm leading-snug text-foreground">{label}</p>
+          </>
+        )}
       </div>
     </div>
   );
