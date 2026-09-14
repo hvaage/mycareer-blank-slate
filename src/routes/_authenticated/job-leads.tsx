@@ -1573,7 +1573,7 @@ function ScreeningReasonsBlock({ lead }: { lead: Lead }) {
 }
 
 function LeadCard({
-  lead, busy, onSave, onOpportunity, onDismiss, onApply,
+  lead, busy, onSave, onOpportunity, onDismiss, onApply, onRescore, rescoring,
 }: {
   lead: Lead;
   busy?: boolean;
@@ -1581,6 +1581,8 @@ function LeadCard({
   onOpportunity: () => void;
   onDismiss: () => void;
   onApply: () => void;
+  onRescore: () => void;
+  rescoring?: boolean;
 }) {
 
   const [open, setOpen] = useState(false);
