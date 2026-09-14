@@ -15,7 +15,12 @@
 // og rapporteringslinje-deteksjonen er scoperet til aliaser etter rapporterer-til-
 // fraser. "Product Manager rapporterer til deg" er ikke en target-role-only
 // grunn for å avvise en COO-stilling.
-export const MATCH_SCORE_VERSION = "job_match_v9_2026_09_14";
+// 2026-09-14 (v10): manuelt innsendte annonser får høyere terskel for
+// heuristisk ekskludering. Brukerintensjon påvirker bare om usikre gates blir
+// review, ikke selve scoren.
+export const MATCH_SCORE_VERSION = "job_match_v10_2026_09_14";
+/** Forrige versjon. Rader med denne kan ha for streng terskel for manuelle annonser. */
+export const MATCH_SCORE_VERSION_LEGACY_CURRENT = "job_match_v9_2026_09_14";
 /** Forrige versjon. Rader med denne kan ha for bred rapporteringslinjeavvisning. */
 export const MATCH_SCORE_VERSION_LEGACY = "job_match_v8_2026_09_10";
 /** Eldre versjon. Rader med denne kan ha blandet manglende evidens og avslag. */
@@ -32,6 +37,7 @@ export type RequirementEvaluationStatus =
   | "UNVERIFIED"
   | "NOT_SATISFIED";
 export type EvidenceKind = "explicit" | "derived" | "inferred" | "unknown";
+export type CandidateIntent = "system_discovered" | "user_submitted";
 export type ComputedExperienceCategory =
   | "total"
   | "sales"
@@ -114,6 +120,7 @@ export type ScreeningJob = {
   engagement_type: string | null;
   description: string;
   description_complete: boolean;
+  candidate_intent?: CandidateIntent;
 };
 
 export type InitialScreening = {
@@ -716,6 +723,45 @@ function statusFromReasons(reasons: ScreeningReason[]): ScreeningStatus {
   return "eligible";
 }
 
+const USER_SUBMITTED_SOFT_EXCLUSION_CODES = new Set([
+  "target_role_mismatch",
+  "target_role_only_in_reporting_line",
+  "seniority_mismatch",
+  "industry_mismatch",
+]);
+
+function userSubmittedReviewLabel(reason: ScreeningReason): string {
+  if (reason.code === "target_role_only_in_reporting_line") {
+    return "Målrollen nevnes i rapporteringskontekst, men annonsen er lagt inn manuelt og må verifiseres før eventuell eksklusjon";
+  }
+  if (reason.code === "target_role_mismatch") {
+    return "Stillingstittelen må verifiseres mot brukerens målroller fordi annonsen er lagt inn manuelt";
+  }
+  return `${reason.label}. Manuelt innsendt annonse må verifiseres før eventuell eksklusjon`;
+}
+
+function applyUserSubmittedExclusionThreshold(
+  reasons: ScreeningReason[],
+  candidateIntent: CandidateIntent | undefined,
+): ScreeningReason[] {
+  if (candidateIntent !== "user_submitted") return reasons;
+  return reasons.map((reason) => {
+    if (
+      reason.severity !== "hard_filter" ||
+      reason.evaluation_status !== "NOT_SATISFIED" ||
+      !USER_SUBMITTED_SOFT_EXCLUSION_CODES.has(reason.code)
+    ) {
+      return reason;
+    }
+    return {
+      ...reason,
+      label: userSubmittedReviewLabel(reason),
+      severity: "review",
+      evaluation_status: "UNVERIFIED",
+    };
+  });
+}
+
 function evidenceCorpus(evidence: EvidenceItem[]): string {
   return normalizeScreeningText(
     evidence.map((item) =>
@@ -1097,7 +1143,14 @@ export function initialScreening(
     });
   }
 
-  return { status: statusFromReasons(reasons), reasons };
+  const thresholdedReasons = applyUserSubmittedExclusionThreshold(
+    reasons,
+    job.candidate_intent,
+  );
+  return {
+    status: statusFromReasons(thresholdedReasons),
+    reasons: thresholdedReasons,
+  };
 }
 
 function supportedQuote(description: string, quote: string): boolean {

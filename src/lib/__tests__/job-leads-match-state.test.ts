@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isRelevantMatch, MATCH_SCORE_VERSION, matchDisplayState } from "../job-leads/match-state";
 
 describe("jobb-leads matchvisning", () => {
-  it("behandler gjeldende v8-vurderinger som autoritative", () => {
+  it("behandler gjeldende vurderinger som autoritative", () => {
     const state = matchDisplayState({
       version: MATCH_SCORE_VERSION,
       screeningStatus: "needs_review",
@@ -15,7 +15,7 @@ describe("jobb-leads matchvisning", () => {
     expect(state.showScreeningDetails).toBe(true);
   });
 
-  it("viser eldre positive scorer mens ny v8-vurdering mangler", () => {
+  it("viser eldre positive scorer mens ny vurdering mangler", () => {
     const state = matchDisplayState({
       version: "job_match_v7_2026_08_26",
       screeningStatus: "eligible",

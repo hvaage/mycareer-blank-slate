@@ -133,6 +133,26 @@ Deno.test("Commercial Manager does not satisfy a narrow CCO target", () => {
   if (result.status !== "excluded") throw new Error(JSON.stringify(result));
 });
 
+Deno.test("user-submitted title mismatch requires review instead of exclusion", () => {
+  const result = initialScreening(
+    { ...job, title: "Commercial Manager", candidate_intent: "user_submitted" },
+    profile,
+    evidence,
+  );
+  if (result.status !== "needs_review") {
+    throw new Error(JSON.stringify(result));
+  }
+  const reason = result.reasons.find((item) =>
+    item.code === "target_role_mismatch"
+  );
+  if (
+    !reason || reason.severity !== "review" ||
+    reason.evaluation_status !== "UNVERIFIED"
+  ) {
+    throw new Error("manual title mismatch must be downgraded to review");
+  }
+});
+
 Deno.test("reporting to COO is not a COO title match", () => {
   const result = initialScreening(
     {
@@ -151,6 +171,55 @@ Deno.test("reporting to COO is not a COO title match", () => {
     )
   ) {
     throw new Error("reporting-line-only match was not detected");
+  }
+});
+
+Deno.test("user-submitted reporting-line-only match requires review", () => {
+  const result = initialScreening(
+    {
+      ...job,
+      title: "Delivery and Operation lead",
+      description:
+        "Rollen rapporterer direkte til COO og samarbeider med ledergruppen.",
+      candidate_intent: "user_submitted",
+    },
+    profile,
+    evidence,
+  );
+  if (result.status !== "needs_review") {
+    throw new Error(JSON.stringify(result));
+  }
+  const reason = result.reasons.find((item) =>
+    item.code === "target_role_only_in_reporting_line"
+  );
+  if (
+    !reason || reason.severity !== "review" ||
+    reason.evaluation_status !== "UNVERIFIED"
+  ) {
+    throw new Error("manual reporting-line-only match must require review");
+  }
+});
+
+Deno.test("user-submitted hard location mismatch still excludes", () => {
+  const result = initialScreening(
+    {
+      ...job,
+      title: "Commercial Manager",
+      location: "Bergen",
+      candidate_intent: "user_submitted",
+    },
+    profile,
+    evidence,
+  );
+  if (result.status !== "excluded") throw new Error(JSON.stringify(result));
+  if (
+    !result.reasons.some((reason) =>
+      reason.code === "location_outside_preference" &&
+      reason.severity === "hard_filter" &&
+      reason.evaluation_status === "NOT_SATISFIED"
+    )
+  ) {
+    throw new Error("hard location mismatch must remain an exclusion");
   }
 });
 

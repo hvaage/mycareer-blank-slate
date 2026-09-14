@@ -1,4 +1,4 @@
-// Job Match V9
+// Job Match V10
 // Hard eligibility screening runs before scoring. Mandatory requirements may
 // only be treated as met when the model cites both the job text and a known
 // evidence reference. Every committed replacement is written atomically with
@@ -248,6 +248,14 @@ type Candidate = {
   description_complete: boolean;
   current: Record<string, unknown>;
 };
+
+function candidateIntent(
+  source: Candidate["source"],
+): ScreeningJob["candidate_intent"] {
+  return source === "manual_url" || source === "manual_paste"
+    ? "user_submitted"
+    : "system_discovered";
+}
 
 function sourcePostingVisible(posting: SourcePosting): boolean {
   return posting.source !== "careerjet" ||
@@ -978,7 +986,7 @@ async function syncRequirementAtoms(
         ? 4
         : 2,
       confidence_score: 1,
-      source: "job_match_v8",
+      source: "job_match_v10",
       source_field: "full_description",
       source_hash: sourceHash,
       inferred: false,
@@ -1116,6 +1124,7 @@ Deno.serve(async (req: Request) => {
           engagement_type: candidate.engagement_type,
           description: candidate.description,
           description_complete: candidate.description_complete,
+          candidate_intent: candidateIntent(candidate.source),
         } satisfies ScreeningJob,
         profile,
         evidence,
@@ -1189,7 +1198,7 @@ Deno.serve(async (req: Request) => {
       };
       try {
         if (!input.dry_run) {
-          const model = requiresAi ? AI_MODEL : "deterministic_gate_v8";
+          const model = requiresAi ? AI_MODEL : "deterministic_gate_v10";
           const { error: recordError } = await admin.rpc(
             "record_job_match_evaluation",
             {
