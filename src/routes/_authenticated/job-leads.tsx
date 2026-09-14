@@ -1346,6 +1346,23 @@ function JobLeadsPage() {
         </CardContent>
       </Card>
 
+      <div className="space-y-1">
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Søk på stilling eller selskap…"
+          aria-label="Søk på stilling eller selskap"
+        />
+        {isSearching && (
+          <p className="text-xs text-muted-foreground">
+            Søket viser treff fra alle annonser og ser bort fra filtrene under.{" "}
+            <button className="underline" onClick={() => setSearchQuery("")}>
+              Tøm søket
+            </button>
+          </p>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
         <Select value={sourceFilter} onValueChange={(v: any) => setSourceFilter(v)}>
           <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
