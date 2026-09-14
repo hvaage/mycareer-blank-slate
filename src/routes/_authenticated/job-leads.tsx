@@ -802,6 +802,59 @@ function JobLeadsPage() {
     }
   };
 
+  /**
+   * Ny vurdering av én enkelt annonse. Kjører alltid på nytt (mode «rescore»),
+   * slik at en tidligere vurdering aldri blokkerer en ny etter endrede kriterier.
+   */
+  const handleRescoreLead = async (lead: Lead) => {
+    const body: Record<string, unknown> = { source: "all", mode: "rescore", limit: 1 };
+    if (lead.rowKind === "careerjet" || lead.rowKind === "nav") {
+      if (lead.cjBackend === "uo") body.user_opportunity_ids = [lead.rowId];
+      else body.listing_status_ids = [lead.rowId];
+    } else {
+      body.job_lead_ids = [lead.rowId];
+    }
+
+    setRescoringId(lead.id);
+    try {
+      const { data: rawData, error } = await supabase.functions.invoke(
+        "score-pending-opportunities",
+        { body },
+      );
+      const data = (error ? await readInvokeErrorBody(error) : rawData) as any;
+      if (error && !data) {
+        toast.error("Ny vurdering feilet");
+        return;
+      }
+      const status = String(data?.status ?? "");
+      if (status === "failed") {
+        const reason = data?.error === "missing_configuration"
+          ? "tjenesten er ikke ferdig konfigurert"
+          : data?.error
+            ? String(data.error)
+            : null;
+        toast.error(reason ? `Ny vurdering feilet: ${reason}` : "Ny vurdering feilet");
+        return;
+      }
+      if (status === "empty" || Number(data?.evaluated ?? 0) === 0) {
+        toast.info("Annonsen kunne ikke vurderes på nytt akkurat nå");
+        return;
+      }
+      toast.success("Annonsen er vurdert på nytt");
+    } catch (e: any) {
+      console.error("[job-leads] single rescore failed", e);
+      toast.error(e?.message ?? "Ny vurdering feilet");
+    } finally {
+      try {
+        await refreshJobLeadOverview();
+      } catch (e) {
+        console.warn("[job-leads] refresh after single rescore failed", e);
+      }
+      setRescoringId(null);
+    }
+  };
+
+
   const handleFetch = async () => {
     setFetching(true);
     try {
