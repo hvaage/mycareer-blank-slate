@@ -1725,6 +1725,17 @@ function LeadCard({
           >
             <X className="h-4 w-4 mr-1" /> Avvis
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9"
+            disabled={busy || rescoring}
+            onClick={onRescore}
+            title="Kjører en ny vurdering av kun denne annonsen med gjeldende kriterier."
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${rescoring ? "animate-spin" : ""}`} />
+            {rescoring ? "Vurderer…" : "Vurder på nytt"}
+          </Button>
           <StartApplicationButton canonicalOpportunityId={lead.canonicalOpportunityId} />
 
           <Button
