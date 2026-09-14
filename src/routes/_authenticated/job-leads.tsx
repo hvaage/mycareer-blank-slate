@@ -686,7 +686,7 @@ function JobLeadsPage() {
     });
 
     return sorted.filter((lead) => !hiddenIds.includes(lead.id));
-  }, [rawLeads, sourceFilter, timeFilter, relevanceView, extentFilter, engagementFilter, hiddenIds]);
+  }, [rawLeads, sourceFilter, timeFilter, relevanceView, extentFilter, engagementFilter, hiddenIds, searchTerm]);
 
 
   // supabase.functions.invoke kaster bort responskroppen ved ikke-2xx. Uten dette
