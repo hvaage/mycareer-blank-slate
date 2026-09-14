@@ -150,6 +150,57 @@ export type Database = {
         }
         Relationships: []
       }
+      application_stages: {
+        Row: {
+          application_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          stage_date: string | null
+          stage_order: number
+          stage_status: string
+          stage_type: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          stage_date?: string | null
+          stage_order?: number
+          stage_status?: string
+          stage_type: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          stage_date?: string | null
+          stage_order?: number
+          stage_status?: string
+          stage_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_stages_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "application_stages_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications_with_urgency"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           ai_concerns: string | null
