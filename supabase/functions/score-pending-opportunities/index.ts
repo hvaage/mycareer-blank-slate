@@ -1,4 +1,4 @@
-// Job Match V8
+// Job Match V9
 // Hard eligibility screening runs before scoring. Mandatory requirements may
 // only be treated as met when the model cites both the job text and a known
 // evidence reference. Every committed replacement is written atomically with
@@ -13,6 +13,7 @@ import {
   finalizeEvaluation,
   initialScreening,
   MATCH_SCORE_VERSION,
+  roleLikeSearchTerms,
   type ScreeningJob,
   type ScreeningProfile,
 } from "./screening-v2.ts";
@@ -660,7 +661,7 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
   ] = await Promise.all([
     admin.from("profiles")
       .select(
-        "headline, years_experience, target_role, target_roles, target_seniority, target_industries, industries, skills, languages, preferred_locations, target_city, target_region, target_country, preferred_work_extents, preferred_engagement_types, willing_to_relocate, work_types",
+        "headline, years_experience, target_role, target_roles, job_search_keywords, target_seniority, target_industries, industries, skills, languages, preferred_locations, target_city, target_region, target_country, preferred_work_extents, preferred_engagement_types, willing_to_relocate, work_types",
       )
       .eq("id", userId).maybeSingle(),
     admin.from("user_career_profiles")
@@ -714,6 +715,7 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
     p.target_role,
     ...(Array.isArray(c.desired_role_types) ? c.desired_role_types : []),
   ]);
+  const targetRoleHints = roleLikeSearchTerms(p.job_search_keywords);
   const preferredLocations = uniqueStrings([
     ...(Array.isArray(p.preferred_locations) ? p.preferred_locations : []),
     ...(Array.isArray(c.preferred_locations) ? c.preferred_locations : []),
@@ -777,6 +779,7 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
   return {
     profile: {
       target_roles: targetRoles,
+      target_role_hints: targetRoleHints,
       preferred_locations: preferredLocations,
       target_city: p.target_city ?? null,
       target_region: p.target_region ?? null,
@@ -792,6 +795,7 @@ async function loadProfileAndEvidence(admin: any, userId: string): Promise<{
       headline: cleanText(p.headline, 300) || null,
       years_experience: p.years_experience ?? c.years_experience ?? null,
       target_roles: targetRoles,
+      target_role_hints: targetRoleHints,
       target_seniority: p.target_seniority ?? c.leadership_level ?? null,
       target_industries: uniqueStrings([
         ...(Array.isArray(p.target_industries) ? p.target_industries : []),

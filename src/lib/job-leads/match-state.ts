@@ -1,6 +1,7 @@
-export const MATCH_SCORE_VERSION = "job_match_v8_2026_09_10";
+export const MATCH_SCORE_VERSION = "job_match_v9_2026_09_14";
 
 const LEGACY_MATCH_SCORE_VERSIONS = new Set<string>([
+  "job_match_v8_2026_09_10",
   "job_match_v7_2026_08_26",
   "job_match_v6_2026_08_25",
   "job_match_v5_2026_08_25",

@@ -3,6 +3,7 @@ import {
   type EvidenceItem,
   finalizeEvaluation,
   initialScreening,
+  roleLikeSearchTerms,
   type ScreeningJob,
   type ScreeningProfile,
 } from "./screening-v2.ts";
@@ -150,6 +151,91 @@ Deno.test("reporting to COO is not a COO title match", () => {
     )
   ) {
     throw new Error("reporting-line-only match was not detected");
+  }
+});
+
+Deno.test("COO keyword keeps COO title eligible when reports-to text names subordinate target-family roles", () => {
+  const result = initialScreening(
+    {
+      ...job,
+      title: "Chief Operating Officer (COO)",
+      location: "Oslo og omegn",
+      work_extent: null,
+      engagement_type: null,
+      description: [
+        "# Chief Operating Officer (COO) – Bikeloop",
+        "## Rollen – Chief Operating Officer (COO)",
+        "Vi søker derfor en Chief Operating Officer (COO) som kan ta et helhetlig ansvar.",
+        "Service & Support Manager, Chief Product Manager og Software Manager rapporterer til deg.",
+        "Du vil jobbe tett med CEO og være en sentral del av ledergruppen.",
+      ].join("\n\n"),
+    },
+    {
+      ...profile,
+      target_roles: ["Produkt", "Utvikling / tech", "Salg", "Konsulent"],
+      target_role_hints: ["CCO", "COO", "CRO", "Partner Manager"],
+      preferred_work_extents: [],
+      preferred_engagement_types: [],
+    },
+    evidence,
+  );
+  if (result.status !== "eligible") throw new Error(JSON.stringify(result));
+  if (
+    result.reasons.some((reason) =>
+      reason.code === "target_role_only_in_reporting_line"
+    )
+  ) {
+    throw new Error("subordinate reports-to text must not exclude a COO title");
+  }
+});
+
+Deno.test("target-family role before reports-to-you is not a reporting-line-only match", () => {
+  const result = initialScreening(
+    {
+      ...job,
+      title: "Chief Operating Officer (COO)",
+      description:
+        "Chief Product Manager og Software Manager rapporterer til deg.",
+    },
+    { ...profile, target_roles: ["Produkt"] },
+    evidence,
+  );
+  if (result.status !== "excluded") throw new Error(JSON.stringify(result));
+  if (
+    !result.reasons.some((reason) => reason.code === "target_role_mismatch")
+  ) {
+    throw new Error("expected ordinary title mismatch");
+  }
+  if (
+    result.reasons.some((reason) =>
+      reason.code === "target_role_only_in_reporting_line"
+    )
+  ) {
+    throw new Error("reports-to-you direction must not be reporting-line-only");
+  }
+});
+
+Deno.test("role-like search keywords become role hints while skill/location keywords do not", () => {
+  const terms = roleLikeSearchTerms(
+    "CCO, COO, CRO, Salgssjef, Partner Manager, Azure, SaaS, Oslo",
+  );
+  for (
+    const expected of [
+      "cco",
+      "coo",
+      "cro",
+      "salgssjef",
+      "partner manager",
+    ]
+  ) {
+    if (!terms.includes(expected)) {
+      throw new Error(`missing role-like search term: ${expected}`);
+    }
+  }
+  for (const unexpected of ["azure", "saas", "oslo"]) {
+    if (terms.includes(unexpected)) {
+      throw new Error(`non-role keyword leaked into role hints: ${unexpected}`);
+    }
   }
 });
 

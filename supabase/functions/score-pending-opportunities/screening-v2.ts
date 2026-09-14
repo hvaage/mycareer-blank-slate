@@ -11,9 +11,15 @@
 // «markedsf ring» og traff aldri familienøkkelen, og «direktør»-aliaser var døde.
 // 2026-09-10 (v8): kravvurdering skiller eksplisitt mellom oppfylt, uavklart og
 // ikke oppfylt. Manglende evidens kan ikke lenger ekskludere.
-export const MATCH_SCORE_VERSION = "job_match_v8_2026_09_10";
-/** Forrige versjon. Rader med denne kan ha blandet manglende evidens og avslag. */
-export const MATCH_SCORE_VERSION_LEGACY = "job_match_v7_2026_08_26";
+// 2026-09-14 (v9): rolleporten bruker rolleaktige søkeord som tittelintensjon
+// og rapporteringslinje-deteksjonen er scoperet til aliaser etter rapporterer-til-
+// fraser. "Product Manager rapporterer til deg" er ikke en target-role-only
+// grunn for å avvise en COO-stilling.
+export const MATCH_SCORE_VERSION = "job_match_v9_2026_09_14";
+/** Forrige versjon. Rader med denne kan ha for bred rapporteringslinjeavvisning. */
+export const MATCH_SCORE_VERSION_LEGACY = "job_match_v8_2026_09_10";
+/** Eldre versjon. Rader med denne kan ha blandet manglende evidens og avslag. */
+export const MATCH_SCORE_VERSION_LEGACY_V1 = "job_match_v7_2026_08_26";
 /** Eldre versjon. Rader med denne er scoret før forkortelsestaksonomien. */
 export const MATCH_SCORE_VERSION_LEGACY_V2 = "job_match_v6_2026_08_25";
 /** Eldre versjon. Rader med denne er scoret før rollefamilie-taksonomien. */
@@ -91,6 +97,7 @@ export type EvidenceItem = {
 
 export type ScreeningProfile = {
   target_roles: string[];
+  target_role_hints?: string[];
   preferred_locations: string[];
   target_city?: string | null;
   target_region?: string | null;
@@ -154,8 +161,8 @@ export type FinalEvaluation = {
 
 const REMOTE_RE =
   /\b(remote|fully remote|fjernarbeid|hjemmekontor|arbeid fra hvor som helst)\b/i;
-const REPORTING_RE =
-  /\b(report(?:s|ing)?(?: directly)? to|rapporterer(?: direkte)? til|reports directly to|underlagt|tett samarbeid med)\b/i;
+const REPORTING_TARGET_CUE_RE =
+  /\b(?:(?:reports?|reporting)(?:\s+\w+){0,3}\s+(?:to|into)|rapporterer(?:\s+\w+){0,3}\s+til|underlagt|(?:jobber|jobbe|arbeider|works?|working|samarbeider)(?:\s+\w+){0,4}\s+(?:tett\s+med|closely\s+with|med))\b/gi;
 const SALES_RE =
   /\b(sales|salg\w*|selger|account|key account|commercial|kommersiell\w*|business development|revenue|gtm|go to market|presales|pre sales|customer success)\b/i;
 const TECHNOLOGY_RE =
@@ -174,6 +181,8 @@ const EXPERIENCE_RE =
   /\b(experience|erfaring|background|bakgrunn|years?|yrs?|ar|aar)\b/i;
 const UNSUPPORTED_SPECIFIC_DOMAIN_RE =
   /\b(public sector|offentlig sektor|government|statlig|kommunal|healthcare|helse|pharma|banking|bank|insurance|forsikring|retail|varehandel|manufacturing|industri)\b/i;
+const ROLE_TITLE_HINT_RE =
+  /\b(chief|officer|director|direktor|manager|leder|ledelse|lead|sjef|head of|ansvarlig|consultant|konsulent|advisor|radgiver|arkitekt|architect|engineer|utvikler|selger|sales|salg\w*|commercial|kommersiell\w*|business development|forretningsutvikling|partner|channel|vp|vice president|evp|svp|ceo|cfo|coo|cto|cmo|cpo|cco|cro|cio|ciso|cdo|chro|cso|cgo|clo)\b/i;
 
 const EXPERIENCE_LABELS: Record<ComputedExperienceCategory, string> = {
   total: "total erfaring",
@@ -614,6 +623,35 @@ function roleAliases(targetRoles: string[]): string[] {
   return [...aliases];
 }
 
+function termMatchesKnownRoleAlias(term: string): boolean {
+  for (const expansions of Object.values(ROLE_EXPANSIONS)) {
+    if (
+      expansions.some((alias) =>
+        titleContainsAlias(term, alias) || titleContainsAlias(alias, term)
+      )
+    ) return true;
+  }
+  for (const aliases of Object.values(ROLE_FAMILY_TITLE_ALIASES)) {
+    if (
+      aliases.some((alias) =>
+        titleContainsAlias(term, alias) || titleContainsAlias(alias, term)
+      )
+    ) return true;
+  }
+  return false;
+}
+
+function isRoleLikeSearchTerm(term: string): boolean {
+  return termMatchesKnownRoleAlias(term) || ROLE_TITLE_HINT_RE.test(term);
+}
+
+export function roleLikeSearchTerms(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  return uniqueStrings(raw.split(/[,;\n]+/))
+    .filter(isRoleLikeSearchTerm)
+    .slice(0, 30);
+}
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -626,6 +664,29 @@ function titleContainsAlias(title: string, alias: string): boolean {
   // «adm dir» også treffer «Adm. dir.» (normaliseringen beholder punktum).
   const phrase = escapeRegex(alias).replace(/\s+/g, "[.\\s]+");
   return new RegExp(`(^|\\s)${phrase}(\\s|$)`, "i").test(title);
+}
+
+function wordsAfter(text: string, start: number, maxWords: number): string {
+  return text.slice(start).trim().split(/\s+/).slice(0, maxWords).join(" ");
+}
+
+function reportingTargetMentionsAlias(
+  description: string,
+  aliases: string[],
+): boolean {
+  REPORTING_TARGET_CUE_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = REPORTING_TARGET_CUE_RE.exec(description)) !== null) {
+    const targetWindow = wordsAfter(
+      description,
+      REPORTING_TARGET_CUE_RE.lastIndex,
+      10,
+    );
+    if (aliases.some((alias) => titleContainsAlias(targetWindow, alias))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function containsPhrase(text: string, phrase: string): boolean {
@@ -956,14 +1017,16 @@ export function initialScreening(
     }
   }
 
-  const aliases = roleAliases(profile.target_roles ?? []);
+  const aliases = roleAliases([
+    ...(profile.target_roles ?? []),
+    ...(profile.target_role_hints ?? []),
+  ]);
   if (aliases.length > 0) {
     const titleMatch = aliases.some((alias) =>
       titleContainsAlias(title, alias)
     );
     if (!titleMatch) {
-      const reportingOnly = REPORTING_RE.test(description) &&
-        aliases.some((alias) => titleContainsAlias(description, alias));
+      const reportingOnly = reportingTargetMentionsAlias(description, aliases);
       reasons.push({
         code: reportingOnly
           ? "target_role_only_in_reporting_line"
