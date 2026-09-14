@@ -225,6 +225,13 @@ function JobLeadsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("new");
+  /** Fritekstsøk på tittel og selskap. Aktivt søk overstyrer alle andre filtre. */
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchTerm = searchQuery.trim().toLowerCase();
+  const isSearching = searchTerm.length > 0;
+  const effectiveStatusFilter: StatusFilter = isSearching ? "all" : statusFilter;
+  /** Id-en til annonsen som vurderes på nytt akkurat nå. */
+  const [rescoringId, setRescoringId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [relevanceView, setRelevanceView] = useState<RelevanceView>("relevant");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
@@ -318,7 +325,7 @@ function JobLeadsPage() {
 
   // LinkedIn-leads (uendret)
   const { data: linkedinLeads, isLoading: loadingLI } = useQuery({
-    queryKey: ["job-leads-linkedin", user?.id, statusFilter],
+    queryKey: ["job-leads-linkedin", user?.id, effectiveStatusFilter],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
@@ -328,9 +335,9 @@ function JobLeadsPage() {
         .eq("user_id", user!.id)
         .order("received_at", { ascending: false })
         .limit(300);
-      if (statusFilter === "new") q = q.eq("status", "ny");
-      else if (statusFilter === "applied") q = q.eq("status", "promotert");
-      else if (statusFilter === "saved") q = q.in("status", []);
+      if (effectiveStatusFilter === "new") q = q.eq("status", "ny");
+      else if (effectiveStatusFilter === "applied") q = q.eq("status", "promotert");
+      else if (effectiveStatusFilter === "saved") q = q.in("status", []);
       else q = q.neq("status", "avvist");
       const { data, error } = await q;
       if (error) throw error;
@@ -340,13 +347,13 @@ function JobLeadsPage() {
 
   // NAV + Careerjet via unified RPC (uendret)
   const { data: cjLeads, isLoading: loadingCJ } = useQuery({
-    queryKey: ["job-leads-careerjet", user?.id, statusFilter],
+    queryKey: ["job-leads-careerjet", user?.id, effectiveStatusFilter],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await supabase.rpc("list_user_job_opportunities", {
-        p_status: statusFilter,
+        p_status: effectiveStatusFilter,
         p_source: "all",
       });
       if (error) throw error;
@@ -578,6 +585,21 @@ function JobLeadsPage() {
   const merged: Lead[] = useMemo(() => {
     const out = rawLeads;
 
+    // Fritekstsøk på stilling og selskap går utenom alle andre filtre.
+    if (searchTerm) {
+      return out
+        .filter((lead) => {
+          const hay = `${lead.title ?? ""} ${lead.company ?? ""}`.toLowerCase();
+          return hay.includes(searchTerm);
+        })
+        .filter((lead) => !hiddenIds.includes(lead.id))
+        .sort(
+          (a, b) =>
+            new Date(b.posted_at ?? 0).getTime() - new Date(a.posted_at ?? 0).getTime(),
+        );
+    }
+
+
     // Match-filter
     let afterRelevance: Lead[];
     if (relevanceView === "relevant") {
@@ -664,7 +686,7 @@ function JobLeadsPage() {
     });
 
     return sorted.filter((lead) => !hiddenIds.includes(lead.id));
-  }, [rawLeads, sourceFilter, timeFilter, relevanceView, extentFilter, engagementFilter, hiddenIds]);
+  }, [rawLeads, sourceFilter, timeFilter, relevanceView, extentFilter, engagementFilter, hiddenIds, searchTerm]);
 
 
   // supabase.functions.invoke kaster bort responskroppen ved ikke-2xx. Uten dette
@@ -779,6 +801,59 @@ function JobLeadsPage() {
       setScoring(false);
     }
   };
+
+  /**
+   * Ny vurdering av én enkelt annonse. Kjører alltid på nytt (mode «rescore»),
+   * slik at en tidligere vurdering aldri blokkerer en ny etter endrede kriterier.
+   */
+  const handleRescoreLead = async (lead: Lead) => {
+    const body: Record<string, unknown> = { source: "all", mode: "rescore", limit: 1 };
+    if (lead.rowKind === "careerjet" || lead.rowKind === "nav") {
+      if (lead.cjBackend === "uo") body.user_opportunity_ids = [lead.rowId];
+      else body.listing_status_ids = [lead.rowId];
+    } else {
+      body.job_lead_ids = [lead.rowId];
+    }
+
+    setRescoringId(lead.id);
+    try {
+      const { data: rawData, error } = await supabase.functions.invoke(
+        "score-pending-opportunities",
+        { body },
+      );
+      const data = (error ? await readInvokeErrorBody(error) : rawData) as any;
+      if (error && !data) {
+        toast.error("Ny vurdering feilet");
+        return;
+      }
+      const status = String(data?.status ?? "");
+      if (status === "failed") {
+        const reason = data?.error === "missing_configuration"
+          ? "tjenesten er ikke ferdig konfigurert"
+          : data?.error
+            ? String(data.error)
+            : null;
+        toast.error(reason ? `Ny vurdering feilet: ${reason}` : "Ny vurdering feilet");
+        return;
+      }
+      if (status === "empty" || Number(data?.evaluated ?? 0) === 0) {
+        toast.info("Annonsen kunne ikke vurderes på nytt akkurat nå");
+        return;
+      }
+      toast.success("Annonsen er vurdert på nytt");
+    } catch (e: any) {
+      console.error("[job-leads] single rescore failed", e);
+      toast.error(e?.message ?? "Ny vurdering feilet");
+    } finally {
+      try {
+        await refreshJobLeadOverview();
+      } catch (e) {
+        console.warn("[job-leads] refresh after single rescore failed", e);
+      }
+      setRescoringId(null);
+    }
+  };
+
 
   const handleFetch = async () => {
     setFetching(true);
@@ -1271,6 +1346,23 @@ function JobLeadsPage() {
         </CardContent>
       </Card>
 
+      <div className="space-y-1">
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Søk på stilling eller selskap…"
+          aria-label="Søk på stilling eller selskap"
+        />
+        {isSearching && (
+          <p className="text-xs text-muted-foreground">
+            Søket viser treff fra alle annonser og ser bort fra filtrene under.{" "}
+            <button className="underline" onClick={() => setSearchQuery("")}>
+              Tøm søket
+            </button>
+          </p>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
         <Select value={sourceFilter} onValueChange={(v: any) => setSourceFilter(v)}>
           <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
@@ -1384,7 +1476,8 @@ function JobLeadsPage() {
               onOpportunity={() => updateStatus(lead, "opportunity")}
               onDismiss={() => updateStatus(lead, "dismiss")}
               onApply={() => updateStatus(lead, "apply")}
-
+              onRescore={() => handleRescoreLead(lead)}
+              rescoring={rescoringId === lead.id}
             />
           ))}
         </div>
@@ -1480,7 +1573,7 @@ function ScreeningReasonsBlock({ lead }: { lead: Lead }) {
 }
 
 function LeadCard({
-  lead, busy, onSave, onOpportunity, onDismiss, onApply,
+  lead, busy, onSave, onOpportunity, onDismiss, onApply, onRescore, rescoring,
 }: {
   lead: Lead;
   busy?: boolean;
@@ -1488,6 +1581,8 @@ function LeadCard({
   onOpportunity: () => void;
   onDismiss: () => void;
   onApply: () => void;
+  onRescore: () => void;
+  rescoring?: boolean;
 }) {
 
   const [open, setOpen] = useState(false);
@@ -1629,6 +1724,17 @@ function LeadCard({
             title="Skjuler annonsen for deg og hindrer at den dukker opp igjen."
           >
             <X className="h-4 w-4 mr-1" /> Avvis
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9"
+            disabled={busy || rescoring}
+            onClick={onRescore}
+            title="Kjører en ny vurdering av kun denne annonsen med gjeldende kriterier."
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${rescoring ? "animate-spin" : ""}`} />
+            {rescoring ? "Vurderer…" : "Vurder på nytt"}
           </Button>
           <StartApplicationButton canonicalOpportunityId={lead.canonicalOpportunityId} />
 
