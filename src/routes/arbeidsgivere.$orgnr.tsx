@@ -197,9 +197,15 @@ function DetailPage() {
 
       {/* 5. Vurderinger */}
       <section className="mt-10 space-y-8">
-        <h2 className="text-lg font-display font-semibold tracking-tight text-foreground">
-          Vurderinger
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-display font-semibold tracking-tight text-foreground">
+            Vurderinger
+          </h2>
+          {harAnalyse && envelope ? (
+            <AnalysisPdfButton envelope={envelope} />
+          ) : null}
+        </div>
+
 
         {envelopeError ? (
           <p className="text-sm text-muted-foreground">
