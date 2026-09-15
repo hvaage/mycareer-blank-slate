@@ -60,6 +60,7 @@
     "embla-carousel-react": "^8.6.0",
     "fflate": "^0.8.3",
     "input-otp": "^1.4.2",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.575.0",
     "nitro": "3.0.260603-beta",
     "pdfjs-dist": "^5.7.284",
