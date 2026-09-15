@@ -4,10 +4,7 @@
  * Brukes av både skjermvisningen (EmployerAnalysisReportV2) og PDF-eksporten,
  * slik at de to flatene alltid viser identiske tekster.
  */
-import type {
-  AiSignal,
-  AnalysisDimension,
-} from "@/lib/queries/employer-analysis-view";
+import type { AiSignal, AnalysisDimension } from "@/lib/queries/employer-analysis-view";
 
 export const DIMENSION_LABEL_FALLBACK: Record<string, string> = {
   culture: "Kultur og verdier",
@@ -104,10 +101,7 @@ export function fmtScoreOrMissing(n: number | null | undefined): string {
   return hasScore(n) ? `${fmtDimScore(n)} / 5,0` : NO_SCORE_LABEL;
 }
 
-export function fmtAmount(
-  n: number | null | undefined,
-  currency: string | null,
-): string {
+export function fmtAmount(n: number | null | undefined, currency: string | null): string {
   if (!hasScore(n)) return "—";
   const abs = Math.abs(n);
   let value: string;
@@ -153,9 +147,7 @@ export function orderedDimensions(
   });
 }
 
-export function orderedAiSignals(
-  signals: unknown,
-): Array<{ key: string; signal: AiSignal }> {
+export function orderedAiSignals(signals: unknown): Array<{ key: string; signal: AiSignal }> {
   const map = (signals ?? {}) as Record<string, AiSignal | undefined>;
   return AI_SIGNAL_ORDER.map((key) => {
     const fallbackLabel = AI_SIGNAL_LABEL_FALLBACK[key] ?? key;

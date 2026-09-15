@@ -27,10 +27,7 @@ export type ParagraphSplit = {
  * - Et avsnitt deles aldri slik at bare én linje blir igjen på en av sidene.
  * - Får færre enn to linjer plass, flyttes hele avsnittet.
  */
-export function planParagraphSplit(
-  totalLines: number,
-  maxFit: number,
-): ParagraphSplit {
+export function planParagraphSplit(totalLines: number, maxFit: number): ParagraphSplit {
   const total = Math.max(0, Math.floor(totalLines));
   const fit = Math.max(0, Math.floor(maxFit));
   if (total === 0) return { placeNow: 0, remainder: 0 };
@@ -54,7 +51,6 @@ export function headingFits(
   lineHeight: number,
   followingLines: number,
 ): boolean {
-  const required =
-    headingHeight + lineHeight * Math.min(2, Math.max(0, followingLines));
+  const required = headingHeight + lineHeight * Math.min(2, Math.max(0, followingLines));
   return available + 1e-9 >= required;
 }

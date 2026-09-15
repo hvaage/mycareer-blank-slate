@@ -5,10 +5,7 @@ import {
   headingFits,
   planParagraphSplit,
 } from "@/lib/employers/analysis-pdf-layout";
-import {
-  buildPublicReportMeta,
-  pdfFileName,
-} from "@/lib/employers/analysis-pdf";
+import { buildPublicReportMeta, pdfFileName } from "@/lib/employers/analysis-pdf";
 import {
   fmtScoreOrMissing,
   markdownToPlainText,
@@ -151,8 +148,6 @@ describe("PDF-innhold", () => {
   });
 
   it("fjerner markdown-markører fra brødtekst", () => {
-    expect(markdownToPlainText("## Tittel\n**Sterk** aktør")).toBe(
-      "Tittel\nSterk aktør",
-    );
+    expect(markdownToPlainText("## Tittel\n**Sterk** aktør")).toBe("Tittel\nSterk aktør");
   });
 });

@@ -5,11 +5,7 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   employerDetailQuery,
   employerFormaalQuery,
@@ -203,11 +199,8 @@ function DetailPage() {
           <h2 className="text-lg font-display font-semibold tracking-tight text-foreground">
             Vurderinger
           </h2>
-          {harAnalyse && envelope ? (
-            <AnalysisPdfButton envelope={envelope} />
-          ) : null}
+          {harAnalyse && envelope ? <AnalysisPdfButton envelope={envelope} /> : null}
         </div>
-
 
         {envelopeError ? (
           <p className="text-sm text-muted-foreground">
@@ -226,11 +219,7 @@ function DetailPage() {
           <p className="text-sm text-muted-foreground">Henter arbeidsgiveranalyse…</p>
         ) : harAnalyse && envelope ? (
           <div>
-            <EmployerAnalysisReportV2
-              envelope={envelope}
-              mode="public"
-              showCompanyHeader={false}
-            />
+            <EmployerAnalysisReportV2 envelope={envelope} mode="public" showCompanyHeader={false} />
             {envelope.company?.analysis_rated_at ? (
               <p className="mt-2 text-xs text-muted-foreground">
                 Analyse oppdatert{" "}
@@ -250,8 +239,6 @@ function DetailPage() {
 
         {/* Markedsinnsikt — vises kun ved bekreftet Universum-treff */}
         <MarketInsightPanel universum={envelope?.market_insights?.universum} />
-
-
 
         <div>
           <h3 className="mb-3 text-sm font-semibold text-foreground">Ansattes vurderinger</h3>

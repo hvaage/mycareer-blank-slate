@@ -22,9 +22,7 @@ export function AnalysisPdfButton({ envelope, className, size = "sm" }: Props) {
   async function handleClick() {
     setBusy(true);
     try {
-      const { downloadEmployerAnalysisPdf } = await import(
-        "@/lib/employers/analysis-pdf"
-      );
+      const { downloadEmployerAnalysisPdf } = await import("@/lib/employers/analysis-pdf");
       const filename = await downloadEmployerAnalysisPdf(envelope);
       toast.success("PDF er lastet ned", { description: filename });
     } catch (e) {
@@ -45,11 +43,7 @@ export function AnalysisPdfButton({ envelope, className, size = "sm" }: Props) {
       onClick={handleClick}
       disabled={busy}
     >
-      {busy ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Download className="h-4 w-4" />
-      )}
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
       {busy ? "Lager PDF …" : "Last ned som PDF"}
     </Button>
   );

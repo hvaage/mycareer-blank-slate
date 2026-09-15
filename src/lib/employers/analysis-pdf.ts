@@ -31,11 +31,7 @@ import {
   orderedAiSignals,
   orderedDimensions,
 } from "./analysis-labels";
-import {
-  fittingLineCount,
-  headingFits,
-  planParagraphSplit,
-} from "./analysis-pdf-layout";
+import { fittingLineCount, headingFits, planParagraphSplit } from "./analysis-pdf-layout";
 
 // ---- sidegeometri (mm, A4 portrett) ----
 
@@ -139,8 +135,7 @@ export function buildPublicReportMeta(
   now: Date = new Date(),
 ): PdfReportMeta {
   const entity = envelope.register?.entity ?? null;
-  const location =
-    [entity?.municipality, entity?.county].filter(Boolean).join(", ") || null;
+  const location = [entity?.municipality, entity?.county].filter(Boolean).join(", ") || null;
   return {
     companyName: envelope.company?.name ?? "Ukjent selskap",
     organisasjonsnummer: envelope.organisasjonsnummer,
@@ -242,9 +237,7 @@ class ReportDoc {
         lines.push("");
         continue;
       }
-      lines = lines.concat(
-        this.doc.splitTextToSize(block, width) as string[],
-      );
+      lines = lines.concat(this.doc.splitTextToSize(block, width) as string[]);
     }
 
     let remaining = lines;
@@ -524,9 +517,7 @@ function renderContent(rd: ReportDoc, envelope: EmployerAnalysisViewEnvelope) {
     rd.heading(d.label, 2, d.rationale ?? d.what_it_means ?? "Ikke nok data.");
     rd.metaLine([
       fmtScoreOrMissing(d.score),
-      d.evidence_status
-        ? (EVIDENCE_LABEL[d.evidence_status] ?? "Utilstrekkelig grunnlag")
-        : null,
+      d.evidence_status ? (EVIDENCE_LABEL[d.evidence_status] ?? "Utilstrekkelig grunnlag") : null,
     ]);
     if (d.rationale) rd.paragraph(d.rationale);
     if (d.what_it_means) {
@@ -585,11 +576,7 @@ function renderContent(rd: ReportDoc, envelope: EmployerAnalysisViewEnvelope) {
   supplementalBlock(rd, "ESG og regulatorisk profil", supp?.esg_and_regulatory ?? null);
   supplementalBlock(rd, "Trend i ansattomtaler", supp?.employee_sentiment_trend ?? null);
   supplementalBlock(rd, "Lønnssignaler", supp?.compensation_signals ?? null);
-  if (
-    !supp?.esg_and_regulatory &&
-    !supp?.employee_sentiment_trend &&
-    !supp?.compensation_signals
-  ) {
+  if (!supp?.esg_and_regulatory && !supp?.employee_sentiment_trend && !supp?.compensation_signals) {
     rd.paragraph("Utilstrekkelig grunnlag.", { color: MUTED });
   }
 
@@ -687,11 +674,7 @@ function drawFooters(doc: jsPDF, meta: PdfReportMeta) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...MUTED);
-    doc.text(
-      `${meta.companyName} · ${meta.organisasjonsnummer}`,
-      MARGIN_X,
-      PAGE_H - 10,
-    );
+    doc.text(`${meta.companyName} · ${meta.organisasjonsnummer}`, MARGIN_X, PAGE_H - 10);
     doc.text(`Side ${page} av ${total}`, PAGE_W - MARGIN_X, PAGE_H - 10, {
       align: "right",
     });
