@@ -296,8 +296,8 @@ class ReportDoc {
     if (level === 1) {
       this.doc.setDrawColor(...BLUE);
       this.doc.setLineWidth(0.6);
-      this.doc.line(MARGIN_X, this.y + 1.6, MARGIN_X + 22, this.y + 1.6);
-      this.spacer(3.4);
+      this.doc.line(MARGIN_X, this.y + 2.6, MARGIN_X + 22, this.y + 2.6);
+      this.spacer(4.2);
     } else {
       this.spacer(1.6);
     }
