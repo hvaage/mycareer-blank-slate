@@ -26,6 +26,8 @@ import { RegisterPanel } from "@/components/employers/RegisterPanel";
 import { EmployeeRatingsPanel } from "@/components/employers/EmployeeRatingsPanel";
 import { JobseekerProcessPanel } from "@/components/employers/JobseekerProcessPanel";
 import { EmployerAnalysisReportV2 } from "@/components/employers/EmployerAnalysisReportV2";
+import { AnalysisPdfButton } from "@/components/employers/AnalysisPdfButton";
+
 import { MarketInsightPanel } from "@/components/employers/MarketInsightPanel";
 
 export const Route = createFileRoute("/arbeidsgivere/$orgnr")({
