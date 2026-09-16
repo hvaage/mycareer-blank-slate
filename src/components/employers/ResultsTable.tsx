@@ -5,6 +5,7 @@ import type { EmployerSearchRow } from "@/lib/queries/employer-insight";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import { RiskBadges, DataQualityBadges, TypeBadge } from "./Badges";
 import { fmtPercent } from "./MetricTile";
 import { fmtBelop } from "@/lib/employers/okonomi";
