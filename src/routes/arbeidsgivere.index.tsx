@@ -249,6 +249,8 @@ function ArbeidsgivereIndex() {
               loading={isFetching}
               available={data?.available ?? true}
               errorMessage={data?.errorMessage ?? null}
+              timedOut={data?.timedOut ?? false}
+              onRetry={() => void refetch()}
             />
           )}
 
