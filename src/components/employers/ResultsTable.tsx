@@ -5,6 +5,7 @@ import type { EmployerSearchRow } from "@/lib/queries/employer-insight";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import { RiskBadges, DataQualityBadges, TypeBadge } from "./Badges";
 import { fmtPercent } from "./MetricTile";
 import { fmtBelop } from "@/lib/employers/okonomi";
@@ -30,11 +31,15 @@ export function ResultsTable({
   loading,
   available,
   errorMessage,
+  timedOut = false,
+  onRetry,
 }: {
   rows: EmployerSearchRow[];
   loading: boolean;
   available: boolean;
   errorMessage: string | null;
+  timedOut?: boolean;
+  onRetry?: () => void;
 }) {
   const navigate = useNavigate();
   const [kunFlagg, setKunFlagg] = useState(false);
@@ -57,7 +62,21 @@ export function ResultsTable({
     );
   }
   if (errorMessage) {
-    return <EmptyState title="Søket feilet" description={errorMessage} />;
+    return (
+      <div className="space-y-3">
+        <EmptyState
+          title={timedOut ? "Søket tok for lang tid" : "Søket feilet"}
+          description={errorMessage}
+        />
+        {onRetry ? (
+          <div className="flex justify-center">
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              Prøv igjen
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    );
   }
   if (loading && rows.length === 0) {
     return (
