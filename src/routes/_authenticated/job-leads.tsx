@@ -1758,6 +1758,17 @@ function LeadCard({
             <RefreshCw className={`h-4 w-4 mr-1 ${rescoring ? "animate-spin" : ""}`} />
             {rescoring ? "Vurderer…" : "Vurder på nytt"}
           </Button>
+          {analysisDocId && (
+            <Button asChild variant="ghost" size="sm" className="h-9">
+              <Link
+                to="/documents/$id"
+                params={{ id: analysisDocId }}
+                title="Åpner den lagrede arbeidsgiveranalysen for selskapet."
+              >
+                <FileText className="h-4 w-4 mr-1" /> Arbeidsgiveranalyse
+              </Link>
+            </Button>
+          )}
           <StartApplicationButton canonicalOpportunityId={lead.canonicalOpportunityId} />
 
           <Button
