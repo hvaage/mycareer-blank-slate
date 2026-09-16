@@ -711,14 +711,34 @@ function ScaleSlider({
           {max} = {q.scale_max_label}
         </span>
       </div>
-      <Slider
-        className="mt-4"
-        min={min}
-        max={max}
-        step={1}
-        value={[current]}
-        onValueChange={(v) => onValueChange(v[0] ?? mid)}
-      />
+      {/* Berøring av bryteren regnes som svar, også når respondenten
+          beholder midtverdien (Radix sender ingen hendelse da). */}
+      <div
+        onPointerDown={() => {
+          if (value === null) onValueChange(mid);
+        }}
+        onKeyDown={() => {
+          if (value === null) onValueChange(mid);
+        }}
+      >
+        <Slider
+          className="mt-4"
+          min={min}
+          max={max}
+          step={1}
+          value={[current]}
+          onValueChange={(v) => onValueChange(v[0] ?? mid)}
+        />
+      </div>
+      {value === null ? (
+        <button
+          type="button"
+          className="mt-3 text-sm underline underline-offset-4 text-muted-foreground hover:text-foreground"
+          onClick={() => onValueChange(mid)}
+        >
+          Behold midtverdien ({mid})
+        </button>
+      ) : null}
       <div className="mt-5 rounded-md border border-rule bg-muted/30 p-4 text-center">
         {value === null ? (
           <p className="text-sm leading-snug text-muted-foreground">
