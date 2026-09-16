@@ -55,6 +55,24 @@ export function employerAnalysisDocCompanyName(doc: {
   return m || "";
 }
 
+/**
+ * Normaliserer selskapsnavn for navnebasert kobling: små bokstaver, uten
+ * punktsetting, og uten selskapsform-suffiks (AS, ASA, ANS, DA, NUF, ENK,
+ * KS, SA, STI, IKS). «SOPRA STERIA AS» og «Sopra Steria» skal treffe samme nøkkel.
+ */
+export function normalizeEmployerName(name: string | null | undefined): string {
+  if (!name) return "";
+  const stripped = String(name)
+    .toLowerCase()
+    .replace(/[.,;:]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/(?:^|\s)(as|asa|ans|da|nuf|enk|ks|sa|sti|iks|ba|sf|kf)$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return stripped;
+}
+
 function orFilterForNames(names: string[]) {
   return names
     .filter((n) => n && !n.includes('"'))

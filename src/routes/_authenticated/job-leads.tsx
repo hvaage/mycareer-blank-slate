@@ -331,7 +331,7 @@ function JobLeadsPage() {
   const analysisDocByCompany = useMemo(() => {
     const m = new Map<string, string>();
     for (const link of Object.values(analysisDocLinks ?? {})) {
-      const key = link.companyName.trim().toLowerCase();
+      const key = normalizeEmployerName(link.companyName);
       if (!key) continue;
       // Flere dokumenter med samme navn: behold det første, vis én lenke.
       if (!m.has(key)) m.set(key, link.documentId);
