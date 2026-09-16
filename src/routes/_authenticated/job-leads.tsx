@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { StartApplicationButton } from "@/components/network/start-application-button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -45,6 +45,7 @@ import {
   CompanyMatchDialog,
   type PendingCompanyMatch,
 } from "@/components/job-leads/company-match-dialog";
+import { employerAnalysisDocLinksQuery } from "@/lib/queries/employer-analysis-docs";
 
 export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
@@ -322,6 +323,21 @@ function JobLeadsPage() {
       return data ?? [];
     },
   });
+
+  // Lagrede arbeidsgiveranalyser — navnebasert, eksakt treff gir lenke på kortet.
+  const { data: analysisDocLinks } = useQuery(employerAnalysisDocLinksQuery());
+
+  /** selskapsnavn (små bokstaver) → dokument-id. Kun ett trygt treff per navn. */
+  const analysisDocByCompany = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const link of Object.values(analysisDocLinks ?? {})) {
+      const key = link.companyName.trim().toLowerCase();
+      if (!key) continue;
+      // Flere dokumenter med samme navn: behold det første, vis én lenke.
+      if (!m.has(key)) m.set(key, link.documentId);
+    }
+    return m;
+  }, [analysisDocLinks]);
 
   // LinkedIn-leads (uendret)
   const { data: linkedinLeads, isLoading: loadingLI } = useQuery({
@@ -1478,6 +1494,11 @@ function JobLeadsPage() {
               onApply={() => updateStatus(lead, "apply")}
               onRescore={() => handleRescoreLead(lead)}
               rescoring={rescoringId === lead.id}
+              analysisDocId={
+                lead.company
+                  ? analysisDocByCompany.get(lead.company.trim().toLowerCase()) ?? null
+                  : null
+              }
             />
           ))}
         </div>
@@ -1573,7 +1594,7 @@ function ScreeningReasonsBlock({ lead }: { lead: Lead }) {
 }
 
 function LeadCard({
-  lead, busy, onSave, onOpportunity, onDismiss, onApply, onRescore, rescoring,
+  lead, busy, onSave, onOpportunity, onDismiss, onApply, onRescore, rescoring, analysisDocId,
 }: {
   lead: Lead;
   busy?: boolean;
@@ -1583,6 +1604,7 @@ function LeadCard({
   onApply: () => void;
   onRescore: () => void;
   rescoring?: boolean;
+  analysisDocId?: string | null;
 }) {
 
   const [open, setOpen] = useState(false);
