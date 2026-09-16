@@ -30,11 +30,15 @@ export function ResultsTable({
   loading,
   available,
   errorMessage,
+  timedOut = false,
+  onRetry,
 }: {
   rows: EmployerSearchRow[];
   loading: boolean;
   available: boolean;
   errorMessage: string | null;
+  timedOut?: boolean;
+  onRetry?: () => void;
 }) {
   const navigate = useNavigate();
   const [kunFlagg, setKunFlagg] = useState(false);
