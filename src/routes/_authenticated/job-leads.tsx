@@ -1496,7 +1496,7 @@ function JobLeadsPage() {
               rescoring={rescoringId === lead.id}
               analysisDocId={
                 lead.company
-                  ? analysisDocByCompany.get(lead.company.trim().toLowerCase()) ?? null
+                  ? (analysisDocByCompany.get(lead.company.trim().toLowerCase()) ?? null)
                   : null
               }
             />
