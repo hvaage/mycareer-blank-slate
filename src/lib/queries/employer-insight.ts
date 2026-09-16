@@ -253,20 +253,24 @@ export async function searchEmployers(filters: EmployerSearchFilters): Promise<E
   delete countParams.p_limit;
   delete countParams.p_offset;
 
-  const [{ data, error }, countRes] = await Promise.all([
-    sb.rpc("search_employers", params),
-    sb.rpc("count_employers", countParams),
-  ]);
+  // Trefflisten først, tellingen etterpå: tre tunge spørringer samtidig gjorde
+  // at hver av dem hadde mindre tid før databasen avbrøt dem.
+  const { data, error } = await sb.rpc("search_employers", params);
 
   if (error) {
     if (isMissingRpcOrView(error)) {
       // eslint-disable-next-line no-console
       console.warn("[employer-insight] search_employers ikke tilgjengelig:", error);
-      return { rows: [], totalCount: null, totalIsEstimate: false, totalIsCapped: false, emptyReason: null, available: false, errorMessage: null };
+      return { rows: [], totalCount: null, totalIsEstimate: false, totalIsCapped: false, emptyReason: null, available: false, errorMessage: null, timedOut: false };
     }
-    const msg = (error as { message?: string }).message ?? "Ukjent feil";
-    return { rows: [], totalCount: null, totalIsEstimate: false, totalIsCapped: false, emptyReason: null, available: true, errorMessage: msg };
+    const timedOut = isStatementTimeout(error);
+    const msg = timedOut
+      ? SEARCH_TIMEOUT_MESSAGE
+      : ((error as { message?: string }).message ?? "Ukjent feil");
+    return { rows: [], totalCount: null, totalIsEstimate: false, totalIsCapped: false, emptyReason: null, available: true, errorMessage: msg, timedOut };
   }
+
+  const countRes = await sb.rpc("count_employers", countParams);
 
   const arr = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
 
