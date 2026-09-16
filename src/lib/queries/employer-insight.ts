@@ -75,7 +75,20 @@ export type EmployerSearchResult = {
   emptyReason: string | null;
   available: boolean;
   errorMessage: string | null;
+  /** true = databasen avbrøt søket fordi det tok for lang tid. */
+  timedOut: boolean;
 };
+
+/** Postgres avbryter for trege spørringer med SQLSTATE 57014. */
+export function isStatementTimeout(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: string; message?: string };
+  if (e.code === "57014") return true;
+  return (e.message ?? "").toLowerCase().includes("statement timeout");
+}
+
+export const SEARCH_TIMEOUT_MESSAGE =
+  "Søket tok for lang tid og ble avbrutt. Prøv et mer spesifikt søkeord eller legg til et filter.";
 
 
 
