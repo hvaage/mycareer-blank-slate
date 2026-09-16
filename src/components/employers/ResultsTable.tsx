@@ -61,7 +61,21 @@ export function ResultsTable({
     );
   }
   if (errorMessage) {
-    return <EmptyState title="Søket feilet" description={errorMessage} />;
+    return (
+      <div className="space-y-3">
+        <EmptyState
+          title={timedOut ? "Søket tok for lang tid" : "Søket feilet"}
+          description={errorMessage}
+        />
+        {onRetry ? (
+          <div className="flex justify-center">
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              Prøv igjen
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    );
   }
   if (loading && rows.length === 0) {
     return (
