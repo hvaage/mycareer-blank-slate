@@ -981,7 +981,10 @@ async function syncEmployerArtifactDocument(
     return;
   }
 
+  const newDocumentId = crypto.randomUUID();
   const { data: ins, error } = await supabase.from("documents").insert({
+    id: newDocumentId,
+    document_group_id: newDocumentId,
     user_id: opts.userId,
     title,
     document_type: "annet",
