@@ -297,7 +297,7 @@ export async function searchEmployers(filters: EmployerSearchFilters): Promise<E
     emptyReason,
     available: true,
     errorMessage: null,
-
+    timedOut: false,
   };
 }
 
