@@ -45,7 +45,10 @@ import {
   CompanyMatchDialog,
   type PendingCompanyMatch,
 } from "@/components/job-leads/company-match-dialog";
-import { employerAnalysisDocLinksQuery } from "@/lib/queries/employer-analysis-docs";
+import {
+  employerAnalysisDocLinksQuery,
+  normalizeEmployerName,
+} from "@/lib/queries/employer-analysis-docs";
 
 export const Route = createFileRoute("/_authenticated/job-leads")({
   component: JobLeadsPage,
@@ -1496,7 +1499,7 @@ function JobLeadsPage() {
               rescoring={rescoringId === lead.id}
               analysisDocId={
                 lead.company
-                  ? (analysisDocByCompany.get(lead.company.trim().toLowerCase()) ?? null)
+                  ? (analysisDocByCompany.get(normalizeEmployerName(lead.company)) ?? null)
                   : null
               }
             />
