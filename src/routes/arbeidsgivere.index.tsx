@@ -119,12 +119,14 @@ function ArbeidsgivereIndex() {
     [search],
   );
 
-  const { data, isFetching } = useQuery(searchEmployersQuery(filters));
+  const { data, isFetching, refetch } = useQuery(searchEmployersQuery(filters));
   const ansatteFilterAktivt =
     typeof search.ansatteMin === "number" || typeof search.ansatteMaks === "number";
+  // Fordelingen er tyngre enn trefflisten; den starter først når trefflisten er
+  // ferdig, slik at de ikke konkurrerer om databasetiden.
   const { data: ansatteFordeling, isFetching: fordelingLaster } = useQuery({
     ...ansatteFordelingQuery(filters),
-    enabled: sokErAktivt(filters),
+    enabled: sokErAktivt(filters) && !isFetching && !data?.timedOut,
   });
 
   const update = (patch: Partial<SearchState>) => {
