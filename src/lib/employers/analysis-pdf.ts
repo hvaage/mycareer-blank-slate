@@ -303,15 +303,16 @@ class ReportDoc {
       if (!clean) continue;
       // Kulepunktet og første tekstlinje holdes alltid sammen.
       const lh = this.lineHeight(size, 1.4);
-      this.ensure(lh * 1.2);
+      // To linjer sikrer at avsnittet aldri starter med et sideskift, slik at
+      // kulepunktet havner på samme side og linje som første tekstlinje.
+      this.ensure(lh * 2.2);
       const startY = this.y;
       this.paragraph(clean, { size, indent: 5, gapAfter: 1 });
       this.doc.setFont("helvetica", "normal");
       this.doc.setFontSize(size);
       this.doc.setTextColor(...BLUE);
       // Punktet tegnes ved første linje i avsnittet (samme side som teksten).
-      const bulletY = this.y > startY ? startY + lh : this.y;
-      this.doc.text("•", MARGIN_X + 0.5, bulletY);
+      this.doc.text("•", MARGIN_X + 0.5, startY + lh);
       this.doc.setTextColor(...INK);
     }
   }

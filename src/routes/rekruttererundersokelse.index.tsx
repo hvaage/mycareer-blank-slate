@@ -717,8 +717,20 @@ function ScaleSlider({
         onPointerDown={() => {
           if (value === null) onValueChange(mid);
         }}
-        onKeyDown={() => {
-          if (value === null) onValueChange(mid);
+        onKeyDown={(event) => {
+          // Kun taster som faktisk betjener bryteren regnes som svar.
+          // Tab/Shift+Tab/Enter skal aldri registrere midtverdien.
+          const keys = [
+            "ArrowLeft",
+            "ArrowRight",
+            "ArrowUp",
+            "ArrowDown",
+            "Home",
+            "End",
+            "PageUp",
+            "PageDown",
+          ];
+          if (value === null && keys.includes(event.key)) onValueChange(mid);
         }}
       >
         <Slider
