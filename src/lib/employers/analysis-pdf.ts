@@ -531,7 +531,11 @@ function renderPersonalSections(
     const agg = personal.reviews?.aggregate ?? null;
     rd.heading("Vurderinger av selskapet", 1, "Vurderinger lagret av brukere i Karrierenmin.");
 
-    rd.heading("Min egen vurdering", 2, mine ? "Dine lagrede vurderinger." : "Ingen lagret vurdering.");
+    rd.heading(
+      "Min egen vurdering",
+      2,
+      mine ? "Dine lagrede vurderinger." : "Ingen lagret vurdering.",
+    );
     if (mine && mine.items.some((i) => typeof i.value === "number")) {
       for (const item of mine.items) rd.scoreBar(item.label, item.value);
       const flags = (mine.flags ?? []).filter((f) => f.trim().length > 0);

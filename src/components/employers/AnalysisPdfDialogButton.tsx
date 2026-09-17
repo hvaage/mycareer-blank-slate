@@ -156,9 +156,7 @@ export function AnalysisPdfDialogButton({ envelope, myRating, company, className
               className="mt-0.5"
             />
             <span className="space-y-1">
-              <Label className="cursor-pointer">
-                Ta med «Hva dette betyr for en jobbsøker»
-              </Label>
+              <Label className="cursor-pointer">Ta med «Hva dette betyr for en jobbsøker»</Label>
               <p className="text-xs text-muted-foreground">
                 Den generelle jobbsøkervinklingen under hver dimensjon.
               </p>
