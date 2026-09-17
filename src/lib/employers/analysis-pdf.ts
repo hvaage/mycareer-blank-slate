@@ -526,9 +526,6 @@ function renderPersonalSections(
   options: PdfExportOptions,
   personal: PdfPersonalData,
 ) {
-  const fmtStars = (v: number | null | undefined) =>
-    typeof v === "number" && !Number.isNaN(v) ? `${nbScore1.format(v)} / 5,0` : "Ikke vurdert";
-
   if (options.includeUserReviews) {
     const mine = personal.reviews?.mine ?? null;
     const agg = personal.reviews?.aggregate ?? null;
@@ -576,7 +573,7 @@ function renderPersonalSections(
       });
     } else {
       if (fit.state === "rated") {
-        rd.factGrid([{ label: "Kandidatmatch (deg)", value: fmtStars(fit.score) }]);
+        rd.factGrid([{ label: "Kandidatmatch (deg)", value: fmtScoreOrMissing(fit.score) }]);
       } else if (fit.state === "unavailable") {
         rd.paragraph("Kandidatmatch kan ikke vurderes med dagens profilgrunnlag.", {
           size: 9,
