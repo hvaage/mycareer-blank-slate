@@ -130,6 +130,50 @@ export type PdfReportMeta = {
   generatedAt: Date;
 };
 
+/**
+ * Valgbare deler av rapporten. Standard er den offentlige rapporten:
+ * jobbsøkerperspektivet er med, mens brukervurderinger og personlig match
+ * aldri tas med uten at innlogget bruker aktivt har valgt det.
+ */
+export type PdfExportOptions = {
+  /** «Hva dette betyr for en jobbsøker» under hver dimensjon. */
+  includeJobseekerMeaning: boolean;
+  /** Brukervurderinger: min egen vurdering og brukersnittet. */
+  includeUserReviews: boolean;
+  /** «Hvordan dette selskapet passer meg som ansatt» (kandidatmatch). */
+  includePersonalFit: boolean;
+};
+
+export const DEFAULT_PDF_EXPORT_OPTIONS: PdfExportOptions = {
+  includeJobseekerMeaning: true,
+  includeUserReviews: false,
+  includePersonalFit: false,
+};
+
+export type PdfUserReviews = {
+  mine?: {
+    items: Array<{ label: string; value: number | null }>;
+    notes?: string | null;
+    flags?: string[];
+  } | null;
+  aggregate?: {
+    count: number;
+    items: Array<{ label: string; value: number | null }>;
+  } | null;
+};
+
+export type PdfPersonalFit = {
+  state: "rated" | "unavailable" | "partial" | "none";
+  score?: number | null;
+  reasoning?: string | null;
+  scenarioNotes?: string[];
+};
+
+export type PdfPersonalData = {
+  reviews?: PdfUserReviews | null;
+  fit?: PdfPersonalFit | null;
+};
+
 export function buildPublicReportMeta(
   envelope: EmployerAnalysisViewEnvelope,
   now: Date = new Date(),
