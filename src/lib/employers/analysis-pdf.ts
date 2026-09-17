@@ -130,6 +130,50 @@ export type PdfReportMeta = {
   generatedAt: Date;
 };
 
+/**
+ * Valgbare deler av rapporten. Standard er den offentlige rapporten:
+ * jobbsøkerperspektivet er med, mens brukervurderinger og personlig match
+ * aldri tas med uten at innlogget bruker aktivt har valgt det.
+ */
+export type PdfExportOptions = {
+  /** «Hva dette betyr for en jobbsøker» under hver dimensjon. */
+  includeJobseekerMeaning: boolean;
+  /** Brukervurderinger: min egen vurdering og brukersnittet. */
+  includeUserReviews: boolean;
+  /** «Hvordan dette selskapet passer meg som ansatt» (kandidatmatch). */
+  includePersonalFit: boolean;
+};
+
+export const DEFAULT_PDF_EXPORT_OPTIONS: PdfExportOptions = {
+  includeJobseekerMeaning: true,
+  includeUserReviews: false,
+  includePersonalFit: false,
+};
+
+export type PdfUserReviews = {
+  mine?: {
+    items: Array<{ label: string; value: number | null }>;
+    notes?: string | null;
+    flags?: string[];
+  } | null;
+  aggregate?: {
+    count: number;
+    items: Array<{ label: string; value: number | null }>;
+  } | null;
+};
+
+export type PdfPersonalFit = {
+  state: "rated" | "unavailable" | "partial" | "none";
+  score?: number | null;
+  reasoning?: string | null;
+  scenarioNotes?: string[];
+};
+
+export type PdfPersonalData = {
+  reviews?: PdfUserReviews | null;
+  fit?: PdfPersonalFit | null;
+};
+
 export function buildPublicReportMeta(
   envelope: EmployerAnalysisViewEnvelope,
   now: Date = new Date(),
@@ -262,7 +306,12 @@ class ReportDoc {
   }
 
   /** Overskrift som aldri blir stående alene nederst på en side. */
-  heading(text: string, level: 1 | 2 | 3, followingText?: string | null) {
+  heading(
+    text: string,
+    level: 1 | 2 | 3,
+    followingText?: string | null,
+    opts: { reserveLines?: number } = {},
+  ) {
     const size = level === 1 ? 14 : level === 2 ? 11.5 : 10.5;
     const gapBefore = level === 1 ? 6 : level === 2 ? 4 : 3;
     const headingHeight = this.lineHeight(size, 1.5) + gapBefore;
@@ -275,7 +324,15 @@ class ReportDoc {
       ? (this.doc.splitTextToSize(followingText, CONTENT_W) as string[]).length
       : 2;
 
-    if (!headingFits(this.available, headingHeight, bodyLh, followingLines)) {
+    // Kulepunkt reserverer 2,2 linjer per punkt, og enkelte seksjoner starter
+    // med blokker som er høyere enn to tekstlinjer. `reserveLines` lar oss be
+    // om nok plass, slik at overskriften aldri blir stående alene nederst.
+    const fits =
+      opts.reserveLines !== undefined
+        ? this.available + 1e-9 >= headingHeight + bodyLh * 1.15 * opts.reserveLines
+        : headingFits(this.available, headingHeight, bodyLh * 1.15, followingLines);
+
+    if (!fits) {
       this.newPage();
     } else {
       this.spacer(gapBefore);
@@ -383,7 +440,7 @@ class ReportDoc {
 
 // ---- forside ----
 
-function drawCover(doc: jsPDF, meta: PdfReportMeta) {
+function drawCover(doc: jsPDF, meta: PdfReportMeta, hasPersonalContent: boolean) {
   drawLogoMark(doc, MARGIN_X, 38, 26);
   drawWordmark(doc, MARGIN_X + 32, 61, 26);
 
@@ -434,8 +491,12 @@ function drawCover(doc: jsPDF, meta: PdfReportMeta) {
   doc.setFontSize(8.5);
   doc.setTextColor(...MUTED);
   const foot = doc.splitTextToSize(
-    "Rapporten er utarbeidet av karrierenmin.no på grunnlag av offentlig tilgjengelig informasjon. " +
-      "Den inneholder ingen personlige vurderinger eller brukerdata.",
+    hasPersonalContent
+      ? "Rapporten er utarbeidet av karrierenmin.no på grunnlag av offentlig tilgjengelig informasjon. " +
+          "Denne versjonen inneholder i tillegg dine egne vurderinger og/eller din personlige match, " +
+          "og bør derfor ikke deles videre."
+      : "Rapporten er utarbeidet av karrierenmin.no på grunnlag av offentlig tilgjengelig informasjon. " +
+          "Den inneholder ingen personlige vurderinger eller brukerdata.",
     CONTENT_W,
   ) as string[];
   let fy = 257;
@@ -473,7 +534,87 @@ function supplementalBlock(
   }
 }
 
-function renderContent(rd: ReportDoc, envelope: EmployerAnalysisViewEnvelope) {
+function renderPersonalSections(
+  rd: ReportDoc,
+  options: PdfExportOptions,
+  personal: PdfPersonalData,
+) {
+  if (options.includeUserReviews) {
+    const mine = personal.reviews?.mine ?? null;
+    const agg = personal.reviews?.aggregate ?? null;
+    rd.heading("Vurderinger av selskapet", 1, null, { reserveLines: 6 });
+
+    rd.heading("Min egen vurdering", 2, null, { reserveLines: 4 });
+    if (mine && mine.items.some((i) => typeof i.value === "number")) {
+      for (const item of mine.items) rd.scoreBar(item.label, item.value);
+      const flags = (mine.flags ?? []).filter((f) => f.trim().length > 0);
+      if (flags.length > 0) {
+        rd.spacer(2);
+        rd.paragraph(`Erfaringsgrunnlag: ${flags.join(", ")}.`, { size: 9, color: MUTED });
+      }
+      if (mine.notes && mine.notes.trim()) {
+        rd.heading("Mine notater", 3, mine.notes);
+        rd.paragraph(mine.notes);
+      }
+    } else {
+      rd.paragraph("Du har ikke lagret en egen vurdering av dette selskapet.", { color: MUTED });
+    }
+
+    rd.heading("Brukersnitt", 2, null, { reserveLines: 4 });
+    if (agg && agg.count > 0) {
+      for (const item of agg.items) rd.scoreBar(item.label, item.value);
+      rd.spacer(2);
+      rd.paragraph(
+        `Basert på ${nbInt.format(agg.count)} ${agg.count === 1 ? "vurdering" : "vurderinger"} fra brukere.`,
+        { size: 9, color: MUTED },
+      );
+    } else {
+      rd.paragraph("Ingen brukere har lagret vurdering av dette selskapet ennå.", { color: MUTED });
+    }
+  }
+
+  if (options.includePersonalFit) {
+    const fit = personal.fit ?? null;
+    rd.heading("Hvordan dette selskapet passer meg som ansatt", 1, null, { reserveLines: 5 });
+    if (!fit || fit.state === "none") {
+      rd.paragraph("Din personlige match for dette selskapet er ikke beregnet ennå.", {
+        color: MUTED,
+      });
+    } else {
+      if (fit.state === "rated") {
+        rd.factGrid([{ label: "Kandidatmatch (deg)", value: fmtScoreOrMissing(fit.score) }]);
+      } else if (fit.state === "unavailable") {
+        rd.paragraph("Kandidatmatch kan ikke vurderes med dagens profilgrunnlag.", {
+          size: 9,
+          color: MUTED,
+        });
+      } else {
+        rd.paragraph("Kandidatmatch er ikke fullført som tallscore.", { size: 9, color: MUTED });
+      }
+      const reasoning = markdownToPlainText(fit.reasoning);
+      if (reasoning) {
+        rd.heading("Begrunnelse", 3, reasoning);
+        rd.paragraph(reasoning);
+      }
+      const notes = (fit.scenarioNotes ?? []).filter((n) => n.trim().length > 0);
+      if (notes.length > 0) {
+        rd.heading("Scenarienotater for deg", 3, null, { reserveLines: 2 });
+        rd.bullets(notes);
+      }
+    }
+    rd.paragraph(
+      "Denne delen bygger på din egen profil og dine lagrede vurderinger. Del rapporten med omhu.",
+      { size: 8.5, color: MUTED },
+    );
+  }
+}
+
+function renderContent(
+  rd: ReportDoc,
+  envelope: EmployerAnalysisViewEnvelope,
+  options: PdfExportOptions,
+  personal: PdfPersonalData,
+) {
   const analysis = envelope.analysis as EmployerAnalysisV2;
   const publicWeighting = envelope.weighting?.public ?? null;
   const financials = envelope.financials ?? null;
@@ -482,7 +623,7 @@ function renderContent(rd: ReportDoc, envelope: EmployerAnalysisViewEnvelope) {
   const findings = (analysis.key_findings ?? []).filter(
     (f): f is string => typeof f === "string" && f.trim().length > 0,
   );
-  rd.heading("Hovedfunn", 1, findings[0] ?? analysis.executive_summary ?? null);
+  rd.heading("Hovedfunn", 1, analysis.executive_summary ?? null, { reserveLines: 2 });
   if (findings.length > 0) rd.bullets(findings);
   const summary = markdownToPlainText(analysis.executive_summary);
   if (summary) {
@@ -521,7 +662,7 @@ function renderContent(rd: ReportDoc, envelope: EmployerAnalysisViewEnvelope) {
       d.evidence_status ? (EVIDENCE_LABEL[d.evidence_status] ?? "Utilstrekkelig grunnlag") : null,
     ]);
     if (d.rationale) rd.paragraph(d.rationale);
-    if (d.what_it_means) {
+    if (d.what_it_means && options.includeJobseekerMeaning) {
       rd.paragraph("Hva dette betyr for en jobbsøker", {
         size: 8.5,
         style: "bold",
@@ -530,7 +671,7 @@ function renderContent(rd: ReportDoc, envelope: EmployerAnalysisViewEnvelope) {
       });
       rd.paragraph(d.what_it_means);
     }
-    if (!d.rationale && !d.what_it_means) {
+    if (!d.rationale && !(d.what_it_means && options.includeJobseekerMeaning)) {
       rd.paragraph("Utilstrekkelig grunnlag for denne dimensjonen.", {
         color: MUTED,
       });
@@ -627,7 +768,7 @@ function renderContent(rd: ReportDoc, envelope: EmployerAnalysisViewEnvelope) {
       )
       .filter((t) => t.trim().length > 0);
     if (evidenceItems.length > 0) {
-      rd.heading("Sentral evidens", 3, evidenceItems[0]);
+      rd.heading("Sentral evidens", 3, null, { reserveLines: 2 });
       rd.bullets(evidenceItems);
     }
   }
@@ -638,6 +779,9 @@ function renderContent(rd: ReportDoc, envelope: EmployerAnalysisViewEnvelope) {
     rd.heading("Helhetsvurdering", 1, overall);
     rd.paragraph(overall);
   }
+
+  // 7b. Personlige deler (kun når brukeren har valgt dem)
+  renderPersonalSections(rd, options, personal);
 
   // 8. Kilder
   const sources = analysis.sources ?? [];
@@ -686,8 +830,15 @@ function drawFooters(doc: jsPDF, meta: PdfReportMeta) {
 /** Bygger hele PDF-dokumentet. Krever en nettleser- eller Node-kjøring med jsPDF. */
 export async function buildEmployerAnalysisPdf(
   envelope: EmployerAnalysisViewEnvelope,
-  now: Date = new Date(),
+  opts: {
+    options?: Partial<PdfExportOptions>;
+    personal?: PdfPersonalData;
+    now?: Date;
+  } = {},
 ): Promise<{ doc: jsPDF; meta: PdfReportMeta }> {
+  const options: PdfExportOptions = { ...DEFAULT_PDF_EXPORT_OPTIONS, ...(opts.options ?? {}) };
+  const personal: PdfPersonalData = opts.personal ?? {};
+  const now = opts.now ?? new Date();
   if (!envelope.analysis) {
     throw new Error("Ingen analyse å eksportere for dette selskapet.");
   }
@@ -702,11 +853,11 @@ export async function buildEmployerAnalysisPdf(
     creator: "karrierenmin.no",
   });
 
-  drawCover(doc, meta);
+  drawCover(doc, meta, options.includeUserReviews || options.includePersonalFit);
 
   const rd = new ReportDoc(doc, meta);
   rd.newPage();
-  renderContent(rd, envelope);
+  renderContent(rd, envelope, options, personal);
   drawFooters(doc, meta);
 
   return { doc, meta };
@@ -715,8 +866,9 @@ export async function buildEmployerAnalysisPdf(
 /** Bygger og laster ned rapporten i nettleseren. */
 export async function downloadEmployerAnalysisPdf(
   envelope: EmployerAnalysisViewEnvelope,
+  opts: { options?: Partial<PdfExportOptions>; personal?: PdfPersonalData } = {},
 ): Promise<string> {
-  const { doc, meta } = await buildEmployerAnalysisPdf(envelope);
+  const { doc, meta } = await buildEmployerAnalysisPdf(envelope, opts);
   const filename = pdfFileName(meta);
   doc.save(filename);
   return filename;

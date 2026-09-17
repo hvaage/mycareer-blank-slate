@@ -27,6 +27,7 @@ import { fmtDateTime } from "@/lib/format";
 import { normalizeAiErrorMessage, AI_UX_RATE_LIMIT } from "@/lib/ai-ux-messages";
 
 import { EmployerAnalysisReportV2 } from "@/components/employers/EmployerAnalysisReportV2";
+import { AnalysisPdfDialogButton } from "@/components/employers/AnalysisPdfDialogButton";
 import { MarketInsightPanel } from "@/components/employers/MarketInsightPanel";
 import { EmployerCandidateMatch } from "@/components/employers/EmployerCandidateMatch";
 import { EmployerCommonReview } from "@/components/employers/EmployerCommonReview";
@@ -303,6 +304,13 @@ function CompanyDetailPage() {
             </>
           )}
         </Button>
+        {hasAnalysis && envelope ? (
+          <AnalysisPdfDialogButton
+            envelope={envelope}
+            myRating={myRating}
+            company={company as unknown as Record<string, unknown>}
+          />
+        ) : null}
       </div>
 
       {jobFailed && (
