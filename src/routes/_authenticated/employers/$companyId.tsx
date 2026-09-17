@@ -303,6 +303,13 @@ function CompanyDetailPage() {
             </>
           )}
         </Button>
+        {hasAnalysis && envelope ? (
+          <AnalysisPdfDialogButton
+            envelope={envelope}
+            myRating={myRating}
+            company={company as unknown as Record<string, unknown>}
+          />
+        ) : null}
       </div>
 
       {jobFailed && (
