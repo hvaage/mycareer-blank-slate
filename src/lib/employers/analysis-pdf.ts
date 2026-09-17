@@ -595,7 +595,7 @@ function renderPersonalSections(
       }
       const notes = (fit.scenarioNotes ?? []).filter((n) => n.trim().length > 0);
       if (notes.length > 0) {
-        rd.heading("Scenarienotater for deg", 3, notes[0]);
+        rd.heading("Scenarienotater for deg", 3, notes.join(" "));
         rd.bullets(notes);
       }
     }
@@ -620,7 +620,11 @@ function renderContent(
   const findings = (analysis.key_findings ?? []).filter(
     (f): f is string => typeof f === "string" && f.trim().length > 0,
   );
-  rd.heading("Hovedfunn", 1, findings[0] ?? analysis.executive_summary ?? null);
+  rd.heading(
+    "Hovedfunn",
+    1,
+    findings.length > 0 ? findings.join(" ") : (analysis.executive_summary ?? null),
+  );
   if (findings.length > 0) rd.bullets(findings);
   const summary = markdownToPlainText(analysis.executive_summary);
   if (summary) {
@@ -765,7 +769,7 @@ function renderContent(
       )
       .filter((t) => t.trim().length > 0);
     if (evidenceItems.length > 0) {
-      rd.heading("Sentral evidens", 3, evidenceItems[0]);
+      rd.heading("Sentral evidens", 3, evidenceItems.join(" "));
       rd.bullets(evidenceItems);
     }
   }
