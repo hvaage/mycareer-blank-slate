@@ -319,7 +319,9 @@ class ReportDoc {
       ? (this.doc.splitTextToSize(followingText, CONTENT_W) as string[]).length
       : 2;
 
-    if (!headingFits(this.available, headingHeight, bodyLh, followingLines)) {
+    // 1.15 gir litt slakk, slik at også kulepunktlister (som reserverer
+    // 2,2 linjer per punkt) får plass etter overskriften på samme side.
+    if (!headingFits(this.available, headingHeight, bodyLh * 1.15, followingLines)) {
       this.newPage();
     } else {
       this.spacer(gapBefore);
