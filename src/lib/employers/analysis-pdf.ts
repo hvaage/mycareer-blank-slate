@@ -306,7 +306,12 @@ class ReportDoc {
   }
 
   /** Overskrift som aldri blir stående alene nederst på en side. */
-  heading(text: string, level: 1 | 2 | 3, followingText?: string | null) {
+  heading(
+    text: string,
+    level: 1 | 2 | 3,
+    followingText?: string | null,
+    opts: { reserveLines?: number } = {},
+  ) {
     const size = level === 1 ? 14 : level === 2 ? 11.5 : 10.5;
     const gapBefore = level === 1 ? 6 : level === 2 ? 4 : 3;
     const headingHeight = this.lineHeight(size, 1.5) + gapBefore;
@@ -315,12 +320,14 @@ class ReportDoc {
 
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(bodySize);
-    const followingLines = followingText
-      ? (this.doc.splitTextToSize(followingText, CONTENT_W) as string[]).length
-      : 2;
+    const followingLines =
+      opts.reserveLines ??
+      (followingText
+        ? (this.doc.splitTextToSize(followingText, CONTENT_W) as string[]).length
+        : 2);
 
-    // 1.15 gir litt slakk, slik at også kulepunktlister (som reserverer
-    // 2,2 linjer per punkt) får plass etter overskriften på samme side.
+    // Kulepunkt reserverer 2,2 linjer per punkt; litt slakk hindrer at en
+    // overskrift blir stående alene nederst på siden.
     if (!headingFits(this.available, headingHeight, bodyLh * 1.15, followingLines)) {
       this.newPage();
     } else {
@@ -595,7 +602,7 @@ function renderPersonalSections(
       }
       const notes = (fit.scenarioNotes ?? []).filter((n) => n.trim().length > 0);
       if (notes.length > 0) {
-        rd.heading("Scenarienotater for deg", 3, notes.join(" "));
+        rd.heading("Scenarienotater for deg", 3, null, { reserveLines: 2 });
         rd.bullets(notes);
       }
     }
@@ -620,11 +627,7 @@ function renderContent(
   const findings = (analysis.key_findings ?? []).filter(
     (f): f is string => typeof f === "string" && f.trim().length > 0,
   );
-  rd.heading(
-    "Hovedfunn",
-    1,
-    findings.length > 0 ? findings.join(" ") : (analysis.executive_summary ?? null),
-  );
+  rd.heading("Hovedfunn", 1, analysis.executive_summary ?? null, { reserveLines: 2 });
   if (findings.length > 0) rd.bullets(findings);
   const summary = markdownToPlainText(analysis.executive_summary);
   if (summary) {
@@ -769,7 +772,7 @@ function renderContent(
       )
       .filter((t) => t.trim().length > 0);
     if (evidenceItems.length > 0) {
-      rd.heading("Sentral evidens", 3, evidenceItems.join(" "));
+      rd.heading("Sentral evidens", 3, null, { reserveLines: 2 });
       rd.bullets(evidenceItems);
     }
   }
