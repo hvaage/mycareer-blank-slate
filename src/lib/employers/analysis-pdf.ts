@@ -538,13 +538,9 @@ function renderPersonalSections(
   if (options.includeUserReviews) {
     const mine = personal.reviews?.mine ?? null;
     const agg = personal.reviews?.aggregate ?? null;
-    rd.heading("Vurderinger av selskapet", 1, "Vurderinger lagret av brukere i Karrierenmin.");
+    rd.heading("Vurderinger av selskapet", 1, null, { reserveLines: 6 });
 
-    rd.heading(
-      "Min egen vurdering",
-      2,
-      mine ? "Dine lagrede vurderinger." : "Ingen lagret vurdering.",
-    );
+    rd.heading("Min egen vurdering", 2, null, { reserveLines: 4 });
     if (mine && mine.items.some((i) => typeof i.value === "number")) {
       for (const item of mine.items) rd.scoreBar(item.label, item.value);
       const flags = (mine.flags ?? []).filter((f) => f.trim().length > 0);
@@ -560,7 +556,7 @@ function renderPersonalSections(
       rd.paragraph("Du har ikke lagret en egen vurdering av dette selskapet.", { color: MUTED });
     }
 
-    rd.heading("Brukersnitt", 2, "Gjennomsnitt av manuelle vurderinger fra brukere.");
+    rd.heading("Brukersnitt", 2, null, { reserveLines: 4 });
     if (agg && agg.count > 0) {
       for (const item of agg.items) rd.scoreBar(item.label, item.value);
       rd.spacer(2);
@@ -575,11 +571,7 @@ function renderPersonalSections(
 
   if (options.includePersonalFit) {
     const fit = personal.fit ?? null;
-    rd.heading(
-      "Hvordan dette selskapet passer meg som ansatt",
-      1,
-      fit?.reasoning ?? "Personlig match basert på din profil.",
-    );
+    rd.heading("Hvordan dette selskapet passer meg som ansatt", 1, null, { reserveLines: 5 });
     if (!fit || fit.state === "none") {
       rd.paragraph("Din personlige match for dette selskapet er ikke beregnet ennå.", {
         color: MUTED,
