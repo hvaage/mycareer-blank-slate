@@ -320,15 +320,19 @@ class ReportDoc {
 
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(bodySize);
-    const followingLines =
-      opts.reserveLines ??
-      (followingText
-        ? (this.doc.splitTextToSize(followingText, CONTENT_W) as string[]).length
-        : 2);
+    const followingLines = followingText
+      ? (this.doc.splitTextToSize(followingText, CONTENT_W) as string[]).length
+      : 2;
 
-    // Kulepunkt reserverer 2,2 linjer per punkt; litt slakk hindrer at en
-    // overskrift blir stående alene nederst på siden.
-    if (!headingFits(this.available, headingHeight, bodyLh * 1.15, followingLines)) {
+    // Kulepunkt reserverer 2,2 linjer per punkt, og enkelte seksjoner starter
+    // med blokker som er høyere enn to tekstlinjer. `reserveLines` lar oss be
+    // om nok plass, slik at overskriften aldri blir stående alene nederst.
+    const fits =
+      opts.reserveLines !== undefined
+        ? this.available + 1e-9 >= headingHeight + bodyLh * 1.15 * opts.reserveLines
+        : headingFits(this.available, headingHeight, bodyLh * 1.15, followingLines);
+
+    if (!fits) {
       this.newPage();
     } else {
       this.spacer(gapBefore);
